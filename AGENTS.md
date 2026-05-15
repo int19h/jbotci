@@ -44,6 +44,43 @@ Be conservative about adding AST-comparison normalizations for Lean expectations
 If you add debug logging that is broadly useful beyond a one-off investigation, gate it behind an environment variable and document what it traces, how to enable it, and when it is useful. Do not leave ad hoc always-on debug output in the tree.
 
 
+# Design by contract
+
+Use design by contract for all code, including private members and types. DbC crate is https://github.com/x52dev/contracts. Capture all preconditions and postconditions, even those that are expensive to validate. For expensive checks, use `test_requires`, `test_ensures`, and `test_invariant`, otherwise use `requires`, `ensures`, and `invariant`. Examples:
+
+```rust
+#[contract_trait]
+trait MyRandom {
+    #[requires(min < max)]
+    #[ensures(min <= ret, ret <= max)]
+    fn gen(min: f64, max: f64) -> f64;
+}
+
+#[contract_trait]
+impl MyRandom for AlwaysMax {
+    fn gen(min: f64, max: f64) -> f64 {
+        max
+    }
+}
+
+#[ensures(*x == old(*x) + 1, "after the call `x` was incremented")]
+fn incr(x: &mut usize) {
+    *x += 1;
+}
+
+#[ensures(person_name.is_some() -> ret.contains(person_name.unwrap()))]
+fn greeting(person_name: Option<&str>) -> String {
+    let mut s = String::from("Hello");
+    if let Some(name) = person_name {
+        s.push(' ');
+        s.push_str(name);
+    }
+    s.push('!');
+    s
+}
+```
+
+
 # CLL Errata: Commas and Glides
 
 BPFK morphology treats commas as syllable separators only; commas do not affect glide/hiatus detection.
