@@ -11,7 +11,7 @@ use support::fixtures::{
     FixtureExport, FixtureSelector, LoadedTestCase, MorphologyExpectation, MuplisForm,
     OutputExpectation, Provenance, SyntaxExpectation, TestCase, TextExpectation, filter_fixtures,
     import_export_file, load_fixture_file, load_fixture_tree, run_fixture_facets,
-    write_fixture_file,
+    run_fixture_facets_parallel, write_fixture_file,
 };
 
 #[test]
@@ -123,6 +123,51 @@ fn fake_runner_counts_failures() {
     let summary = run_fixture_facets(&FakeBackend, &fixtures, &[Facet::Morphology, Facet::Syntax]);
     assert_eq!(summary.passed, 1);
     assert_eq!(summary.failed, 1);
+}
+
+#[test]
+fn parallel_runner_matches_serial_summary() {
+    struct FakeBackend;
+    impl FixtureBackend for FakeBackend {
+        fn run(&self, fixture: &LoadedTestCase, facet: Facet) -> FacetResult {
+            match (&fixture.test_case.id[..], facet) {
+                ("adhoc.first", Facet::Morphology) => FacetResult::passed(),
+                ("adhoc.second", Facet::Morphology) => FacetResult::failed("mismatch"),
+                _ => FacetResult::skipped("not selected"),
+            }
+        }
+    }
+
+    let first = loaded_case(
+        "tests/fixtures/adhoc/first.toml",
+        TestCase {
+            id: "adhoc.first".into(),
+            lojban: "coi".into(),
+            translation_en: None,
+            gloss_en: None,
+            tags: vec![],
+            provenance: vec![Provenance::Adhoc { description: None }],
+            expectations: Expectations::default(),
+        },
+    );
+    let second = loaded_case(
+        "tests/fixtures/adhoc/second.toml",
+        TestCase {
+            id: "adhoc.second".into(),
+            lojban: "co'o".into(),
+            translation_en: None,
+            gloss_en: None,
+            tags: vec![],
+            provenance: vec![Provenance::Adhoc { description: None }],
+            expectations: Expectations::default(),
+        },
+    );
+    let fixtures = vec![&first, &second];
+    let facets = [Facet::Morphology, Facet::Syntax];
+    assert_eq!(
+        run_fixture_facets_parallel(&FakeBackend, &fixtures, &facets),
+        run_fixture_facets(&FakeBackend, &fixtures, &facets)
+    );
 }
 
 #[test]

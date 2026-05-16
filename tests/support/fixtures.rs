@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use jbotci_morphology::WordWithModifiers;
 use jbotci_syntax::SyntaxValue;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use walkdir::WalkDir;
@@ -718,19 +719,15 @@ fn spaces(count: usize) -> String {
 pub fn load_fixture_tree(root: impl AsRef<Path>) -> Result<Vec<LoadedTestCase>, FixtureError> {
     let root = root.as_ref();
     let mut loaded = Vec::new();
-    visit_fixture_tree(root, |test_case| {
-        loaded.push(test_case);
-        Ok(())
-    })?;
+    for path in fixture_paths(root)? {
+        loaded.push(load_fixture_path(path)?);
+    }
     Ok(loaded)
 }
 
-pub fn visit_fixture_tree<F>(root: impl AsRef<Path>, mut visitor: F) -> Result<usize, FixtureError>
-where
-    F: FnMut(LoadedTestCase) -> Result<(), FixtureError>,
-{
+pub fn fixture_paths(root: impl AsRef<Path>) -> Result<Vec<PathBuf>, FixtureError> {
     let root = root.as_ref();
-    let mut count = 0;
+    let mut paths = Vec::new();
     for entry in WalkDir::new(root).sort_by_file_name() {
         let entry = entry.map_err(|source| FixtureError::Walk {
             path: root.to_path_buf(),
@@ -745,10 +742,28 @@ where
         {
             continue;
         }
-        let path = entry.path().to_path_buf();
-        let test_case = load_fixture_file(&path)?;
-        visitor(LoadedTestCase { path, test_case })?;
-        count += 1;
+        paths.push(entry.path().to_path_buf());
+    }
+    Ok(paths)
+}
+
+pub fn load_fixture_path(path: impl AsRef<Path>) -> Result<LoadedTestCase, FixtureError> {
+    let path = path.as_ref();
+    let test_case = load_fixture_file(path)?;
+    Ok(LoadedTestCase {
+        path: path.to_path_buf(),
+        test_case,
+    })
+}
+
+pub fn visit_fixture_tree<F>(root: impl AsRef<Path>, mut visitor: F) -> Result<usize, FixtureError>
+where
+    F: FnMut(LoadedTestCase) -> Result<(), FixtureError>,
+{
+    let paths = fixture_paths(root)?;
+    let count = paths.len();
+    for path in paths {
+        visitor(load_fixture_path(path)?)?;
     }
     Ok(count)
 }
@@ -757,21 +772,7 @@ pub fn validate_fixture_tree(root: impl AsRef<Path>) -> Result<FixtureSummary, F
     let root = root.as_ref();
     let mut seen = BTreeMap::new();
     let mut fixture_count = 0;
-    for entry in WalkDir::new(root).sort_by_file_name() {
-        let entry = entry.map_err(|source| FixtureError::Walk {
-            path: root.to_path_buf(),
-            source,
-        })?;
-        if !entry.file_type().is_file()
-            || entry.path().extension().is_none_or(|ext| ext != "toml")
-            || entry
-                .path()
-                .components()
-                .any(|component| component.as_os_str() == "profiles")
-        {
-            continue;
-        }
-        let path = entry.path().to_path_buf();
+    for path in fixture_paths(root)? {
         let test_case = load_fixture_file(&path)?;
         if let Some(first) = seen.insert(test_case.id.clone(), path.clone()) {
             return Err(FixtureError::DuplicateId {
@@ -976,6 +977,23 @@ pub struct RunSummary {
     pub skipped: usize,
 }
 
+impl RunSummary {
+    pub fn record_result(&mut self, result: &FacetResult) {
+        match result.status {
+            FacetStatus::Passed => self.passed += 1,
+            FacetStatus::Failed => self.failed += 1,
+            FacetStatus::Skipped => self.skipped += 1,
+        }
+    }
+
+    pub fn merge(&mut self, other: Self) {
+        self.selected_fixtures += other.selected_fixtures;
+        self.passed += other.passed;
+        self.failed += other.failed;
+        self.skipped += other.skipped;
+    }
+}
+
 pub fn run_fixture_facets<B: FixtureBackend>(
     backend: &B,
     fixtures: &[&LoadedTestCase],
@@ -988,13 +1006,34 @@ pub fn run_fixture_facets<B: FixtureBackend>(
     };
     for fixture in fixtures {
         for facet in facets {
-            match backend.run(fixture, *facet).status {
-                FacetStatus::Passed => summary.passed += 1,
-                FacetStatus::Failed => summary.failed += 1,
-                FacetStatus::Skipped => summary.skipped += 1,
-            }
+            summary.record_result(&backend.run(fixture, *facet));
         }
     }
+    summary
+}
+
+pub fn run_fixture_facets_parallel<B: FixtureBackend + Sync>(
+    backend: &B,
+    fixtures: &[&LoadedTestCase],
+    facets: &[Facet],
+) -> RunSummary {
+    let mut summary = fixtures
+        .par_iter()
+        .map(|fixture| {
+            let mut summary = RunSummary {
+                selected_fixtures: 1,
+                ..RunSummary::default()
+            };
+            for facet in facets {
+                summary.record_result(&backend.run(fixture, *facet));
+            }
+            summary
+        })
+        .reduce(RunSummary::default, |mut left, right| {
+            left.merge(right);
+            left
+        });
+    summary.selected_facets = facets.len();
     summary
 }
 

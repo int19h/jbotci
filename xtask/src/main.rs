@@ -3,14 +3,15 @@ use std::process::{Command as ProcessCommand, ExitStatus};
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
+use rayon::prelude::*;
 
 #[path = "../../tests/support/fixtures.rs"]
 mod fixtures;
 
 use fixtures::{
-    ExpectationStatus, Facet, FacetResult, FacetStatus, FixtureBackend, FixtureProfile,
-    FixtureSelector, LoadedTestCase, MuplisForm, RunSummary, fixture_matches_selector,
-    import_export_file, load_profile, validate_fixture_tree, visit_fixture_tree,
+    ExpectationStatus, Facet, FacetResult, FixtureBackend, FixtureProfile, FixtureSelector,
+    LoadedTestCase, MuplisForm, RunSummary, fixture_matches_selector, fixture_paths,
+    import_export_file, load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree,
 };
 
 #[derive(Debug, Parser)]
@@ -79,6 +80,8 @@ struct FixtureRunArgs {
     muplis_item: Option<String>,
     #[arg(long = "muplis-form")]
     muplis_form: Option<MuplisForm>,
+    #[arg(long, value_name = "N")]
+    jobs: Option<usize>,
 }
 
 fn main() -> Result<()> {
@@ -158,24 +161,16 @@ fn fixture_list(args: FixtureRunArgs) -> Result<()> {
 fn fixture_test(args: FixtureRunArgs) -> Result<()> {
     let profile = merged_profile(&args)?;
     let backend = NotImplementedBackend;
-    let mut summary = RunSummary {
-        selected_facets: profile.facets.len(),
-        ..RunSummary::default()
-    };
-    visit_fixture_tree(&args.root, |fixture| {
-        if fixture_matches_selector(&args.root, &fixture, &profile.selector) {
-            summary.selected_fixtures += 1;
-            for facet in &profile.facets {
-                match backend.run(&fixture, *facet).status {
-                    FacetStatus::Passed => summary.passed += 1,
-                    FacetStatus::Failed => summary.failed += 1,
-                    FacetStatus::Skipped => summary.skipped += 1,
-                }
-            }
-        }
-        Ok(())
-    })
-    .with_context(|| format!("loading fixtures under `{}`", args.root.display()))?;
+    let paths = fixture_paths(&args.root)
+        .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(args.jobs.unwrap_or_else(default_fixture_jobs))
+        .build()
+        .context("creating fixture-test thread pool")?;
+    let mut summary = pool
+        .install(|| run_fixture_test_jobs(&args.root, &profile, &backend, &paths))
+        .with_context(|| format!("loading fixtures under `{}`", args.root.display()))?;
+    summary.selected_facets = profile.facets.len();
     println!(
         "fixtures={}, facets={}, passed={}, failed={}, skipped={}",
         summary.selected_fixtures,
@@ -188,6 +183,35 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
         bail!("fixture-test failed {} facet(s)", summary.failed);
     }
     Ok(())
+}
+
+fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
+    root: &Path,
+    profile: &FixtureProfile,
+    backend: &B,
+    paths: &[PathBuf],
+) -> Result<RunSummary, fixtures::FixtureError> {
+    paths
+        .par_iter()
+        .map(|path| {
+            let fixture = load_fixture_path(path)?;
+            let mut summary = RunSummary::default();
+            if fixture_matches_selector(root, &fixture, &profile.selector) {
+                summary.selected_fixtures = 1;
+                for facet in &profile.facets {
+                    summary.record_result(&backend.run(&fixture, *facet));
+                }
+            }
+            Ok(summary)
+        })
+        .try_reduce(RunSummary::default, |mut left, right| {
+            left.merge(right);
+            Ok(left)
+        })
+}
+
+fn default_fixture_jobs() -> usize {
+    std::thread::available_parallelism().map_or(1, usize::from)
 }
 
 fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
