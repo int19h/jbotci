@@ -1,0 +1,27 @@
+id = "corpus.camxes.12696"
+lojban = "same count"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12696"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:6: 'count' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "same co👉unt"
+- not cmevla: cmevla (name) must end with a consonant
+  "same 👉count"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "same co👉unt"
+@ 5: "same 👉count""""

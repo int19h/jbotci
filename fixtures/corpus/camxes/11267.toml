@@ -1,0 +1,27 @@
+id = "corpus.camxes.11267"
+lojban = "lo tfi'inki mo"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11267"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:4: 'tfi'inki' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got 'f'
+  "lo t👉fi'inki mo"
+- not cmevla: cmevla (name) must end with a consonant
+  "lo 👉tfi'inki mo"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "lo 👉tfi'inki mo"
+@ 3: "lo 👉tfi'inki mo""""

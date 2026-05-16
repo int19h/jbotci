@@ -1,0 +1,27 @@
+id = "corpus.camxes.9826"
+lojban = "doi zeduard. mi na djuno ledu'u le sumti kau te tavla fi do"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "9826"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:5: 'zeduard.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "doi zed👉uard. mi na djuno ledu'u le su…"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "doi zed👉uard. mi na djuno ledu'u le su…"
+- not cmavo: cmavo 'ze' followed by 'd' which doesn't start a valid Lojban word
+  "doi ze👉duard. mi na djuno ledu'u le s…"
+@ 4: "doi 👉zeduard. mi na djuno ledu'u le…""""

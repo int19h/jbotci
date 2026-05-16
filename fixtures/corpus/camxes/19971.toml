@@ -1,0 +1,137 @@
+id = "corpus.camxes.19971"
+lojban = "zo'onai li'a"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19971"
+
+[expectations.morphology]
+status = "success"
+
+[[expectations.morphology.words]]
+kind = "with-indicator"
+
+[expectations.morphology.words.base]
+kind = "standalone-indicator"
+
+[expectations.morphology.words.base.indicator]
+kind = "cmavo"
+phonemes = "zo'o"
+
+[expectations.morphology.words.base.indicator.span]
+source_id = "<fixture>"
+byte_start = 0
+byte_end = 4
+char_start = 0
+char_end = 4
+
+[expectations.morphology.words.base.nai]
+kind = "cmavo"
+phonemes = "naĭ"
+
+[expectations.morphology.words.base.nai.span]
+source_id = "<fixture>"
+byte_start = 4
+byte_end = 7
+char_start = 4
+char_end = 7
+
+[expectations.morphology.words.indicator]
+kind = "cmavo"
+phonemes = "li'a"
+
+[expectations.morphology.words.indicator.span]
+source_id = "<fixture>"
+byte_start = 8
+byte_end = 12
+char_start = 8
+char_end = 12
+
+[expectations.syntax]
+status = "success"
+parse-tree = {
+    kind = "node",
+    node = {
+        constructor = "LojbanText",
+        fields = [
+            {
+                name = "leadingNai",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingCmevla",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingIndicators",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "(:)",
+                        fields = [
+                            {
+                                value = { kind = "word", word = { kind = "with-indicator", base = { kind = "standalone-indicator", indicator = { kind = "cmavo", phonemes = "zo'o", span = { source_id = "<fixture>", byte_start = 0, byte_end = 4, char_start = 0, char_end = 4 } }, nai = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 4, byte_end = 7, char_start = 4, char_end = 7 } } }, indicator = { kind = "cmavo", phonemes = "li'a", span = { source_id = "<fixture>", byte_start = 8, byte_end = 12, char_start = 8, char_end = 12 } } } }
+                            },
+                            {
+                                value = {
+                                    kind = "node",
+                                    node = {
+                                        constructor = "[]",
+                                        fields = []
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                name = "leadingFreeModifiers",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingConnective",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "Nothing",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "paragraphs",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            }
+        ]
+    }
+}

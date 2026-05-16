@@ -1,0 +1,23 @@
+id = "corpus.camxes.3435"
+lojban = "bai la viavois bacru ta'i le nu ro valsi cu pamei"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "3435"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:8: 'viavois' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "bai la v👉iavois bacru ta'i le nu ro val…"
+@ 7: "bai la 👉viavois bacru ta'i le nu ro va…""""

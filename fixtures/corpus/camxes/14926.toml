@@ -1,0 +1,27 @@
+id = "corpus.camxes.14926"
+lojban = "to clean"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "14926"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:4: 'clean' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "to cle👉an"
+- not cmevla: cmevla (name) must end with a consonant
+  "to 👉clean"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "to 👉clean"
+@ 3: "to 👉clean""""

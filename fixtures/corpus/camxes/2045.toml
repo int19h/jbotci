@@ -1,0 +1,27 @@
+id = "corpus.camxes.2045"
+lojban = " i lu ko tavla bau la lojban sei la cipnrxakuila cifnu cu cusku i mi na se slabu le smuni be su'opimu lei di'u clani valsi ije pe'i do ji'a na go'i li'u i la cipnrxakuila cifnu cu krogau le stedu mu'i le nu mipri le nu cisma i pisu'o lei drata cipni cu mi'amli co se tirna "
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2045"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:37: 'cipnrxakuila' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…jban sei la cipnrxak👉uila cifnu cu cusku i mi na se…"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…jban sei la cipnrxak👉uila cifnu cu cusku i mi na se…"
+- not cmavo: cmavo 'ci' followed by 'p' which doesn't start a valid Lojban word
+  "… la lojban sei la ci👉pnrxakuila cifnu cu cusku i mi…"
+@ 36: "…au la lojban sei la 👉cipnrxakuila cifnu cu cusku i …""""

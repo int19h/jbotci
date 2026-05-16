@@ -1,0 +1,27 @@
+id = "corpus.camxes.4209"
+lojban = "ma smuni zoi ly. fracture .ly. bau le fasbau -- NOT SURE (morphology, fasbau; also zoi)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "4209"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:39: 'fasbau' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…ture .ly. bau le fas👉bau -- NOT SURE (morphology, f…"
+- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…ture .ly. bau le fas👉bau -- NOT SURE (morphology, f…"
+- not cmavo: cmavo 'fa' followed by 's' which doesn't start a valid Lojban word
+  "…cture .ly. bau le fa👉sbau -- NOT SURE (morphology, …"
+@ 38: "…racture .ly. bau le 👉fasbau -- NOT SURE (morphology…""""

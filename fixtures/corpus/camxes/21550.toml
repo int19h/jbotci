@@ -1,0 +1,27 @@
+id = "corpus.camxes.21550"
+lojban = "ca le ro djedi poi me xamgu <here> mi cpacu ..."
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21550"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:30: 'here>' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'h'
+  "…djedi poi me xamgu <👉here> mi cpacu ..."
+- not cmevla: cmevla (name) must end with a consonant
+  "…djedi poi me xamgu <👉here> mi cpacu ..."
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…djedi poi me xamgu <👉here> mi cpacu ..."
+@ 29: "…djedi poi me xamgu <👉here> mi cpacu ...""""

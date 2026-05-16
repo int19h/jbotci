@@ -1,0 +1,23 @@
+id = "corpus.camxes.18849"
+lojban = "le lisri be le se mipri be le kamni co gidva be LLG"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18849"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:49: 'LLG' is not a valid Lojban word:
+- geminated consonants are not allowed (CLL 3.6)
+  "… kamni co gidva be L👉LG"
+@ 48: "…e kamni co gidva be 👉LLG""""

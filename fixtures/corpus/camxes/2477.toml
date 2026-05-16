@@ -1,0 +1,27 @@
+id = "corpus.camxes.2477"
+lojban = " i lu ca le nu ba'e mi noltroni'u kei sei abu to sepi'onai ku'i lo pajna mutce tonga toi sezysku nosai tsaprpiperi ba zvati le mi jupku'a i lo'e stasu cu xamgu secauku i cumki fa le nu roroiku lo'e tsaprpiperi cu rinka lo'e nu lo'e prenu cu cpina tarti sei abu mutce se pluka be le nu facki lo cnino javni i lo'e sarvanju cu rinka le nu py slari tarti i lo'e spatrkamomili cu rinka le nu py kurki tarti i y i lo'e bavmi sukta a lo'e simsa cu rinka lo'e nu lo'e verba cu titla tarti i au lo'e prenu cu djuno la'e di'u ja'e lo'e nu py na mobdu'a sy li'u -- NOT SURE (morphology, tsaprpiperi)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2477"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:566: 'morphology' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…'u -- NOT SURE (morp👉hology, tsaprpiperi)"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…'u -- NOT SURE (morp👉hology, tsaprpiperi)"
+- not cmavo: cmavo 'mo' followed by 'r' which doesn't start a valid Lojban word
+  "…li'u -- NOT SURE (mo👉rphology, tsaprpiperi)"
+@ 565: "…y li'u -- NOT SURE (👉morphology, tsaprpiperi)""""

@@ -1,0 +1,27 @@
+id = "corpus.camxes.7552"
+lojban = "co'o' .i mi bilga lenu klama"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7552"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'co'o'' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
+  "co'o'👉 .i mi bilga lenu klama"
+- not cmevla: cmevla (name) must end with a consonant
+  "👉co'o' .i mi bilga lenu klama"
+- not cmavo: apostrophe/h is only allowed between two vowels (CLL 3.3)
+  "co'o'👉 .i mi bilga lenu klama"
+@ 0: "👉co'o' .i mi bilga lenu klama""""

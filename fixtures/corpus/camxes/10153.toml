@@ -1,0 +1,27 @@
+id = "corpus.camxes.10153"
+lojban = "doi taliesin. va'o do na djica le nu casnu lo traji satci ku mi stidi le nu do cusku bau la lojban."
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "10153"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:5: 'taliesin.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "doi tal👉iesin. va'o do na djica le nu …"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "doi tal👉iesin. va'o do na djica le nu …"
+- not cmavo: cmavo 'ta' followed by 'l' which doesn't start a valid Lojban word
+  "doi ta👉liesin. va'o do na djica le nu…"
+@ 4: "doi 👉taliesin. va'o do na djica le …""""

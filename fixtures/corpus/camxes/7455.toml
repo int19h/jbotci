@@ -1,0 +1,27 @@
+id = "corpus.camxes.7455"
+lojban = "to isemu'ibo mi na cilre lo datni pe la logfest toi -- NOT SURE (morphology, logfest)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7455"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:41: 'logfest' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…e lo datni pe la log👉fest toi -- NOT SURE (morpholo…"
+- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…e lo datni pe la log👉fest toi -- NOT SURE (morpholo…"
+- not cmavo: cmavo 'lo' followed by 'g' which doesn't start a valid Lojban word
+  "…re lo datni pe la lo👉gfest toi -- NOT SURE (morphol…"
+@ 40: "…ilre lo datni pe la 👉logfest toi -- NOT SURE (morph…""""

@@ -1,0 +1,27 @@
+id = "corpus.camxes.8237"
+lojban = "more precision"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8237"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:6: 'precision' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "more precis👉ion"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "more precis👉ion"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "more 👉precision"
+@ 5: "more 👉precision""""

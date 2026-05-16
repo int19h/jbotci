@@ -1,0 +1,27 @@
+id = "corpus.camxes.2151"
+lojban = " i ca le mi nunci'o sei la uiliam spuda mi terpa le nu mi se benxai i caku ju'osai mi noda se besna i uisai mi roroi ka'e co'e "
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2151"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:28: 'uiliam' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…i nunci'o sei la uil👉iam spuda mi terpa le nu mi se…"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…i nunci'o sei la uil👉iam spuda mi terpa le nu mi se…"
+- not cmavo: cmavo 'ŭi' followed by 'l' which doesn't start a valid Lojban word
+  "…mi nunci'o sei la ui👉liam spuda mi terpa le nu mi s…"
+@ 27: "…e mi nunci'o sei la 👉uiliam spuda mi terpa le nu mi…""""

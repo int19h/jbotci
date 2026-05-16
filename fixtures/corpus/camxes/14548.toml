@@ -1,0 +1,27 @@
+id = "corpus.camxes.14548"
+lojban = "28 Feb 2003 19:08:04 * fracture darxi le lojbo cukta"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "14548"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:22: '*' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '*'
+  "…8 Feb 2003 19:08:04 👉* fracture darxi le lojbo cukt…"
+- not cmevla: cmevla (name) must end with a consonant
+  "…8 Feb 2003 19:08:04 👉* fracture darxi le lojbo cukt…"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…8 Feb 2003 19:08:04 👉* fracture darxi le lojbo cukt…"
+@ 21: "…8 Feb 2003 19:08:04 👉* fracture darxi le lojbo cukt…""""

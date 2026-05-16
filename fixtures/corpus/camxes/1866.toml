@@ -1,0 +1,27 @@
+id = "corpus.camxes.1866"
+lojban = "tci'ile ke canre tutra -- NOT SURE (morphology, tci'ile)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "1866"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:37: 'morphology' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…ra -- NOT SURE (morp👉hology, tci'ile)"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…ra -- NOT SURE (morp👉hology, tci'ile)"
+- not cmavo: cmavo 'mo' followed by 'r' which doesn't start a valid Lojban word
+  "…utra -- NOT SURE (mo👉rphology, tci'ile)"
+@ 36: "… tutra -- NOT SURE (👉morphology, tci'ile)""""

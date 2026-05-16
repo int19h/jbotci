@@ -1,0 +1,23 @@
+id = "corpus.camxes.18714"
+lojban = "mmm... li .abu pi'i xy te'a re su'i by pi'i xy su'i cy du no"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18714"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'mmm...' is not a valid Lojban word:
+- geminated consonants are not allowed (CLL 3.6)
+  "m👉mm... li .abu pi'i xy te'a re …"
+@ 0: "👉mmm... li .abu pi'i xy te'a re…""""

@@ -1,0 +1,27 @@
+id = "corpus.camxes.15688"
+lojban = "20 Apr 2003 13:25:57 * sanxiyn cmila"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "15688"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:22: '*' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '*'
+  "…0 Apr 2003 13:25:57 👉* sanxiyn cmila"
+- not cmevla: cmevla (name) must end with a consonant
+  "…0 Apr 2003 13:25:57 👉* sanxiyn cmila"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…0 Apr 2003 13:25:57 👉* sanxiyn cmila"
+@ 21: "…0 Apr 2003 13:25:57 👉* sanxiyn cmila""""

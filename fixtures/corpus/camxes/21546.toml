@@ -1,0 +1,27 @@
+id = "corpus.camxes.21546"
+lojban = "coi sonjaaa"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21546"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:5: 'sonjaaa' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "son" but got "jaaa"
+  "coi son👉jaaa"
+- not cmevla: cmevla (name) must end with a consonant
+  "coi 👉sonjaaa"
+- not cmavo: cmavo 'so' followed by 'n' which doesn't start a valid Lojban word
+  "coi so👉njaaa"
+@ 4: "coi 👉sonjaaa""""

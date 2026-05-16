@@ -1,0 +1,27 @@
+id = "corpus.camxes.16447"
+lojban = "ru'a my. terpa le za'i jinga fi my. .i cavi benji so'u nuzba pe na'ebo zoi /middle east/ "
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16447"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:76: '/middle' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '/'
+  "…nuzba pe na'ebo zoi 👉/middle east/ "
+- not cmevla: cmevla (name) must end with a consonant
+  "…nuzba pe na'ebo zoi 👉/middle east/ "
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…nuzba pe na'ebo zoi 👉/middle east/ "
+@ 75: "…nuzba pe na'ebo zoi 👉/middle east/ """"

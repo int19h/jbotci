@@ -26,8 +26,14 @@ command-line tools first, then the Dioxus web/server and GUI surfaces.
 ```sh
 cargo xtask check
 cargo xtask test
+cargo xtask clippy
 cargo xtask fixture-check
+cargo xtask fixture-list --profile cargo
 ```
+
+The parser facets are scaffolded but intentionally return `NotImplemented` at
+this checkpoint. Use `cargo xtask fixture-test --profile all --facet morphology
+--facet syntax` when you want to exercise the intentionally red runner path.
 
 `vendor/cll` is kept as a submodule because CLL examples and references are
 part of the core parser and semantics development loop.

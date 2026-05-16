@@ -1,0 +1,23 @@
+id = "corpus.camxes.15360"
+lojban = "i love scheme"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "15360"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:8: 'scheme' is not a valid Lojban word:
+- 'sc' is not a permitted consonant pair (CLL 3.6)
+  "i love s👉cheme"
+@ 7: "i love 👉scheme""""

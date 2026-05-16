@@ -1,0 +1,27 @@
+id = "corpus.camxes.631"
+lojban = "fo'a goi le kulnrsu,omi .i lo fo'arselsanga"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "631"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:13: 'kulnrsu' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "fo'a goi le kulnrs👉u,omi .i lo fo'arselsanga"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "fo'a goi le kulnrs👉u,omi .i lo fo'arselsanga"
+- not cmavo: cmavo 'ku' followed by 'l' which doesn't start a valid Lojban word
+  "fo'a goi le ku👉lnrsu,omi .i lo fo'arselsanga"
+@ 12: "fo'a goi le 👉kulnrsu,omi .i lo fo'arselsang…""""

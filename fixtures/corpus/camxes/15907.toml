@@ -1,0 +1,27 @@
+id = "corpus.camxes.15907"
+lojban = ".uipei .i naisai/sai/cai/ru'e/nairu'e/etc"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "15907"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:11: 'naisai/sai/cai/ru'e/nairu'e/etc' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "naĭsaĭ" but got "/sai/cai/ru'e/nairu'e/etc"
+  ".uipei .i naisai👉/sai/cai/ru'e/nairu'e/etc"
+- not cmevla: cmevla (name) must end with a consonant
+  ".uipei .i 👉naisai/sai/cai/ru'e/nairu'e/et…"
+- not cmavo: cmavo 'naĭ' followed by 's' which doesn't start a valid Lojban word
+  ".uipei .i nai👉sai/sai/cai/ru'e/nairu'e/etc"
+@ 10: ".uipei .i 👉naisai/sai/cai/ru'e/nairu'e/et…""""

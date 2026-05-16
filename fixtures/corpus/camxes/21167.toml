@@ -1,0 +1,23 @@
+id = "corpus.camxes.21167"
+lojban = "se mukti then?"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21167"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:10: 'then?' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "se mukti t👉hen?"
+@ 9: "se mukti 👉then?""""

@@ -1,0 +1,23 @@
+id = "corpus.camxes.20065"
+lojban = "la tcuan sus cu cusku lu le si'o xusra le du'u lo jicmu cu du lo ralju kei .e le du'u lo dacti cu na'e farvi rinka kei .e le du'u le ka banro ponse kei cu xlali kei kei ku joi le si'o smaji je sepli xabju kansa le selylijda je selpensi kei cu nenri le tadji pe la taos pe le tcesau"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20065"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:4: 'tcuan' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "la tc👉uan sus cu cusku lu le si'o xu…"
+@ 3: "la 👉tcuan sus cu cusku lu le si'o …""""

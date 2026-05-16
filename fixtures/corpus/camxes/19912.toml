@@ -1,0 +1,27 @@
+id = "corpus.camxes.19912"
+lojban = "piro doesn't make any sense to me"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19912"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:6: 'doesn't' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "piro do👉esn't make any sense to me"
+- not cmevla: cmevla (name) must end with a consonant
+  "piro 👉doesn't make any sense to me"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "piro do👉esn't make any sense to me"
+@ 5: "piro 👉doesn't make any sense to me""""

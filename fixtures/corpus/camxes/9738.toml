@@ -1,0 +1,27 @@
+id = "corpus.camxes.9738"
+lojban = "err a gismu"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "9738"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'err' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "er👉r a gismu"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "er👉r a gismu"
+- not cmavo: cmavo 'e' followed by 'r' which doesn't start a valid Lojban word
+  "e👉rr a gismu"
+@ 0: "👉err a gismu""""

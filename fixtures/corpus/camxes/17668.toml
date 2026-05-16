@@ -1,0 +1,27 @@
+id = "corpus.camxes.17668"
+lojban = "la co'e, yes; la me zo'e, la me zi'o, la me zu'o, etc."
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17668"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:10: 'yes;' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'y'
+  "la co'e, 👉yes; la me zo'e, la me zi'o, l…"
+- not cmevla: cmevla (name) must end with a consonant
+  "la co'e, 👉yes; la me zo'e, la me zi'o, l…"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "la co'e, 👉yes; la me zo'e, la me zi'o, l…"
+@ 9: "la co'e, 👉yes; la me zo'e, la me zi'o, l…""""

@@ -1,0 +1,23 @@
+id = "corpus.camxes.9767"
+lojban = "i use bsd"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "9767"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:7: 'bsd' is not a valid Lojban word:
+- adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "i use b👉sd"
+@ 6: "i use 👉bsd""""

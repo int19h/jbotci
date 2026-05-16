@@ -1,0 +1,27 @@
+id = "corpus.camxes.14396"
+lojban = ".i puza tadni la tenguar. .i"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "14396"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:18: 'tenguar.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…i puza tadni la teng👉uar. .i"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…i puza tadni la teng👉uar. .i"
+- not cmavo: cmavo 'te' followed by 'n' which doesn't start a valid Lojban word
+  ".i puza tadni la te👉nguar. .i"
+@ 17: ".i puza tadni la 👉tenguar. .i""""

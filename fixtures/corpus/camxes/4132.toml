@@ -1,0 +1,23 @@
+id = "corpus.camxes.4132"
+lojban = "i think so"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "4132"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:3: 'think' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "i t👉hink so"
+@ 2: "i 👉think so""""

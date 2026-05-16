@@ -1,0 +1,27 @@
+id = "corpus.camxes.18883"
+lojban = "za'o na == za'o zo'e na"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18883"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:9: '==' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '='
+  "za'o na 👉== za'o zo'e na"
+- not cmevla: cmevla (name) must end with a consonant
+  "za'o na 👉== za'o zo'e na"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "za'o na 👉== za'o zo'e na"
+@ 8: "za'o na 👉== za'o zo'e na""""

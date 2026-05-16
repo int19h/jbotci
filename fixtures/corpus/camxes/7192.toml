@@ -1,0 +1,27 @@
+id = "corpus.camxes.7192"
+lojban = ".ui a quorum"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7192"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:7: 'quorum' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'q'
+  ".ui a 👉quorum"
+- not cmevla: cmevla (name) must end with a consonant
+  ".ui a 👉quorum"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  ".ui a 👉quorum"
+@ 6: ".ui a 👉quorum""""

@@ -1,0 +1,27 @@
+id = "corpus.camxes.3221"
+lojban = "ro cakla cu se pagbu lo xukrteobromino"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "3221"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:25: 'xukrteobromino' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "xuk" but got "rteobromino"
+  "…a cu se pagbu lo xuk👉rteobromino"
+- not cmevla: cmevla (name) must end with a consonant
+  "…akla cu se pagbu lo 👉xukrteobromino"
+- not cmavo: cmavo 'xu' followed by 'k' which doesn't start a valid Lojban word
+  "…la cu se pagbu lo xu👉krteobromino"
+@ 24: "…akla cu se pagbu lo 👉xukrteobromino""""

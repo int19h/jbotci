@@ -1,0 +1,27 @@
+id = "corpus.camxes.6613"
+lojban = "i like bash"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "6613"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:8: 'bash' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "i like bas👉h"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "i like bas👉h"
+- not cmavo: cmavo 'ba' followed by 's' which doesn't start a valid Lojban word
+  "i like ba👉sh"
+@ 7: "i like 👉bash""""

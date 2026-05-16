@@ -1,0 +1,27 @@
+id = "corpus.camxes.8965"
+lojban = "it's a rafsi"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8965"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'it's' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "it👉's a rafsi"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "it👉's a rafsi"
+- not cmavo: cmavo 'i' followed by 't' which doesn't start a valid Lojban word
+  "i👉t's a rafsi"
+@ 0: "👉it's a rafsi""""

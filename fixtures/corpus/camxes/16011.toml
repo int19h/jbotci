@@ -1,0 +1,27 @@
+id = "corpus.camxes.16011"
+lojban = "i ku'i mi pu za benji lo notci poi srana le vlacku dacti ku'o fu la rekuestrakr"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16011"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:69: 'rekuestrakr' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…dacti ku'o fu la rek👉uestrakr"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…dacti ku'o fu la rek👉uestrakr"
+- not cmavo: cmavo 're' followed by 'k' which doesn't start a valid Lojban word
+  "… dacti ku'o fu la re👉kuestrakr"
+@ 68: "…ku dacti ku'o fu la 👉rekuestrakr""""

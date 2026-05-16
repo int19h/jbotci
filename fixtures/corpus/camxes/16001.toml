@@ -1,0 +1,27 @@
+id = "corpus.camxes.16001"
+lojban = "doi xavier mi ji'a zanru le marna taxfu e le marna skori"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16001"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:5: 'xavier' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "doi xav👉ier mi ji'a zanru le marna tax…"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "doi xav👉ier mi ji'a zanru le marna tax…"
+- not cmavo: cmavo 'xa' followed by 'v' which doesn't start a valid Lojban word
+  "doi xa👉vier mi ji'a zanru le marna ta…"
+@ 4: "doi 👉xavier mi ji'a zanru le marna …""""

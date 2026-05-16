@@ -1,0 +1,27 @@
+id = "corpus.camxes.5976"
+lojban = "save a syllable"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "5976"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:8: 'syllable' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got 'y'
+  "save a s👉yllable"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "save a syl👉lable"
+- not cmavo: cmavo 'sy' followed by 'l' which doesn't start a valid Lojban word
+  "save a sy👉llable"
+@ 7: "save a 👉syllable""""

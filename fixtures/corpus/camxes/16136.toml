@@ -1,0 +1,27 @@
+id = "corpus.camxes.16136"
+lojban = "i xu la napoleón cu fraso"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16136"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:9: 'napoleón' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "nap" but got "oleón"
+  "i xu la nap👉oleón cu fraso"
+- not cmevla: cmevla (name) must end with a consonant
+  "i xu la 👉napoleón cu fraso"
+- not cmavo: cmavo 'na' followed by 'p' which doesn't start a valid Lojban word
+  "i xu la na👉poleón cu fraso"
+@ 8: "i xu la 👉napoleón cu fraso""""

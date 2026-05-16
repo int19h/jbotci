@@ -1,0 +1,27 @@
+id = "corpus.camxes.20546"
+lojban = "le te zukte la mu is two seperate sumti."
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20546"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:22: 'two' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got 'w'
+  "… te zukte la mu is t👉wo seperate sumti."
+- not cmevla: cmevla (name) must end with a consonant
+  "…e te zukte la mu is 👉two seperate sumti."
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…e te zukte la mu is 👉two seperate sumti."
+@ 21: "…e te zukte la mu is 👉two seperate sumti.""""

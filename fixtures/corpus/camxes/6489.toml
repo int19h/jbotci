@@ -1,0 +1,27 @@
+id = "corpus.camxes.6489"
+lojban = "ma smuni zo skamrxuebe"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "6489"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:13: 'skamrxuebe' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "ma smuni zo skamrx👉uebe"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "ma smuni zo skamrx👉uebe"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "ma smuni zo 👉skamrxuebe"
+@ 12: "ma smuni zo 👉skamrxuebe""""

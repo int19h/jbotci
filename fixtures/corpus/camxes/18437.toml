@@ -1,0 +1,27 @@
+id = "corpus.camxes.18437"
+lojban = "ui mi nelci la fyndj -- NOT SURE (morphology, fyndj)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18437"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:16: 'fyndj' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got 'y'
+  "ui mi nelci la f👉yndj -- NOT SURE (morphology, …"
+- not cmevla: 'ndj', 'ndz', 'ntc', and 'nts' are forbidden (CLL 3.7)
+  "ui mi nelci la fyn👉dj -- NOT SURE (morphology, fy…"
+- not cmavo: cmavo 'fy' followed by 'n' which doesn't start a valid Lojban word
+  "ui mi nelci la fy👉ndj -- NOT SURE (morphology, f…"
+@ 15: "ui mi nelci la 👉fyndj -- NOT SURE (morphology,…""""

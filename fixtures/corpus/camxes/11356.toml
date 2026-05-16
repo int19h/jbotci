@@ -1,0 +1,27 @@
+id = "corpus.camxes.11356"
+lojban = "le mi pu prami ninmu cu jai gugrturki,e"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11356"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:29: 'gugrturki' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…inmu cu jai gugrturk👉i,e"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…inmu cu jai gugrturk👉i,e"
+- not cmavo: cmavo 'gu' followed by 'g' which doesn't start a valid Lojban word
+  "…rami ninmu cu jai gu👉grturki,e"
+@ 28: "… prami ninmu cu jai 👉gugrturki,e""""

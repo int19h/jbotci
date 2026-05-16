@@ -1,0 +1,27 @@
+id = "corpus.camxes.2757"
+lojban = " i la blabi ractu co'a dasni le vistci i lu ei mi go'i co'a ma pe'u doi nolba'i sei ry retysku li'u -- NOT SURE (morphology, retysku)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2757"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:114: 'morphology' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…'u -- NOT SURE (morp👉hology, retysku)"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…'u -- NOT SURE (morp👉hology, retysku)"
+- not cmavo: cmavo 'mo' followed by 'r' which doesn't start a valid Lojban word
+  "…li'u -- NOT SURE (mo👉rphology, retysku)"
+@ 113: "…u li'u -- NOT SURE (👉morphology, retysku)""""

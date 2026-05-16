@@ -1,0 +1,27 @@
+id = "corpus.camxes.2644"
+lojban = " i lu le nunpai cu mo sei la alis vaxyselnandu cusku ca le nu bajra i ku'i la cpicinfo cu spuda lu e'e li'u po'o gi'e sutyze'a bajra ca'o le nu bleze'a to se bevri le brife poi jersi vo'a toi fa lei badri valsi po'u di'e -- NOT SURE (morphology, vaxyselnandu)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2644"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:235: 'morphology' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…'e -- NOT SURE (morp👉hology, vaxyselnandu)"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…'e -- NOT SURE (morp👉hology, vaxyselnandu)"
+- not cmavo: cmavo 'mo' followed by 'r' which doesn't start a valid Lojban word
+  "…di'e -- NOT SURE (mo👉rphology, vaxyselnandu)"
+@ 234: "…u di'e -- NOT SURE (👉morphology, vaxyselnandu)""""

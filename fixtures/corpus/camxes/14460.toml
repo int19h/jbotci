@@ -1,0 +1,23 @@
+id = "corpus.camxes.14460"
+lojban = "la seint.luis.misori."
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "14460"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:10: 'luis.misori.' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "la seint.l👉uis.misori."
+@ 9: "la seint.👉luis.misori.""""

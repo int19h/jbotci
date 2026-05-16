@@ -1,0 +1,27 @@
+id = "corpus.camxes.12675"
+lojban = "doi .odogwus. le nu mi co'a djuno fi do kei traji pluka mi"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12675"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:6: 'odogwus.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'o'
+  "doi .👉odogwus. le nu mi co'a djuno f…"
+- not cmevla: cmevla (name) must end with a consonant
+  "doi .👉odogwus. le nu mi co'a djuno f…"
+- not cmavo: cmavo 'o' followed by 'd' which doesn't start a valid Lojban word
+  "doi .o👉dogwus. le nu mi co'a djuno fi…"
+@ 5: "doi .👉odogwus. le nu mi co'a djuno f…""""

@@ -1,0 +1,27 @@
+id = "corpus.camxes.9948"
+lojban = ".ua #2 cinri"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "9948"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:5: '#2' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '#'
+  ".ua 👉#2 cinri"
+- not cmevla: cmevla (name) must end with a consonant
+  ".ua 👉#2 cinri"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  ".ua 👉#2 cinri"
+@ 4: ".ua 👉#2 cinri""""

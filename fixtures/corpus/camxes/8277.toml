@@ -1,0 +1,23 @@
+id = "corpus.camxes.8277"
+lojban = "then ro da zo'u ganai da zdani lo gerku gi da gerzda -- NOT SURE (morphology, then)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8277"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'then' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "t👉hen ro da zo'u ganai da zdani …"
+@ 0: "👉then ro da zo'u ganai da zdani…""""

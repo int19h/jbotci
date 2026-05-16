@@ -1,0 +1,27 @@
+id = "corpus.camxes.15365"
+lojban = "time to eat"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "15365"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:9: 'eat' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "time to e👉at"
+- not cmevla: cmevla (name) must end with a consonant
+  "time to 👉eat"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "time to e👉at"
+@ 8: "time to 👉eat""""

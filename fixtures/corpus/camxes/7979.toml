@@ -1,0 +1,23 @@
+id = "corpus.camxes.7979"
+lojban = "biomass: mi nelci le se gasnu be la djon"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7979"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'biomass:' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "b👉iomass: mi nelci le se gasnu b…"
+@ 0: "👉biomass: mi nelci le se gasnu …""""

@@ -1,0 +1,27 @@
+id = "corpus.camxes.20123"
+lojban = "black obroni -- NOT SURE (morphology, black, obroni)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20123"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:27: 'morphology' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…ni -- NOT SURE (morp👉hology, black, obroni)"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…ni -- NOT SURE (morp👉hology, black, obroni)"
+- not cmavo: cmavo 'mo' followed by 'r' which doesn't start a valid Lojban word
+  "…roni -- NOT SURE (mo👉rphology, black, obroni)"
+@ 26: "…obroni -- NOT SURE (👉morphology, black, obroni)""""

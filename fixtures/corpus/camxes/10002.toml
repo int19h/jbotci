@@ -1,0 +1,27 @@
+id = "corpus.camxes.10002"
+lojban = "nader's a pinko"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "10002"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'nader's' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "nader👉's a pinko"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "nader👉's a pinko"
+- not cmavo: cmavo 'na' followed by 'd' which doesn't start a valid Lojban word
+  "na👉der's a pinko"
+@ 0: "👉nader's a pinko""""

@@ -1,0 +1,27 @@
+id = "corpus.camxes.22490"
+lojban = "coi dani,El"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "22490"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:5: 'dani' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "coi dan👉i,El"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "coi dan👉i,El"
+- not cmavo: cmavo 'da' followed by 'n' which doesn't start a valid Lojban word
+  "coi da👉ni,El"
+@ 4: "coi 👉dani,El""""

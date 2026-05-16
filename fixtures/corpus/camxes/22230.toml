@@ -1,0 +1,27 @@
+id = "corpus.camxes.22230"
+lojban = "djandjan: lo minra"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "22230"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'djandjan:' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: 'ndj', 'ndz', 'ntc', and 'nts' are forbidden (CLL 3.7)
+  "djan👉djan: lo minra"
+- not cmevla: 'ndj', 'ndz', 'ntc', and 'nts' are forbidden (CLL 3.7)
+  "djan👉djan: lo minra"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "👉djandjan: lo minra"
+@ 0: "👉djandjan: lo minra""""

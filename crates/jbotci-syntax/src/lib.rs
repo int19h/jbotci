@@ -78,3 +78,52 @@ pub fn parse_text(
 ) -> Result<LojbanText, SyntaxError> {
     Err(SyntaxError::NotImplemented)
 }
+
+/// Lossless fixture representation for v0 syntax trees.
+///
+/// The parser port will eventually use the strongly typed parse-tree structs
+/// directly. Until then, v0 exports syntax expectations as constructor records:
+/// every node has a constructor name and an ordered field list. This preserves
+/// record field order and avoids treating the raw tree as an opaque string.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SyntaxTree {
+    pub root: SyntaxValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SyntaxNode {
+    pub constructor: String,
+    #[serde(default)]
+    pub fields: Vec<SyntaxField>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SyntaxField {
+    #[serde(default)]
+    pub name: Option<String>,
+    pub value: SyntaxValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum SyntaxValue {
+    Null,
+    Bool { value: bool },
+    Integer { value: i64 },
+    Text { value: String },
+    List { items: Vec<SyntaxValue> },
+    Node { node: Box<SyntaxNode> },
+    Word { word: Box<WordWithModifiers> },
+    Json { value: serde_json::Value },
+}
+
+impl SyntaxValue {
+    pub fn node(constructor: impl Into<String>, fields: Vec<SyntaxField>) -> Self {
+        Self::Node {
+            node: Box::new(SyntaxNode {
+                constructor: constructor.into(),
+                fields,
+            }),
+        }
+    }
+}

@@ -1,0 +1,27 @@
+id = "corpus.camxes.17731"
+lojban = "12 Jun 2003 21:00:36 * clsn de'a zvati."
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17731"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:22: '*' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '*'
+  "…2 Jun 2003 21:00:36 👉* clsn de'a zvati."
+- not cmevla: cmevla (name) must end with a consonant
+  "…2 Jun 2003 21:00:36 👉* clsn de'a zvati."
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…2 Jun 2003 21:00:36 👉* clsn de'a zvati."
+@ 21: "…2 Jun 2003 21:00:36 👉* clsn de'a zvati.""""

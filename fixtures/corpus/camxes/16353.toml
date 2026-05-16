@@ -1,0 +1,27 @@
+id = "corpus.camxes.16353"
+lojban = "coi fraktiur. ma cmene do"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16353"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:5: 'fraktiur.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "coi frakt👉iur. ma cmene do"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "coi frakt👉iur. ma cmene do"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "coi 👉fraktiur. ma cmene do"
+@ 4: "coi 👉fraktiur. ma cmene do""""

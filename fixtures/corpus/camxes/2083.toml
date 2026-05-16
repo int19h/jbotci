@@ -1,0 +1,27 @@
+id = "corpus.camxes.2083"
+lojban = " i baziku la ractu cu sanji la alis noi ru'u sisku ku'o gi'e fengu kixsku fi abu fe lu ue doi meri,An do ma zukte bu'u le bartu i ko ca bajra klama le zdani gi'e bevri lo gluta remei e lo bifpra mi i ko sutra li'u i la alis cu tai terpa ja'e le nu abu zi bajra fa'a le farna poi ry jarco ku'o gi'e na troci le nu ciksi le se srera be ry "
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2083"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:95: 'meri' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…abu fe lu ue doi mer👉i,An do ma zukte bu'u le bartu…"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…abu fe lu ue doi mer👉i,An do ma zukte bu'u le bartu…"
+- not cmavo: cmavo 'me' followed by 'r' which doesn't start a valid Lojban word
+  "… abu fe lu ue doi me👉ri,An do ma zukte bu'u le bart…"
+@ 94: "…fi abu fe lu ue doi 👉meri,An do ma zukte bu'u le ba…""""

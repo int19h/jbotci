@@ -1,0 +1,27 @@
+id = "corpus.camxes.7723"
+lojban = "Taliesin: do zvati ma poi gugdrsteita"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7723"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'Taliesin:' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "Tal👉iesin: do zvati ma poi gugdrst…"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "Tal👉iesin: do zvati ma poi gugdrst…"
+- not cmavo: cmavo 'ta' followed by 'l' which doesn't start a valid Lojban word
+  "Ta👉liesin: do zvati ma poi gugdrs…"
+@ 0: "👉Taliesin: do zvati ma poi gugd…""""

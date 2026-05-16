@@ -1,0 +1,27 @@
+id = "corpus.camxes.3677"
+lojban = "da me loi lerfu ku mutyminji nabmi -- NOT SURE (morphology, mutyminji)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "3677"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:49: 'morphology' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…mi -- NOT SURE (morp👉hology, mutyminji)"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…mi -- NOT SURE (morp👉hology, mutyminji)"
+- not cmavo: cmavo 'mo' followed by 'r' which doesn't start a valid Lojban word
+  "…abmi -- NOT SURE (mo👉rphology, mutyminji)"
+@ 48: "… nabmi -- NOT SURE (👉morphology, mutyminji)""""

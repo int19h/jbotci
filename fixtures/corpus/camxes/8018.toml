@@ -1,0 +1,23 @@
+id = "corpus.camxes.8018"
+lojban = "Then make one."
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8018"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'Then' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "T👉hen make one."
+@ 0: "👉Then make one.""""

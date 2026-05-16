@@ -1,0 +1,27 @@
+id = "corpus.camxes.11480"
+lojban = "because zo pa isn't a cmavo category"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11480"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:15: 'isn't' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "because zo pa isn👉't a cmavo category"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "because zo pa isn👉't a cmavo category"
+- not cmavo: cmavo 'i' followed by 's' which doesn't start a valid Lojban word
+  "because zo pa i👉sn't a cmavo category"
+@ 14: "because zo pa 👉isn't a cmavo category""""

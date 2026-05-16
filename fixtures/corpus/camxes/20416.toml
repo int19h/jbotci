@@ -1,0 +1,27 @@
+id = "corpus.camxes.20416"
+lojban = "lo prenrsverige cu ralju fi le ka ce'u badna citka -- NOT SURE (morphology, prenrsverige)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20416"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:4: 'prenrsverige' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "lo prenrs👉verige cu ralju fi le ka ce'u …"
+- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "lo prenrs👉verige cu ralju fi le ka ce'u …"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "lo 👉prenrsverige cu ralju fi le ka…"
+@ 3: "lo 👉prenrsverige cu ralju fi le ka…""""

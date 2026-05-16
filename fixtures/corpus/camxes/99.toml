@@ -1,0 +1,21 @@
+id = "corpus.camxes.99"
+lojban = "bu zei de"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "99"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:3: bu requires a preceding word to convert to letter
+@ 2: "bu👉 zei de""""

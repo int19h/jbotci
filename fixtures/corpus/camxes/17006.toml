@@ -1,0 +1,27 @@
+id = "corpus.camxes.17006"
+lojban = "le gugdrxelveto (Switzerland)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17006"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:18: 'Switzerland)' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got 'w'
+  "le gugdrxelveto (S👉witzerland)"
+- not cmevla: cmevla (name) must end with a consonant
+  "le gugdrxelveto (👉Switzerland)"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "le gugdrxelveto (👉Switzerland)"
+@ 17: "le gugdrxelveto (👉Switzerland)""""

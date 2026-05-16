@@ -1,0 +1,27 @@
+id = "corpus.camxes.7997"
+lojban = "as opposed to mi tavla ca lo nanca be lici -- NOT SURE (morphology, opposed)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7997"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:4: 'opposed' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "as op👉posed to mi tavla ca lo nanca …"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "as op👉posed to mi tavla ca lo nanca …"
+- not cmavo: cmavo 'o' followed by 'p' which doesn't start a valid Lojban word
+  "as o👉pposed to mi tavla ca lo nanca…"
+@ 3: "as 👉opposed to mi tavla ca lo nanc…""""

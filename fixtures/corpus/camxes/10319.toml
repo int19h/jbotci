@@ -1,0 +1,27 @@
+id = "corpus.camxes.10319"
+lojban = "xu do troci le samselpla po'u la wy ci my"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "10319"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:34: 'wy' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'w'
+  "…e samselpla po'u la 👉wy ci my"
+- not cmevla: cmevla (name) must end with a consonant
+  "…e samselpla po'u la 👉wy ci my"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…e samselpla po'u la 👉wy ci my"
+@ 33: "…e samselpla po'u la 👉wy ci my""""

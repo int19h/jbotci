@@ -1,0 +1,27 @@
+id = "corpus.camxes.6961"
+lojban = "lujvo are messy"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "6961"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:11: 'messy' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "lujvo are mes👉sy"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "lujvo are mes👉sy"
+- not cmavo: cmavo 'me' followed by 's' which doesn't start a valid Lojban word
+  "lujvo are me👉ssy"
+@ 10: "lujvo are 👉messy""""

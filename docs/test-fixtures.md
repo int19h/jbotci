@@ -38,13 +38,33 @@ source-path = "vendor/cll/chapters/18.xml"
 [expectations.morphology]
 status = "success"
 
-[[expectations.morphology.tokens]]
+[[expectations.morphology.words]]
+kind = "base-word"
+
+[expectations.morphology.words.word_like]
+kind = "bare"
+
+[expectations.morphology.words.word_like.word]
 kind = "cmavo"
-text = "coi"
-canonical = "coi"
+phonemes = "coi"
+surface_override = "coi"
+
+[expectations.morphology.words.word_like.word.span]
+source_id = "<fixture>"
+byte_start = 0
+byte_end = 3
+char_start = 0
+char_end = 3
 
 [expectations.syntax]
 status = "success"
+parse-tree = {
+    kind = "node",
+    node = {
+        constructor = "LojbanText",
+        fields = []
+    }
+}
 ```
 
 Every facet is optional so exporters can land expectations incrementally. The
@@ -52,3 +72,9 @@ long-term goal is one uniform fixture format for CLL, muplis, camxes corpus,
 and ad hoc regression cases. Test runners should allow selection by both
 fixture groups and facet, for example all CLL chapter 18 syntax tests or all
 CLL plus muplis semantics tests.
+
+Profiles live under `fixtures/profiles/` and combine facet selection with the
+same selectors accepted by `cargo xtask fixture-list` and `cargo xtask
+fixture-test`. The `cargo` profile intentionally selects no facets so ordinary
+`cargo test` can validate loading and filtering without running unported parser
+facets.

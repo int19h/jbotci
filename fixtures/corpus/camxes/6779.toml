@@ -1,0 +1,27 @@
+id = "corpus.camxes.6779"
+lojban = '''lenu tunta le mi tamji cu sumni\\ ledu'u lo palci cu klama jibni'''
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "6779"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = '''
+input:1:27: 'sumni\\' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "sum" but got "ni\\"
+  "…a le mi tamji cu sum👉ni\\ ledu'u lo palci cu klama …"
+- not cmevla: cmevla (name) must end with a consonant
+  "…unta le mi tamji cu 👉sumni\\ ledu'u lo palci cu kla…"
+- not cmavo: cmavo 'su' followed by 'm' which doesn't start a valid Lojban word
+  "…ta le mi tamji cu su👉mni\\ ledu'u lo palci cu klama…"
+@ 26: "…unta le mi tamji cu 👉sumni\\ ledu'u lo palci cu kla…"'''

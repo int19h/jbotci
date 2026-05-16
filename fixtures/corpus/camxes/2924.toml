@@ -1,0 +1,129 @@
+id = "corpus.camxes.2924"
+lojban = "er.. .ua"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2924"
+
+[expectations.morphology]
+status = "success"
+
+[[expectations.morphology.words]]
+kind = "with-indicator"
+
+[expectations.morphology.words.base]
+kind = "base-word"
+
+[expectations.morphology.words.base.word_like]
+kind = "bare"
+
+[expectations.morphology.words.base.word_like.word]
+kind = "cmevla"
+phonemes = "er"
+
+[expectations.morphology.words.base.word_like.word.span]
+source_id = "<fixture>"
+byte_start = 0
+byte_end = 2
+char_start = 0
+char_end = 2
+
+[expectations.morphology.words.indicator]
+kind = "cmavo"
+phonemes = "ŭa"
+
+[expectations.morphology.words.indicator.span]
+source_id = "<fixture>"
+byte_start = 6
+byte_end = 8
+char_start = 6
+char_end = 8
+
+[expectations.syntax]
+status = "success"
+parse-tree = {
+    kind = "node",
+    node = {
+        constructor = "LojbanText",
+        fields = [
+            {
+                name = "leadingNai",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingCmevla",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "(:)",
+                        fields = [
+                            {
+                                value = { kind = "word", word = { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "er", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } }, indicator = { kind = "cmavo", phonemes = "ŭa", span = { source_id = "<fixture>", byte_start = 6, byte_end = 8, char_start = 6, char_end = 8 } } } }
+                            },
+                            {
+                                value = {
+                                    kind = "node",
+                                    node = {
+                                        constructor = "[]",
+                                        fields = []
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                name = "leadingIndicators",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingFreeModifiers",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingConnective",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "Nothing",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "paragraphs",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            }
+        ]
+    }
+}

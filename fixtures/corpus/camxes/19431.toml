@@ -1,0 +1,27 @@
+id = "corpus.camxes.19431"
+lojban = "ru'a doi graywyvern do nalbriju zvati "
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19431"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:10: 'graywyvern' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "ru'a doi gra👉ywyvern do nalbriju zvati "
+- not cmevla: cmevla (name) must end with a consonant
+  "ru'a doi 👉graywyvern do nalbriju zvati "
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "ru'a doi 👉graywyvern do nalbriju zvati "
+@ 9: "ru'a doi 👉graywyvern do nalbriju zvati """"

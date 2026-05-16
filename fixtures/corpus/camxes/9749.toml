@@ -1,0 +1,23 @@
+id = "corpus.camxes.9749"
+lojban = "doi juel le banrxafrikans le banrnedrlanda frica xo "
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "9749"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:5: 'juel' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "doi j👉uel le banrxafrikans le banrne…"
+@ 4: "doi 👉juel le banrxafrikans le banrn…""""

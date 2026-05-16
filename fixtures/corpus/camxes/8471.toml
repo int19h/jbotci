@@ -1,0 +1,23 @@
+id = "corpus.camxes.8471"
+lojban = "le ni gerku vau be le cmima klani vs. le ni gerku vau be le ckaji klani"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8471"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:35: 'vs.' is not a valid Lojban word:
+- adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "… be le cmima klani v👉s. le ni gerku vau be le ckaji…"
+@ 34: "…u be le cmima klani 👉vs. le ni gerku vau be le ckaj…""""

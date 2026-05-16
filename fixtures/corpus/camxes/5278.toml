@@ -1,0 +1,27 @@
+id = "corpus.camxes.5278"
+lojban = "more unified"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "5278"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:6: 'unified' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "more unif👉ied"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "more unif👉ied"
+- not cmavo: cmavo 'u' followed by 'n' which doesn't start a valid Lojban word
+  "more u👉nified"
+@ 5: "more 👉unified""""

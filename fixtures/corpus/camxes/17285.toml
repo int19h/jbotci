@@ -1,0 +1,23 @@
+id = "corpus.camxes.17285"
+lojban = "canai ca'a then."
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17285"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:12: 'then.' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "canai ca'a t👉hen."
+@ 11: "canai ca'a 👉then.""""

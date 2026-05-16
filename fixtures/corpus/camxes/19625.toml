@@ -1,0 +1,27 @@
+id = "corpus.camxes.19625"
+lojban = "la rood mo"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19625"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:4: 'rood' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "la ro👉od mo"
+- not cmevla: cmevla (name) must end with a consonant
+  "la 👉rood mo"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "la ro👉od mo"
+@ 3: "la 👉rood mo""""

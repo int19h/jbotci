@@ -1,0 +1,27 @@
+id = "corpus.camxes.17111"
+lojban = "03 Jun 2003 12:40:43 * Eimi neizma lo tolkinli ka'amru be lo bradi"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17111"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:22: '*' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '*'
+  "…3 Jun 2003 12:40:43 👉* Eimi neizma lo tolkinli ka'a…"
+- not cmevla: cmevla (name) must end with a consonant
+  "…3 Jun 2003 12:40:43 👉* Eimi neizma lo tolkinli ka'a…"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…3 Jun 2003 12:40:43 👉* Eimi neizma lo tolkinli ka'a…"
+@ 21: "…3 Jun 2003 12:40:43 👉* Eimi neizma lo tolkinli ka'a…""""

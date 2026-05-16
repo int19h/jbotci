@@ -1,0 +1,27 @@
+id = "corpus.camxes.727"
+lojban = "la .apasionatas ne fi'e la betovn.  cu se nelci mi"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "727"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:5: 'apasionatas' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "la .apas👉ionatas ne fi'e la betovn.  cu…"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "la .apas👉ionatas ne fi'e la betovn.  cu…"
+- not cmavo: cmavo 'a' followed by 'p' which doesn't start a valid Lojban word
+  "la .a👉pasionatas ne fi'e la betovn. …"
+@ 4: "la .👉apasionatas ne fi'e la betovn.…""""

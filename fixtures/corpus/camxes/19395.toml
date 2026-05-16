@@ -1,0 +1,27 @@
+id = "corpus.camxes.19395"
+lojban = ".i xu do joi la clsn. klama la logfest. -- NOT SURE (morphology, logfest)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19395"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:32: 'logfest.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…a clsn. klama la log👉fest. -- NOT SURE (morphology,…"
+- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…a clsn. klama la log👉fest. -- NOT SURE (morphology,…"
+- not cmavo: cmavo 'lo' followed by 'g' which doesn't start a valid Lojban word
+  "…la clsn. klama la lo👉gfest. -- NOT SURE (morphology…"
+@ 31: "…i la clsn. klama la 👉logfest. -- NOT SURE (morpholo…""""

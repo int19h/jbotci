@@ -1,0 +1,27 @@
+id = "corpus.camxes.10828"
+lojban = ".i le galfi ji le se galfi cu pamoi va'o le banrtlinganu"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "10828"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:45: 'banrtlinganu' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "ban" but got "rtlinganu"
+  "…cu pamoi va'o le ban👉rtlinganu"
+- not cmevla: cmevla (name) must end with a consonant
+  "…fi cu pamoi va'o le 👉banrtlinganu"
+- not cmavo: cmavo 'ba' followed by 'n' which doesn't start a valid Lojban word
+  "… cu pamoi va'o le ba👉nrtlinganu"
+@ 44: "…fi cu pamoi va'o le 👉banrtlinganu""""

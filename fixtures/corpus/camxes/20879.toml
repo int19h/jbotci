@@ -1,0 +1,27 @@
+id = "corpus.camxes.20879"
+lojban = "to .u'usai mi mutce tatpi .iseki'ubo mi viska zo tsali .enai zoi'a treed .i mi ca morji le nu do cusku tu'a le fagri toi"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20879"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:68: 'treed' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "…sali .enai zoi'a tre👉ed .i mi ca morji le nu do cus…"
+- not cmevla: cmevla (name) must end with a consonant
+  "…o tsali .enai zoi'a 👉treed .i mi ca morji le nu do …"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…o tsali .enai zoi'a 👉treed .i mi ca morji le nu do …"
+@ 67: "…o tsali .enai zoi'a 👉treed .i mi ca morji le nu do …""""

@@ -1,0 +1,27 @@
+id = "corpus.camxes.18617"
+lojban = "no, no tyet"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18617"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:8: 'tyet' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got 'y'
+  "no, no t👉yet"
+- not cmevla: cmevla (name) must end with a consonant
+  "no, no 👉tyet"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "no, no 👉tyet"
+@ 7: "no, no 👉tyet""""

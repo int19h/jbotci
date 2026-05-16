@@ -1,0 +1,27 @@
+id = "corpus.camxes.19422"
+lojban = "need a cu"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19422"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'need' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "ne👉ed a cu"
+- not cmevla: cmevla (name) must end with a consonant
+  "👉need a cu"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "ne👉ed a cu"
+@ 0: "👉need a cu""""

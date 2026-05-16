@@ -5,6 +5,7 @@ use thiserror::Error;
 
 /// Stable identifier for an input source.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct SourceId(pub String);
 
 /// One-indexed line and column in source text.

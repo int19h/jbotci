@@ -1,0 +1,27 @@
+id = "corpus.camxes.3245"
+lojban = "coi doi apple"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "3245"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:9: 'apple' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "coi doi ap👉ple"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "coi doi ap👉ple"
+- not cmavo: cmavo 'a' followed by 'p' which doesn't start a valid Lojban word
+  "coi doi a👉pple"
+@ 8: "coi doi 👉apple""""

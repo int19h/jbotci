@@ -1,0 +1,27 @@
+id = "corpus.camxes.22511"
+lojban = "coi ingmeme"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "22511"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:5: 'ingmeme' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'i'
+  "coi 👉ingmeme"
+- not cmevla: cmevla (name) must end with a consonant
+  "coi 👉ingmeme"
+- not cmavo: cmavo 'i' followed by 'n' which doesn't start a valid Lojban word
+  "coi i👉ngmeme"
+@ 4: "coi 👉ingmeme""""

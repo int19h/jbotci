@@ -1,0 +1,27 @@
+id = "corpus.camxes.15889"
+lojban = "mi ba zi tirna le nunsnu pe la glasgov -- NOT SURE (morphology, glasgov)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "15889"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:32: 'glasgov' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…le nunsnu pe la glas👉gov -- NOT SURE (morphology, g…"
+- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…le nunsnu pe la glas👉gov -- NOT SURE (morphology, g…"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…rna le nunsnu pe la 👉glasgov -- NOT SURE (morpholog…"
+@ 31: "…rna le nunsnu pe la 👉glasgov -- NOT SURE (morpholog…""""

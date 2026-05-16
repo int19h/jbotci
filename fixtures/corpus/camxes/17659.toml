@@ -1,0 +1,27 @@
+id = "corpus.camxes.17659"
+lojban = "la zarci cu mi klama xa/ma"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17659"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:22: 'xa/ma' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected apostrophe but got '/'
+  "…zarci cu mi klama xa👉/ma"
+- not cmevla: cmevla (name) must end with a consonant
+  "…a zarci cu mi klama 👉xa/ma"
+- not cmavo: cmavo 'xa' followed by '/' which doesn't start a valid Lojban word
+  "…zarci cu mi klama xa👉/ma"
+@ 21: "…a zarci cu mi klama 👉xa/ma""""

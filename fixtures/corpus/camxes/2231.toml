@@ -1,0 +1,27 @@
+id = "corpus.camxes.2231"
+lojban = " lu mi na djuno le du'u lo'e tcicymlatu cu roroi gancisma i ju'o mi na djuno le du'u lo'e mlatu ba'e kakne lo'e nu gancisma li'u (missing cu)"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2231"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:131: 'missing' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "…u gancisma li'u (mis👉sing cu)"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "…u gancisma li'u (mis👉sing cu)"
+- not cmavo: cmavo 'mi' followed by 's' which doesn't start a valid Lojban word
+  "…nu gancisma li'u (mi👉ssing cu)"
+@ 130: "…e nu gancisma li'u (👉missing cu)""""

@@ -1,0 +1,23 @@
+id = "corpus.camxes.12020"
+lojban = "should be do cortu lei kanla"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12020"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'should' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "s👉hould be do cortu lei kanla"
+@ 0: "👉should be do cortu lei kanla""""

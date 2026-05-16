@@ -1,0 +1,27 @@
+id = "corpus.camxes.16153"
+lojban = "ui sai coi nitcion"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16153"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:12: 'nitcion' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "ui sai coi nitc👉ion"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "ui sai coi nitc👉ion"
+- not cmavo: cmavo 'ni' followed by 't' which doesn't start a valid Lojban word
+  "ui sai coi ni👉tcion"
+@ 11: "ui sai coi 👉nitcion""""

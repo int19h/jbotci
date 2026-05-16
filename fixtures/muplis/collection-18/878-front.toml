@@ -1,0 +1,137 @@
+id = "muplis.18.878.front"
+lojban = "a'i cu'i"
+translation-en = "Ah, this is easy."
+tags = [
+    "muplis",
+    "collection-18",
+    "front",
+]
+
+[[provenance]]
+kind = "muplis"
+collection-id = "18"
+item-id = "878"
+form = "front"
+url = "https://lensisku.lojban.org/en/collections/18"
+
+[expectations.morphology]
+status = "success"
+
+[[expectations.morphology.words]]
+kind = "with-indicator"
+
+[expectations.morphology.words.base]
+kind = "base-word"
+
+[expectations.morphology.words.base.word_like]
+kind = "bare"
+
+[expectations.morphology.words.base.word_like.word]
+kind = "cmavo"
+phonemes = "a'i"
+
+[expectations.morphology.words.base.word_like.word.span]
+source_id = "<fixture>"
+byte_start = 0
+byte_end = 3
+char_start = 0
+char_end = 3
+
+[expectations.morphology.words.indicator]
+kind = "cmavo"
+phonemes = "cu'i"
+
+[expectations.morphology.words.indicator.span]
+source_id = "<fixture>"
+byte_start = 4
+byte_end = 8
+char_start = 4
+char_end = 8
+
+[expectations.syntax]
+status = "success"
+
+parse-tree = {
+    kind = "node",
+    node = {
+        constructor = "LojbanText",
+        fields = [
+            {
+                name = "leadingNai",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingCmevla",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingIndicators",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "(:)",
+                        fields = [
+                            {
+                                value = { kind = "word", word = { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "a'i", span = { source_id = "<fixture>", byte_start = 0, byte_end = 3, char_start = 0, char_end = 3 } } } }, indicator = { kind = "cmavo", phonemes = "cu'i", span = { source_id = "<fixture>", byte_start = 4, byte_end = 8, char_start = 4, char_end = 8 } } } }
+                            },
+                            {
+                                value = {
+                                    kind = "node",
+                                    node = {
+                                        constructor = "[]",
+                                        fields = []
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                name = "leadingFreeModifiers",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingConnective",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "Nothing",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "paragraphs",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            }
+        ]
+    }
+}
+[expectations.brackets]
+status = "success"
+text = ".a'i-cu'i"

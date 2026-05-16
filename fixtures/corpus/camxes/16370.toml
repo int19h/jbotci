@@ -1,0 +1,27 @@
+id = "corpus.camxes.16370"
+lojban = "19 May 2003 18:19:48 * rlpowell pu terpa le nu mutce denpa ca'o le nu malgletu .iku'i .ua .uisai snada"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16370"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:4: 'May' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "19 Ma👉y 2003 18:19:48 * rlpowell pu …"
+- not cmevla: cmevla (name) must end with a consonant
+  "19 👉May 2003 18:19:48 * rlpowell p…"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "19 Ma👉y 2003 18:19:48 * rlpowell pu …"
+@ 3: "19 👉May 2003 18:19:48 * rlpowell p…""""

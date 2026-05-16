@@ -1,0 +1,143 @@
+id = "corpus.camxes.11271"
+lojban = ".uicaidai"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11271"
+
+[expectations.morphology]
+status = "success"
+
+[[expectations.morphology.words]]
+kind = "with-indicator"
+
+[expectations.morphology.words.base]
+kind = "with-indicator"
+
+[expectations.morphology.words.base.base]
+kind = "base-word"
+
+[expectations.morphology.words.base.base.word_like]
+kind = "bare"
+
+[expectations.morphology.words.base.base.word_like.word]
+kind = "cmavo"
+phonemes = "ŭi"
+
+[expectations.morphology.words.base.base.word_like.word.span]
+source_id = "<fixture>"
+byte_start = 1
+byte_end = 3
+char_start = 1
+char_end = 3
+
+[expectations.morphology.words.base.indicator]
+kind = "cmavo"
+phonemes = "caĭ"
+
+[expectations.morphology.words.base.indicator.span]
+source_id = "<fixture>"
+byte_start = 3
+byte_end = 6
+char_start = 3
+char_end = 6
+
+[expectations.morphology.words.indicator]
+kind = "cmavo"
+phonemes = "daĭ"
+
+[expectations.morphology.words.indicator.span]
+source_id = "<fixture>"
+byte_start = 6
+byte_end = 9
+char_start = 6
+char_end = 9
+
+[expectations.syntax]
+status = "success"
+parse-tree = {
+    kind = "node",
+    node = {
+        constructor = "LojbanText",
+        fields = [
+            {
+                name = "leadingNai",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingCmevla",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingIndicators",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "(:)",
+                        fields = [
+                            {
+                                value = { kind = "word", word = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ŭi", span = { source_id = "<fixture>", byte_start = 1, byte_end = 3, char_start = 1, char_end = 3 } } } }, indicator = { kind = "cmavo", phonemes = "caĭ", span = { source_id = "<fixture>", byte_start = 3, byte_end = 6, char_start = 3, char_end = 6 } } }, indicator = { kind = "cmavo", phonemes = "daĭ", span = { source_id = "<fixture>", byte_start = 6, byte_end = 9, char_start = 6, char_end = 9 } } } }
+                            },
+                            {
+                                value = {
+                                    kind = "node",
+                                    node = {
+                                        constructor = "[]",
+                                        fields = []
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                name = "leadingFreeModifiers",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingConnective",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "Nothing",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "paragraphs",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            }
+        ]
+    }
+}

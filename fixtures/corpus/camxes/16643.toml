@@ -1,0 +1,23 @@
+id = "corpus.camxes.16643"
+lojban = "i lei cmima be LLG pu ze'a jmaji le zdani be la lojbab"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16643"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:16: 'LLG' is not a valid Lojban word:
+- geminated consonants are not allowed (CLL 3.6)
+  "i lei cmima be L👉LG pu ze'a jmaji le zdani be l…"
+@ 15: "i lei cmima be 👉LLG pu ze'a jmaji le zdani be …""""

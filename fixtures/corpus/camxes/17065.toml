@@ -1,0 +1,143 @@
+id = "corpus.camxes.17065"
+lojban = "Fucker.  zo'oru'e"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17065"
+
+[expectations.morphology]
+status = "success"
+
+[[expectations.morphology.words]]
+kind = "with-indicator"
+
+[expectations.morphology.words.base]
+kind = "with-indicator"
+
+[expectations.morphology.words.base.base]
+kind = "base-word"
+
+[expectations.morphology.words.base.base.word_like]
+kind = "bare"
+
+[expectations.morphology.words.base.base.word_like.word]
+kind = "cmevla"
+phonemes = "fucker"
+
+[expectations.morphology.words.base.base.word_like.word.span]
+source_id = "<fixture>"
+byte_start = 0
+byte_end = 6
+char_start = 0
+char_end = 6
+
+[expectations.morphology.words.base.indicator]
+kind = "cmavo"
+phonemes = "zo'o"
+
+[expectations.morphology.words.base.indicator.span]
+source_id = "<fixture>"
+byte_start = 9
+byte_end = 13
+char_start = 9
+char_end = 13
+
+[expectations.morphology.words.indicator]
+kind = "cmavo"
+phonemes = "ru'e"
+
+[expectations.morphology.words.indicator.span]
+source_id = "<fixture>"
+byte_start = 13
+byte_end = 17
+char_start = 13
+char_end = 17
+
+[expectations.syntax]
+status = "success"
+parse-tree = {
+    kind = "node",
+    node = {
+        constructor = "LojbanText",
+        fields = [
+            {
+                name = "leadingNai",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingCmevla",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "(:)",
+                        fields = [
+                            {
+                                value = { kind = "word", word = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "fucker", span = { source_id = "<fixture>", byte_start = 0, byte_end = 6, char_start = 0, char_end = 6 } } } }, indicator = { kind = "cmavo", phonemes = "zo'o", span = { source_id = "<fixture>", byte_start = 9, byte_end = 13, char_start = 9, char_end = 13 } } }, indicator = { kind = "cmavo", phonemes = "ru'e", span = { source_id = "<fixture>", byte_start = 13, byte_end = 17, char_start = 13, char_end = 17 } } } }
+                            },
+                            {
+                                value = {
+                                    kind = "node",
+                                    node = {
+                                        constructor = "[]",
+                                        fields = []
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                name = "leadingIndicators",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingFreeModifiers",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingConnective",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "Nothing",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "paragraphs",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            }
+        ]
+    }
+}

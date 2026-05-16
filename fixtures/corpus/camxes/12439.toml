@@ -1,0 +1,27 @@
+id = "corpus.camxes.12439"
+lojban = "go to RecentChanges"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12439"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:7: 'RecentChanges' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "go to RecentC👉hanges"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "go to RecentC👉hanges"
+- not cmavo: cmavo 're' followed by 'c' which doesn't start a valid Lojban word
+  "go to Re👉centChanges"
+@ 6: "go to 👉RecentChanges""""

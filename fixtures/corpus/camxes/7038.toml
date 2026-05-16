@@ -1,0 +1,23 @@
+id = "corpus.camxes.7038"
+lojban = "i love that"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7038"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:8: 'that' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "i love t👉hat"
+@ 7: "i love 👉that""""

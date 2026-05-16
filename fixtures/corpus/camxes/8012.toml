@@ -1,0 +1,27 @@
+id = "corpus.camxes.8012"
+lojban = "Sarah came close."
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8012"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:1: 'Sarah' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
+  "Sarah👉 came close."
+- not cmevla: cmevla (name) must end with a consonant
+  "👉Sarah came close."
+- not cmavo: cmavo 'sa' followed by 'r' which doesn't start a valid Lojban word
+  "Sa👉rah came close."
+@ 0: "👉Sarah came close.""""

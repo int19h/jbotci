@@ -1,0 +1,27 @@
+id = "corpus.camxes.21312"
+lojban = "to be grammatical"
+tags = [
+    "corpus",
+    "camxes",
+]
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21312"
+
+[expectations.syntax]
+status = "failure"
+
+[expectations.syntax.error]
+position = 0
+allowed-next = []
+message = """
+input:1:7: 'grammatical' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "to be gram👉matical"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "to be gram👉matical"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "to be 👉grammatical"
+@ 6: "to be 👉grammatical""""
