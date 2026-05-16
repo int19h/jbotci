@@ -3,6 +3,8 @@ use std::process::{Command as ProcessCommand, ExitStatus};
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
+use jbotci_morphology::segment_words_with_modifiers_with_source_id;
+use jbotci_source::SourceId;
 use rayon::prelude::*;
 
 #[path = "../../tests/support/fixtures.rs"]
@@ -165,6 +167,7 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
         .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(args.jobs.unwrap_or_else(default_fixture_jobs))
+        .stack_size(FIXTURE_WORKER_STACK_SIZE)
         .build()
         .context("creating fixture-test thread pool")?;
     let mut summary = pool
@@ -213,6 +216,10 @@ fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
 fn default_fixture_jobs() -> usize {
     std::thread::available_parallelism().map_or(1, usize::from)
 }
+
+// TOML fixtures can contain deeply nested exported syntax trees, and serde's
+// TOML decoder needs more stack than Rayon workers get by default.
+const FIXTURE_WORKER_STACK_SIZE: usize = 32 * 1024 * 1024;
 
 fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
     let mut profile = match &args.profile {
@@ -325,13 +332,49 @@ impl FixtureBackend for NotImplementedBackend {
             return FacetResult::skipped(format!("{facet} expectation is {status:?}"));
         }
         match facet {
-            Facet::Morphology | Facet::Syntax => {
-                FacetResult::failed(format!("{facet} runner is not implemented yet"))
-            }
+            Facet::Morphology => run_morphology_fixture(fixture),
+            Facet::Syntax => FacetResult::failed(format!("{facet} runner is not implemented yet")),
             Facet::SyntaxRefs | Facet::Warnings | Facet::Brackets => {
                 FacetResult::skipped(format!("{facet} runner is not implemented yet"))
             }
         }
+    }
+}
+
+fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = &fixture.test_case.expectations.morphology else {
+        return FacetResult::skipped("fixture has no morphology expectation");
+    };
+    match expectation.status {
+        ExpectationStatus::Success => {
+            match segment_words_with_modifiers_with_source_id(
+                &fixture.test_case.lojban,
+                SourceId("<fixture>".to_owned()),
+            ) {
+                Ok(actual) if actual == expectation.words => FacetResult::passed(),
+                Ok(actual) => FacetResult::failed(format!(
+                    "morphology mismatch: expected {} word(s), got {} word(s)",
+                    expectation.words.len(),
+                    actual.len()
+                )),
+                Err(error) => FacetResult::failed(format!("morphology error: {error}")),
+            }
+        }
+        ExpectationStatus::Failure => {
+            match segment_words_with_modifiers_with_source_id(
+                &fixture.test_case.lojban,
+                SourceId("<fixture>".to_owned()),
+            ) {
+                Ok(actual) => FacetResult::failed(format!(
+                    "expected morphology failure, got {} word(s)",
+                    actual.len()
+                )),
+                Err(_) => FacetResult::passed(),
+            }
+        }
+        ExpectationStatus::Pending | ExpectationStatus::NotApplicable => FacetResult::skipped(
+            format!("morphology expectation is {:?}", expectation.status),
+        ),
     }
 }
 

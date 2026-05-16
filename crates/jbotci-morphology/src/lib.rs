@@ -1,6 +1,8 @@
 //! Lojban morphology model.
 
-use jbotci_source::SourceSpan;
+mod segment;
+
+use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -151,14 +153,56 @@ pub enum WordWithModifiers {
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum MorphologyError {
-    #[error("morphology parsing is not implemented yet")]
-    NotImplemented,
+    #[error("unsupported morphology at character {char_offset}: `{word}` ({reason})")]
+    Unsupported {
+        char_offset: usize,
+        word: String,
+        reason: String,
+    },
+    #[error("invalid morphology at character {char_offset}: `{word}` ({reason})")]
+    Invalid {
+        char_offset: usize,
+        word: String,
+        reason: String,
+    },
+    #[error("invalid source span: {0}")]
+    SourceSpan(#[from] SourceLocationError),
 }
 
 pub fn segment_words_with_modifiers(
-    _input: &str,
+    input: &str,
 ) -> Result<Vec<WordWithModifiers>, MorphologyError> {
-    Err(MorphologyError::NotImplemented)
+    segment_words_with_modifiers_with_options_and_source_id(
+        input,
+        &MorphologyOptions::default(),
+        None,
+    )
+}
+
+pub fn segment_words_with_modifiers_with_options(
+    input: &str,
+    options: &MorphologyOptions,
+) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+    segment_words_with_modifiers_with_options_and_source_id(input, options, None)
+}
+
+pub fn segment_words_with_modifiers_with_source_id(
+    input: &str,
+    source_id: SourceId,
+) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+    segment_words_with_modifiers_with_options_and_source_id(
+        input,
+        &MorphologyOptions::default(),
+        Some(source_id),
+    )
+}
+
+pub fn segment_words_with_modifiers_with_options_and_source_id(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+    segment::segment_words_with_modifiers(input, options, source_id)
 }
 
 #[cfg(test)]
@@ -168,5 +212,69 @@ mod tests {
     #[test]
     fn default_options_enforce_cgv_ban() {
         assert!(MorphologyOptions::default().enforce_cgv_ban);
+    }
+
+    #[test]
+    fn segments_simple_cmavo_and_gismu() {
+        let words = segment_words_with_modifiers("mi klama do").expect("valid morphology");
+        assert_eq!(words.len(), 3);
+        assert_eq!(
+            base_word(&words[0]).map(|word| word.kind),
+            Some(WordKind::Cmavo)
+        );
+        assert_eq!(
+            base_word(&words[0]).map(|word| word.phonemes.as_str()),
+            Some("mi")
+        );
+        assert_eq!(
+            base_word(&words[1]).map(|word| word.kind),
+            Some(WordKind::Gismu)
+        );
+        assert_eq!(
+            base_word(&words[1]).map(|word| word.phonemes.as_str()),
+            Some("klama")
+        );
+        assert_eq!(
+            base_word(&words[2]).map(|word| word.kind),
+            Some(WordKind::Cmavo)
+        );
+        assert_eq!(
+            base_word(&words[2]).map(|word| word.span.char_start),
+            Some(9)
+        );
+        assert_eq!(
+            base_word(&words[2]).map(|word| word.span.char_end),
+            Some(11)
+        );
+    }
+
+    #[test]
+    fn splits_adjacent_cmavo() {
+        let words = segment_words_with_modifiers("mimi").expect("valid morphology");
+        let phonemes: Vec<_> = words
+            .iter()
+            .map(|word| base_word(word).expect("base word").phonemes.as_str())
+            .collect();
+        assert_eq!(phonemes, ["mi", "mi"]);
+    }
+
+    #[test]
+    fn marks_cmavo_glides() {
+        let words = segment_words_with_modifiers("coi .ui").expect("valid morphology");
+        let phonemes: Vec<_> = words
+            .iter()
+            .map(|word| base_word(word).expect("base word").phonemes.as_str())
+            .collect();
+        assert_eq!(phonemes, ["coĭ", "ŭi"]);
+    }
+
+    fn base_word(word: &WordWithModifiers) -> Option<&Word> {
+        match word {
+            WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {
+                WordLike::Bare { word } => Some(word),
+                _ => None,
+            },
+            _ => None,
+        }
     }
 }

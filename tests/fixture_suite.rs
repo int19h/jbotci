@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use jbotci_morphology::{WordKind, WordLike, WordWithModifiers};
+use jbotci_source::SourceId;
 use jbotci_syntax::{SyntaxField, SyntaxValue};
 use support::fixtures::{
     CllSelector, ExpectationStatus, Expectations, Facet, FacetResult, FixtureBackend,
@@ -168,6 +169,24 @@ fn parallel_runner_matches_serial_summary() {
         run_fixture_facets_parallel(&FakeBackend, &fixtures, &facets),
         run_fixture_facets(&FakeBackend, &fixtures, &facets)
     );
+}
+
+#[test]
+fn morphology_matches_simple_cll_fixture() {
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/cll/chapter-05/section-5.1/c5e1d1.toml");
+    let test_case = load_fixture_file(fixture_path).expect("fixture should load");
+    let expected = test_case
+        .expectations
+        .morphology
+        .expect("morphology expectation")
+        .words;
+    let actual = jbotci_morphology::segment_words_with_modifiers_with_source_id(
+        &test_case.lojban,
+        SourceId("<fixture>".to_owned()),
+    )
+    .expect("simple fixture should segment");
+    assert_eq!(actual, expected);
 }
 
 #[test]
