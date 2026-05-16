@@ -186,7 +186,7 @@ struct CmavoPrefix {
     phonemes: String,
 }
 
-fn is_separator(value: char) -> bool {
+pub(crate) fn is_separator(value: char) -> bool {
     value.is_whitespace()
         || matches!(
             value,
@@ -226,7 +226,7 @@ fn is_separator(value: char) -> bool {
         )
 }
 
-fn normalize_word_with_options(raw: &str, options: &MorphologyOptions) -> String {
+pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions) -> String {
     raw.chars()
         .filter_map(|value| normalize_char(value, options))
         .collect()
@@ -305,7 +305,7 @@ fn text_chars(text: &str) -> Vec<char> {
     text.chars().collect()
 }
 
-fn parse_cmavo_form(text: &str) -> Option<String> {
+pub(crate) fn parse_cmavo_form(text: &str) -> Option<String> {
     let chars = text_chars(text);
     if chars.is_empty() {
         return None;
@@ -451,7 +451,7 @@ fn starts_with_cluster(chars: &[char], start: usize) -> bool {
         .is_some_and(|(first, second)| is_consonant(*first) && is_consonant(*second))
 }
 
-fn is_simple_cmevla(normalized: &str) -> bool {
+pub(crate) fn is_simple_cmevla(normalized: &str) -> bool {
     let chars = text_chars(normalized);
     chars.last().is_some_and(|last| is_consonant(*last))
         && chars.first().is_some_and(|first| *first != '\'')
@@ -526,7 +526,7 @@ fn digit_to_cmavo(value: char) -> &'static str {
     }
 }
 
-fn classify_fast_simple_word(raw_word: &str, normalized_word: &str) -> Option<WordKind> {
+pub(crate) fn classify_fast_simple_word(raw_word: &str, normalized_word: &str) -> Option<WordKind> {
     if raw_word.is_empty() || normalized_word.is_empty() {
         return None;
     }

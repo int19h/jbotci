@@ -1,5 +1,7 @@
 //! Lojban syntax model and parser facade.
 
+mod chumsky_spike;
+
 use jbotci_morphology::WordWithModifiers;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -70,6 +72,8 @@ pub enum Connective {
 pub enum SyntaxError {
     #[error("syntax parsing is not implemented yet")]
     NotImplemented,
+    #[error("syntax parse failed at byte {byte_offset}: {reason}")]
+    Parse { byte_offset: usize, reason: String },
 }
 
 pub fn parse_text(
@@ -77,6 +81,19 @@ pub fn parse_text(
     _options: &ParseOptions,
 ) -> Result<LojbanText, SyntaxError> {
     Err(SyntaxError::NotImplemented)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpikeSentence {
+    pub subject: WordWithModifiers,
+    pub relation: WordWithModifiers,
+    pub object: WordWithModifiers,
+}
+
+pub fn parse_mi_relation_do_chumsky_spike(
+    words: &[WordWithModifiers],
+) -> Result<SpikeSentence, SyntaxError> {
+    chumsky_spike::parse_mi_relation_do(words)
 }
 
 /// Lossless fixture representation for v0 syntax trees.

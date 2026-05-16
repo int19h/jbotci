@@ -1,5 +1,6 @@
 //! Lojban morphology model.
 
+mod chumsky_spike;
 mod segment;
 
 use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
@@ -203,6 +204,35 @@ pub fn segment_words_with_modifiers_with_options_and_source_id(
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordWithModifiers>, MorphologyError> {
     segment::segment_words_with_modifiers(input, options, source_id)
+}
+
+pub fn segment_words_with_modifiers_chumsky_spike(
+    input: &str,
+) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+    segment_words_with_modifiers_chumsky_spike_with_options_and_source_id(
+        input,
+        &MorphologyOptions::default(),
+        None,
+    )
+}
+
+pub fn segment_words_with_modifiers_chumsky_spike_with_source_id(
+    input: &str,
+    source_id: SourceId,
+) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+    segment_words_with_modifiers_chumsky_spike_with_options_and_source_id(
+        input,
+        &MorphologyOptions::default(),
+        Some(source_id),
+    )
+}
+
+pub fn segment_words_with_modifiers_chumsky_spike_with_options_and_source_id(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+    chumsky_spike::segment_words_with_modifiers(input, options, source_id)
 }
 
 #[cfg(test)]
