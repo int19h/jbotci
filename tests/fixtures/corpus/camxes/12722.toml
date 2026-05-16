@@ -1,0 +1,19 @@
+id = "corpus.camxes.12722"
+lojban = "le jei broda kei == le ni broda kei be lesi'o jetnu"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12722"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:18: '==' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '='
+  "le jei broda kei 👉== le ni broda kei be lesi'o j…"
+- not cmevla: cmevla (name) must end with a consonant
+  "le jei broda kei 👉== le ni broda kei be lesi'o j…"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "le jei broda kei 👉== le ni broda kei be lesi'o j…"
+@ 17: "le jei broda kei 👉== le ni broda kei be lesi'o j…"""" }

@@ -1,0 +1,19 @@
+id = "corpus.camxes.21945"
+lojban = "poetic licence"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21945"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'poetic' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "po👉etic licence"
+- not cmevla: cmevla (name) must end with a consonant
+  "👉poetic licence"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "po👉etic licence"
+@ 0: "👉poetic licence"""" }

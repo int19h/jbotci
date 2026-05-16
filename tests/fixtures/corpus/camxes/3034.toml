@@ -1,0 +1,21 @@
+id = "corpus.camxes.3034"
+lojban = ".i xu ma mo ca mo"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "3034"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "i", span = { source_id = "<fixture>", byte_start = 1, byte_end = 2, char_start = 1, char_end = 2 } } } }, indicator = { kind = "cmavo", phonemes = "xu", span = { source_id = "<fixture>", byte_start = 3, byte_end = 5, char_start = 3, char_end = 5 } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ma", span = { source_id = "<fixture>", byte_start = 6, byte_end = 8, char_start = 6, char_end = 8 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "mo", span = { source_id = "<fixture>", byte_start = 9, byte_end = 11, char_start = 9, char_end = 11 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ca", span = { source_id = "<fixture>", byte_start = 12, byte_end = 14, char_start = 12, char_end = 14 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "mo", span = { source_id = "<fixture>", byte_start = 15, byte_end = 17, char_start = 15, char_end = 17 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 4, allowed-next = [] }

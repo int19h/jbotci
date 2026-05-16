@@ -1,0 +1,19 @@
+id = "corpus.camxes.18151"
+lojban = "i xu da keidji la mumym i ganai do go'i gi ko fo la #mumym cu cusku"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18151"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:53: '#mumym' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '#'
+  "…do go'i gi ko fo la 👉#mumym cu cusku"
+- not cmevla: cmevla (name) must end with a consonant
+  "…do go'i gi ko fo la 👉#mumym cu cusku"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…do go'i gi ko fo la 👉#mumym cu cusku"
+@ 52: "…do go'i gi ko fo la 👉#mumym cu cusku"""" }

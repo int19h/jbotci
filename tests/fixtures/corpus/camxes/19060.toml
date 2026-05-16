@@ -1,0 +1,15 @@
+id = "corpus.camxes.19060"
+lojban = "no more physics!!"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19060"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:9: 'physics!!' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "no more p👉hysics!!"
+@ 8: "no more 👉physics!!"""" }

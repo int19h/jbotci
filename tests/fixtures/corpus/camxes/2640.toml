@@ -1,0 +1,19 @@
+id = "corpus.camxes.2640"
+lojban = " melbi bo stasu ricfu je crino denpa fi lo vaurcnino i pronalka'e kukselzbasu stasu co vanci melbi bo stasu stasu co vanci melbi bo stasu me--elbi bo sta--asu me--elbi bo sta--asu sta--asu co va--a--anci melbi bo melbi bo stasu "
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2640"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:151: 'sta--asu' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "sta" but got "--asu"
+  "…tasu me--elbi bo sta👉--asu me--elbi bo sta--asu sta…"
+- not cmevla: cmevla (name) must end with a consonant
+  "…o stasu me--elbi bo 👉sta--asu me--elbi bo sta--asu …"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…o stasu me--elbi bo 👉sta--asu me--elbi bo sta--asu …"
+@ 150: "…o stasu me--elbi bo 👉sta--asu me--elbi bo sta--asu …"""" }

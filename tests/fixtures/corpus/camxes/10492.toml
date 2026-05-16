@@ -1,0 +1,15 @@
+id = "corpus.camxes.10492"
+lojban = "that'd be baku mi klama le zarci"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "10492"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'that'd' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "t👉hat'd be baku mi klama le zarc…"
+@ 0: "👉that'd be baku mi klama le zar…"""" }

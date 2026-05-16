@@ -1,0 +1,24 @@
+id = "corpus.camxes.456"
+lojban = "?mi djuno fi le valsi po'u zoi gy. gyrations .gy. (zoi)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "456"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "mi", span = { source_id = "<fixture>", byte_start = 1, byte_end = 3, char_start = 1, char_end = 3 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "djuno", span = { source_id = "<fixture>", byte_start = 4, byte_end = 9, char_start = 4, char_end = 9 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "fi", span = { source_id = "<fixture>", byte_start = 10, byte_end = 12, char_start = 10, char_end = 12 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "le", span = { source_id = "<fixture>", byte_start = 13, byte_end = 15, char_start = 13, char_end = 15 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "valsi", span = { source_id = "<fixture>", byte_start = 16, byte_end = 21, char_start = 16, char_end = 21 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "po'u", span = { source_id = "<fixture>", byte_start = 22, byte_end = 26, char_start = 22, char_end = 26 } } } },
+    { kind = "base-word", word_like = { kind = "zoi-quote", zoi = { kind = "cmavo", phonemes = "zoĭ", span = { source_id = "<fixture>", byte_start = 27, byte_end = 30, char_start = 27, char_end = 30 } }, opening_delimiter = { kind = "cmavo", phonemes = "gy", span = { source_id = "<fixture>", byte_start = 31, byte_end = 33, char_start = 31, char_end = 33 } }, quoted_text = { source_id = "<fixture>", byte_start = 35, byte_end = 44, char_start = 35, char_end = 44 }, closing_delimiter = { kind = "cmavo", phonemes = "gy", span = { source_id = "<fixture>", byte_start = 46, byte_end = 48, char_start = 46, char_end = 48 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "zoĭ", span = { source_id = "<fixture>", byte_start = 51, byte_end = 54, char_start = 51, char_end = 54 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 7, allowed-next = [] }

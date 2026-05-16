@@ -1,0 +1,15 @@
+id = "corpus.camxes.4976"
+lojban = "the place structure"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "4976"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'the' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "t👉he place structure"
+@ 0: "👉the place structure"""" }

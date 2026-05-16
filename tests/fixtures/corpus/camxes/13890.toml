@@ -1,0 +1,20 @@
+id = "corpus.camxes.13890"
+lojban = "use parser to be sure"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "13890"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "u", span = { source_id = "<fixture>", byte_start = 0, byte_end = 1, char_start = 0, char_end = 1 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "se", span = { source_id = "<fixture>", byte_start = 1, byte_end = 3, char_start = 1, char_end = 3 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "parser", span = { source_id = "<fixture>", byte_start = 4, byte_end = 10, char_start = 4, char_end = 10 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "re", span = { source_id = "<fixture>", byte_start = 19, byte_end = 21, char_start = 19, char_end = 21 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 1, allowed-next = [] }

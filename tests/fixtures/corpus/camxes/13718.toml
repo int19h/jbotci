@@ -1,0 +1,19 @@
+id = "corpus.camxes.13718"
+lojban = "time to reboot"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "13718"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:9: 'reboot' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "reb" but got "oot"
+  "time to reb👉oot"
+- not cmevla: cmevla (name) must end with a consonant
+  "time to 👉reboot"
+- not cmavo: cmavo 're' followed by 'b' which doesn't start a valid Lojban word
+  "time to re👉boot"
+@ 8: "time to 👉reboot"""" }

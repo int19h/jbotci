@@ -1,0 +1,19 @@
+id = "corpus.camxes.16007"
+lojban = "10 May 2003 13:41:33 * xavier cliva"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16007"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:4: 'May' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "10 Ma👉y 2003 13:41:33 * xavier cliva"
+- not cmevla: cmevla (name) must end with a consonant
+  "10 👉May 2003 13:41:33 * xavier cli…"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "10 Ma👉y 2003 13:41:33 * xavier cliva"
+@ 3: "10 👉May 2003 13:41:33 * xavier cli…"""" }

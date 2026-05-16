@@ -1,0 +1,15 @@
+id = "corpus.camxes.21587"
+lojban = "shouldn't da'i go before nu"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21587"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'shouldn't' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "s👉houldn't da'i go before nu"
+@ 0: "👉shouldn't da'i go before nu"""" }

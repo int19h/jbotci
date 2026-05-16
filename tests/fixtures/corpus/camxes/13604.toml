@@ -1,0 +1,19 @@
+id = "corpus.camxes.13604"
+lojban = "rlpowell@chain> vlatai very."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "13604"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'rlpowell@chain>' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got 'l'
+  "r👉lpowell@chain> vlatai very."
+- not cmevla: cmevla (name) must end with a consonant
+  "👉rlpowell@chain> vlatai very."
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "👉rlpowell@chain> vlatai very."
+@ 0: "👉rlpowell@chain> vlatai very."""" }

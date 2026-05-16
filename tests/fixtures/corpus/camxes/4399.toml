@@ -1,0 +1,15 @@
+id = "corpus.camxes.4399"
+lojban = "ko kurji doi juel"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "4399"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:14: 'juel' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "ko kurji doi j👉uel"
+@ 13: "ko kurji doi 👉juel"""" }

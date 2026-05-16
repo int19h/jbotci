@@ -1,0 +1,19 @@
+id = "corpus.camxes.17866"
+lojban = "zo'e != da"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17866"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:7: '=' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '='
+  "zo'e !👉= da"
+- not cmevla: cmevla (name) must end with a consonant
+  "zo'e !👉= da"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "zo'e !👉= da"
+@ 6: "zo'e !👉= da"""" }

@@ -1,0 +1,19 @@
+id = "corpus.camxes.2027"
+lojban = " i lu vi'osai sei la alis noi sutra le nu galfi le selsnu cu cusku i xu y xu do y nelci y lo'e gerku li'u i la smacu na spuda iseki'ubo la alis ca'o cusku lu lo melbi ke cmalu gerku noi xabju le jibni be le mi'a zdani zo'u mi djica le nu mi gy do jarco i gy cmalu gerku la terier gi'e se kerfa lo clani je sarlu je bunre gi'e xrubei lei dacti poi do renro i gy fa'aga'u zutse gi'e cpedu le sanmi gi'e zukte so'i vrici noi mi ka'enai morji pimu lu'o ke'a i gy se ponse lo te cange noi xusra le du'u gy tai se pilno ja'e le nu gy se vamji lo rupnu be li panono i cy xusra le du'u gy catra ro le ratcu i oise'i sei la alis xenru tonga krixa i mi xersmadi le du'u mi ta za'ure'u cnixai li'u i la smacu ca'o limna to'o abu serai le ka vlipa kei gi'e mutce le ka kalsygau le lalxu ca le nu klama "
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2027"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:274: 'terier' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…y cmalu gerku la ter👉ier gi'e se kerfa lo clani je …"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…y cmalu gerku la ter👉ier gi'e se kerfa lo clani je …"
+- not cmavo: cmavo 'te' followed by 'r' which doesn't start a valid Lojban word
+  "…gy cmalu gerku la te👉rier gi'e se kerfa lo clani je…"
+@ 273: "…i gy cmalu gerku la 👉terier gi'e se kerfa lo clani …"""" }

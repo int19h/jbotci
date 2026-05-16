@@ -1,0 +1,20 @@
+id = "corpus.camxes.4158"
+lojban = "me nelci le tanru"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "4158"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "me", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "nelci", span = { source_id = "<fixture>", byte_start = 3, byte_end = 8, char_start = 3, char_end = 8 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "le", span = { source_id = "<fixture>", byte_start = 9, byte_end = 11, char_start = 9, char_end = 11 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "tanru", span = { source_id = "<fixture>", byte_start = 12, byte_end = 17, char_start = 12, char_end = 17 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 1, allowed-next = [] }

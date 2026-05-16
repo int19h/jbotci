@@ -1,0 +1,19 @@
+id = "corpus.camxes.14145"
+lojban = "lo verba cu Q gletu"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "14145"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:13: 'Q' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'Q'
+  "lo verba cu 👉Q gletu"
+- not cmevla: cmevla (name) must end with a consonant
+  "lo verba cu 👉Q gletu"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "lo verba cu 👉Q gletu"
+@ 12: "lo verba cu 👉Q gletu"""" }

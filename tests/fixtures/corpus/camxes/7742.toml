@@ -1,0 +1,15 @@
+id = "corpus.camxes.7742"
+lojban = "le selsrera cu jalge lenu catlu la'e zoi gy. http://nehwon.dyn.wiw.org/jbovlaste/wiki/FrontPage?lang=ar .gy. (ignore that it seems to be wrong; that's the testing program's fault)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7742"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:118: 'that' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "…ng=ar .gy. (ignore t👉hat it seems to be wrong; that…"
+@ 117: "…ang=ar .gy. (ignore 👉that it seems to be wrong; tha…"""" }

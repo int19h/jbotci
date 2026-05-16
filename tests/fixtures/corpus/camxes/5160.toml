@@ -1,0 +1,15 @@
+id = "corpus.camxes.5160"
+lojban = "doi thedward. mo"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "5160"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:5: 'thedward.' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "doi t👉hedward. mo"
+@ 4: "doi 👉thedward. mo"""" }

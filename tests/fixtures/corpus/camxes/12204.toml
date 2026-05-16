@@ -1,0 +1,19 @@
+id = "corpus.camxes.12204"
+lojban = "Only one broda."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12204"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'Only' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'O'
+  "👉Only one broda."
+- not cmevla: cmevla (name) must end with a consonant
+  "👉Only one broda."
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "👉Only one broda."
+@ 0: "👉Only one broda."""" }

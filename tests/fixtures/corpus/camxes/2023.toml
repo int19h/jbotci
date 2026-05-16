@@ -1,0 +1,19 @@
+id = "corpus.camxes.2023"
+lojban = " i cumki fa le nu ta na se bangu le lojbo sei la alis pensi i ru'a ta fraso smacu gi'e kansa la uiliam no'u le jamji'a le nu klama ti li'u to abu djuno piso'ida lei purcedra gi'eku'i na mutce le ka jimpe le du'u py pu fasnu za makau toi i abuboi za'ure'u co'a cusku zoi fy Où est ma chatte? fy noi pamoi lei jufra pe le abu fraso ve cilre cukta i le smacu cu suksa plipe le bartu be le djacu gi'e simlu le ka desku le nu terpa i lu oise'i ko mi fraxu sei la alis noi xersmadi le du'u abu crogau le danlu le cnirango cu sutra krixa i mi mulno le ka tolmorji le nu do na nelci lo'e mlatu li'u "
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2023"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:97: 'uiliam' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…cu gi'e kansa la uil👉iam no'u le jamji'a le nu klam…"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…cu gi'e kansa la uil👉iam no'u le jamji'a le nu klam…"
+- not cmavo: cmavo 'ŭi' followed by 'l' which doesn't start a valid Lojban word
+  "…acu gi'e kansa la ui👉liam no'u le jamji'a le nu kla…"
+@ 96: "…smacu gi'e kansa la 👉uiliam no'u le jamji'a le nu k…"""" }

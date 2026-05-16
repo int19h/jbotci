@@ -1,0 +1,21 @@
+id = "corpus.camxes.18582"
+lojban = "tricu gi'e cmaspati gi'e drat"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18582"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "tricu", span = { source_id = "<fixture>", byte_start = 0, byte_end = 5, char_start = 0, char_end = 5 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "gi'e", span = { source_id = "<fixture>", byte_start = 6, byte_end = 10, char_start = 6, char_end = 10 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "lujvo", phonemes = "cmaspati", span = { source_id = "<fixture>", byte_start = 11, byte_end = 19, char_start = 11, char_end = 19 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "gi'e", span = { source_id = "<fixture>", byte_start = 20, byte_end = 24, char_start = 20, char_end = 24 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "drat", span = { source_id = "<fixture>", byte_start = 25, byte_end = 29, char_start = 25, char_end = 29 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 4, allowed-next = [] }

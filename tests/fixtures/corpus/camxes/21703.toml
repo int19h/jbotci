@@ -1,0 +1,15 @@
+id = "corpus.camxes.21703"
+lojban = "Then le mlatu de'a pinxe le ri ladru"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21703"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'Then' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "T👉hen le mlatu de'a pinxe le ri …"
+@ 0: "👉Then le mlatu de'a pinxe le ri…"""" }

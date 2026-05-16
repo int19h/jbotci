@@ -1,0 +1,19 @@
+id = "corpus.camxes.11295"
+lojban = "na djuno .i ko catlu le mirlu zei zoi gy. headers .gy."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11295"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:43: 'headers' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
+  "… mirlu zei zoi gy. h👉eaders .gy."
+- not cmevla: cmevla (name) must end with a consonant
+  "…e mirlu zei zoi gy. 👉headers .gy."
+- not cmavo: apostrophe/h is only allowed between two vowels (CLL 3.3)
+  "… mirlu zei zoi gy. h👉eaders .gy."
+@ 42: "…e mirlu zei zoi gy. 👉headers .gy."""" }

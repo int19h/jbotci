@@ -1,0 +1,21 @@
+id = "corpus.camxes.7831"
+lojban = "mi fartas bonega"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7831"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "mi", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "fartas", span = { source_id = "<fixture>", byte_start = 3, byte_end = 9, char_start = 3, char_end = 9 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "bo", span = { source_id = "<fixture>", byte_start = 10, byte_end = 12, char_start = 10, char_end = 12 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ne", span = { source_id = "<fixture>", byte_start = 12, byte_end = 14, char_start = 12, char_end = 14 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ga", span = { source_id = "<fixture>", byte_start = 14, byte_end = 16, char_start = 14, char_end = 16 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 1, allowed-next = [] }

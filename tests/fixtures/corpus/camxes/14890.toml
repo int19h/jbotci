@@ -1,0 +1,21 @@
+id = "corpus.camxes.14890"
+lojban = "do norpan .i do mo"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "14890"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "do", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "norpan", span = { source_id = "<fixture>", byte_start = 3, byte_end = 9, char_start = 3, char_end = 9 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "i", span = { source_id = "<fixture>", byte_start = 11, byte_end = 12, char_start = 11, char_end = 12 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "do", span = { source_id = "<fixture>", byte_start = 13, byte_end = 15, char_start = 13, char_end = 15 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "mo", span = { source_id = "<fixture>", byte_start = 16, byte_end = 18, char_start = 16, char_end = 18 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 1, allowed-next = [] }

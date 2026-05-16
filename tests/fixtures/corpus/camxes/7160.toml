@@ -1,0 +1,19 @@
+id = "corpus.camxes.7160"
+lojban = "to separate vowels"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7160"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:13: 'vowels' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected apostrophe but got 'w'
+  "to separate vo👉wels"
+- not cmevla: cmevla (name) must end with a consonant
+  "to separate 👉vowels"
+- not cmavo: cmavo 'vo' followed by 'w' which doesn't start a valid Lojban word
+  "to separate vo👉wels"
+@ 12: "to separate 👉vowels"""" }

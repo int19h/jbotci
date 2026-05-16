@@ -1,0 +1,19 @@
+id = "corpus.camxes.11193"
+lojban = "appears to be"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11193"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'appears' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "ap👉pears to be"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "ap👉pears to be"
+- not cmavo: cmavo 'a' followed by 'p' which doesn't start a valid Lojban word
+  "a👉ppears to be"
+@ 0: "👉appears to be"""" }

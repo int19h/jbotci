@@ -1,0 +1,24 @@
+id = "corpus.camxes.8128"
+lojban = "mi jai cinri .i do bilga lenu ..."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8128"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "mi", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "jaĭ", span = { source_id = "<fixture>", byte_start = 3, byte_end = 6, char_start = 3, char_end = 6 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "cinri", span = { source_id = "<fixture>", byte_start = 7, byte_end = 12, char_start = 7, char_end = 12 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "i", span = { source_id = "<fixture>", byte_start = 14, byte_end = 15, char_start = 14, char_end = 15 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "do", span = { source_id = "<fixture>", byte_start = 16, byte_end = 18, char_start = 16, char_end = 18 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "bilga", span = { source_id = "<fixture>", byte_start = 19, byte_end = 24, char_start = 19, char_end = 24 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "le", span = { source_id = "<fixture>", byte_start = 25, byte_end = 27, char_start = 25, char_end = 27 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "nu", span = { source_id = "<fixture>", byte_start = 27, byte_end = 29, char_start = 27, char_end = 29 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 8, allowed-next = [] }

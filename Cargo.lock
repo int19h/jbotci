@@ -204,20 +204,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "jbotci-fixtures"
-version = "0.1.0"
-dependencies = [
- "jbotci-morphology",
- "jbotci-syntax",
- "serde",
- "serde_json",
- "serde_stacker",
- "thiserror",
- "toml",
- "walkdir",
-]
-
-[[package]]
 name = "jbotci-jvozba"
 version = "0.1.0"
 dependencies = [
@@ -288,6 +274,21 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "jbotci-workspace"
+version = "0.1.0"
+dependencies = [
+ "jbotci-morphology",
+ "jbotci-source",
+ "jbotci-syntax",
+ "serde",
+ "serde_json",
+ "serde_stacker",
+ "thiserror",
+ "toml",
+ "walkdir",
 ]
 
 [[package]]
@@ -576,7 +577,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "jbotci-fixtures",
+ "jbotci-morphology",
+ "jbotci-syntax",
+ "serde",
+ "serde_json",
+ "serde_stacker",
+ "thiserror",
+ "toml",
+ "walkdir",
 ]
 
 [[package]]

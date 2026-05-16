@@ -1,0 +1,15 @@
+id = "corpus.camxes.23"
+lojban = "cuu cusku cu'u"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "23"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'cuu' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "c👉uu cusku cu'u"
+@ 0: "👉cuu cusku cu'u"""" }

@@ -1,0 +1,19 @@
+id = "corpus.camxes.7616"
+lojban = "very cool"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7616"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:6: 'cool' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "very co👉ol"
+- not cmevla: cmevla (name) must end with a consonant
+  "very 👉cool"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "very co👉ol"
+@ 5: "very 👉cool"""" }

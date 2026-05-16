@@ -1,0 +1,23 @@
+id = "corpus.camxes.2984"
+lojban = "le minji cu dunda zoi gy. internal error gy. mi (zoi)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2984"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "le", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "minji", span = { source_id = "<fixture>", byte_start = 3, byte_end = 8, char_start = 3, char_end = 8 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "cu", span = { source_id = "<fixture>", byte_start = 9, byte_end = 11, char_start = 9, char_end = 11 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "dunda", span = { source_id = "<fixture>", byte_start = 12, byte_end = 17, char_start = 12, char_end = 17 } } } },
+    { kind = "base-word", word_like = { kind = "zoi-quote", zoi = { kind = "cmavo", phonemes = "zoĭ", span = { source_id = "<fixture>", byte_start = 18, byte_end = 21, char_start = 18, char_end = 21 } }, opening_delimiter = { kind = "cmavo", phonemes = "gy", span = { source_id = "<fixture>", byte_start = 22, byte_end = 24, char_start = 22, char_end = 24 } }, quoted_text = { source_id = "<fixture>", byte_start = 26, byte_end = 40, char_start = 26, char_end = 40 }, closing_delimiter = { kind = "cmavo", phonemes = "gy", span = { source_id = "<fixture>", byte_start = 41, byte_end = 43, char_start = 41, char_end = 43 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "mi", span = { source_id = "<fixture>", byte_start = 45, byte_end = 47, char_start = 45, char_end = 47 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "zoĭ", span = { source_id = "<fixture>", byte_start = 49, byte_end = 52, char_start = 49, char_end = 52 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 6, allowed-next = [] }

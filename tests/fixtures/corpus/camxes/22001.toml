@@ -1,0 +1,19 @@
+id = "corpus.camxes.22001"
+lojban = "so so quiet"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "22001"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:7: 'quiet' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'q'
+  "so so 👉quiet"
+- not cmevla: cmevla (name) must end with a consonant
+  "so so 👉quiet"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "so so 👉quiet"
+@ 6: "so so 👉quiet"""" }

@@ -1,0 +1,19 @@
+id = "corpus.camxes.3611"
+lojban = "doi p1nky .i xu do xamgu tavla fo la lojban?"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "3611"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:5: 'p1nky' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got '1'
+  "doi p👉1nky .i xu do xamgu tavla fo l…"
+- not cmevla: cmevla (name) must end with a consonant
+  "doi 👉p1nky .i xu do xamgu tavla fo …"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "doi 👉p1nky .i xu do xamgu tavla fo …"
+@ 4: "doi 👉p1nky .i xu do xamgu tavla fo …"""" }

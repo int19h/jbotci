@@ -1,0 +1,19 @@
+id = "corpus.camxes.6638"
+lojban = "probably me re le lumci kumfa"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "6638"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'probably' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "probably" (y-hyphen) but got end of input
+  "probably👉 me re le lumci kumfa"
+- not cmevla: cmevla (name) must end with a consonant
+  "👉probably me re le lumci kumfa"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "👉probably me re le lumci kumfa"
+@ 0: "👉probably me re le lumci kumfa"""" }

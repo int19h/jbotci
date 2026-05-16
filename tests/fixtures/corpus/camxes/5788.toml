@@ -1,0 +1,19 @@
+id = "corpus.camxes.5788"
+lojban = "me too..lol"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "5788"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:4: 'too..lol' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "me to👉o..lol"
+- not cmevla: cmevla (name) must end with a consonant
+  "me 👉too..lol"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "me to👉o..lol"
+@ 3: "me 👉too..lol"""" }

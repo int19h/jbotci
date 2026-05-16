@@ -1,0 +1,20 @@
+id = "corpus.camxes.12662"
+lojban = "long live zo samselpla"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12662"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "long", span = { source_id = "<fixture>", byte_start = 0, byte_end = 4, char_start = 0, char_end = 4 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "li", span = { source_id = "<fixture>", byte_start = 5, byte_end = 7, char_start = 5, char_end = 7 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ve", span = { source_id = "<fixture>", byte_start = 7, byte_end = 9, char_start = 7, char_end = 9 } } } },
+    { kind = "base-word", word_like = { kind = "zo-quote", zo = { kind = "cmavo", phonemes = "zo", span = { source_id = "<fixture>", byte_start = 10, byte_end = 12, char_start = 10, char_end = 12 } }, word = { kind = "lujvo", phonemes = "samselpla", span = { source_id = "<fixture>", byte_start = 13, byte_end = 22, char_start = 13, char_end = 22 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 3, allowed-next = [] }

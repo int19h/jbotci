@@ -1,0 +1,19 @@
+id = "corpus.camxes.12871"
+lojban = "ui mi ca ponse lo me la diskspeis poi ka'e se pilno fi la webe'osting"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12871"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:59: 'webe'osting' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'w'
+  "…ka'e se pilno fi la 👉webe'osting"
+- not cmevla: cmevla (name) must end with a consonant
+  "…ka'e se pilno fi la 👉webe'osting"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…ka'e se pilno fi la 👉webe'osting"
+@ 58: "…ka'e se pilno fi la 👉webe'osting"""" }

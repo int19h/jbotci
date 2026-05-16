@@ -1,0 +1,19 @@
+id = "corpus.camxes.7072"
+lojban = "18.11Special mekso selbri"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7072"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:6: 'Special' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "18.11Spec👉ial mekso selbri"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "18.11Spec👉ial mekso selbri"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "18.11👉Special mekso selbri"
+@ 5: "18.11👉Special mekso selbri"""" }

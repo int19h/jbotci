@@ -1,0 +1,20 @@
+id = "corpus.camxes.14335"
+lojban = "And vice versa."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "14335"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "ánd", span = { source_id = "<fixture>", byte_start = 0, byte_end = 3, char_start = 0, char_end = 3 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "vi", span = { source_id = "<fixture>", byte_start = 4, byte_end = 6, char_start = 4, char_end = 6 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ce", span = { source_id = "<fixture>", byte_start = 6, byte_end = 8, char_start = 6, char_end = 8 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "versa", span = { source_id = "<fixture>", byte_start = 9, byte_end = 14, char_start = 9, char_end = 14 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 3, allowed-next = [] }

@@ -1,0 +1,15 @@
+id = "corpus.camxes.12302"
+lojban = "nobody i think"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12302"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:10: 'think' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "nobody i t👉hink"
+@ 9: "nobody i 👉think"""" }

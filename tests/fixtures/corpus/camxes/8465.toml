@@ -1,0 +1,19 @@
+id = "corpus.camxes.8465"
+lojban = "all very cfipu..."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8465"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'all' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "al👉l very cfipu..."
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "al👉l very cfipu..."
+- not cmavo: cmavo 'a' followed by 'l' which doesn't start a valid Lojban word
+  "a👉ll very cfipu..."
+@ 0: "👉all very cfipu..."""" }

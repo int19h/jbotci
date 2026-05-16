@@ -1,0 +1,15 @@
+id = "corpus.camxes.19429"
+lojban = 'joke, a reference to "thinkit"'
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19429"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:23: 'thinkit"' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "…e, a reference to "t👉hinkit""
+@ 22: "…ke, a reference to "👉thinkit""""" }

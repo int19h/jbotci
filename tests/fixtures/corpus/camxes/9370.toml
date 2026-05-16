@@ -1,0 +1,19 @@
+id = "corpus.camxes.9370"
+lojban = "mi pu zgana le nu la xod pilno zo / .oi .enai zo lu .abo zo li'u"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "9370"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:35: '/' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '/'
+  "… nu la xod pilno zo 👉/ .oi .enai zo lu .abo zo li'u"
+- not cmevla: cmevla (name) must end with a consonant
+  "… nu la xod pilno zo 👉/ .oi .enai zo lu .abo zo li'u"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "… nu la xod pilno zo 👉/ .oi .enai zo lu .abo zo li'u"
+@ 34: "… nu la xod pilno zo 👉/ .oi .enai zo lu .abo zo li'u"""" }

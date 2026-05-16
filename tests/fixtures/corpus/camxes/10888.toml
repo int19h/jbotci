@@ -1,0 +1,19 @@
+id = "corpus.camxes.10888"
+lojban = "a smallish one"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "10888"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:3: 'smallish' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "a smal👉lish one"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "a smal👉lish one"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "a 👉smallish one"
+@ 2: "a 👉smallish one"""" }

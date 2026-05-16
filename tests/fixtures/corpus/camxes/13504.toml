@@ -1,0 +1,19 @@
+id = "corpus.camxes.13504"
+lojban = "in my /tmp?"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "13504"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:7: '/tmp?' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '/'
+  "in my 👉/tmp?"
+- not cmevla: cmevla (name) must end with a consonant
+  "in my 👉/tmp?"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "in my 👉/tmp?"
+@ 6: "in my 👉/tmp?"""" }

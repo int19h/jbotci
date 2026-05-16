@@ -1,0 +1,19 @@
+id = "corpus.camxes.11815"
+lojban = "so lamji something"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11815"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:10: 'something' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "so lamji somet👉hing"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "so lamji somet👉hing"
+- not cmavo: cmavo 'so' followed by 'm' which doesn't start a valid Lojban word
+  "so lamji so👉mething"
+@ 9: "so lamji 👉something"""" }

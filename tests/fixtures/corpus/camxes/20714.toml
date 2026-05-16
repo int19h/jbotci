@@ -1,0 +1,15 @@
+id = "corpus.camxes.20714"
+lojban = "there are some"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20714"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'there' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "t👉here are some"
+@ 0: "👉there are some"""" }

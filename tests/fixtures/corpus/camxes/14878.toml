@@ -1,0 +1,19 @@
+id = "corpus.camxes.14878"
+lojban = "mi pu zgana le gugrsferie zgike jivna va la stok.xolms."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "14878"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:16: 'gugrsferie' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…pu zgana le gugrsfer👉ie zgike jivna va la stok.xolm…"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…pu zgana le gugrsfer👉ie zgike jivna va la stok.xolm…"
+- not cmavo: cmavo 'gu' followed by 'g' which doesn't start a valid Lojban word
+  "mi pu zgana le gu👉grsferie zgike jivna va la sto…"
+@ 15: "mi pu zgana le 👉gugrsferie zgike jivna va la s…"""" }

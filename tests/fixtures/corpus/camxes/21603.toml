@@ -1,0 +1,19 @@
+id = "corpus.camxes.21603"
+lojban = "ko'a desku le se terpa i fo a cusku lu ko morji le te curmi poi se dunda mi do i mi djica le nu mi cu cilre la lojban. wu2 "
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21603"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:120: 'wu2' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'w'
+  "…cu cilre la lojban. 👉wu2 "
+- not cmevla: cmevla (name) must end with a consonant
+  "…cu cilre la lojban. 👉wu2 "
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…cu cilre la lojban. 👉wu2 "
+@ 119: "…cu cilre la lojban. 👉wu2 """" }

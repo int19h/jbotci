@@ -1,0 +1,15 @@
+id = "corpus.camxes.17245"
+lojban = "na go'i .i mi cuska li mi nelci la'o gy. wiki gy. lui"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17245"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:51: 'lui' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "… la'o gy. wiki gy. l👉ui"
+@ 50: "…i la'o gy. wiki gy. 👉lui"""" }

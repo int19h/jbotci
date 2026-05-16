@@ -1,0 +1,20 @@
+id = "corpus.camxes.7577"
+lojban = "mi xebni le zoi .gy font packages .gy"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7577"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "mi", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "xebni", span = { source_id = "<fixture>", byte_start = 3, byte_end = 8, char_start = 3, char_end = 8 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "le", span = { source_id = "<fixture>", byte_start = 9, byte_end = 11, char_start = 9, char_end = 11 } } } },
+    { kind = "base-word", word_like = { kind = "zoi-quote", zoi = { kind = "cmavo", phonemes = "zoĭ", span = { source_id = "<fixture>", byte_start = 12, byte_end = 15, char_start = 12, char_end = 15 } }, opening_delimiter = { kind = "cmavo", phonemes = "gy", span = { source_id = "<fixture>", byte_start = 17, byte_end = 19, char_start = 17, char_end = 19 } }, quoted_text = { source_id = "<fixture>", byte_start = 19, byte_end = 33, char_start = 19, char_end = 33 }, closing_delimiter = { kind = "cmavo", phonemes = "gy", span = { source_id = "<fixture>", byte_start = 35, byte_end = 37, char_start = 35, char_end = 37 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 4, allowed-next = [] }

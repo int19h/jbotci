@@ -1,0 +1,21 @@
+id = "corpus.camxes.8906"
+lojban = "je'e .io toi ni valsi toi"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8906"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "je'e", span = { source_id = "<fixture>", byte_start = 0, byte_end = 4, char_start = 0, char_end = 4 } } } }, indicator = { kind = "cmavo", phonemes = "ĭo", span = { source_id = "<fixture>", byte_start = 6, byte_end = 8, char_start = 6, char_end = 8 } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "toĭ", span = { source_id = "<fixture>", byte_start = 9, byte_end = 12, char_start = 9, char_end = 12 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ni", span = { source_id = "<fixture>", byte_start = 13, byte_end = 15, char_start = 13, char_end = 15 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "valsi", span = { source_id = "<fixture>", byte_start = 16, byte_end = 21, char_start = 16, char_end = 21 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "toĭ", span = { source_id = "<fixture>", byte_start = 22, byte_end = 25, char_start = 22, char_end = 25 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 1, allowed-next = [] }

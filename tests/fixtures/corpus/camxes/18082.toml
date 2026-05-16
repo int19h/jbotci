@@ -1,0 +1,19 @@
+id = "corpus.camxes.18082"
+lojban = ".oisai mi jai cafne le nu jorne la'o'o #lobjan"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18082"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:40: '#lobjan' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '#'
+  "… le nu jorne la'o'o 👉#lobjan"
+- not cmevla: cmevla (name) must end with a consonant
+  "… le nu jorne la'o'o 👉#lobjan"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "… le nu jorne la'o'o 👉#lobjan"
+@ 39: "… le nu jorne la'o'o 👉#lobjan"""" }

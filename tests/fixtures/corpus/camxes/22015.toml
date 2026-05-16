@@ -1,0 +1,19 @@
+id = "corpus.camxes.22015"
+lojban = "mi krici le du'u na'eka'e pilno la postgres .a la irk le nu samymri -- NOT SURE (morphology, postgres)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "22015"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:36: 'postgres' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…'eka'e pilno la post👉gres .a la irk le nu samymri -…"
+- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…'eka'e pilno la post👉gres .a la irk le nu samymri -…"
+- not cmavo: cmavo 'po' followed by 's' which doesn't start a valid Lojban word
+  "…na'eka'e pilno la po👉stgres .a la irk le nu samymri…"
+@ 35: "…u na'eka'e pilno la 👉postgres .a la irk le nu samym…"""" }

@@ -1,0 +1,19 @@
+id = "corpus.camxes.22434"
+lojban = "ka'etavla can't be a lujvo"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "22434"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:11: 'can't' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "ka'etavla can👉't be a lujvo"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "ka'etavla can👉't be a lujvo"
+- not cmavo: cmavo 'ca' followed by 'n' which doesn't start a valid Lojban word
+  "ka'etavla ca👉n't be a lujvo"
+@ 10: "ka'etavla 👉can't be a lujvo"""" }

@@ -1,0 +1,19 @@
+id = "corpus.camxes.11083"
+lojban = "like me"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11083"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "li", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ke", span = { source_id = "<fixture>", byte_start = 2, byte_end = 4, char_start = 2, char_end = 4 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "me", span = { source_id = "<fixture>", byte_start = 5, byte_end = 7, char_start = 5, char_end = 7 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 2, allowed-next = [] }

@@ -1,0 +1,19 @@
+id = "corpus.camxes.16253"
+lojban = ".i ku;'i le tadji poi ko'a stidu cu se cfipu gi;e se srera"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16253"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:7: ''i' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '''
+  ".i ku;👉'i le tadji poi ko'a stidu cu …"
+- not cmevla: cmevla (name) must end with a consonant
+  ".i ku;👉'i le tadji poi ko'a stidu cu …"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  ".i ku;👉'i le tadji poi ko'a stidu cu …"
+@ 6: ".i ku;👉'i le tadji poi ko'a stidu cu …"""" }

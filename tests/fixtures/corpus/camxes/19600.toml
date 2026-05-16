@@ -1,0 +1,259 @@
+id = "corpus.camxes.19600"
+lojban = "doi na'e la grizis"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19600"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "doĭ", span = { source_id = "<fixture>", byte_start = 0, byte_end = 3, char_start = 0, char_end = 3 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "na'e", span = { source_id = "<fixture>", byte_start = 4, byte_end = 8, char_start = 4, char_end = 8 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "la", span = { source_id = "<fixture>", byte_start = 9, byte_end = 11, char_start = 9, char_end = 11 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "grizis", span = { source_id = "<fixture>", byte_start = 12, byte_end = 18, char_start = 12, char_end = 18 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+parse-tree = {
+    kind = "node",
+    node = {
+        constructor = "LojbanText",
+        fields = [
+            {
+                name = "leadingNai",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingCmevla",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingIndicators",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingFreeModifiers",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "(:)",
+                        fields = [
+                            {
+                                value = {
+                                    kind = "node",
+                                    node = {
+                                        constructor = "VocativeFree",
+                                        fields = [
+                                            {
+                                                name = "vocativeMarkers",
+                                                value = {
+                                                    kind = "node",
+                                                    node = {
+                                                        constructor = "(:)",
+                                                        fields = [
+                                                            {
+                                                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "doĭ", span = { source_id = "<fixture>", byte_start = 0, byte_end = 3, char_start = 0, char_end = 3 } } } } }
+                                                            },
+                                                            {
+                                                                value = {
+                                                                    kind = "node",
+                                                                    node = {
+                                                                        constructor = "[]",
+                                                                        fields = []
+                                                                    }
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                name = "freeModifiers",
+                                                value = {
+                                                    kind = "node",
+                                                    node = {
+                                                        constructor = "[]",
+                                                        fields = []
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                name = "argument",
+                                                value = {
+                                                    kind = "node",
+                                                    node = {
+                                                        constructor = "Just",
+                                                        fields = [
+                                                            {
+                                                                value = {
+                                                                    kind = "node",
+                                                                    node = {
+                                                                        constructor = "NaheArgument",
+                                                                        fields = [
+                                                                            {
+                                                                                name = "nahe",
+                                                                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "na'e", span = { source_id = "<fixture>", byte_start = 4, byte_end = 8, char_start = 4, char_end = 8 } } } } }
+                                                                            },
+                                                                            {
+                                                                                name = "freeModifiers",
+                                                                                value = {
+                                                                                    kind = "node",
+                                                                                    node = {
+                                                                                        constructor = "[]",
+                                                                                        fields = []
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            {
+                                                                                name = "innerArgument",
+                                                                                value = {
+                                                                                    kind = "node",
+                                                                                    node = {
+                                                                                        constructor = "NameArgument",
+                                                                                        fields = [
+                                                                                            {
+                                                                                                name = "la",
+                                                                                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "la", span = { source_id = "<fixture>", byte_start = 9, byte_end = 11, char_start = 9, char_end = 11 } } } } }
+                                                                                            },
+                                                                                            {
+                                                                                                name = "laFreeModifiers",
+                                                                                                value = {
+                                                                                                    kind = "node",
+                                                                                                    node = {
+                                                                                                        constructor = "[]",
+                                                                                                        fields = []
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            {
+                                                                                                name = "names",
+                                                                                                value = {
+                                                                                                    kind = "list",
+                                                                                                    items = [
+                                                                                                        { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "grizis", span = { source_id = "<fixture>", byte_start = 12, byte_end = 18, char_start = 12, char_end = 18 } } } } }
+                                                                                                    ]
+                                                                                                }
+                                                                                            },
+                                                                                            {
+                                                                                                name = "nameFreeModifiers",
+                                                                                                value = {
+                                                                                                    kind = "node",
+                                                                                                    node = {
+                                                                                                        constructor = "[]",
+                                                                                                        fields = []
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        ]
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            {
+                                                                                name = "luhu",
+                                                                                value = {
+                                                                                    kind = "node",
+                                                                                    node = {
+                                                                                        constructor = "Nothing",
+                                                                                        fields = []
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            {
+                                                                                name = "luhuFreeModifiers",
+                                                                                value = {
+                                                                                    kind = "node",
+                                                                                    node = {
+                                                                                        constructor = "[]",
+                                                                                        fields = []
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        ]
+                                                                    }
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                name = "dohu",
+                                                value = {
+                                                    kind = "node",
+                                                    node = {
+                                                        constructor = "Nothing",
+                                                        fields = []
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                name = "dohuFreeModifiers",
+                                                value = {
+                                                    kind = "node",
+                                                    node = {
+                                                        constructor = "[]",
+                                                        fields = []
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                value = {
+                                    kind = "node",
+                                    node = {
+                                        constructor = "[]",
+                                        fields = []
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                name = "leadingConnective",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "Nothing",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "paragraphs",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            }
+        ]
+    }
+}

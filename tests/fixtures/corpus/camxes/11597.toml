@@ -1,0 +1,15 @@
+id = "corpus.camxes.11597"
+lojban = 'font size (spacing; si should get "font")'
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11597"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:24: 'should' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "… size (spacing; si s👉hould get "font")"
+@ 23: "…t size (spacing; si 👉should get "font")"""" }

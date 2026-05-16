@@ -1,0 +1,19 @@
+id = "corpus.camxes.11602"
+lojban = "lo gerku == da poi gerku"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11602"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:10: '==' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '='
+  "lo gerku 👉== da poi gerku"
+- not cmevla: cmevla (name) must end with a consonant
+  "lo gerku 👉== da poi gerku"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "lo gerku 👉== da poi gerku"
+@ 9: "lo gerku 👉== da poi gerku"""" }

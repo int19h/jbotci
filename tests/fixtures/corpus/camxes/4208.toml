@@ -1,0 +1,19 @@
+id = "corpus.camxes.4208"
+lojban = ".ui lo fasypre -- NOT SURE (morphology, fasypre)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "4208"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:29: 'morphology' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…re -- NOT SURE (morp👉hology, fasypre)"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…re -- NOT SURE (morp👉hology, fasypre)"
+- not cmavo: cmavo 'mo' followed by 'r' which doesn't start a valid Lojban word
+  "…ypre -- NOT SURE (mo👉rphology, fasypre)"
+@ 28: "…asypre -- NOT SURE (👉morphology, fasypre)"""" }

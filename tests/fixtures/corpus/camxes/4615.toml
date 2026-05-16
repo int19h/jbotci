@@ -1,0 +1,15 @@
+id = "corpus.camxes.4615"
+lojban = "doi niec"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "4615"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:5: 'niec' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "doi n👉iec"
+@ 4: "doi 👉niec"""" }

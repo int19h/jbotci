@@ -1,0 +1,19 @@
+id = "corpus.camxes.18306"
+lojban = "ko tcidu ti doi nysyabus -- NOT SURE (morphology, nysyabus)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18306"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:17: 'nysyabus' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got 'y'
+  "ko tcidu ti doi n👉ysyabus -- NOT SURE (morpholog…"
+- not cmevla: cmevla (name) must end with a consonant
+  "ko tcidu ti doi 👉nysyabus -- NOT SURE (morpholo…"
+- not cmavo: cmavo 'ny' followed by 's' which doesn't start a valid Lojban word
+  "ko tcidu ti doi ny👉syabus -- NOT SURE (morphology…"
+@ 16: "ko tcidu ti doi 👉nysyabus -- NOT SURE (morpholo…"""" }

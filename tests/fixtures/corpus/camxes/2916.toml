@@ -1,0 +1,19 @@
+id = "corpus.camxes.2916"
+lojban = "mi tugni la rlpowel du'u la .cy. xlali le brazba"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2916"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:13: 'rlpowel' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got 'l'
+  "mi tugni la r👉lpowel du'u la .cy. xlali le b…"
+- not cmevla: cmevla (name) must end with a consonant
+  "mi tugni la 👉rlpowel du'u la .cy. xlali le …"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "mi tugni la 👉rlpowel du'u la .cy. xlali le …"
+@ 12: "mi tugni la 👉rlpowel du'u la .cy. xlali le …"""" }

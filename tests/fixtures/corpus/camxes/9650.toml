@@ -1,0 +1,19 @@
+id = "corpus.camxes.9650"
+lojban = "do ciska lo te bangu be fi la lojban. works?"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "9650"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:39: 'works?' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'w'
+  "…gu be fi la lojban. 👉works?"
+- not cmevla: cmevla (name) must end with a consonant
+  "…gu be fi la lojban. 👉works?"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…gu be fi la lojban. 👉works?"
+@ 38: "…gu be fi la lojban. 👉works?"""" }

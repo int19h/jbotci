@@ -1,0 +1,15 @@
+id = "corpus.camxes.5142"
+lojban = "ma smuni that...lol"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "5142"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:10: 'that...lol' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "ma smuni t👉hat...lol"
+@ 9: "ma smuni 👉that...lol"""" }

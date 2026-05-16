@@ -1,0 +1,21 @@
+id = "corpus.camxes.16766"
+lojban = ".e'o ko fi me jarco"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16766"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "e'o", span = { source_id = "<fixture>", byte_start = 1, byte_end = 4, char_start = 1, char_end = 4 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ko", span = { source_id = "<fixture>", byte_start = 5, byte_end = 7, char_start = 5, char_end = 7 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "fi", span = { source_id = "<fixture>", byte_start = 8, byte_end = 10, char_start = 8, char_end = 10 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "me", span = { source_id = "<fixture>", byte_start = 11, byte_end = 13, char_start = 11, char_end = 13 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "jarco", span = { source_id = "<fixture>", byte_start = 14, byte_end = 19, char_start = 14, char_end = 19 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 4, allowed-next = [] }

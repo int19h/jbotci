@@ -17,8 +17,9 @@ command-line tools first, then the Dioxus web/server and GUI surfaces.
 - `crates/jbotci-cll`: CLL data/reference model.
 - `crates/jbotci-search`: semantic search abstractions.
 - `crates/jbotci-jvozba`: lujvo composition and decomposition.
-- `crates/jbotci-fixtures`: unified TOML test fixture loader.
 - `crates/jbotci-source`: shared source-span and provenance support.
+- `tests/fixtures`: cross-cutting integration fixture corpus.
+- `tests/support`: test-only fixture loader and runner support.
 - `xtask`: local workspace automation.
 
 ## Local Commands

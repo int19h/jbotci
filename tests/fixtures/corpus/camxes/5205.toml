@@ -1,0 +1,19 @@
+id = "corpus.camxes.5205"
+lojban = "coi rlpowell  .i xu do tcidu le se mrilu fi do mi ku"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "5205"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:5: 'rlpowell' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got 'l'
+  "coi r👉lpowell  .i xu do tcidu le se …"
+- not cmevla: cmevla (name) must end with a consonant
+  "coi 👉rlpowell  .i xu do tcidu le se…"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "coi 👉rlpowell  .i xu do tcidu le se…"
+@ 4: "coi 👉rlpowell  .i xu do tcidu le se…"""" }

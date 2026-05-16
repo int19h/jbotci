@@ -1,0 +1,106 @@
+id = "cll.13.45.c13e4d4"
+lojban = ".eiru'e"
+translation-en = "I might"
+gloss-en = "[obligation-weak]"
+
+[[provenance]]
+kind = "cll"
+chapter = 13
+section-number = "13.4"
+section-id = "intensity-scale"
+example-number = "13.45"
+example-id = "c13e4d4"
+source-path = "vendor/cll/chapters/13.xml"
+
+[expectations.output]
+brackets = "eĭ-rú'e"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "eĭ", span = { source_id = "<fixture>", byte_start = 1, byte_end = 3, char_start = 1, char_end = 3 } } } }, indicator = { kind = "cmavo", phonemes = "ru'e", span = { source_id = "<fixture>", byte_start = 3, byte_end = 7, char_start = 3, char_end = 7 } } },
+]
+
+[expectations.syntax]
+status = "success"
+parse-tree = {
+    kind = "node",
+    node = {
+        constructor = "LojbanText",
+        fields = [
+            {
+                name = "leadingNai",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingCmevla",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingIndicators",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "(:)",
+                        fields = [
+                            {
+                                value = { kind = "word", word = { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "eĭ", span = { source_id = "<fixture>", byte_start = 1, byte_end = 3, char_start = 1, char_end = 3 } } } }, indicator = { kind = "cmavo", phonemes = "ru'e", span = { source_id = "<fixture>", byte_start = 3, byte_end = 7, char_start = 3, char_end = 7 } } } }
+                            },
+                            {
+                                value = {
+                                    kind = "node",
+                                    node = {
+                                        constructor = "[]",
+                                        fields = []
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                name = "leadingFreeModifiers",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingConnective",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "Nothing",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "paragraphs",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            }
+        ]
+    }
+}

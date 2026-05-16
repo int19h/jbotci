@@ -1,0 +1,19 @@
+id = "corpus.camxes.19394"
+lojban = "la iu,yv,si puza ckule le mi prami"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19394"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:4: 'iu' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "la iu,yv👉,si puza ckule le mi prami"
+- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "la iu,yv👉,si puza ckule le mi prami"
+- not cmavo: cmavo 'i' followed by 'u' which doesn't start a valid Lojban word
+  "la i👉u,yv,si puza ckule le mi prami"
+@ 3: "la 👉iu,yv,si puza ckule le mi pram…"""" }

@@ -1,0 +1,13 @@
+id = "corpus.camxes.200"
+lojban = "zoi gi da da da gy"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "200"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:19: unterminated ZOI quote, expected closing delimiter 'gi'
+@ 18: "zoi gi da da da gy👉"""" }

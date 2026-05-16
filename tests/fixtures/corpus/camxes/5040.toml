@@ -1,0 +1,19 @@
+id = "corpus.camxes.5040"
+lojban = "like emitting code"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "5040"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:6: 'emitting' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "like emit👉ting code"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "like emit👉ting code"
+- not cmavo: cmavo 'e' followed by 'm' which doesn't start a valid Lojban word
+  "like e👉mitting code"
+@ 5: "like 👉emitting code"""" }

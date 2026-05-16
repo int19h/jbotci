@@ -1,0 +1,19 @@
+id = "corpus.camxes.4266"
+lojban = "with a fa"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "4266"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'with' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'w'
+  "👉with a fa"
+- not cmevla: cmevla (name) must end with a consonant
+  "👉with a fa"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "👉with a fa"
+@ 0: "👉with a fa"""" }

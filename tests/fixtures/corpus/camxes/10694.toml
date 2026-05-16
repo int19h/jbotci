@@ -1,0 +1,19 @@
+id = "corpus.camxes.10694"
+lojban = "traji ke what?"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "10694"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:10: 'what?' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'w'
+  "traji ke 👉what?"
+- not cmevla: cmevla (name) must end with a consonant
+  "traji ke 👉what?"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "traji ke 👉what?"
+@ 9: "traji ke 👉what?"""" }

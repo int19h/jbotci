@@ -1,0 +1,19 @@
+id = "corpus.camxes.19583"
+lojban = "ma te kancu le'i prenu poi co'e la lojfest. -- NOT SURE (morphology, lojfest)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19583"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:36: 'lojfest.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…renu poi co'e la loj👉fest. -- NOT SURE (morphology,…"
+- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…renu poi co'e la loj👉fest. -- NOT SURE (morphology,…"
+- not cmavo: cmavo 'lo' followed by 'j' which doesn't start a valid Lojban word
+  "…prenu poi co'e la lo👉jfest. -- NOT SURE (morphology…"
+@ 35: "…i prenu poi co'e la 👉lojfest. -- NOT SURE (morpholo…"""" }

@@ -1,0 +1,15 @@
+id = "corpus.camxes.8689"
+lojban = "like many things"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8689"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:11: 'things' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "like many t👉hings"
+@ 10: "like many 👉things"""" }

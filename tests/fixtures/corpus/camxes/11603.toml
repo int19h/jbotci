@@ -1,0 +1,20 @@
+id = "corpus.camxes.11603"
+lojban = "da and le gerku"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11603"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "da", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "and", span = { source_id = "<fixture>", byte_start = 3, byte_end = 6, char_start = 3, char_end = 6 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "le", span = { source_id = "<fixture>", byte_start = 7, byte_end = 9, char_start = 7, char_end = 9 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "gerku", span = { source_id = "<fixture>", byte_start = 10, byte_end = 15, char_start = 10, char_end = 15 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 1, allowed-next = [] }

@@ -1,0 +1,19 @@
+id = "corpus.camxes.7671"
+lojban = "a new cmavo"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7671"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:3: 'new' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected apostrophe but got 'w'
+  "a ne👉w cmavo"
+- not cmevla: cmevla (name) must end with a consonant
+  "a 👉new cmavo"
+- not cmavo: cmavo 'ne' followed by 'w' which doesn't start a valid Lojban word
+  "a ne👉w cmavo"
+@ 2: "a 👉new cmavo"""" }

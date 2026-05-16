@@ -1,0 +1,19 @@
+id = "corpus.camxes.13186"
+lojban = "mi mutce taske la oreng.djuli,us"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "13186"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:25: 'djuli' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "… taske la oreng.djul👉i,us"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "… taske la oreng.djul👉i,us"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…utce taske la oreng.👉djuli,us"
+@ 24: "…utce taske la oreng.👉djuli,us"""" }

@@ -1,0 +1,19 @@
+id = "corpus.camxes.18163"
+lojban = """i mi skudji zo djuno enai lo'u duno le'u (PEG parser needs space between "du" and "no" in the lo'u...le'u)"""
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18163"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:54: 'needs' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "… le'u (PEG parser ne👉eds space between "du" and "no…"
+- not cmevla: cmevla (name) must end with a consonant
+  "…no le'u (PEG parser 👉needs space between "du" and "…"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "… le'u (PEG parser ne👉eds space between "du" and "no…"
+@ 53: "…no le'u (PEG parser 👉needs space between "du" and "…"""" }

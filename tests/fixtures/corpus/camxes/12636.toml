@@ -1,0 +1,19 @@
+id = "corpus.camxes.12636"
+lojban = "mi so'ava'e te vecnu lo karce ca le cabdei .iku'i mi ca jidce lenu na te vecnu -- NOT SURE (morphology, jidce)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12636"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:57: 'jidce' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…dei .iku'i mi ca jid👉ce lenu na te vecnu -- NOT SUR…"
+- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…dei .iku'i mi ca jid👉ce lenu na te vecnu -- NOT SUR…"
+- not cmavo: cmavo 'ji' followed by 'd' which doesn't start a valid Lojban word
+  "…bdei .iku'i mi ca ji👉dce lenu na te vecnu -- NOT SU…"
+@ 56: "…cabdei .iku'i mi ca 👉jidce lenu na te vecnu -- NOT …"""" }

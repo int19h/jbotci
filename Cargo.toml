@@ -1,10 +1,10 @@
 [workspace]
 members = [
+    ".",
     "apps/jbotci",
     "apps/jbotci-server",
     "crates/jbotci-cll",
     "crates/jbotci-dictionary",
-    "crates/jbotci-fixtures",
     "crates/jbotci-jvozba",
     "crates/jbotci-morphology",
     "crates/jbotci-output",
@@ -24,6 +24,17 @@ license = "AGPL-3.0-or-later"
 authors = ["Pavel Minaev"]
 repository = "https://codeberg.org/int_19h/jbotci"
 
+[package]
+name = "jbotci-workspace"
+description = "Workspace-level integration tests for jbotci."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
 [workspace.dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
@@ -36,7 +47,6 @@ walkdir = "2"
 
 jbotci-cll = { path = "crates/jbotci-cll" }
 jbotci-dictionary = { path = "crates/jbotci-dictionary" }
-jbotci-fixtures = { path = "crates/jbotci-fixtures" }
 jbotci-jvozba = { path = "crates/jbotci-jvozba" }
 jbotci-morphology = { path = "crates/jbotci-morphology" }
 jbotci-output = { path = "crates/jbotci-output" }
@@ -44,6 +54,20 @@ jbotci-search = { path = "crates/jbotci-search" }
 jbotci-semantics = { path = "crates/jbotci-semantics" }
 jbotci-source = { path = "crates/jbotci-source" }
 jbotci-syntax = { path = "crates/jbotci-syntax" }
+
+[dev-dependencies]
+jbotci-morphology.workspace = true
+jbotci-source.workspace = true
+jbotci-syntax.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_stacker.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+walkdir.workspace = true
+
+[lints]
+workspace = true
 
 [workspace.lints.rust]
 missing_debug_implementations = "warn"

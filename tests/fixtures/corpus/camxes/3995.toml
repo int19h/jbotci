@@ -1,0 +1,15 @@
+id = "corpus.camxes.3995"
+lojban = "doi kbi. mi pu smuni zo tirna -- NOT SURE (morphology, kbi)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "3995"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:5: 'kbi.' is not a valid Lojban word:
+- adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "doi k👉bi. mi pu smuni zo tirna -- NO…"
+@ 4: "doi 👉kbi. mi pu smuni zo tirna -- N…"""" }

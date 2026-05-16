@@ -1,0 +1,19 @@
+id = "corpus.camxes.12209"
+lojban = "Sorry: lo pixra be fi mi cu vasru ci le unikorn."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12209"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'Sorry:' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "Sor👉ry: lo pixra be fi mi cu vasru…"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "Sor👉ry: lo pixra be fi mi cu vasru…"
+- not cmavo: cmavo 'so' followed by 'r' which doesn't start a valid Lojban word
+  "So👉rry: lo pixra be fi mi cu vasr…"
+@ 0: "👉Sorry: lo pixra be fi mi cu va…"""" }

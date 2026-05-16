@@ -1,0 +1,20 @@
+id = "corpus.camxes.12645"
+lojban = "binxo is a brivla"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12645"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "binxo", span = { source_id = "<fixture>", byte_start = 0, byte_end = 5, char_start = 0, char_end = 5 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "is", span = { source_id = "<fixture>", byte_start = 6, byte_end = 8, char_start = 6, char_end = 8 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "a", span = { source_id = "<fixture>", byte_start = 9, byte_end = 10, char_start = 9, char_end = 10 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "lujvo", phonemes = "brivla", span = { source_id = "<fixture>", byte_start = 11, byte_end = 17, char_start = 11, char_end = 17 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 1, allowed-next = [] }

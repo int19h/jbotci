@@ -1,0 +1,15 @@
+id = "corpus.camxes.21998"
+lojban = "to the selbri"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21998"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:4: 'the' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "to t👉he selbri"
+@ 3: "to 👉the selbri"""" }

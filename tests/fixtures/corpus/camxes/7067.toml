@@ -1,0 +1,19 @@
+id = "corpus.camxes.7067"
+lojban = "it's a makefile"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7067"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'it's' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "it👉's a makefile"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "it👉's a makefile"
+- not cmavo: cmavo 'i' followed by 't' which doesn't start a valid Lojban word
+  "i👉t's a makefile"
+@ 0: "👉it's a makefile"""" }

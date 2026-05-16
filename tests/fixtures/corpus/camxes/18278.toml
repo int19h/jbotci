@@ -1,0 +1,19 @@
+id = "corpus.camxes.18278"
+lojban = "i practice. frequently."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18278"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:13: 'frequently.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "fre" but got "quently."
+  "i practice. fre👉quently."
+- not cmevla: cmevla (name) must end with a consonant
+  "i practice. 👉frequently."
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "i practice. 👉frequently."
+@ 12: "i practice. 👉frequently."""" }

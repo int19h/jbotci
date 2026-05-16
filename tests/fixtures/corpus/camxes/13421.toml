@@ -1,0 +1,15 @@
+id = "corpus.camxes.13421"
+lojban = "puzi co'u cpacu la'efy. Chanson du Toréador fy."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "13421"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:25: 'Chanson' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "…co'u cpacu la'efy. C👉hanson du Toréador fy."
+@ 24: "… co'u cpacu la'efy. 👉Chanson du Toréador fy."""" }

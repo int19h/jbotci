@@ -1,0 +1,19 @@
+id = "corpus.camxes.5447"
+lojban = "xu la debian cu naljmive"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "5447"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:7: 'debian' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "xu la deb👉ian cu naljmive"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "xu la deb👉ian cu naljmive"
+- not cmavo: cmavo 'de' followed by 'b' which doesn't start a valid Lojban word
+  "xu la de👉bian cu naljmive"
+@ 6: "xu la 👉debian cu naljmive"""" }

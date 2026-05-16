@@ -1,0 +1,19 @@
+id = "corpus.camxes.5386"
+lojban = "coi la fracture2"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "5386"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:8: 'fracture2' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "fractu" but got "re2"
+  "coi la fractu👉re2"
+- not cmevla: cmevla (name) must end with a consonant
+  "coi la 👉fracture2"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "coi la 👉fracture2"
+@ 7: "coi la 👉fracture2"""" }

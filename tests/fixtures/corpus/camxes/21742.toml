@@ -1,0 +1,19 @@
+id = "corpus.camxes.21742"
+lojban = "cy pi'i fi'u mu works"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21742"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:17: 'works' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'w'
+  "cy pi'i fi'u mu 👉works"
+- not cmevla: cmevla (name) must end with a consonant
+  "cy pi'i fi'u mu 👉works"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "cy pi'i fi'u mu 👉works"
+@ 16: "cy pi'i fi'u mu 👉works"""" }

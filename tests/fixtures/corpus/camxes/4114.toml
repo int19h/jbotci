@@ -1,0 +1,19 @@
+id = "corpus.camxes.4114"
+lojban = ".i mi nadcli -- NOT SURE (morphology, nadcli)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "4114"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:7: 'nadcli' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  ".i mi nad👉cli -- NOT SURE (morphology, n…"
+- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  ".i mi nad👉cli -- NOT SURE (morphology, n…"
+- not cmavo: cmavo 'na' followed by 'd' which doesn't start a valid Lojban word
+  ".i mi na👉dcli -- NOT SURE (morphology, …"
+@ 6: ".i mi 👉nadcli -- NOT SURE (morphology…"""" }

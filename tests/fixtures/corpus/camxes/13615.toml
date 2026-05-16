@@ -1,0 +1,15 @@
+id = "corpus.camxes.13615"
+lojban = "pei sutra je violent cuvgau"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "13615"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:14: 'violent' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "pei sutra je v👉iolent cuvgau"
+@ 13: "pei sutra je 👉violent cuvgau"""" }

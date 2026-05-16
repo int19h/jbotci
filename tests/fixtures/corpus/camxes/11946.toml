@@ -1,0 +1,19 @@
+id = "corpus.camxes.11946"
+lojban = "lo isn't a"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11946"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:4: 'isn't' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "lo isn👉't a"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "lo isn👉't a"
+- not cmavo: cmavo 'i' followed by 's' which doesn't start a valid Lojban word
+  "lo i👉sn't a"
+@ 3: "lo 👉isn't a"""" }

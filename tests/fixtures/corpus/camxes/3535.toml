@@ -1,0 +1,15 @@
+id = "corpus.camxes.3535"
+lojban = "doi thed le ka do jbobacru cu ckaji ma"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "3535"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:5: 'thed' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "doi t👉hed le ka do jbobacru cu ckaji…"
+@ 4: "doi 👉thed le ka do jbobacru cu ckaj…"""" }

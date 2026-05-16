@@ -1,0 +1,19 @@
+id = "corpus.camxes.21807"
+lojban = "xu da ka'e pilno la latek -- NOT SURE (morphology, latek)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21807"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:40: 'morphology' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…ek -- NOT SURE (morp👉hology, latek)"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…ek -- NOT SURE (morp👉hology, latek)"
+- not cmavo: cmavo 'mo' followed by 'r' which doesn't start a valid Lojban word
+  "…atek -- NOT SURE (mo👉rphology, latek)"
+@ 39: "… latek -- NOT SURE (👉morphology, latek)"""" }

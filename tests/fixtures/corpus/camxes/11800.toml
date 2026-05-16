@@ -1,0 +1,20 @@
+id = "corpus.camxes.11800"
+lojban = "coi fracture. .e zmitav"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "11800"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "coĭ", span = { source_id = "<fixture>", byte_start = 0, byte_end = 3, char_start = 0, char_end = 3 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "lujvo", phonemes = "fracture", span = { source_id = "<fixture>", byte_start = 4, byte_end = 12, char_start = 4, char_end = 12 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "e", span = { source_id = "<fixture>", byte_start = 15, byte_end = 16, char_start = 15, char_end = 16 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "zmitav", span = { source_id = "<fixture>", byte_start = 17, byte_end = 23, char_start = 17, char_end = 23 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 3, allowed-next = [] }

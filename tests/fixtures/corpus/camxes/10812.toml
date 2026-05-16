@@ -1,0 +1,19 @@
+id = "corpus.camxes.10812"
+lojban = "Don't use du."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "10812"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'Don't' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "Don👉't use du."
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "Don👉't use du."
+- not cmavo: cmavo 'do' followed by 'n' which doesn't start a valid Lojban word
+  "Do👉n't use du."
+@ 0: "👉Don't use du."""" }

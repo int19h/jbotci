@@ -1,0 +1,15 @@
+id = "corpus.camxes.19159"
+lojban = "la krieg. puza tcica .i ku'i mi tolcliva gi'e dicra gasnu"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19159"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:4: 'krieg.' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "la kr👉ieg. puza tcica .i ku'i mi tol…"
+@ 3: "la 👉krieg. puza tcica .i ku'i mi t…"""" }

@@ -1,0 +1,19 @@
+id = "corpus.camxes.12534"
+lojban = """do drani .ije .uaru'e le mi pa jufra poi vasru lo'u .ije le'u cu na gerna (can't handle "ije" in the lo'u...le'u, but "i je" is fine)"""
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12534"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:76: 'can't' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…e'u cu na gerna (can👉't handle "ije" in the lo'u...…"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…e'u cu na gerna (can👉't handle "ije" in the lo'u...…"
+- not cmavo: cmavo 'ca' followed by 'n' which doesn't start a valid Lojban word
+  "…le'u cu na gerna (ca👉n't handle "ije" in the lo'u..…"
+@ 75: "…e le'u cu na gerna (👉can't handle "ije" in the lo'u…"""" }

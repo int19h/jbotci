@@ -1,0 +1,20 @@
+id = "corpus.camxes.5476"
+lojban = "imperatives use ko"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "5476"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "imperatives", span = { source_id = "<fixture>", byte_start = 0, byte_end = 11, char_start = 0, char_end = 11 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "u", span = { source_id = "<fixture>", byte_start = 12, byte_end = 13, char_start = 12, char_end = 13 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "se", span = { source_id = "<fixture>", byte_start = 13, byte_end = 15, char_start = 13, char_end = 15 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ko", span = { source_id = "<fixture>", byte_start = 16, byte_end = 18, char_start = 16, char_end = 18 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 2, allowed-next = [] }

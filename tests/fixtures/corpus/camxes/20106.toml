@@ -1,0 +1,19 @@
+id = "corpus.camxes.20106"
+lojban = "ji'a na benji fi mi la .kalifornias. .a la .teksis."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20106"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:25: 'kalifornias.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…i fi mi la .kaliforn👉ias. .a la .teksis."
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…i fi mi la .kaliforn👉ias. .a la .teksis."
+- not cmavo: cmavo 'ka' followed by 'l' which doesn't start a valid Lojban word
+  "…a benji fi mi la .ka👉lifornias. .a la .teksis."
+@ 24: "… na benji fi mi la .👉kalifornias. .a la .teksis."""" }

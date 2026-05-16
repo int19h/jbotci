@@ -1,0 +1,19 @@
+id = "corpus.camxes.22494"
+lojban = "let's take a simple example"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "22494"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'let's' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "let👉's take a simple example"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "let👉's take a simple example"
+- not cmavo: cmavo 'le' followed by 't' which doesn't start a valid Lojban word
+  "le👉t's take a simple example"
+@ 0: "👉let's take a simple example"""" }

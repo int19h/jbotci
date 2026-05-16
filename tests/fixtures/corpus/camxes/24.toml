@@ -1,0 +1,19 @@
+id = "corpus.camxes.24"
+lojban = "pravda pavda"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "24"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'pravda' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: slinku'i: falls apart into consonant + rafsi string
+  "👉pravda pavda"
+- not cmevla: cmevla (name) must end with a consonant
+  "👉pravda pavda"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "👉pravda pavda"
+@ 0: "👉pravda pavda"""" }

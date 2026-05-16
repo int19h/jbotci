@@ -1,0 +1,15 @@
+id = "corpus.camxes.9540"
+lojban = "some japanese guy?"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "9540"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:15: 'guy?' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "some japanese g👉uy?"
+@ 14: "some japanese 👉guy?"""" }

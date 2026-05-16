@@ -1,0 +1,19 @@
+id = "corpus.camxes.12426"
+lojban = "la hairul. mo"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12426"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:4: 'hairul.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'h'
+  "la 👉hairul. mo"
+- not cmevla: cmevla (name) must end with a consonant
+  "la 👉hairul. mo"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "la 👉hairul. mo"
+@ 3: "la 👉hairul. mo"""" }

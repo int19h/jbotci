@@ -1,0 +1,19 @@
+id = "corpus.camxes.12032"
+lojban = "na na na == na"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12032"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:10: '==' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got '='
+  "na na na 👉== na"
+- not cmevla: cmevla (name) must end with a consonant
+  "na na na 👉== na"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "na na na 👉== na"
+@ 9: "na na na 👉== na"""" }

@@ -1,0 +1,21 @@
+id = "corpus.camxes.10340"
+lojban = "tirno: .eidai ko finti lo pagbu"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "10340"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "tirno", span = { source_id = "<fixture>", byte_start = 0, byte_end = 5, char_start = 0, char_end = 5 } } } }, indicator = { kind = "cmavo", phonemes = "eĭ", span = { source_id = "<fixture>", byte_start = 8, byte_end = 10, char_start = 8, char_end = 10 } } }, indicator = { kind = "cmavo", phonemes = "daĭ", span = { source_id = "<fixture>", byte_start = 10, byte_end = 13, char_start = 10, char_end = 13 } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ko", span = { source_id = "<fixture>", byte_start = 14, byte_end = 16, char_start = 14, char_end = 16 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "finti", span = { source_id = "<fixture>", byte_start = 17, byte_end = 22, char_start = 17, char_end = 22 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "lo", span = { source_id = "<fixture>", byte_start = 23, byte_end = 25, char_start = 23, char_end = 25 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "pagbu", span = { source_id = "<fixture>", byte_start = 26, byte_end = 31, char_start = 26, char_end = 31 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 2, allowed-next = [] }

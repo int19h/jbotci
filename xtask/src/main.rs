@@ -3,10 +3,14 @@ use std::process::{Command as ProcessCommand, ExitStatus};
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
-use jbotci_fixtures::{
-    Facet, FacetResult, FacetStatus, FixtureBackend, FixtureProfile, FixtureSelector,
-    LoadedTestCase, MuplisForm, RunSummary, fixture_matches_selector, import_export_file,
-    load_profile, validate_fixture_tree, visit_fixture_tree,
+
+#[path = "../../tests/support/fixtures.rs"]
+mod fixtures;
+
+use fixtures::{
+    ExpectationStatus, Facet, FacetResult, FacetStatus, FixtureBackend, FixtureProfile,
+    FixtureSelector, LoadedTestCase, MuplisForm, RunSummary, fixture_matches_selector,
+    import_export_file, load_profile, validate_fixture_tree, visit_fixture_tree,
 };
 
 #[derive(Debug, Parser)]
@@ -27,7 +31,7 @@ enum Command {
         check: bool,
     },
     FixtureCheck {
-        #[arg(default_value = "fixtures")]
+        #[arg(default_value = "tests/fixtures")]
         path: PathBuf,
     },
     FixtureImport(FixtureImportArgs),
@@ -39,7 +43,7 @@ enum Command {
 struct FixtureImportArgs {
     #[arg(long, default_value = ".jbotci-build/v0-fixtures/export.json")]
     input: PathBuf,
-    #[arg(long, default_value = "fixtures")]
+    #[arg(long, default_value = "tests/fixtures")]
     output: PathBuf,
     #[arg(long)]
     run_v0: bool,
@@ -49,7 +53,7 @@ struct FixtureImportArgs {
 
 #[derive(Debug, Args)]
 struct FixtureRunArgs {
-    #[arg(long, default_value = "fixtures")]
+    #[arg(long, default_value = "tests/fixtures")]
     root: PathBuf,
     #[arg(long)]
     profile: Option<String>,
@@ -292,8 +296,7 @@ impl FixtureBackend for NotImplementedBackend {
         };
         if matches!(
             status,
-            jbotci_fixtures::ExpectationStatus::Pending
-                | jbotci_fixtures::ExpectationStatus::NotApplicable
+            ExpectationStatus::Pending | ExpectationStatus::NotApplicable
         ) {
             return FacetResult::skipped(format!("{facet} expectation is {status:?}"));
         }
@@ -308,16 +311,17 @@ impl FixtureBackend for NotImplementedBackend {
     }
 }
 
-fn expectation_status(
-    fixture: &LoadedTestCase,
-    facet: Facet,
-) -> Option<jbotci_fixtures::ExpectationStatus> {
+fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<ExpectationStatus> {
     let expectations = &fixture.test_case.expectations;
     match facet {
         Facet::Morphology => expectations.morphology.as_ref().map(|value| value.status),
         Facet::Syntax => expectations.syntax.as_ref().map(|value| value.status),
         Facet::SyntaxRefs => expectations.syntax_refs.as_ref().map(|value| value.status),
         Facet::Warnings => expectations.warnings.as_ref().map(|value| value.status),
-        Facet::Brackets => expectations.brackets.as_ref().map(|value| value.status),
+        Facet::Brackets => expectations
+            .output
+            .as_ref()
+            .and_then(|output| output.brackets.as_ref())
+            .map(|_| ExpectationStatus::Success),
     }
 }

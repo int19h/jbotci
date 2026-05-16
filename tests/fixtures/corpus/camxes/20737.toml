@@ -1,0 +1,20 @@
+id = "corpus.camxes.20737"
+lojban = "coi la po zo ce'u"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20737"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "coĭ", span = { source_id = "<fixture>", byte_start = 0, byte_end = 3, char_start = 0, char_end = 3 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "la", span = { source_id = "<fixture>", byte_start = 4, byte_end = 6, char_start = 4, char_end = 6 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "po", span = { source_id = "<fixture>", byte_start = 7, byte_end = 9, char_start = 7, char_end = 9 } } } },
+    { kind = "base-word", word_like = { kind = "zo-quote", zo = { kind = "cmavo", phonemes = "zo", span = { source_id = "<fixture>", byte_start = 10, byte_end = 12, char_start = 10, char_end = 12 } }, word = { kind = "cmavo", phonemes = "ce'u", span = { source_id = "<fixture>", byte_start = 13, byte_end = 17, char_start = 13, char_end = 17 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 4, allowed-next = [] }

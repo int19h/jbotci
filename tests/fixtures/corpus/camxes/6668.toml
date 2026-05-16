@@ -1,0 +1,19 @@
+id = "corpus.camxes.6668"
+lojban = "doi rodo .i xu do pu pilno la xekri tanxe [blackbox]"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "6668"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:44: 'blackbox]' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…a xekri tanxe [black👉box]"
+- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…a xekri tanxe [black👉box]"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…lno la xekri tanxe [👉blackbox]"
+@ 43: "…lno la xekri tanxe [👉blackbox]"""" }

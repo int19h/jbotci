@@ -1,0 +1,19 @@
+id = "corpus.camxes.20276"
+lojban = "yea maybe le pixra be mi .e le mlatu be'o le skami"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20276"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'yea' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'y'
+  "👉yea maybe le pixra be mi .e le…"
+- not cmevla: cmevla (name) must end with a consonant
+  "👉yea maybe le pixra be mi .e le…"
+- not cmavo: cmavo 'y' followed by 'e' which doesn't start a valid Lojban word
+  "y👉ea maybe le pixra be mi .e le …"
+@ 0: "👉yea maybe le pixra be mi .e le…"""" }

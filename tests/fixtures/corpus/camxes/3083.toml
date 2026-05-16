@@ -1,0 +1,19 @@
+id = "corpus.camxes.3083"
+lojban = "lo mypycib samvreji"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "3083"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "lo", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "mypycib", span = { source_id = "<fixture>", byte_start = 3, byte_end = 10, char_start = 3, char_end = 10 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "lujvo", phonemes = "samvreji", span = { source_id = "<fixture>", byte_start = 11, byte_end = 19, char_start = 11, char_end = 19 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 1, allowed-next = [] }

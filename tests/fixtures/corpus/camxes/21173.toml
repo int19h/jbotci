@@ -1,0 +1,15 @@
+id = "corpus.camxes.21173"
+lojban = "tu'a mi mukti le nu le cicpre cemlanzu cu bajra kei liu >>"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21173"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:53: 'liu' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…lanzu cu bajra kei l👉iu >>"
+@ 52: "…mlanzu cu bajra kei 👉liu >>"""" }

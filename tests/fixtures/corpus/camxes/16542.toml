@@ -1,0 +1,19 @@
+id = "corpus.camxes.16542"
+lojban = "co'o mi'e sanxiyn. -- NOT SURE (morphology, sanxiyn)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16542"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:11: 'sanxiyn.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "co'o mi'e sanx👉iyn. -- NOT SURE (morphology, …"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "co'o mi'e sanx👉iyn. -- NOT SURE (morphology, …"
+- not cmavo: cmavo 'sa' followed by 'n' which doesn't start a valid Lojban word
+  "co'o mi'e sa👉nxiyn. -- NOT SURE (morphology…"
+@ 10: "co'o mi'e 👉sanxiyn. -- NOT SURE (morpholo…"""" }

@@ -1,0 +1,19 @@
+id = "corpus.camxes.7500"
+lojban = "la cevni perhaps"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7500"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:10: 'perhaps' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "la cevni per👉haps"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "la cevni per👉haps"
+- not cmavo: cmavo 'pe' followed by 'r' which doesn't start a valid Lojban word
+  "la cevni pe👉rhaps"
+@ 9: "la cevni 👉perhaps"""" }

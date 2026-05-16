@@ -1,0 +1,19 @@
+id = "corpus.camxes.17986"
+lojban = ".oiru'e mi mutce pilno zoi'o Aaaah."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17986"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:30: 'Aaaah.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "… mutce pilno zoi'o A👉aaah."
+- not cmevla: cmevla (name) must end with a consonant
+  "…i mutce pilno zoi'o 👉Aaaah."
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "… mutce pilno zoi'o A👉aaah."
+@ 29: "…i mutce pilno zoi'o 👉Aaaah."""" }

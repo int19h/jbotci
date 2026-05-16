@@ -1,0 +1,19 @@
+id = "corpus.camxes.15199"
+lojban = "mi na jimpe le gudjrati"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "15199"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:16: 'gudjrati' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "gud" but got "jrati"
+  "mi na jimpe le gud👉jrati"
+- not cmevla: cmevla (name) must end with a consonant
+  "mi na jimpe le 👉gudjrati"
+- not cmavo: cmavo 'gu' followed by 'd' which doesn't start a valid Lojban word
+  "mi na jimpe le gu👉djrati"
+@ 15: "mi na jimpe le 👉gudjrati"""" }

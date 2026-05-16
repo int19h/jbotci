@@ -1,0 +1,19 @@
+id = "corpus.camxes.19911"
+lojban = "ro lo ni?"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19911"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ro", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "lo", span = { source_id = "<fixture>", byte_start = 3, byte_end = 5, char_start = 3, char_end = 5 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ni", span = { source_id = "<fixture>", byte_start = 6, byte_end = 8, char_start = 6, char_end = 8 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 3, allowed-next = [] }

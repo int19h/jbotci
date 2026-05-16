@@ -1,0 +1,19 @@
+id = "corpus.camxes.12230"
+lojban = "lots more"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12230"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "lots", span = { source_id = "<fixture>", byte_start = 0, byte_end = 4, char_start = 0, char_end = 4 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "mo", span = { source_id = "<fixture>", byte_start = 5, byte_end = 7, char_start = 5, char_end = 7 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "re", span = { source_id = "<fixture>", byte_start = 7, byte_end = 9, char_start = 7, char_end = 9 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 3, allowed-next = [] }

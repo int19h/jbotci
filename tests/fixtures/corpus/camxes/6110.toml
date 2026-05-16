@@ -1,0 +1,15 @@
+id = "corpus.camxes.6110"
+lojban = "mi na djica lenu ba citka jia"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "6110"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:27: 'jia' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…jica lenu ba citka j👉ia"
+@ 26: "…djica lenu ba citka 👉jia"""" }

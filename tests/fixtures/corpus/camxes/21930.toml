@@ -1,0 +1,21 @@
+id = "corpus.camxes.21930"
+lojban = "coke is cocaine"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21930"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "co", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ke", span = { source_id = "<fixture>", byte_start = 2, byte_end = 4, char_start = 2, char_end = 4 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "is", span = { source_id = "<fixture>", byte_start = 5, byte_end = 7, char_start = 5, char_end = 7 } } } },
+    { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "co", span = { source_id = "<fixture>", byte_start = 8, byte_end = 10, char_start = 8, char_end = 10 } } } }, indicator = { kind = "cmavo", phonemes = "caĭ", span = { source_id = "<fixture>", byte_start = 10, byte_end = 13, char_start = 10, char_end = 13 } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ne", span = { source_id = "<fixture>", byte_start = 13, byte_end = 15, char_start = 13, char_end = 15 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [] }

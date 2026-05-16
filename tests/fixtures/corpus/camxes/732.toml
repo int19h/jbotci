@@ -1,0 +1,19 @@
+id = "corpus.camxes.732"
+lojban = "la .apasionatas. poi se cusku la .artr. rubnstain.  cu se nelci mi"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "732"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:5: 'apasionatas.' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "la .apas👉ionatas. poi se cusku la .artr…"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "la .apas👉ionatas. poi se cusku la .artr…"
+- not cmavo: cmavo 'a' followed by 'p' which doesn't start a valid Lojban word
+  "la .a👉pasionatas. poi se cusku la .a…"
+@ 4: "la .👉apasionatas. poi se cusku la .…"""" }

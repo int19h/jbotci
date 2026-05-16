@@ -1,0 +1,19 @@
+id = "corpus.camxes.10754"
+lojban = "native name Nederlands"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "10754"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:13: 'Nederlands' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…ative name Nederland👉s"
+- not cmevla: adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "…ative name Nederland👉s"
+- not cmavo: cmavo 'ne' followed by 'd' which doesn't start a valid Lojban word
+  "native name Ne👉derlands"
+@ 12: "native name 👉Nederlands"""" }

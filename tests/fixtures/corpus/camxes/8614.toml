@@ -1,0 +1,18 @@
+id = "corpus.camxes.8614"
+lojban = "jbovlaste bug."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8614"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "lujvo", phonemes = "jbovlaste", span = { source_id = "<fixture>", byte_start = 0, byte_end = 9, char_start = 0, char_end = 9 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "bug", span = { source_id = "<fixture>", byte_start = 10, byte_end = 13, char_start = 10, char_end = 13 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 1, allowed-next = [] }

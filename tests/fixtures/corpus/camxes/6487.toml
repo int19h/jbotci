@@ -1,0 +1,19 @@
+id = "corpus.camxes.6487"
+lojban = "xu codo djica le mi skamrxuebe .i ri -contains lo pixra be mi"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "6487"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:21: 'skamrxuebe' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…o djica le mi skamrx👉uebe .i ri -contains lo pixra …"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…o djica le mi skamrx👉uebe .i ri -contains lo pixra …"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "xu codo djica le mi 👉skamrxuebe .i ri -contains lo …"
+@ 20: "xu codo djica le mi 👉skamrxuebe .i ri -contains lo …"""" }

@@ -1,0 +1,19 @@
+id = "corpus.camxes.19433"
+lojban = ".io doi graywyvern .i .ui do vitke lei lojbo"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19433"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:9: 'graywyvern' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  ".io doi gra👉ywyvern .i .ui do vitke lei lo…"
+- not cmevla: cmevla (name) must end with a consonant
+  ".io doi 👉graywyvern .i .ui do vitke lei…"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  ".io doi 👉graywyvern .i .ui do vitke lei…"
+@ 8: ".io doi 👉graywyvern .i .ui do vitke lei…"""" }

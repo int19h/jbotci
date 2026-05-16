@@ -1,0 +1,19 @@
+id = "corpus.camxes.22369"
+lojban = "mi nitcu la .keiris. .e le se go'i na spuda loi preti pe mi oops"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "22369"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:61: 'oops' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "…da loi preti pe mi o👉ops"
+- not cmevla: cmevla (name) must end with a consonant
+  "…uda loi preti pe mi 👉oops"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "…da loi preti pe mi o👉ops"
+@ 60: "…uda loi preti pe mi 👉oops"""" }

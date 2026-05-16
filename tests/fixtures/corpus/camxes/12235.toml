@@ -1,0 +1,19 @@
+id = "corpus.camxes.12235"
+lojban = "ru'a by. na'e lojbo vau xu .ibo mi na se slabu .i to coi bdesham toi"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12235"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:58: 'bdesham' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got 'd'
+  "…se slabu .i to coi b👉desham toi"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "…slabu .i to coi bdes👉ham toi"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "… se slabu .i to coi 👉bdesham toi"
+@ 57: "… se slabu .i to coi 👉bdesham toi"""" }

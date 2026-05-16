@@ -1,0 +1,19 @@
+id = "corpus.camxes.16424"
+lojban = "ma casnu la lojban. bau banrspanio"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16424"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:25: 'banrspanio' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…lojban. bau banrspan👉io"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…lojban. bau banrspan👉io"
+- not cmavo: cmavo 'ba' followed by 'n' which doesn't start a valid Lojban word
+  "…nu la lojban. bau ba👉nrspanio"
+@ 24: "…asnu la lojban. bau 👉banrspanio"""" }

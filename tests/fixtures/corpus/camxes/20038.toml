@@ -1,0 +1,15 @@
+id = "corpus.camxes.20038"
+lojban = "mi pilno la'e gy chemistry for love gy tu'a le samvidni rixsfe"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20038"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:18: 'chemistry' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "mi pilno la'e gy c👉hemistry for love gy tu'a le s…"
+@ 17: "mi pilno la'e gy 👉chemistry for love gy tu'a le …"""" }

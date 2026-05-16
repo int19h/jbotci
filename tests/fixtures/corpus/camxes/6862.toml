@@ -1,0 +1,15 @@
+id = "corpus.camxes.6862"
+lojban = "xu le lojbo xuebseit cu spofu"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "6862"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:13: 'xuebseit' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "xu le lojbo x👉uebseit cu spofu"
+@ 12: "xu le lojbo 👉xuebseit cu spofu"""" }

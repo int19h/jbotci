@@ -1,0 +1,15 @@
+id = "corpus.camxes.17858"
+lojban = "in this case, mi na morji ledu'u makau pu se cusku mi kei le pinji cmene"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17858"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:4: 'this' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "in t👉his case, mi na morji ledu'u m…"
+@ 3: "in 👉this case, mi na morji ledu'u …"""" }

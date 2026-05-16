@@ -1,0 +1,19 @@
+id = "corpus.camxes.2148"
+lojban = " i lu ko sitna lu do tolcitno doi paf uiliam li'u sei la ciftoldi cu cusku li'u "
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2148"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:39: 'uiliam' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…tolcitno doi paf uil👉iam li'u sei la ciftoldi cu cu…"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…tolcitno doi paf uil👉iam li'u sei la ciftoldi cu cu…"
+- not cmavo: cmavo 'ŭi' followed by 'l' which doesn't start a valid Lojban word
+  "… tolcitno doi paf ui👉liam li'u sei la ciftoldi cu c…"
+@ 38: "…do tolcitno doi paf 👉uiliam li'u sei la ciftoldi cu…"""" }

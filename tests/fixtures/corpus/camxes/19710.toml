@@ -1,0 +1,19 @@
+id = "corpus.camxes.19710"
+lojban = "so are watermelons"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19710"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:8: 'watermelons' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'w'
+  "so are 👉watermelons"
+- not cmevla: cmevla (name) must end with a consonant
+  "so are 👉watermelons"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "so are 👉watermelons"
+@ 7: "so are 👉watermelons"""" }

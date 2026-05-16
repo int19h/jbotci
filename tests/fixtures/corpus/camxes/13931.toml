@@ -1,0 +1,19 @@
+id = "corpus.camxes.13931"
+lojban = "Oh, nuzba benji."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "13931"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'Oh' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
+  "Oh👉, nuzba benji."
+- not cmevla: cmevla (name) must end with a consonant
+  "👉Oh, nuzba benji."
+- not cmavo: apostrophe/h is only allowed between two vowels (CLL 3.3)
+  "Oh👉, nuzba benji."
+@ 0: "👉Oh, nuzba benji."""" }

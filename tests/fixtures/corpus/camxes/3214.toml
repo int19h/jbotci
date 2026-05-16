@@ -1,0 +1,19 @@
+id = "corpus.camxes.3214"
+lojban = "zinx: le nu le skami pe la broca cu glare keu cu na kakne le nu rinka le nu maltarti"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "3214"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:43: 'keu' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "…la broca cu glare ke👉u cu na kakne le nu rinka le n…"
+- not cmevla: cmevla (name) must end with a consonant
+  "…e la broca cu glare 👉keu cu na kakne le nu rinka le…"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "…la broca cu glare ke👉u cu na kakne le nu rinka le n…"
+@ 42: "…e la broca cu glare 👉keu cu na kakne le nu rinka le…"""" }

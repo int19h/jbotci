@@ -1,0 +1,21 @@
+id = "corpus.camxes.8610"
+lojban = "gau farvi is a selbri"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8610"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "gaŭ", span = { source_id = "<fixture>", byte_start = 0, byte_end = 3, char_start = 0, char_end = 3 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "farvi", span = { source_id = "<fixture>", byte_start = 4, byte_end = 9, char_start = 4, char_end = 9 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "is", span = { source_id = "<fixture>", byte_start = 10, byte_end = 12, char_start = 10, char_end = 12 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "a", span = { source_id = "<fixture>", byte_start = 13, byte_end = 14, char_start = 13, char_end = 14 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "lujvo", phonemes = "selbri", span = { source_id = "<fixture>", byte_start = 15, byte_end = 21, char_start = 15, char_end = 21 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 2, allowed-next = [] }

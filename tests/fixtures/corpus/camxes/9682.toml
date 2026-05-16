@@ -1,0 +1,22 @@
+id = "corpus.camxes.9682"
+lojban = "ve cukta becomes cukta te cusku"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "9682"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ve", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "cukta", span = { source_id = "<fixture>", byte_start = 3, byte_end = 8, char_start = 3, char_end = 8 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "becomes", span = { source_id = "<fixture>", byte_start = 9, byte_end = 16, char_start = 9, char_end = 16 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "cukta", span = { source_id = "<fixture>", byte_start = 17, byte_end = 22, char_start = 17, char_end = 22 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "te", span = { source_id = "<fixture>", byte_start = 23, byte_end = 25, char_start = 23, char_end = 25 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "cusku", span = { source_id = "<fixture>", byte_start = 26, byte_end = 31, char_start = 26, char_end = 31 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 2, allowed-next = [] }

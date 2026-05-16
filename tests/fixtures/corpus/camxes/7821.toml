@@ -1,0 +1,15 @@
+id = "corpus.camxes.7821"
+lojban = "doi shapr. .uanai -- NOT SURE (morphology, shapr)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7821"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:5: 'shapr.' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "doi s👉hapr. .uanai -- NOT SURE (morp…"
+@ 4: "doi 👉shapr. .uanai -- NOT SURE (mor…"""" }

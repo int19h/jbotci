@@ -1,0 +1,19 @@
+id = "corpus.camxes.10940"
+lojban = ".i ca le nu mi li paso nanco kei mi prami da .i mi pu traji nelci le nu prami .iku'i mi ca djuno le du'u le zmagau prami cu cumki .ijia da fenki .u'i"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "10940"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:132: 'ijia' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…u prami cu cumki .ij👉ia da fenki .u'i"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…u prami cu cumki .ij👉ia da fenki .u'i"
+- not cmavo: cmavo 'i' followed by 'j' which doesn't start a valid Lojban word
+  "…au prami cu cumki .i👉jia da fenki .u'i"
+@ 131: "…gau prami cu cumki .👉ijia da fenki .u'i"""" }

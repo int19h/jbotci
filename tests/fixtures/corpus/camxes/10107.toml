@@ -1,0 +1,19 @@
+id = "corpus.camxes.10107"
+lojban = "about time"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "10107"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'about' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "abo👉ut time"
+- not cmevla: cmevla (name) must end with a consonant
+  "👉about time"
+- not cmavo: cmavo 'a' followed by 'b' which doesn't start a valid Lojban word
+  "a👉bout time"
+@ 0: "👉about time"""" }

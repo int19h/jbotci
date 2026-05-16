@@ -1,0 +1,19 @@
+id = "corpus.camxes.22145"
+lojban = "Species name."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "22145"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'Species' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "Spec👉ies name."
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "Spec👉ies name."
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "👉Species name."
+@ 0: "👉Species name."""" }

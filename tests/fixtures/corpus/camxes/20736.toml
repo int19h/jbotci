@@ -1,0 +1,20 @@
+id = "corpus.camxes.20736"
+lojban = "bukydi'u for example"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20736"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "lujvo", phonemes = "bukydi'u", span = { source_id = "<fixture>", byte_start = 0, byte_end = 8, char_start = 0, char_end = 8 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "for", span = { source_id = "<fixture>", byte_start = 9, byte_end = 12, char_start = 9, char_end = 12 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "e", span = { source_id = "<fixture>", byte_start = 13, byte_end = 14, char_start = 13, char_end = 14 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "lujvo", phonemes = "xample", span = { source_id = "<fixture>", byte_start = 14, byte_end = 20, char_start = 14, char_end = 20 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 1, allowed-next = [] }

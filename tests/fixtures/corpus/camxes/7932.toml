@@ -1,0 +1,15 @@
+id = "corpus.camxes.7932"
+lojban = "doi biomas mi na djuno"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7932"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:5: 'biomas' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "doi b👉iomas mi na djuno"
+@ 4: "doi 👉biomas mi na djuno"""" }

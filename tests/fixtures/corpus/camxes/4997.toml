@@ -1,0 +1,19 @@
+id = "corpus.camxes.4997"
+lojban = "glico tanru maybe"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "4997"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:13: 'maybe' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "glico tanru ma👉ybe"
+- not cmevla: cmevla (name) must end with a consonant
+  "glico tanru 👉maybe"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "glico tanru ma👉ybe"
+@ 12: "glico tanru 👉maybe"""" }

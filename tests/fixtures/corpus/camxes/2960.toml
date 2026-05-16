@@ -1,0 +1,21 @@
+id = "corpus.camxes.2960"
+lojban = "mi ba jibri le zoi gy programming gy"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "2960"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "mi", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ba", span = { source_id = "<fixture>", byte_start = 3, byte_end = 5, char_start = 3, char_end = 5 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "jibri", span = { source_id = "<fixture>", byte_start = 6, byte_end = 11, char_start = 6, char_end = 11 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "le", span = { source_id = "<fixture>", byte_start = 12, byte_end = 14, char_start = 12, char_end = 14 } } } },
+    { kind = "base-word", word_like = { kind = "zoi-quote", zoi = { kind = "cmavo", phonemes = "zoĭ", span = { source_id = "<fixture>", byte_start = 15, byte_end = 18, char_start = 15, char_end = 18 } }, opening_delimiter = { kind = "cmavo", phonemes = "gy", span = { source_id = "<fixture>", byte_start = 19, byte_end = 21, char_start = 19, char_end = 21 } }, quoted_text = { source_id = "<fixture>", byte_start = 21, byte_end = 33, char_start = 21, char_end = 33 }, closing_delimiter = { kind = "cmavo", phonemes = "gy", span = { source_id = "<fixture>", byte_start = 34, byte_end = 36, char_start = 34, char_end = 36 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 5, allowed-next = [] }

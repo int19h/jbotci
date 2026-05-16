@@ -1,0 +1,19 @@
+id = "corpus.camxes.16570"
+lojban = "27 May 2003 15:11:41 * Eimi setca le stedi lo sofybakni"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16570"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:4: 'May' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "27 Ma👉y 2003 15:11:41 * Eimi setca l…"
+- not cmevla: cmevla (name) must end with a consonant
+  "27 👉May 2003 15:11:41 * Eimi setca…"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "27 Ma👉y 2003 15:11:41 * Eimi setca l…"
+@ 3: "27 👉May 2003 15:11:41 * Eimi setca…"""" }

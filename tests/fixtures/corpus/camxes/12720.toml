@@ -1,0 +1,19 @@
+id = "corpus.camxes.12720"
+lojban = "more meat"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12720"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:6: 'meat' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "more me👉at"
+- not cmevla: cmevla (name) must end with a consonant
+  "more 👉meat"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "more me👉at"
+@ 5: "more 👉meat"""" }

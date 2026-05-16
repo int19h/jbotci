@@ -1,0 +1,15 @@
+id = "corpus.camxes.8386"
+lojban = "i guess so"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8386"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:3: 'guess' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "i g👉uess so"
+@ 2: "i 👉guess so"""" }

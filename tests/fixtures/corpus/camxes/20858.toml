@@ -1,0 +1,19 @@
+id = "corpus.camxes.20858"
+lojban = "mi pilno dakfu tunta cu prenu    (better?)"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20858"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:35: 'better?)' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "…nta cu prenu    (bet👉ter?)"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "…nta cu prenu    (bet👉ter?)"
+- not cmavo: cmavo 'be' followed by 't' which doesn't start a valid Lojban word
+  "…unta cu prenu    (be👉tter?)"
+@ 34: "… tunta cu prenu    (👉better?)"""" }

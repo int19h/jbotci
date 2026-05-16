@@ -1,0 +1,19 @@
+id = "corpus.camxes.19907"
+lojban = "xirma prami, probably"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19907"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:14: 'probably' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "probably" (y-hyphen) but got end of input
+  "…irma prami, probably👉"
+- not cmevla: cmevla (name) must end with a consonant
+  "xirma prami, 👉probably"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "xirma prami, 👉probably"
+@ 13: "xirma prami, 👉probably"""" }

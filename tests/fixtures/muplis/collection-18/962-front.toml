@@ -1,0 +1,103 @@
+id = "muplis.18.962.front"
+lojban = ".e'e nai"
+translation-en = "I can't."
+
+[[provenance]]
+kind = "muplis"
+collection-id = "18"
+item-id = "962"
+form = "front"
+url = "https://lensisku.lojban.org/en/collections/18"
+
+[expectations.output]
+brackets = ".e'e-naĭ"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "standalone-indicator", indicator = { kind = "cmavo", phonemes = "e'e", span = { source_id = "<fixture>", byte_start = 1, byte_end = 4, char_start = 1, char_end = 4 } }, nai = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 5, byte_end = 8, char_start = 5, char_end = 8 } } },
+]
+
+[expectations.syntax]
+status = "success"
+parse-tree = {
+    kind = "node",
+    node = {
+        constructor = "LojbanText",
+        fields = [
+            {
+                name = "leadingNai",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingCmevla",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingIndicators",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "(:)",
+                        fields = [
+                            {
+                                value = { kind = "word", word = { kind = "standalone-indicator", indicator = { kind = "cmavo", phonemes = "e'e", span = { source_id = "<fixture>", byte_start = 1, byte_end = 4, char_start = 1, char_end = 4 } }, nai = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 5, byte_end = 8, char_start = 5, char_end = 8 } } } }
+                            },
+                            {
+                                value = {
+                                    kind = "node",
+                                    node = {
+                                        constructor = "[]",
+                                        fields = []
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                name = "leadingFreeModifiers",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingConnective",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "Nothing",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "paragraphs",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            }
+        ]
+    }
+}

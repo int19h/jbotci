@@ -1,0 +1,19 @@
+id = "corpus.camxes.5046"
+lojban = "tai la b1FF"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "5046"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:8: 'b1FF' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got '1'
+  "tai la b👉1FF"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "tai la b1F👉F"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "tai la 👉b1FF"
+@ 7: "tai la 👉b1FF"""" }

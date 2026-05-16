@@ -1,0 +1,19 @@
+id = "corpus.camxes.12665"
+lojban = "a la http://www.lojban.org/texts/translations/TheBook/TheBook.html"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12665"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:6: 'http://www.lojban.org/texts/translations/TheBook/TheBook.html' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
+  "a la h👉ttp://www.lojban.org/texts/tra…"
+- not cmevla: cmevla (name) must end with a consonant
+  "a la 👉http://www.lojban.org/texts/tr…"
+- not cmavo: apostrophe/h is only allowed between two vowels (CLL 3.3)
+  "a la h👉ttp://www.lojban.org/texts/tra…"
+@ 5: "a la 👉http://www.lojban.org/texts/tr…"""" }

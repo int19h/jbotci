@@ -1,0 +1,19 @@
+id = "corpus.camxes.19754"
+lojban = "no more syllables"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "19754"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:9: 'syllables' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected vowel u but got 'y'
+  "no more s👉yllables"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "no more syl👉lables"
+- not cmavo: cmavo 'sy' followed by 'l' which doesn't start a valid Lojban word
+  "no more sy👉llables"
+@ 8: "no more 👉syllables"""" }

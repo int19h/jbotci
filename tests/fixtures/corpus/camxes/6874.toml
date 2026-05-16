@@ -1,0 +1,19 @@
+id = "corpus.camxes.6874"
+lojban = "   are said."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "6874"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "a", span = { source_id = "<fixture>", byte_start = 3, byte_end = 4, char_start = 3, char_end = 4 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "re", span = { source_id = "<fixture>", byte_start = 4, byte_end = 6, char_start = 4, char_end = 6 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "saĭd", span = { source_id = "<fixture>", byte_start = 7, byte_end = 11, char_start = 7, char_end = 11 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 2, allowed-next = [] }

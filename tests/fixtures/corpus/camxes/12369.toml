@@ -1,0 +1,19 @@
+id = "corpus.camxes.12369"
+lojban = "mi ca troci jenai snada .oi lezu'o fanva piso'u lei lojbo skamruebe pagbu le dotcybau"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12369"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:59: 'skamruebe' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…so'u lei lojbo skamr👉uebe pagbu le dotcybau"
+- not cmevla: CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "…so'u lei lojbo skamr👉uebe pagbu le dotcybau"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "…va piso'u lei lojbo 👉skamruebe pagbu le dotcybau"
+@ 58: "…va piso'u lei lojbo 👉skamruebe pagbu le dotcybau"""" }

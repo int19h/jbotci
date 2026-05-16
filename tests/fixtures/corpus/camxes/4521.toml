@@ -1,0 +1,15 @@
+id = "corpus.camxes.4521"
+lojban = "je suis decu"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "4521"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:4: 'suis' is not a valid Lojban word:
+- CgV sequences are not allowed (https://mw.lojban.org/papri/BPFK_Section:_Ban_on_consonant-glide-vowel_strings)
+  "je s👉uis decu"
+@ 3: "je 👉suis decu"""" }

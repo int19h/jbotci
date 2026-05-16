@@ -1,0 +1,15 @@
+id = "corpus.camxes.8840"
+lojban = "paboi  vs. pa"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "8840"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:8: 'vs.' is not a valid Lojban word:
+- adjacent consonants must both be voiced or both be unvoiced (CLL 3.6)
+  "paboi  v👉s. pa"
+@ 7: "paboi  👉vs. pa"""" }

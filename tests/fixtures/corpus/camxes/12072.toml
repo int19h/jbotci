@@ -1,0 +1,19 @@
+id = "corpus.camxes.12072"
+lojban = "looks like"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12072"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'looks' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "lo👉oks like"
+- not cmevla: cmevla (name) must end with a consonant
+  "👉looks like"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "lo👉oks like"
+@ 0: "👉looks like"""" }

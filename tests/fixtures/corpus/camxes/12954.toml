@@ -1,0 +1,20 @@
+id = "corpus.camxes.12954"
+lojban = "mi nelci goi ky."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12954"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "mi", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "nelci", span = { source_id = "<fixture>", byte_start = 3, byte_end = 8, char_start = 3, char_end = 8 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "goĭ", span = { source_id = "<fixture>", byte_start = 9, byte_end = 12, char_start = 9, char_end = 12 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ky", span = { source_id = "<fixture>", byte_start = 13, byte_end = 15, char_start = 13, char_end = 15 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 2, allowed-next = [] }

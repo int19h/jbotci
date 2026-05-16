@@ -1,0 +1,20 @@
+id = "corpus.camxes.16979"
+lojban = "gi'e snofarlu la .eden"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "16979"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "gi'e", span = { source_id = "<fixture>", byte_start = 0, byte_end = 4, char_start = 0, char_end = 4 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "lujvo", phonemes = "snofarlu", span = { source_id = "<fixture>", byte_start = 5, byte_end = 13, char_start = 5, char_end = 13 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "la", span = { source_id = "<fixture>", byte_start = 14, byte_end = 16, char_start = 14, char_end = 16 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "eden", span = { source_id = "<fixture>", byte_start = 18, byte_end = 22, char_start = 18, char_end = 22 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 1, allowed-next = [] }

@@ -1,0 +1,106 @@
+id = "cll.13.74.c13e10d11"
+lojban = ".o'onai bu'o"
+translation-en = "I'm getting angry!"
+gloss-en = "[Anger!] [start-emotion]"
+
+[[provenance]]
+kind = "cll"
+chapter = 13
+section-number = "13.10"
+section-id = "questions-empathy-contours"
+example-number = "13.74"
+example-id = "c13e10d11"
+source-path = "vendor/cll/chapters/13.xml"
+
+[expectations.output]
+brackets = "ó'o-naĭ-bú'o"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "with-indicator", base = { kind = "standalone-indicator", indicator = { kind = "cmavo", phonemes = "o'o", span = { source_id = "<fixture>", byte_start = 1, byte_end = 4, char_start = 1, char_end = 4 } }, nai = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 4, byte_end = 7, char_start = 4, char_end = 7 } } }, indicator = { kind = "cmavo", phonemes = "bu'o", span = { source_id = "<fixture>", byte_start = 8, byte_end = 12, char_start = 8, char_end = 12 } } },
+]
+
+[expectations.syntax]
+status = "success"
+parse-tree = {
+    kind = "node",
+    node = {
+        constructor = "LojbanText",
+        fields = [
+            {
+                name = "leadingNai",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingCmevla",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingIndicators",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "(:)",
+                        fields = [
+                            {
+                                value = { kind = "word", word = { kind = "with-indicator", base = { kind = "standalone-indicator", indicator = { kind = "cmavo", phonemes = "o'o", span = { source_id = "<fixture>", byte_start = 1, byte_end = 4, char_start = 1, char_end = 4 } }, nai = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 4, byte_end = 7, char_start = 4, char_end = 7 } } }, indicator = { kind = "cmavo", phonemes = "bu'o", span = { source_id = "<fixture>", byte_start = 8, byte_end = 12, char_start = 8, char_end = 12 } } } }
+                            },
+                            {
+                                value = {
+                                    kind = "node",
+                                    node = {
+                                        constructor = "[]",
+                                        fields = []
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                name = "leadingFreeModifiers",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "leadingConnective",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "Nothing",
+                        fields = []
+                    }
+                }
+            },
+            {
+                name = "paragraphs",
+                value = {
+                    kind = "node",
+                    node = {
+                        constructor = "[]",
+                        fields = []
+                    }
+                }
+            }
+        ]
+    }
+}

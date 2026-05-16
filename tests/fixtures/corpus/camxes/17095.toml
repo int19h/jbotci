@@ -1,0 +1,19 @@
+id = "corpus.camxes.17095"
+lojban = "(repeating) .uisai ki'u e'inai be'unai za'a mi cilre fi zo di'e"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17095"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:2: 'repeating)' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "rep" but got "eating)"
+  "(rep👉eating) .uisai ki'u e'inai be'…"
+- not cmevla: cmevla (name) must end with a consonant
+  "(👉repeating) .uisai ki'u e'inai …"
+- not cmavo: cmavo 're' followed by 'p' which doesn't start a valid Lojban word
+  "(re👉peating) .uisai ki'u e'inai be…"
+@ 1: "(👉repeating) .uisai ki'u e'inai …"""" }

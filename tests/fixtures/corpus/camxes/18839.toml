@@ -1,0 +1,19 @@
+id = "corpus.camxes.18839"
+lojban = "one could"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18839"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:5: 'could' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: vowels in hiatus are not allowed (CLL 3.3)
+  "one co👉uld"
+- not cmevla: cmevla (name) must end with a consonant
+  "one 👉could"
+- not cmavo: vowels in hiatus are not allowed (CLL 3.3)
+  "one co👉uld"
+@ 4: "one 👉could"""" }

@@ -1,0 +1,15 @@
+id = "corpus.camxes.12024"
+lojban = "There's a ge."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12024"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'There's' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "T👉here's a ge."
+@ 0: "👉There's a ge."""" }

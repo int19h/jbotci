@@ -1,0 +1,22 @@
+id = "corpus.camxes.72"
+lojban = "lo .ui zei cinmo cu cafne .y. sa sa gleki cinmo cu cafne se lifri"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "72"
+
+[expectations.morphology]
+status = "success"
+words = [
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "gleki", span = { source_id = "<fixture>", byte_start = 36, byte_end = 41, char_start = 36, char_end = 41 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "cinmo", span = { source_id = "<fixture>", byte_start = 42, byte_end = 47, char_start = 42, char_end = 47 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "cu", span = { source_id = "<fixture>", byte_start = 48, byte_end = 50, char_start = 48, char_end = 50 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "cafne", span = { source_id = "<fixture>", byte_start = 51, byte_end = 56, char_start = 51, char_end = 56 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "se", span = { source_id = "<fixture>", byte_start = 57, byte_end = 59, char_start = 57, char_end = 59 } } } },
+    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "lifri", span = { source_id = "<fixture>", byte_start = 60, byte_end = 65, char_start = 60, char_end = 65 } } } },
+]
+
+[expectations.syntax]
+status = "failure"
+error = { position = 2, allowed-next = [] }

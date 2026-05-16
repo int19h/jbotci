@@ -1,0 +1,19 @@
+id = "corpus.camxes.14114"
+lojban = "pe attaches a sumti to a sumti"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "14114"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:4: 'attaches' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "pe at👉taches a sumti to a sumti"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "pe at👉taches a sumti to a sumti"
+- not cmavo: cmavo 'a' followed by 't' which doesn't start a valid Lojban word
+  "pe a👉ttaches a sumti to a sumti"
+@ 3: "pe 👉attaches a sumti to a sumti"""" }

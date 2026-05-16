@@ -1,0 +1,15 @@
+id = "corpus.camxes.3850"
+lojban = "that'd be nice."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "3850"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'that'd' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "t👉hat'd be nice."
+@ 0: "👉that'd be nice."""" }

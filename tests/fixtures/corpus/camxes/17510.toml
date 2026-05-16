@@ -1,0 +1,19 @@
+id = "corpus.camxes.17510"
+lojban = "coi elkaes"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "17510"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:5: 'elkaes' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: expected consonant r but got 'e'
+  "coi 👉elkaes"
+- not cmevla: cmevla (name) must end with a consonant
+  "coi 👉elkaes"
+- not cmavo: cmavo 'e' followed by 'l' which doesn't start a valid Lojban word
+  "coi e👉lkaes"
+@ 4: "coi 👉elkaes"""" }

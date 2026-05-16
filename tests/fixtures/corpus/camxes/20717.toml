@@ -1,0 +1,19 @@
+id = "corpus.camxes.20717"
+lojban = "I'd use o"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20717"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'I'd' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe/h is only allowed between two vowels (CLL 3.3)
+  "I'👉d use o"
+- not cmevla: cmevla (name) must end with a consonant
+  "👉I'd use o"
+- not cmavo: apostrophe/h is only allowed between two vowels (CLL 3.3)
+  "I'👉d use o"
+@ 0: "👉I'd use o"""" }

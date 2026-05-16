@@ -1,0 +1,15 @@
+id = "corpus.camxes.21505"
+lojban = "le vi santa should be fine."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "21505"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:13: 'should' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "le vi santa s👉hould be fine."
+@ 12: "le vi santa 👉should be fine."""" }

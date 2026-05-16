@@ -1,0 +1,15 @@
+id = "corpus.camxes.20891"
+lojban = "They are converse."
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "20891"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'They' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "T👉hey are converse."
+@ 0: "👉They are converse."""" }

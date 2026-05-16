@@ -1,0 +1,15 @@
+id = "corpus.camxes.12162"
+lojban = "then re da poi broda == re lo ro broda"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12162"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'then' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  "t👉hen re da poi broda == re lo r…"
+@ 0: "👉then re da poi broda == re lo …"""" }

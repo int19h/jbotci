@@ -1,0 +1,19 @@
+id = "corpus.camxes.7612"
+lojban = "probably any size"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "7612"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'probably' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: invalid lujvo: expected a final rafsi after "probably" (y-hyphen) but got end of input
+  "probably👉 any size"
+- not cmevla: cmevla (name) must end with a consonant
+  "👉probably any size"
+- not cmavo: cmavo cannot start with a consonant cluster or apostrophe
+  "👉probably any size"
+@ 0: "👉probably any size"""" }

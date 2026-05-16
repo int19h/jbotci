@@ -1,0 +1,15 @@
+id = "corpus.camxes.12112"
+lojban = ".i ma cukta should parse"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12112"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:13: 'should' is not a valid Lojban word:
+- apostrophe is only allowed between two vowels (CLL 3.3)
+  ".i ma cukta s👉hould parse"
+@ 12: ".i ma cukta 👉should parse"""" }

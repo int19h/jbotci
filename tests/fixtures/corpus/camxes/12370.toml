@@ -1,0 +1,19 @@
+id = "corpus.camxes.12370"
+lojban = "perhaps velklama fanmo"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "12370"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:1: 'perhaps' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "per👉haps velklama fanmo"
+- not cmevla: apostrophe is only allowed between two vowels (CLL 3.3)
+  "per👉haps velklama fanmo"
+- not cmavo: cmavo 'pe' followed by 'r' which doesn't start a valid Lojban word
+  "pe👉rhaps velklama fanmo"
+@ 0: "👉perhaps velklama fanmo"""" }

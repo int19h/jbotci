@@ -1,0 +1,19 @@
+id = "corpus.camxes.18535"
+lojban = "so, no, sorry"
+
+[[provenance]]
+kind = "corpus"
+corpus = "camxes"
+entry-id = "18535"
+
+[expectations.syntax]
+status = "failure"
+error = { position = 0, allowed-next = [], message = """
+input:1:9: 'sorry' is not a valid Lojban word:
+- not gismu/lujvo/fu'ivla: geminated consonants are not allowed (CLL 3.6)
+  "so, no, sor👉ry"
+- not cmevla: geminated consonants are not allowed (CLL 3.6)
+  "so, no, sor👉ry"
+- not cmavo: cmavo 'so' followed by 'r' which doesn't start a valid Lojban word
+  "so, no, so👉rry"
+@ 8: "so, no, 👉sorry"""" }
