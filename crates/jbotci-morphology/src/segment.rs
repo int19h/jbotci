@@ -1,190 +1,4 @@
-use jbotci_source::{SourceId, SourceSpan};
-
-use crate::{MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordWithModifiers};
-
-#[derive(Debug, Clone, Copy)]
-struct SourceChar {
-    byte_offset: usize,
-    value: char,
-}
-
-#[derive(Debug)]
-struct Segmenter<'a> {
-    input: &'a str,
-    options: &'a MorphologyOptions,
-    source_id: Option<SourceId>,
-    chars: Vec<SourceChar>,
-    index: usize,
-}
-
-pub fn segment_words_with_modifiers(
-    input: &str,
-    options: &MorphologyOptions,
-    source_id: Option<SourceId>,
-) -> Result<Vec<WordWithModifiers>, MorphologyError> {
-    Segmenter::new(input, options, source_id).segment()
-}
-
-impl<'a> Segmenter<'a> {
-    fn new(input: &'a str, options: &'a MorphologyOptions, source_id: Option<SourceId>) -> Self {
-        Self {
-            input,
-            options,
-            source_id,
-            chars: input
-                .char_indices()
-                .map(|(byte_offset, value)| SourceChar { byte_offset, value })
-                .collect(),
-            index: 0,
-        }
-    }
-
-    fn segment(mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
-        let mut words = Vec::new();
-        loop {
-            self.skip_leading_noise();
-            if self.index == self.chars.len() {
-                return Ok(words);
-            }
-            words.push(self.next_word()?);
-        }
-    }
-
-    fn next_word(&mut self) -> Result<WordWithModifiers, MorphologyError> {
-        let start = self.index;
-        let end = self.candidate_end(start);
-        let raw = self.slice(start, end);
-        let normalized = normalize_word_with_options(raw, self.options);
-        if normalized.is_empty() {
-            return Err(MorphologyError::Invalid {
-                char_offset: start,
-                word: raw.to_owned(),
-                reason: "no valid morphology characters".to_owned(),
-            });
-        }
-
-        if let Some(kind) = classify_fast_simple_word(raw, &normalized) {
-            self.index = end;
-            return self.word_with_modifiers(start, end, kind, normalized);
-        }
-
-        if is_simple_cmevla(&normalized) {
-            self.index = end;
-            return self.word_with_modifiers(start, end, WordKind::Cmevla, normalized);
-        }
-
-        if let Some(cmavo) = self.cmavo_prefix(start, end) {
-            self.index = cmavo.end;
-            return self.word_with_modifiers(start, cmavo.end, WordKind::Cmavo, cmavo.phonemes);
-        }
-
-        Err(MorphologyError::Unsupported {
-            char_offset: start,
-            word: raw.to_owned(),
-            reason: "the initial Rust port currently supports plain Latin cmavo, cmevla, gismu, and fast-path lujvo only".to_owned(),
-        })
-    }
-
-    fn word_with_modifiers(
-        &self,
-        start: usize,
-        end: usize,
-        kind: WordKind,
-        phonemes: String,
-    ) -> Result<WordWithModifiers, MorphologyError> {
-        let word = Word {
-            kind,
-            phonemes,
-            span: SourceSpan::new(
-                self.source_id.clone(),
-                self.byte_offset(start),
-                self.byte_offset(end),
-                start,
-                end,
-            )?,
-            surface_override: None,
-            dialect_transform: None,
-        };
-        Ok(WordWithModifiers::BaseWord {
-            word_like: Box::new(WordLike::Bare {
-                word: Box::new(word),
-            }),
-        })
-    }
-
-    fn cmavo_prefix(&self, start: usize, end: usize) -> Option<CmavoPrefix> {
-        ((start + 1)..=end).find_map(|prefix_end| {
-            let phonemes = parse_cmavo_form(&normalize_word_with_options(
-                self.slice(start, prefix_end),
-                self.options,
-            ))?;
-            if self.cmavo_boundary_ok(prefix_end, end) {
-                Some(CmavoPrefix {
-                    end: prefix_end,
-                    phonemes,
-                })
-            } else {
-                None
-            }
-        })
-    }
-
-    fn cmavo_boundary_ok(&self, prefix_end: usize, candidate_end: usize) -> bool {
-        if prefix_end == candidate_end {
-            return true;
-        }
-        let remainder =
-            normalize_word_with_options(self.slice(prefix_end, candidate_end), self.options);
-        !starts_with_nucleus(&text_chars(&remainder), 0)
-            && self.candidate_starts_with_supported_word(prefix_end, candidate_end)
-    }
-
-    fn candidate_starts_with_supported_word(&self, start: usize, end: usize) -> bool {
-        let raw = self.slice(start, end);
-        let normalized = normalize_word_with_options(raw, self.options);
-        classify_fast_simple_word(raw, &normalized).is_some()
-            || is_simple_cmevla(&normalized)
-            || ((start + 1)..=end).any(|prefix_end| {
-                parse_cmavo_form(&normalize_word_with_options(
-                    self.slice(start, prefix_end),
-                    self.options,
-                ))
-                .is_some()
-            })
-    }
-
-    fn candidate_end(&self, start: usize) -> usize {
-        let mut end = start;
-        while end < self.chars.len() && !is_separator(self.chars[end].value) {
-            end += 1;
-        }
-        end
-    }
-
-    fn skip_leading_noise(&mut self) {
-        while self.index < self.chars.len()
-            && (is_separator(self.chars[self.index].value) || self.chars[self.index].value == ',')
-        {
-            self.index += 1;
-        }
-    }
-
-    fn slice(&self, start: usize, end: usize) -> &'a str {
-        &self.input[self.byte_offset(start)..self.byte_offset(end)]
-    }
-
-    fn byte_offset(&self, index: usize) -> usize {
-        self.chars
-            .get(index)
-            .map_or(self.input.len(), |source_char| source_char.byte_offset)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct CmavoPrefix {
-    end: usize,
-    phonemes: String,
-}
+use crate::{MorphologyOptions, WordKind};
 
 pub(crate) fn is_separator(value: char) -> bool {
     value.is_whitespace()
@@ -229,6 +43,83 @@ pub(crate) fn is_separator(value: char) -> bool {
 pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions) -> String {
     raw.chars()
         .filter_map(|value| normalize_char(value, options))
+        .collect()
+}
+
+pub(crate) fn classify_word_with_options(
+    raw_word: &str,
+    normalized_word: &str,
+    options: &MorphologyOptions,
+) -> Option<(WordKind, String)> {
+    if let Some(kind) = classify_fast_simple_word(raw_word, normalized_word) {
+        return Some((kind, canonicalize_brivla_phonemes(normalized_word)));
+    }
+
+    let stripped = normalized_word.replace(',', "");
+    if stripped.is_empty() {
+        return None;
+    }
+
+    if is_gismu(&stripped) {
+        return Some((
+            WordKind::Gismu,
+            canonicalize_brivla_phonemes(normalized_word),
+        ));
+    }
+
+    if is_lujvo(&stripped) {
+        return Some((
+            WordKind::Lujvo,
+            canonicalize_brivla_phonemes(normalized_word),
+        ));
+    }
+
+    if is_fuhivla_shape(&stripped) {
+        return Some((
+            WordKind::Fuhivla,
+            canonicalize_brivla_phonemes(normalized_word),
+        ));
+    }
+
+    if is_cmevla_with_options(normalized_word, options) {
+        return Some((
+            WordKind::Cmevla,
+            canonicalize_word_phonemes(normalized_word),
+        ));
+    }
+
+    None
+}
+
+pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
+    let chars: Vec<char> = normalized_word.chars().collect();
+    let mut out = String::new();
+    for (index, value) in chars.iter().copied().enumerate() {
+        if value == ',' {
+            if chars
+                .get(index + 1)
+                .is_some_and(|_| starts_glide(&chars, index + 1))
+            {
+                out.push(value);
+            }
+            continue;
+        }
+        let output = if is_i_semivowel(&chars, index) {
+            'ĭ'
+        } else if is_u_semivowel(&chars, index) {
+            'ŭ'
+        } else {
+            normalize_vowel(value)
+        };
+        out.push(output);
+    }
+    out
+}
+
+fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
+    canonicalize_word_phonemes(normalized_word)
+        .chars()
+        .filter(|value| *value != ',')
         .collect()
 }
 
@@ -317,6 +208,11 @@ pub(crate) fn parse_cmavo_form(text: &str) -> Option<String> {
         return Some(digit_to_cmavo(chars[0]).to_owned());
     }
     parse_cmavo_form_main(&chars)
+}
+
+pub(crate) fn starts_with_cvcy_lujvo(text: &str) -> bool {
+    let chars = text_chars(text);
+    starts_with_cvcy_lujvo_chars(&chars, 0)
 }
 
 fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
@@ -438,10 +334,7 @@ fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
     if start >= chars.len() {
         return false;
     }
-    parse_diphthong(chars, start).is_some()
-        || chars
-            .get(start)
-            .is_some_and(|value| is_vowel(*value) || matches!(*value, 'y' | 'ý'))
+    parse_diphthong(chars, start).is_some() || parse_single_vowel(chars, start).is_some()
 }
 
 fn starts_with_cluster(chars: &[char], start: usize) -> bool {
@@ -451,10 +344,12 @@ fn starts_with_cluster(chars: &[char], start: usize) -> bool {
         .is_some_and(|(first, second)| is_consonant(*first) && is_consonant(*second))
 }
 
-pub(crate) fn is_simple_cmevla(normalized: &str) -> bool {
+pub(crate) fn is_cmevla_with_options(normalized: &str, options: &MorphologyOptions) -> bool {
     let chars = text_chars(normalized);
     chars.last().is_some_and(|last| is_consonant(*last))
         && chars.first().is_some_and(|first| *first != '\'')
+        && !has_vowel_hiatus(&chars)
+        && (!options.enforce_cgv_ban || !contains_cgv(&chars))
         && chars.iter().all(|value| {
             is_consonant(*value)
                 || is_vowel(*value)
@@ -508,6 +403,539 @@ fn is_consonant(value: char) -> bool {
             | 'x'
             | 'z'
     )
+}
+
+fn is_i_semivowel(chars: &[char], index: usize) -> bool {
+    matches!(chars.get(index).copied(), Some('i' | 'í' | 'ĭ'))
+        && (is_diphthong_semivowel(chars, index, 'i') || starts_glide(chars, index))
+}
+
+fn is_u_semivowel(chars: &[char], index: usize) -> bool {
+    matches!(chars.get(index).copied(), Some('u' | 'ú' | 'ŭ'))
+        && (is_diphthong_semivowel(chars, index, 'u') || starts_glide(chars, index))
+}
+
+fn is_diphthong_semivowel(chars: &[char], index: usize, semivowel: char) -> bool {
+    let Some((_, previous)) = previous_non_comma(chars, index) else {
+        return false;
+    };
+    if next_starts_nucleus(chars, index + 1) {
+        return false;
+    }
+    matches!(
+        (base_vowel(previous), semivowel),
+        (Some('a'), 'i') | (Some('e'), 'i') | (Some('o'), 'i') | (Some('a'), 'u')
+    )
+}
+
+fn starts_glide(chars: &[char], index: usize) -> bool {
+    matches!(
+        chars.get(index).copied(),
+        Some('i' | 'í' | 'ĭ' | 'u' | 'ú' | 'ŭ')
+    ) && next_starts_nucleus(chars, index + 1)
+}
+
+fn next_starts_nucleus(chars: &[char], mut index: usize) -> bool {
+    while chars.get(index) == Some(&',') {
+        index += 1;
+    }
+    starts_with_nucleus(chars, index)
+}
+
+fn previous_non_comma(chars: &[char], index: usize) -> Option<(usize, char)> {
+    let mut cursor = index;
+    while cursor > 0 {
+        cursor -= 1;
+        let value = chars[cursor];
+        if value != ',' {
+            return Some((cursor, value));
+        }
+    }
+    None
+}
+
+fn contains_cgv(chars: &[char]) -> bool {
+    for (index, value) in chars.iter().copied().enumerate() {
+        if !matches!(value, 'i' | 'í' | 'ĭ' | 'u' | 'ú' | 'ŭ') || !starts_glide(chars, index) {
+            continue;
+        }
+        if previous_non_comma(chars, index).is_some_and(|(_, previous)| is_consonant(previous)) {
+            return true;
+        }
+    }
+    false
+}
+
+fn is_gismu(word: &str) -> bool {
+    let chars = text_chars(word);
+    match &chars[..] {
+        [a, b, c, d, e] => {
+            (is_consonant(*a)
+                && is_vowel(*b)
+                && is_consonant(*c)
+                && is_consonant(*d)
+                && is_vowel(*e)
+                && is_fast_permissible_consonant_pair(*c, *d))
+                || (is_fast_initial_pair_chars(*a, *b)
+                    && is_vowel(*c)
+                    && is_consonant(*d)
+                    && is_vowel(*e))
+        }
+        _ => false,
+    }
+}
+
+fn is_lujvo(word: &str) -> bool {
+    let chars = text_chars(word);
+    if chars.len() <= 3 || !chars.iter().all(|value| is_lujvo_char(*value)) {
+        return false;
+    }
+    lujvo_from(&chars, 0, false)
+}
+
+fn lujvo_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> bool {
+    if index >= chars.len() {
+        return false;
+    }
+    if has_initial_rafsi && is_lujvo_core(chars, index) {
+        return true;
+    }
+    if !has_initial_rafsi && is_lujvo_final_rafsi_alone(chars, index) {
+        return true;
+    }
+    initial_rafsi_ends(chars, index)
+        .into_iter()
+        .any(|end| end > index && lujvo_from(chars, end, true))
+}
+
+fn starts_with_cvcy_lujvo_chars(chars: &[char], index: usize) -> bool {
+    let Some(base_end) = cvc_rafsi_end(chars, index) else {
+        return false;
+    };
+    if !chars.get(base_end).is_some_and(|value| is_y(*value)) {
+        return false;
+    }
+    let mut after_hyphen = base_end + 1;
+    if chars.get(after_hyphen) == Some(&'\'') {
+        after_hyphen += 1;
+    }
+    lujvo_from(chars, after_hyphen, true)
+}
+
+fn is_lujvo_core(chars: &[char], index: usize) -> bool {
+    is_gismu_slice(chars, index, chars.len())
+        || is_short_final_rafsi_slice(chars, index, chars.len())
+        || is_cvv_final_rafsi_slice(chars, index, chars.len())
+}
+
+fn is_lujvo_final_rafsi_alone(chars: &[char], index: usize) -> bool {
+    is_cvv_final_rafsi_slice(chars, index, chars.len())
+}
+
+fn initial_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    ends.extend(extended_rafsi_ends(chars, index));
+    ends.extend(y_rafsi_ends(chars, index));
+    ends.extend(y_less_rafsi_ends(chars, index));
+    ends.sort_unstable_by(|left, right| right.cmp(left));
+    ends.dedup();
+    ends
+}
+
+fn extended_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    for head_end in brivla_head_ends(chars, index) {
+        if chars.get(head_end) == Some(&'\'')
+            && chars.get(head_end + 1).is_some_and(|value| is_y(*value))
+        {
+            let mut end = head_end + 2;
+            if chars.get(end) == Some(&'\'') {
+                end += 1;
+            }
+            ends.push(end);
+        }
+    }
+    ends
+}
+
+fn brivla_head_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    for end in (index + 1)..chars.len() {
+        if starts_with_onset(chars, index)
+            && end > index
+            && chars[index..end]
+                .iter()
+                .any(|value| is_vowel(*value) || is_y(*value))
+            && !is_cmavo_slice(chars, index, end)
+            && !slinkuhi_slice(chars, index, end)
+        {
+            ends.push(end);
+        }
+    }
+    ends
+}
+
+fn slinkuhi_slice(chars: &[char], start: usize, end: usize) -> bool {
+    start < end && is_consonant(chars[start]) && rafsi_string_slice(chars, start + 1, end)
+}
+
+fn rafsi_string_slice(chars: &[char], start: usize, end: usize) -> bool {
+    rafsi_string_from(chars, start, end)
+}
+
+fn rafsi_string_from(chars: &[char], start: usize, end: usize) -> bool {
+    if start >= end {
+        return false;
+    }
+    if rafsi_string_ending(chars, start, end) {
+        return true;
+    }
+    y_less_rafsi_ends(chars, start)
+        .into_iter()
+        .any(|next| next > start && next <= end && rafsi_string_from(chars, next, end))
+}
+
+fn rafsi_string_ending(chars: &[char], start: usize, end: usize) -> bool {
+    is_gismu_slice(chars, start, end)
+        || is_cvv_final_rafsi_slice(chars, start, end)
+        || y_less_rafsi_ends(chars, start)
+            .into_iter()
+            .any(|mid| mid > start && mid < end && is_short_final_rafsi_slice(chars, mid, end))
+        || y_rafsi_slice(chars, start, end)
+        || hy_rafsi_slice(chars, start, end)
+}
+
+fn y_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    for base_end in long_rafsi_ends(chars, index)
+        .into_iter()
+        .chain(cvc_rafsi_end(chars, index))
+    {
+        if chars.get(base_end).is_some_and(|value| is_y(*value)) {
+            let mut end = base_end + 1;
+            if chars.get(end) == Some(&'\'') {
+                end += 1;
+            }
+            ends.push(end);
+        }
+    }
+    ends
+}
+
+fn y_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+    long_rafsi_ends(chars, start)
+        .into_iter()
+        .chain(cvc_rafsi_end(chars, start))
+        .any(|base_end| rafsi_hyphen_end(chars, base_end) == Some(end))
+}
+
+fn y_less_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    if let Some(end) = cvc_rafsi_end(chars, index) {
+        ends.push(end);
+    }
+    if let Some(end) = ccv_rafsi_end(chars, index) {
+        ends.push(end);
+    }
+    ends.extend(cvv_rafsi_ends(chars, index));
+    ends
+}
+
+fn hy_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+    long_rafsi_ends(chars, start).into_iter().any(|base_end| {
+        chars.get(base_end).is_some_and(|value| is_vowel(*value))
+            && hy_rafsi_hyphen_end(chars, base_end + 1) == Some(end)
+    }) || ccv_rafsi_end(chars, start)
+        .into_iter()
+        .chain(cvv_rafsi_ends(chars, start))
+        .any(|base_end| hy_rafsi_hyphen_end(chars, base_end) == Some(end))
+}
+
+fn rafsi_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
+    if chars.get(index).is_some_and(|value| is_y(*value)) {
+        let mut end = index + 1;
+        if chars.get(end) == Some(&'\'') {
+            end += 1;
+        }
+        Some(end)
+    } else {
+        None
+    }
+}
+
+fn hy_rafsi_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
+    if chars.get(index) == Some(&'\'') && chars.get(index + 1).is_some_and(|value| is_y(*value)) {
+        let mut end = index + 2;
+        if chars.get(end) == Some(&'\'') {
+            end += 1;
+        }
+        Some(end)
+    } else {
+        None
+    }
+}
+
+fn long_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    if index + 4 <= chars.len()
+        && is_fast_initial_pair_chars(chars[index], chars[index + 1])
+        && is_vowel(chars[index + 2])
+        && is_consonant(chars[index + 3])
+    {
+        ends.push(index + 4);
+    }
+    if index + 4 <= chars.len()
+        && is_consonant(chars[index])
+        && is_vowel(chars[index + 1])
+        && is_consonant(chars[index + 2])
+        && is_consonant(chars[index + 3])
+    {
+        ends.push(index + 4);
+    }
+    ends
+}
+
+fn cvc_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
+    (index + 3 <= chars.len()
+        && is_consonant(chars[index])
+        && is_vowel(chars[index + 1])
+        && is_consonant(chars[index + 2]))
+    .then_some(index + 3)
+}
+
+fn ccv_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
+    (index + 3 <= chars.len()
+        && is_fast_initial_pair_chars(chars[index], chars[index + 1])
+        && is_vowel(chars[index + 2]))
+    .then_some(index + 3)
+}
+
+fn cvv_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    if index < chars.len() && is_consonant(chars[index]) {
+        for vowel_end in vowel_pair_ends(chars, index + 1) {
+            ends.push(vowel_end);
+            if chars.get(vowel_end) == Some(&'r')
+                || (chars.get(vowel_end) == Some(&'n') && chars.get(vowel_end + 1) == Some(&'r'))
+            {
+                ends.push(vowel_end + 1);
+            }
+        }
+    }
+    ends
+}
+
+fn vowel_pair_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    if index + 3 <= chars.len()
+        && is_vowel(chars[index])
+        && chars[index + 1] == '\''
+        && is_vowel(chars[index + 2])
+    {
+        ends.push(index + 3);
+    }
+    if index + 2 <= chars.len() && is_diphthong_pair(chars[index], chars[index + 1]) {
+        ends.push(index + 2);
+    }
+    ends
+}
+
+fn is_gismu_slice(chars: &[char], start: usize, end: usize) -> bool {
+    end > start && is_gismu(&chars[start..end].iter().collect::<String>())
+}
+
+fn is_short_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if start >= end {
+        return false;
+    }
+    if end == start + 3
+        && is_consonant(chars[start])
+        && is_diphthong_pair(chars[start + 1], chars[start + 2])
+    {
+        return true;
+    }
+    if end == start + 3
+        && is_fast_initial_pair_chars(chars[start], chars[start + 1])
+        && is_vowel(chars[start + 2])
+    {
+        return true;
+    }
+    end == start + 4
+        && is_consonant(chars[start])
+        && is_vowel(chars[start + 1])
+        && chars[start + 2] == '\''
+        && is_vowel(chars[start + 3])
+}
+
+fn is_cvv_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if start >= end || !is_consonant(chars[start]) {
+        return false;
+    }
+    vowel_pair_ends(chars, start + 1)
+        .into_iter()
+        .any(|vowel_end| vowel_end == end)
+}
+
+fn is_fuhivla_shape(word: &str) -> bool {
+    let chars = text_chars(word);
+    is_fuhivla_shape_slice(&chars, 0, chars.len())
+}
+
+fn is_fuhivla_shape_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if end <= start
+        || end - start < 4
+        || !chars[end - 1..end].iter().all(|value| is_vowel(*value))
+        || chars[start..end]
+            .iter()
+            .filter(|value| is_vowel(**value))
+            .count()
+            < 2
+        || chars[start..end].iter().any(|value| is_y(*value))
+        || has_vowel_hiatus(&chars[start..end])
+    {
+        return false;
+    }
+    let slice = &chars[start..end];
+    if rafsi_string_slice(chars, start, end) || slinkuhi_slice(chars, start, end) {
+        return false;
+    }
+    if !starts_with_valid_word_onset(chars, start) {
+        return false;
+    }
+    slice.iter().any(|value| is_consonant(*value))
+        && has_consonant_cluster(slice)
+        && !is_cmavo_slice(chars, start, end)
+}
+
+fn has_consonant_cluster(chars: &[char]) -> bool {
+    chars
+        .windows(2)
+        .any(|pair| is_consonant(pair[0]) && is_consonant(pair[1]))
+}
+
+fn has_vowel_hiatus(chars: &[char]) -> bool {
+    for index in 0..chars.len() {
+        if !is_vowel(chars[index]) {
+            continue;
+        }
+        if starts_glide(chars, index) {
+            continue;
+        }
+        if parse_diphthong(chars, index).is_some() {
+            continue;
+        }
+        if next_non_comma_index(chars, index + 1).is_some_and(|next| starts_glide(chars, next)) {
+            continue;
+        }
+        if next_starts_nucleus(chars, index + 1) {
+            return true;
+        }
+    }
+    false
+}
+
+fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<usize> {
+    while chars.get(index) == Some(&',') {
+        index += 1;
+    }
+    (index < chars.len()).then_some(index)
+}
+
+fn is_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if start >= end {
+        return false;
+    }
+    parse_cmavo_form(&chars[start..end].iter().collect::<String>()).is_some()
+}
+
+fn starts_with_onset(chars: &[char], index: usize) -> bool {
+    index <= chars.len()
+        && (index == chars.len()
+            || is_vowel(chars[index])
+            || is_y(chars[index])
+            || is_consonant(chars[index])
+            || matches!(chars[index], '\'' | 'ĭ' | 'ŭ'))
+}
+
+fn starts_with_valid_word_onset(chars: &[char], index: usize) -> bool {
+    let Some(first) = chars.get(index).copied() else {
+        return false;
+    };
+    if is_vowel(first) || is_y(first) || matches!(first, 'ĭ' | 'ŭ') {
+        return true;
+    }
+    if !is_consonant(first) {
+        return false;
+    }
+    let Some(second) = chars.get(index + 1).copied() else {
+        return true;
+    };
+    if !is_consonant(second) {
+        return true;
+    }
+    if chars
+        .get(index + 2)
+        .is_some_and(|value| is_consonant(*value))
+    {
+        valid_three_consonant_initial(chars, index)
+            && !chars
+                .get(index + 3)
+                .is_some_and(|value| is_consonant(*value))
+    } else {
+        is_fast_initial_pair_chars(first, second)
+    }
+}
+
+fn valid_three_consonant_initial(chars: &[char], index: usize) -> bool {
+    let (Some(first), Some(second), Some(third)) = (
+        chars.get(index).copied(),
+        chars.get(index + 1).copied(),
+        chars.get(index + 2).copied(),
+    ) else {
+        return false;
+    };
+    is_sibilant(first) && is_other_consonant(second) && is_liquid(third)
+}
+
+fn is_sibilant(value: char) -> bool {
+    matches!(value, 'c' | 's' | 'j' | 'z')
+}
+
+fn is_other_consonant(value: char) -> bool {
+    matches!(
+        value,
+        'p' | 't' | 'k' | 'f' | 'x' | 'b' | 'd' | 'g' | 'v' | 'm' | 'n'
+    )
+}
+
+fn is_liquid(value: char) -> bool {
+    matches!(value, 'l' | 'r')
+}
+
+fn is_lujvo_char(value: char) -> bool {
+    is_consonant(value) || is_vowel(value) || is_y(value) || matches!(value, '\'' | 'ĭ' | 'ŭ')
+}
+
+fn is_diphthong_pair(first: char, second: char) -> bool {
+    matches!(
+        (base_vowel(first), base_semivowel(second)),
+        (Some('a'), Some('i'))
+            | (Some('e'), Some('i'))
+            | (Some('o'), Some('i'))
+            | (Some('a'), Some('u'))
+    )
+}
+
+fn base_semivowel(value: char) -> Option<char> {
+    match value {
+        'i' | 'í' | 'ĭ' => Some('i'),
+        'u' | 'ú' | 'ŭ' => Some('u'),
+        _ => None,
+    }
+}
+
+fn is_y(value: char) -> bool {
+    matches!(value, 'y' | 'ý')
 }
 
 fn digit_to_cmavo(value: char) -> &'static str {

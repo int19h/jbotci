@@ -10,9 +10,9 @@ use jbotci_syntax::{SyntaxField, SyntaxValue};
 use support::fixtures::{
     CllSelector, ExpectationStatus, Expectations, Facet, FacetResult, FixtureBackend,
     FixtureExport, FixtureSelector, LoadedTestCase, MorphologyExpectation, MuplisForm,
-    OutputExpectation, Provenance, SyntaxExpectation, TestCase, TextExpectation, filter_fixtures,
-    import_export_file, load_fixture_file, load_fixture_tree, run_fixture_facets,
-    run_fixture_facets_parallel, write_fixture_file,
+    OutputExpectation, Provenance, SyntaxExpectation, TestCase, TextExpectation, XfailExpectation,
+    filter_fixtures, import_export_file, load_fixture_file, load_fixture_tree, run_fixture_facets,
+    run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
 };
 
 #[test]
@@ -42,6 +42,7 @@ fn profile_filters_cll_chapter_and_muplis_form() {
         TestCase {
             id: "cll.18.3.c18e3d1".into(),
             lojban: "coi".into(),
+            dialect: None,
             translation_en: None,
             gloss_en: None,
             tags: vec![],
@@ -61,6 +62,7 @@ fn profile_filters_cll_chapter_and_muplis_form() {
         TestCase {
             id: "muplis.18.1.front".into(),
             lojban: "coi".into(),
+            dialect: None,
             translation_en: None,
             gloss_en: None,
             tags: vec![],
@@ -113,6 +115,7 @@ fn fake_runner_counts_failures() {
         TestCase {
             id: "adhoc.smoke.coi".into(),
             lojban: "coi".into(),
+            dialect: None,
             translation_en: None,
             gloss_en: None,
             tags: vec!["smoke".into()],
@@ -124,6 +127,37 @@ fn fake_runner_counts_failures() {
     let summary = run_fixture_facets(&FakeBackend, &fixtures, &[Facet::Morphology, Facet::Syntax]);
     assert_eq!(summary.passed, 1);
     assert_eq!(summary.failed, 1);
+}
+
+#[test]
+fn fake_runner_counts_xfails() {
+    struct FakeBackend;
+    impl FixtureBackend for FakeBackend {
+        fn run(&self, _fixture: &LoadedTestCase, facet: Facet) -> FacetResult {
+            match facet {
+                Facet::Syntax => FacetResult::xfailed("known v0 xfail"),
+                _ => FacetResult::passed(),
+            }
+        }
+    }
+
+    let case = loaded_case(
+        "tests/fixtures/adhoc/xfail.toml",
+        TestCase {
+            id: "adhoc.xfail".into(),
+            lojban: "coi".into(),
+            dialect: None,
+            translation_en: None,
+            gloss_en: None,
+            tags: vec![],
+            provenance: vec![Provenance::Adhoc { description: None }],
+            expectations: Expectations::default(),
+        },
+    );
+    let fixtures = vec![&case];
+    let summary = run_fixture_facets(&FakeBackend, &fixtures, &[Facet::Syntax]);
+    assert_eq!(summary.xfailed, 1);
+    assert_eq!(summary.failed, 0);
 }
 
 #[test]
@@ -144,6 +178,7 @@ fn parallel_runner_matches_serial_summary() {
         TestCase {
             id: "adhoc.first".into(),
             lojban: "coi".into(),
+            dialect: None,
             translation_en: None,
             gloss_en: None,
             tags: vec![],
@@ -156,6 +191,7 @@ fn parallel_runner_matches_serial_summary() {
         TestCase {
             id: "adhoc.second".into(),
             lojban: "co'o".into(),
+            dialect: None,
             translation_en: None,
             gloss_en: None,
             tags: vec![],
@@ -200,6 +236,7 @@ fn import_writes_toml_fixture() {
         cases: vec![TestCase {
             id: "adhoc.import".into(),
             lojban: "coi".into(),
+            dialect: Some("(case-insensitive)".into()),
             translation_en: None,
             gloss_en: None,
             tags: vec!["generated".into()],
@@ -212,7 +249,43 @@ fn import_writes_toml_fixture() {
     fs::write(&input, serde_json::to_string(&export).expect("json")).expect("write export");
     let summary = import_export_file(&input, &output).expect("import");
     assert_eq!(summary.written, 1);
-    assert_eq!(load_fixture_tree(&output).expect("fixtures").len(), 1);
+    let fixtures = load_fixture_tree(&output).expect("fixtures");
+    assert_eq!(fixtures.len(), 1);
+    assert_eq!(
+        fixtures[0].test_case.dialect.as_deref(),
+        Some("(case-insensitive)")
+    );
+    let _ = fs::remove_dir_all(temp_root);
+}
+
+#[test]
+fn fixture_check_rejects_invalid_dialect_formula() {
+    let temp_root = temp_root("jbotci-fixtures-invalid-dialect-test");
+    let fixture_root = temp_root.join("fixtures");
+    fs::create_dir_all(fixture_root.join("adhoc")).expect("temp fixture root");
+    fs::write(
+        fixture_root.join("adhoc").join("bad.toml"),
+        "id = \"adhoc.bad\"\nlojban = \"coi\"\ndialect = \"(no-cgv)\"\n",
+    )
+    .expect("write invalid fixture");
+    let error = validate_fixture_tree(&fixture_root).expect_err("invalid dialect");
+    assert!(error.to_string().contains("invalid dialect formula"));
+    assert!(error.to_string().contains("no-cgv"));
+    let _ = fs::remove_dir_all(temp_root);
+}
+
+#[test]
+fn fixture_check_rejects_invalid_xfail_metadata() {
+    let temp_root = temp_root("jbotci-fixtures-invalid-xfail-test");
+    let fixture_root = temp_root.join("fixtures");
+    fs::create_dir_all(fixture_root.join("adhoc")).expect("temp fixture root");
+    fs::write(
+        fixture_root.join("adhoc").join("bad.toml"),
+        "id = \"adhoc.bad\"\nlojban = \"coi\"\n\n[expectations.syntax]\nstatus = \"success\"\nxfail = { source = \"\", reason = \"\", accepted-status = \"success\" }\n",
+    )
+    .expect("write invalid fixture");
+    let error = validate_fixture_tree(&fixture_root).expect_err("invalid xfail");
+    assert!(error.to_string().contains("invalid syntax xfail metadata"));
     let _ = fs::remove_dir_all(temp_root);
 }
 
@@ -235,6 +308,7 @@ fn writer_keeps_tree_and_words_as_values() {
     let test_case = TestCase {
         id: "adhoc.syntax".into(),
         lojban: "coi".into(),
+        dialect: Some("(allow-cgv)".into()),
         translation_en: None,
         gloss_en: None,
         tags: vec![],
@@ -260,15 +334,27 @@ fn writer_keeps_tree_and_words_as_values() {
                     }],
                 )),
                 error: None,
+                xfail: Some(XfailExpectation {
+                    source: "test".into(),
+                    reason: "intentional writer coverage".into(),
+                    accepted_status: ExpectationStatus::Failure,
+                }),
             }),
             ..Expectations::default()
         },
     };
     write_fixture_file(&fixture_path, &test_case).expect("write fixture");
     let text = fs::read_to_string(&fixture_path).expect("read fixture");
+    assert!(text.starts_with("id = \"adhoc.syntax\"\nlojban = \"coi\"\ndialect = \"(allow-cgv)\""));
     assert!(text.contains("[expectations.output]\nbrackets = \"[coi]\""));
     assert!(text.contains("[expectations.morphology]\nstatus = \"success\"\nwords = ["));
+    assert!(!text.contains("options = "));
     assert!(text.contains("[expectations.syntax]\nstatus = \"success\"\nparse-tree = {"));
+    assert!(
+        text.contains(
+            "xfail = { source = \"test\", reason = \"intentional writer coverage\", accepted-status = \"failure\" }"
+        )
+    );
     assert!(!text.contains("[expectations.morphology.words"));
     assert!(!text.contains("[expectations.syntax.parse-tree"));
     assert_eq!(

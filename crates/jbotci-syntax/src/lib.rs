@@ -1,6 +1,6 @@
 //! Lojban syntax model and parser facade.
 
-mod chumsky_spike;
+mod grammar;
 
 use jbotci_morphology::WordWithModifiers;
 use serde::{Deserialize, Serialize};
@@ -77,23 +77,46 @@ pub enum SyntaxError {
 }
 
 pub fn parse_text(
-    _words: &[WordWithModifiers],
-    _options: &ParseOptions,
+    words: &[WordWithModifiers],
+    options: &ParseOptions,
 ) -> Result<LojbanText, SyntaxError> {
-    Err(SyntaxError::NotImplemented)
+    grammar::parse_text(words, options)
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SyntaxParse {
+    pub parse_tree: SyntaxValue,
+    #[serde(default)]
+    pub warnings: Vec<SyntaxWarning>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SpikeSentence {
-    pub subject: WordWithModifiers,
-    pub relation: WordWithModifiers,
-    pub object: WordWithModifiers,
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum SyntaxWarning {
+    ExperimentalConstruct {
+        construct: String,
+        anchor_index: usize,
+        anchor: WordWithModifiers,
+    },
 }
 
-pub fn parse_mi_relation_do_chumsky_spike(
+pub fn parse_syntax_tree(words: &[WordWithModifiers]) -> Result<SyntaxParse, SyntaxError> {
+    parse_syntax_tree_with_options(words, &ParseOptions::default())
+}
+
+pub fn parse_syntax_tree_with_options(
     words: &[WordWithModifiers],
-) -> Result<SpikeSentence, SyntaxError> {
-    chumsky_spike::parse_mi_relation_do(words)
+    options: &ParseOptions,
+) -> Result<SyntaxParse, SyntaxError> {
+    grammar::parse_syntax_tree(words, options)
+}
+
+pub fn parse_syntax_tree_with_source_and_options(
+    words: &[WordWithModifiers],
+    source: &str,
+    options: &ParseOptions,
+) -> Result<SyntaxParse, SyntaxError> {
+    grammar::parse_syntax_tree_with_source(words, Some(source), options)
 }
 
 /// Lossless fixture representation for v0 syntax trees.
@@ -141,6 +164,12 @@ impl SyntaxValue {
                 constructor: constructor.into(),
                 fields,
             }),
+        }
+    }
+
+    pub fn word(word: WordWithModifiers) -> Self {
+        Self::Word {
+            word: Box::new(word),
         }
     }
 }

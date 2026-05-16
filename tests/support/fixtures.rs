@@ -7,6 +7,8 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use contracts::{ensures, requires, test_ensures};
+use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::WordWithModifiers;
 use jbotci_syntax::SyntaxValue;
 use rayon::prelude::*;
@@ -19,6 +21,8 @@ use walkdir::WalkDir;
 pub struct TestCase {
     pub id: String,
     pub lojban: String,
+    #[serde(default)]
+    pub dialect: Option<String>,
     #[serde(default, rename = "translation-en")]
     pub translation_en: Option<String>,
     #[serde(default, rename = "gloss-en")]
@@ -32,6 +36,29 @@ pub struct TestCase {
 }
 
 impl TestCase {
+    #[ensures(ret -> !self.id.is_empty())]
+    pub fn is_valid_fixture_metadata(&self) -> bool {
+        !self.id.is_empty()
+            && self
+                .dialect
+                .as_deref()
+                .is_none_or(|formula| parse_dialect_definition(formula).is_ok())
+    }
+
+    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(DialectDefinition::is_valid))]
+    pub fn dialect_definition(&self) -> Result<DialectDefinition, FixtureError> {
+        match &self.dialect {
+            Some(formula) => {
+                parse_dialect_definition(formula).map_err(|source| FixtureError::InvalidDialect {
+                    id: self.id.clone(),
+                    formula: formula.clone(),
+                    message: source.message().to_owned(),
+                })
+            }
+            None => Ok(DialectDefinition::baseline()),
+        }
+    }
+
     pub fn available_facets(&self) -> BTreeSet<Facet> {
         let mut facets = BTreeSet::new();
         if self
@@ -55,6 +82,22 @@ impl TestCase {
             facets.insert(Facet::Warnings);
         }
         facets
+    }
+
+    pub fn validate_xfail_metadata(&self) -> Result<(), FixtureError> {
+        let Some(syntax) = &self.expectations.syntax else {
+            return Ok(());
+        };
+        let Some(xfail) = &syntax.xfail else {
+            return Ok(());
+        };
+        if !xfail.is_valid_for_status(syntax.status) {
+            return Err(FixtureError::InvalidXfail {
+                id: self.id.clone(),
+                message: xfail.invalid_reason_for_status(syntax.status),
+            });
+        }
+        Ok(())
     }
 }
 
@@ -184,6 +227,51 @@ pub struct SyntaxExpectation {
     pub parse_tree: Option<SyntaxValue>,
     #[serde(default)]
     pub error: Option<ParseErrorExpectation>,
+    #[serde(default)]
+    pub xfail: Option<XfailExpectation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct XfailExpectation {
+    pub source: String,
+    pub reason: String,
+    #[serde(rename = "accepted-status")]
+    pub accepted_status: ExpectationStatus,
+}
+
+impl XfailExpectation {
+    pub fn is_valid_for_status(&self, expected_status: ExpectationStatus) -> bool {
+        self.invalid_reason_for_status(expected_status).is_empty()
+    }
+
+    fn invalid_reason_for_status(&self, expected_status: ExpectationStatus) -> String {
+        if self.source.is_empty() {
+            return "xfail source must not be empty".to_owned();
+        }
+        if self.reason.is_empty() {
+            return "xfail reason must not be empty".to_owned();
+        }
+        if !matches!(
+            expected_status,
+            ExpectationStatus::Success | ExpectationStatus::Failure
+        ) {
+            return format!("xfail cannot be attached to {expected_status:?} expectation");
+        }
+        if !matches!(
+            self.accepted_status,
+            ExpectationStatus::Success | ExpectationStatus::Failure
+        ) {
+            return format!(
+                "xfail accepted-status must be success or failure, got {:?}",
+                self.accepted_status
+            );
+        }
+        if self.accepted_status == expected_status {
+            return "xfail accepted-status must differ from the normative status".to_owned();
+        }
+        String::new()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -399,6 +487,14 @@ pub enum FixtureError {
     },
     #[error("profile `{profile}` references unknown facet `{facet}`")]
     UnknownFacet { profile: PathBuf, facet: String },
+    #[error("fixture `{id}` has invalid dialect formula `{formula}`: {message}")]
+    InvalidDialect {
+        id: String,
+        formula: String,
+        message: String,
+    },
+    #[error("fixture `{id}` has invalid syntax xfail metadata: {message}")]
+    InvalidXfail { id: String, message: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -413,6 +509,7 @@ fn default_schema_version() -> u16 {
     1
 }
 
+#[test_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|test_case| !test_case.id.is_empty()))]
 pub fn load_fixture_file(path: impl AsRef<Path>) -> Result<TestCase, FixtureError> {
     let path = path.as_ref();
     let text = read_text(path)?;
@@ -422,6 +519,7 @@ pub fn load_fixture_file(path: impl AsRef<Path>) -> Result<TestCase, FixtureErro
     })
 }
 
+#[requires(test_case.is_valid_fixture_metadata())]
 pub fn write_fixture_file(
     path: impl AsRef<Path>,
     test_case: &TestCase,
@@ -450,6 +548,7 @@ fn format_test_case_toml(test_case: &TestCase) -> Result<String, toml::ser::Erro
     let mut output = String::new();
     push_field(&mut output, "id", &test_case.id)?;
     push_field(&mut output, "lojban", &test_case.lojban)?;
+    push_optional_field(&mut output, "dialect", &test_case.dialect)?;
     push_optional_field(&mut output, "translation-en", &test_case.translation_en)?;
     push_optional_field(&mut output, "gloss-en", &test_case.gloss_en)?;
     if !test_case.tags.is_empty() {
@@ -555,6 +654,7 @@ fn push_expectations_toml(
             output.push('\n');
         }
         push_optional_field(output, "error", &syntax.error)?;
+        push_optional_field(output, "xfail", &syntax.xfail)?;
     }
     if let Some(syntax_refs) = &expectations.syntax_refs {
         output.push_str("\n[expectations.syntax-refs]\n");
@@ -774,6 +874,8 @@ pub fn validate_fixture_tree(root: impl AsRef<Path>) -> Result<FixtureSummary, F
     let mut fixture_count = 0;
     for path in fixture_paths(root)? {
         let test_case = load_fixture_file(&path)?;
+        test_case.dialect_definition()?;
+        test_case.validate_xfail_metadata()?;
         if let Some(first) = seen.insert(test_case.id.clone(), path.clone()) {
             return Err(FixtureError::DuplicateId {
                 id: test_case.id,
@@ -959,6 +1061,13 @@ impl FacetResult {
             message: Some(message.into()),
         }
     }
+
+    pub fn xfailed(message: impl Into<String>) -> Self {
+        Self {
+            status: FacetStatus::Xfailed,
+            message: Some(message.into()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -966,6 +1075,7 @@ pub enum FacetStatus {
     Passed,
     Failed,
     Skipped,
+    Xfailed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -975,6 +1085,7 @@ pub struct RunSummary {
     pub passed: usize,
     pub failed: usize,
     pub skipped: usize,
+    pub xfailed: usize,
 }
 
 impl RunSummary {
@@ -983,6 +1094,7 @@ impl RunSummary {
             FacetStatus::Passed => self.passed += 1,
             FacetStatus::Failed => self.failed += 1,
             FacetStatus::Skipped => self.skipped += 1,
+            FacetStatus::Xfailed => self.xfailed += 1,
         }
     }
 
@@ -991,6 +1103,7 @@ impl RunSummary {
         self.passed += other.passed;
         self.failed += other.failed;
         self.skipped += other.skipped;
+        self.xfailed += other.xfailed;
     }
 }
 

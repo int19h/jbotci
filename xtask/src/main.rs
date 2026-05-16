@@ -1,10 +1,17 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command as ProcessCommand, ExitStatus};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
-use jbotci_morphology::segment_words_with_modifiers_with_source_id;
+use contracts::{ensures, requires};
+use jbotci_morphology::{
+    MorphologyOptions, WordWithModifiers, segment_words_with_modifiers_with_options_and_source_id,
+};
 use jbotci_source::SourceId;
+use jbotci_syntax::{
+    ParseOptions, SyntaxError, SyntaxValue, parse_syntax_tree_with_source_and_options,
+};
 use rayon::prelude::*;
 
 #[path = "../../tests/support/fixtures.rs"]
@@ -84,17 +91,36 @@ struct FixtureRunArgs {
     muplis_form: Option<MuplisForm>,
     #[arg(long, value_name = "N")]
     jobs: Option<usize>,
+    #[arg(long, default_value_t = 0, value_name = "N")]
+    failure_samples: usize,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Check => cargo(&["check", "--workspace", "--all-targets"]),
-        Command::Test => cargo(&["test", "--workspace", "--all-targets"]),
+        Command::Check => cargo(&[
+            "check",
+            "--workspace",
+            "--all-targets",
+            "-j",
+            DEFAULT_TEST_JOBS_TEXT,
+        ]),
+        Command::Test => cargo(&[
+            "test",
+            "--workspace",
+            "--all-targets",
+            "-j",
+            DEFAULT_TEST_JOBS_TEXT,
+            "--",
+            "--test-threads",
+            DEFAULT_TEST_JOBS_TEXT,
+        ]),
         Command::Clippy => cargo(&[
             "clippy",
             "--workspace",
             "--all-targets",
+            "-j",
+            DEFAULT_TEST_JOBS_TEXT,
             "--",
             "-D",
             "warnings",
@@ -170,15 +196,26 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
         .stack_size(FIXTURE_WORKER_STACK_SIZE)
         .build()
         .context("creating fixture-test thread pool")?;
+    let failure_counter = AtomicUsize::new(0);
     let mut summary = pool
-        .install(|| run_fixture_test_jobs(&args.root, &profile, &backend, &paths))
+        .install(|| {
+            run_fixture_test_jobs(
+                &args.root,
+                &profile,
+                &backend,
+                &paths,
+                args.failure_samples,
+                &failure_counter,
+            )
+        })
         .with_context(|| format!("loading fixtures under `{}`", args.root.display()))?;
     summary.selected_facets = profile.facets.len();
     println!(
-        "fixtures={}, facets={}, passed={}, failed={}, skipped={}",
+        "fixtures={}, facets={}, passed={}, xfailed={}, failed={}, skipped={}",
         summary.selected_fixtures,
         summary.selected_facets,
         summary.passed,
+        summary.xfailed,
         summary.failed,
         summary.skipped
     );
@@ -193,6 +230,8 @@ fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
     profile: &FixtureProfile,
     backend: &B,
     paths: &[PathBuf],
+    failure_samples: usize,
+    failure_counter: &AtomicUsize,
 ) -> Result<RunSummary, fixtures::FixtureError> {
     paths
         .par_iter()
@@ -202,7 +241,20 @@ fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
             if fixture_matches_selector(root, &fixture, &profile.selector) {
                 summary.selected_fixtures = 1;
                 for facet in &profile.facets {
-                    summary.record_result(&backend.run(&fixture, *facet));
+                    let result = backend.run(&fixture, *facet);
+                    if result.status == fixtures::FacetStatus::Failed {
+                        let sample_index = failure_counter.fetch_add(1, Ordering::Relaxed);
+                        if sample_index < failure_samples {
+                            eprintln!(
+                                "{}\t{}\t{}\t{}",
+                                fixture.test_case.id,
+                                facet,
+                                fixture.path.display(),
+                                result.message.as_deref().unwrap_or("failed")
+                            );
+                        }
+                    }
+                    summary.record_result(&result);
                 }
             }
             Ok(summary)
@@ -213,13 +265,16 @@ fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
         })
 }
 
+#[ensures(ret > 0)]
 fn default_fixture_jobs() -> usize {
-    std::thread::available_parallelism().map_or(1, usize::from)
+    DEFAULT_TEST_JOBS
 }
 
 // TOML fixtures can contain deeply nested exported syntax trees, and serde's
 // TOML decoder needs more stack than Rayon workers get by default.
 const FIXTURE_WORKER_STACK_SIZE: usize = 32 * 1024 * 1024;
+const DEFAULT_TEST_JOBS: usize = 16;
+const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 
 fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
     let mut profile = match &args.profile {
@@ -272,6 +327,7 @@ fn merge_cli_selector(selector: &mut FixtureSelector, args: &FixtureRunArgs) {
     }
 }
 
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|path| path.is_absolute()))]
 fn absolute_path(path: &Path) -> Result<PathBuf> {
     if path.is_absolute() {
         Ok(path.to_path_buf())
@@ -302,6 +358,7 @@ fn run_v0_exporter(v0_root: &Path, output: &Path) -> Result<()> {
     check_status(status, "cabal run exe:v1-fixture-export")
 }
 
+#[requires(!args.is_empty(), "cargo subcommand arguments must not be empty")]
 fn cargo(args: &[&str]) -> Result<()> {
     let status = ProcessCommand::new("cargo")
         .args(args)
@@ -310,6 +367,7 @@ fn cargo(args: &[&str]) -> Result<()> {
     check_status(status, &format!("cargo {}", args.join(" ")))
 }
 
+#[requires(!command.is_empty(), "checked command name must not be empty")]
 fn check_status(status: ExitStatus, command: &str) -> Result<()> {
     if status.success() {
         Ok(())
@@ -333,12 +391,290 @@ impl FixtureBackend for NotImplementedBackend {
         }
         match facet {
             Facet::Morphology => run_morphology_fixture(fixture),
-            Facet::Syntax => FacetResult::failed(format!("{facet} runner is not implemented yet")),
+            Facet::Syntax => run_syntax_fixture(fixture),
             Facet::SyntaxRefs | Facet::Warnings | Facet::Brackets => {
                 FacetResult::skipped(format!("{facet} runner is not implemented yet"))
             }
         }
     }
+}
+
+fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = &fixture.test_case.expectations.syntax else {
+        return FacetResult::skipped("fixture has no syntax expectation");
+    };
+    let options = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => MorphologyOptions::default().with_dialect_definition(&dialect),
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) {
+        Ok(words) => words,
+        Err(error) => {
+            return match expectation.status {
+                ExpectationStatus::Failure => {
+                    syntax_xfail_result(expectation, ExpectationStatus::Failure, true)
+                        .unwrap_or_else(FacetResult::passed)
+                }
+                ExpectationStatus::Success => {
+                    syntax_xfail_result(expectation, ExpectationStatus::Failure, true)
+                        .unwrap_or_else(|| {
+                            FacetResult::failed(format!(
+                                "syntax blocked by morphology error: {error}"
+                            ))
+                        })
+                }
+                ExpectationStatus::Pending | ExpectationStatus::NotApplicable => {
+                    FacetResult::skipped(format!("syntax expectation is {:?}", expectation.status))
+                }
+            };
+        }
+    };
+
+    match parse_syntax_tree_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &ParseOptions::default(),
+    ) {
+        Ok(parsed) => match expectation.status {
+            ExpectationStatus::Success => {
+                let Some(expected_tree) = &expectation.parse_tree else {
+                    return FacetResult::failed("syntax success expectation has no parse-tree");
+                };
+                if &parsed.parse_tree == expected_tree {
+                    syntax_xfail_result(expectation, ExpectationStatus::Success, true)
+                        .unwrap_or_else(FacetResult::passed)
+                } else if expectation.xfail.is_some()
+                    && expectation
+                        .xfail
+                        .as_ref()
+                        .is_some_and(|xfail| xfail.accepted_status == ExpectationStatus::Success)
+                {
+                    FacetResult::failed(
+                        "syntax xfail accepted success, but parse-tree did not match",
+                    )
+                } else {
+                    FacetResult::failed(format_syntax_mismatch(expected_tree, &parsed.parse_tree))
+                }
+            }
+            ExpectationStatus::Failure => {
+                if expectation
+                    .xfail
+                    .as_ref()
+                    .is_some_and(|xfail| xfail.accepted_status == ExpectationStatus::Success)
+                {
+                    let Some(expected_tree) = &expectation.parse_tree else {
+                        return FacetResult::failed("syntax success xfail has no parse-tree");
+                    };
+                    if &parsed.parse_tree == expected_tree {
+                        syntax_xfail_result(expectation, ExpectationStatus::Success, true)
+                            .unwrap_or_else(|| {
+                                FacetResult::failed(
+                                    "syntax xfail unexpectedly missing accepted success metadata",
+                                )
+                            })
+                    } else {
+                        FacetResult::failed(format!(
+                            "syntax xfail accepted success, but {}",
+                            format_syntax_mismatch(expected_tree, &parsed.parse_tree)
+                        ))
+                    }
+                } else {
+                    FacetResult::failed("expected syntax failure, got success")
+                }
+            }
+            ExpectationStatus::Pending | ExpectationStatus::NotApplicable => {
+                FacetResult::skipped(format!("syntax expectation is {:?}", expectation.status))
+            }
+        },
+        Err(SyntaxError::NotImplemented) => {
+            FacetResult::failed("syntax parser returned NotImplemented")
+        }
+        Err(SyntaxError::Parse {
+            byte_offset,
+            reason,
+        }) => match expectation.status {
+            ExpectationStatus::Success => {
+                syntax_xfail_result(expectation, ExpectationStatus::Failure, true).unwrap_or_else(
+                    || {
+                        FacetResult::failed(format!(
+                            "syntax parse error at byte {byte_offset}: {reason}"
+                        ))
+                    },
+                )
+            }
+            ExpectationStatus::Failure => {
+                syntax_xfail_result(expectation, ExpectationStatus::Failure, true)
+                    .unwrap_or_else(FacetResult::passed)
+            }
+            ExpectationStatus::Pending | ExpectationStatus::NotApplicable => {
+                FacetResult::skipped(format!("syntax expectation is {:?}", expectation.status))
+            }
+        },
+    }
+}
+
+#[ensures(!ret.is_empty())]
+fn format_syntax_mismatch(expected: &SyntaxValue, actual: &SyntaxValue) -> String {
+    let mut path = Vec::new();
+    let detail = syntax_difference(expected, actual, &mut path)
+        .unwrap_or_else(|| "syntax parse-tree differs".to_owned());
+    format!(
+        "syntax parse-tree mismatch at {}: {detail}",
+        path_text(&path)
+    )
+}
+
+fn syntax_difference(
+    expected: &SyntaxValue,
+    actual: &SyntaxValue,
+    path: &mut Vec<String>,
+) -> Option<String> {
+    match (expected, actual) {
+        (SyntaxValue::Null, SyntaxValue::Null) => None,
+        (SyntaxValue::Bool { value: left }, SyntaxValue::Bool { value: right })
+            if left == right =>
+        {
+            None
+        }
+        (SyntaxValue::Integer { value: left }, SyntaxValue::Integer { value: right })
+            if left == right =>
+        {
+            None
+        }
+        (SyntaxValue::Text { value: left }, SyntaxValue::Text { value: right })
+            if left == right =>
+        {
+            None
+        }
+        (SyntaxValue::Word { word: left }, SyntaxValue::Word { word: right }) if left == right => {
+            None
+        }
+        (SyntaxValue::Word { word: left }, SyntaxValue::Word { word: right }) => {
+            Some(format!("expected word `{left}`, got `{right}`"))
+        }
+        (SyntaxValue::Json { value: left }, SyntaxValue::Json { value: right })
+            if left == right =>
+        {
+            None
+        }
+        (SyntaxValue::List { items: left }, SyntaxValue::List { items: right }) => {
+            compare_syntax_slices(left, right, path)
+        }
+        (SyntaxValue::Node { node: left }, SyntaxValue::Node { node: right }) => {
+            if left.constructor != right.constructor {
+                return Some(format!(
+                    "expected constructor `{}`, got `{}`",
+                    left.constructor, right.constructor
+                ));
+            }
+            if left.fields.len() != right.fields.len() {
+                return Some(format!(
+                    "expected {} field(s), got {}",
+                    left.fields.len(),
+                    right.fields.len()
+                ));
+            }
+            for (index, (left_field, right_field)) in
+                left.fields.iter().zip(right.fields.iter()).enumerate()
+            {
+                if left_field.name != right_field.name {
+                    return Some(format!(
+                        "expected field name {:?}, got {:?}",
+                        left_field.name, right_field.name
+                    ));
+                }
+                path.push(
+                    left_field
+                        .name
+                        .clone()
+                        .unwrap_or_else(|| format!("field[{index}]")),
+                );
+                let difference = syntax_difference(&left_field.value, &right_field.value, path);
+                if difference.is_some() {
+                    return difference;
+                }
+                path.pop();
+            }
+            None
+        }
+        _ => Some(format!(
+            "expected {}, got {}",
+            syntax_value_kind(expected),
+            syntax_value_kind(actual)
+        )),
+    }
+}
+
+fn compare_syntax_slices(
+    expected: &[SyntaxValue],
+    actual: &[SyntaxValue],
+    path: &mut Vec<String>,
+) -> Option<String> {
+    if expected.len() != actual.len() {
+        return Some(format!(
+            "expected {} item(s), got {}",
+            expected.len(),
+            actual.len()
+        ));
+    }
+    for (index, (left, right)) in expected.iter().zip(actual.iter()).enumerate() {
+        path.push(format!("[{index}]"));
+        let difference = syntax_difference(left, right, path);
+        if difference.is_some() {
+            return difference;
+        }
+        path.pop();
+    }
+    None
+}
+
+fn syntax_value_kind(value: &SyntaxValue) -> &'static str {
+    match value {
+        SyntaxValue::Null => "null",
+        SyntaxValue::Bool { .. } => "bool",
+        SyntaxValue::Integer { .. } => "integer",
+        SyntaxValue::Text { .. } => "text",
+        SyntaxValue::List { .. } => "list",
+        SyntaxValue::Node { .. } => "node",
+        SyntaxValue::Word { .. } => "word",
+        SyntaxValue::Json { .. } => "json",
+    }
+}
+
+fn path_text(path: &[String]) -> String {
+    if path.is_empty() {
+        "<root>".to_owned()
+    } else {
+        path.join(".")
+    }
+}
+
+fn syntax_xfail_result(
+    expectation: &fixtures::SyntaxExpectation,
+    actual_status: ExpectationStatus,
+    actual_matches_status_payload: bool,
+) -> Option<FacetResult> {
+    let xfail = expectation.xfail.as_ref()?;
+    if actual_status == expectation.status && actual_matches_status_payload {
+        return Some(FacetResult::failed(format!(
+            "syntax xfail unexpectedly passed; remove xfail metadata. Reason was: {}",
+            xfail.reason
+        )));
+    }
+    if actual_status == xfail.accepted_status && actual_matches_status_payload {
+        return Some(FacetResult::xfailed(format!(
+            "{}: {}",
+            xfail.source, xfail.reason
+        )));
+    }
+    Some(FacetResult::failed(format!(
+        "syntax xfail expected {:?}, got {:?}",
+        xfail.accepted_status, actual_status
+    )))
 }
 
 fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
@@ -347,23 +683,31 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
     };
     match expectation.status {
         ExpectationStatus::Success => {
-            match segment_words_with_modifiers_with_source_id(
+            let options = match fixture.test_case.dialect_definition() {
+                Ok(dialect) => MorphologyOptions::default().with_dialect_definition(&dialect),
+                Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+            };
+            match segment_words_with_modifiers_with_options_and_source_id(
                 &fixture.test_case.lojban,
-                SourceId("<fixture>".to_owned()),
+                &options,
+                Some(SourceId("<fixture>".to_owned())),
             ) {
                 Ok(actual) if actual == expectation.words => FacetResult::passed(),
-                Ok(actual) => FacetResult::failed(format!(
-                    "morphology mismatch: expected {} word(s), got {} word(s)",
-                    expectation.words.len(),
-                    actual.len()
-                )),
+                Ok(actual) => {
+                    FacetResult::failed(format_morphology_mismatch(&expectation.words, &actual))
+                }
                 Err(error) => FacetResult::failed(format!("morphology error: {error}")),
             }
         }
         ExpectationStatus::Failure => {
-            match segment_words_with_modifiers_with_source_id(
+            let options = match fixture.test_case.dialect_definition() {
+                Ok(dialect) => MorphologyOptions::default().with_dialect_definition(&dialect),
+                Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+            };
+            match segment_words_with_modifiers_with_options_and_source_id(
                 &fixture.test_case.lojban,
-                SourceId("<fixture>".to_owned()),
+                &options,
+                Some(SourceId("<fixture>".to_owned())),
             ) {
                 Ok(actual) => FacetResult::failed(format!(
                     "expected morphology failure, got {} word(s)",
@@ -374,6 +718,43 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
         }
         ExpectationStatus::Pending | ExpectationStatus::NotApplicable => FacetResult::skipped(
             format!("morphology expectation is {:?}", expectation.status),
+        ),
+    }
+}
+
+#[ensures(!ret.is_empty())]
+fn format_morphology_mismatch(
+    expected: &[WordWithModifiers],
+    actual: &[WordWithModifiers],
+) -> String {
+    let first_difference = expected
+        .iter()
+        .zip(actual.iter())
+        .position(|(left, right)| left != right);
+    match first_difference {
+        Some(index) => {
+            let expected_text = expected[index].to_string();
+            let actual_text = actual[index].to_string();
+            if expected_text == actual_text {
+                format!(
+                    "morphology mismatch at word {index}: expected {:#?}, got {:#?} (expected {} word(s), got {} word(s))",
+                    expected[index],
+                    actual[index],
+                    expected.len(),
+                    actual.len()
+                )
+            } else {
+                format!(
+                    "morphology mismatch at word {index}: expected `{expected_text}`, got `{actual_text}` (expected {} word(s), got {} word(s))",
+                    expected.len(),
+                    actual.len()
+                )
+            }
+        }
+        None => format!(
+            "morphology mismatch: expected {} word(s), got {} word(s)",
+            expected.len(),
+            actual.len()
         ),
     }
 }

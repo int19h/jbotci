@@ -159,6 +159,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
+name = "contracts"
+version = "0.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "008eb94d541da40512913ef5e0707c3fb0e7280ba1af13f062461e46dd96ef7e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "crossbeam-deque"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -261,12 +272,22 @@ dependencies = [
  "jbotci-morphology",
  "jbotci-output",
  "jbotci-syntax",
+ "serde_json",
 ]
 
 [[package]]
 name = "jbotci-cll"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "jbotci-dialect"
+version = "0.1.0"
+dependencies = [
+ "contracts",
  "serde",
  "thiserror",
 ]
@@ -294,6 +315,8 @@ name = "jbotci-morphology"
 version = "0.1.0"
 dependencies = [
  "chumsky",
+ "contracts",
+ "jbotci-dialect",
  "jbotci-source",
  "serde",
  "thiserror",
@@ -348,6 +371,8 @@ name = "jbotci-syntax"
 version = "0.1.0"
 dependencies = [
  "chumsky",
+ "contracts",
+ "jbotci-dialect",
  "jbotci-morphology",
  "jbotci-source",
  "serde",
@@ -359,6 +384,8 @@ dependencies = [
 name = "jbotci-workspace"
 version = "0.1.0"
 dependencies = [
+ "contracts",
+ "jbotci-dialect",
  "jbotci-morphology",
  "jbotci-source",
  "jbotci-syntax",
@@ -700,6 +727,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "contracts",
+ "jbotci-dialect",
  "jbotci-morphology",
  "jbotci-source",
  "jbotci-syntax",

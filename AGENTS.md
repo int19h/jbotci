@@ -48,6 +48,8 @@ If you add debug logging that is broadly useful beyond a one-off investigation, 
 
 Use design by contract for all code, including private members and types, and methods of traits and `impl`. DbC crate is https://github.com/x52dev/contracts. Capture all preconditions and postconditions, even those that are expensive to validate. For expensive checks, use `test_requires`, `test_ensures`, and `test_invariant`, otherwise use `requires`, `ensures`, and `invariant`. Examples:
 
+Keep contracts in mind whenever writing or touching code: define data-type invariants, function preconditions and postconditions, and function or `impl` invariants wherever they make correctness assumptions explicit.
+
 ```rust
 #[contract_trait]
 trait MyRandom {

@@ -5,6 +5,8 @@ use std::process::ExitCode;
 
 use anyhow::{Result, anyhow};
 use clap::{Args, Parser, Subcommand};
+use jbotci_morphology::segment_words_with_modifiers;
+use jbotci_syntax::parse_syntax_tree;
 
 #[derive(Debug, Parser)]
 #[command(name = "jbotci")]
@@ -104,12 +106,19 @@ fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Vlasei(input) => {
-            let _ = input.read_text()?;
-            command_not_implemented("vlasei")
+            let text = input.read_text()?;
+            let words = segment_words_with_modifiers(&text)?;
+            for word in words {
+                println!("{word}");
+            }
+            Ok(())
         }
         Command::Gentufa(input) => {
-            let _ = input.read_text()?;
-            command_not_implemented("gentufa")
+            let text = input.read_text()?;
+            let words = segment_words_with_modifiers(&text)?;
+            let parsed = parse_syntax_tree(&words)?;
+            println!("{}", serde_json::to_string_pretty(&parsed.parse_tree)?);
+            Ok(())
         }
         Command::Mulgau(input) => {
             let _ = input.read_text()?;
