@@ -1884,7 +1884,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 }
             },
         );
-    let simple_term = choice((gek_nuhi_termset, base_simple_term)).boxed();
+    let simple_term = choice((base_simple_term, gek_nuhi_termset)).boxed();
     let term = simple_term
         .clone()
         .then(
