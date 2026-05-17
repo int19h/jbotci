@@ -260,7 +260,9 @@ enum ArgumentSyntax {
         cmevla: Vec<WordWithModifiers>,
     },
     RelationVocative {
+        leading_relative_clauses: Vec<RelativeClauseSyntax>,
         relation: RelationSyntax,
+        trailing_relative_clauses: Vec<RelativeClauseSyntax>,
     },
 }
 
@@ -1020,7 +1022,23 @@ impl ArgumentSyntax {
             ArgumentSyntax::Descriptor { descriptor } => descriptor.words(),
             ArgumentSyntax::Name { la, names } => [vec![la], names].concat(),
             ArgumentSyntax::Cmevla { cmevla } => cmevla,
-            ArgumentSyntax::RelationVocative { relation } => relation.words(),
+            ArgumentSyntax::RelationVocative {
+                leading_relative_clauses,
+                relation,
+                trailing_relative_clauses,
+            } => {
+                let mut words = leading_relative_clauses
+                    .into_iter()
+                    .flat_map(RelativeClauseSyntax::words)
+                    .collect::<Vec<_>>();
+                words.extend(relation.words());
+                words.extend(
+                    trailing_relative_clauses
+                        .into_iter()
+                        .flat_map(RelativeClauseSyntax::words),
+                );
+                words
+            }
         }
     }
 }
@@ -1665,7 +1683,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         xi_free(),
         sei_free(term.clone(), relation.clone()),
         to_free(text.clone(), free_modifier.clone()),
-        vocative_free(argument.clone(), relation.clone()),
+        vocative_free(argument.clone(), relation.clone(), subsentence.clone()),
     )));
 
     let initial_statement = statement.clone().map(|statement| ParagraphStatementSyntax {
@@ -1937,9 +1955,12 @@ where
 
     let koha = koha_argument()
         .then(
-            choice((xi_free(), vocative_free(argument.clone(), relation.clone())))
-                .repeated()
-                .collect::<Vec<_>>(),
+            choice((
+                xi_free(),
+                vocative_free(argument.clone(), relation.clone(), subsentence.clone()),
+            ))
+            .repeated()
+            .collect::<Vec<_>>(),
         )
         .map(|(koha, free_modifiers)| ArgumentSyntax::Koha {
             koha,
@@ -2391,6 +2412,8 @@ fn simple_vocative_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
             .map(|cmevla| ArgumentSyntax::Cmevla { cmevla }),
         relation_word().map(|word| ArgumentSyntax::RelationVocative {
             relation: RelationSyntax::Base { word },
+            leading_relative_clauses: Vec::new(),
+            trailing_relative_clauses: Vec::new(),
         }),
     ));
 
@@ -2431,20 +2454,53 @@ fn xi_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
 fn vocative_free<'tokens, A, R>(
     argument: A,
     relation: R,
+    subsentence: impl Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
+    + Clone
+    + 'tokens,
 ) -> BoxedParser<'tokens, FreeModifierSyntax>
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
-    let vocative_argument = choice((
-        relation.map(|relation| ArgumentSyntax::RelationVocative { relation }),
-        cmevla_word()
-            .repeated()
-            .at_least(1)
-            .collect::<Vec<_>>()
-            .map(|cmevla| ArgumentSyntax::Cmevla { cmevla }),
-        argument,
-    ));
+    let optional_relative_clauses = relative_clauses(argument.clone(), subsentence.clone())
+        .or_not()
+        .map(Option::unwrap_or_default);
+    let relation_vocative = optional_relative_clauses
+        .clone()
+        .then(relation)
+        .then(optional_relative_clauses.clone())
+        .map(
+            |((leading_relative_clauses, relation), trailing_relative_clauses)| {
+                ArgumentSyntax::RelationVocative {
+                    leading_relative_clauses,
+                    relation,
+                    trailing_relative_clauses,
+                }
+            },
+        );
+    let cmevla_vocative = optional_relative_clauses
+        .clone()
+        .then(cmevla_word().repeated().at_least(1).collect::<Vec<_>>())
+        .then(optional_relative_clauses)
+        .map(
+            |((leading_relative_clauses, cmevla), trailing_relative_clauses)| {
+                let argument = ArgumentSyntax::Cmevla { cmevla };
+                let relative_clauses = leading_relative_clauses
+                    .into_iter()
+                    .chain(trailing_relative_clauses)
+                    .collect::<Vec<_>>();
+                if relative_clauses.is_empty() {
+                    argument
+                } else {
+                    ArgumentSyntax::RelativeClause {
+                        base_argument: Box::new(argument),
+                        vuho: None,
+                        relative_clauses,
+                    }
+                }
+            },
+        );
+    let vocative_argument = choice((relation_vocative, cmevla_vocative, argument));
 
     vocative_markers()
         .then(vocative_argument.or_not())
@@ -4275,12 +4331,32 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
                 field("freeModifiers", nil()),
             ],
         ),
-        ArgumentSyntax::RelationVocative { relation } => node(
+        ArgumentSyntax::RelationVocative {
+            leading_relative_clauses,
+            relation,
+            trailing_relative_clauses,
+        } => node(
             "RelationVocativeArgument",
             vec![
-                field("leadingRelativeClauses", nil()),
+                field(
+                    "leadingRelativeClauses",
+                    list(
+                        leading_relative_clauses
+                            .into_iter()
+                            .map(relative_clause_tree)
+                            .collect(),
+                    ),
+                ),
                 field("relation", relation_tree(relation)),
-                field("trailingRelativeClauses", nil()),
+                field(
+                    "trailingRelativeClauses",
+                    list(
+                        trailing_relative_clauses
+                            .into_iter()
+                            .map(relative_clause_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
     }
