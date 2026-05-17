@@ -4299,6 +4299,19 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
                 cmavo: vec![cmavo],
                 nai,
             }),
+        na_cmavo()
+            .or_not()
+            .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
+            .then(cmavo_of("JEhI", &["je'i", "ja", "je", "jo", "ju"]))
+            .then(cmavo("nai").or_not())
+            .map(|(((na, se), cmavo), nai)| ConnectiveSyntax {
+                kind: ConnectiveKind::Afterthought,
+                se,
+                nahe: None,
+                na,
+                cmavo: vec![cmavo],
+                nai,
+            }),
         cmavo_of(
             "JOI",
             &[
