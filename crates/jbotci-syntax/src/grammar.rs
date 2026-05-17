@@ -2809,7 +2809,7 @@ where
             },
         );
 
-    let unquantified_base_argument = choice((
+    let unquantified_base_argument_core = choice((
         quote,
         math_expression,
         letter,
@@ -2824,12 +2824,41 @@ where
         zohe,
         koha,
     ));
-    let quantified_argument = quantifier().then(unquantified_base_argument.clone()).map(
-        |(quantifier, inner_argument)| ArgumentSyntax::Quantified {
-            quantifier,
-            inner_argument: Box::new(inner_argument),
-        },
-    );
+    let base_relative_clauses = relative_clauses(argument.clone(), subsentence.clone())
+        .or_not()
+        .map(Option::unwrap_or_default);
+    let unquantified_base_argument = unquantified_base_argument_core
+        .clone()
+        .then(base_relative_clauses.clone())
+        .map(|(base_argument, relative_clauses)| {
+            if relative_clauses.is_empty() {
+                base_argument
+            } else {
+                ArgumentSyntax::RelativeClause {
+                    base_argument: Box::new(base_argument),
+                    vuho: None,
+                    relative_clauses,
+                }
+            }
+        });
+    let quantified_argument = quantifier()
+        .then(unquantified_base_argument_core)
+        .then(base_relative_clauses)
+        .map(|((quantifier, inner_argument), relative_clauses)| {
+            let quantified = ArgumentSyntax::Quantified {
+                quantifier,
+                inner_argument: Box::new(inner_argument),
+            };
+            if relative_clauses.is_empty() {
+                quantified
+            } else {
+                ArgumentSyntax::RelativeClause {
+                    base_argument: Box::new(quantified),
+                    vuho: None,
+                    relative_clauses,
+                }
+            }
+        });
     let base_argument = choice((unquantified_base_argument, quantified_argument));
 
     let argument4 = recursive(|argument4| {
@@ -2926,21 +2955,28 @@ where
         .boxed();
 
     argument1
-        .then(cmavo("vu'o").or_not())
         .then(
-            relative_clauses(argument, subsentence)
-                .or_not()
-                .map(Option::unwrap_or_default),
+            cmavo("vu'o")
+                .then(
+                    relative_clauses(argument, subsentence)
+                        .or_not()
+                        .map(Option::unwrap_or_default),
+                )
+                .or_not(),
         )
-        .map(|((base_argument, vuho), relative_clauses)| {
-            if relative_clauses.is_empty() {
-                base_argument
-            } else {
-                ArgumentSyntax::RelativeClause {
-                    base_argument: Box::new(base_argument),
-                    vuho,
-                    relative_clauses,
+        .map(|(base_argument, vuho_attachment)| {
+            if let Some((vuho, relative_clauses)) = vuho_attachment {
+                if relative_clauses.is_empty() {
+                    base_argument
+                } else {
+                    ArgumentSyntax::RelativeClause {
+                        base_argument: Box::new(base_argument),
+                        vuho: Some(vuho),
+                        relative_clauses,
+                    }
                 }
+            } else {
+                base_argument
             }
         })
         .boxed()
