@@ -253,7 +253,7 @@ enum RelativeClauseSyntax {
     Goi(GoiRelativeClauseSyntax),
     Noi {
         marker: WordWithModifiers,
-        relation: RelationSyntax,
+        subsentence: BasicPredicate,
         kuho: Option<WordWithModifiers>,
     },
 }
@@ -362,6 +362,12 @@ enum MathExpressionSyntax {
     Binary {
         operator: MathOperatorSyntax,
         left_expression: Box<MathExpressionSyntax>,
+        right_expression: Box<MathExpressionSyntax>,
+    },
+    Bihe {
+        left_expression: Box<MathExpressionSyntax>,
+        bihe: WordWithModifiers,
+        operator: MathOperatorSyntax,
         right_expression: Box<MathExpressionSyntax>,
     },
 }
@@ -851,6 +857,18 @@ impl MathExpressionSyntax {
                 words.extend(right_expression.words());
                 words
             }
+            MathExpressionSyntax::Bihe {
+                left_expression,
+                bihe,
+                operator,
+                right_expression,
+            } => {
+                let mut words = left_expression.words();
+                words.push(bihe);
+                words.extend(operator.words());
+                words.extend(right_expression.words());
+                words
+            }
         }
     }
 }
@@ -966,11 +984,11 @@ impl RelativeClauseSyntax {
             RelativeClauseSyntax::Goi(relative_clause) => relative_clause.words(),
             RelativeClauseSyntax::Noi {
                 marker,
-                relation,
+                subsentence,
                 kuho,
             } => {
                 let mut words = vec![marker];
-                words.extend(relation.words());
+                words.extend(subsentence.words());
                 words.extend(kuho);
                 words
             }
@@ -1362,11 +1380,13 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let mut argument = Recursive::declare();
     let mut relation = Recursive::declare();
     let mut statement = Recursive::declare();
+    let mut subsentence = Recursive::declare();
     let mut free_modifier = Recursive::declare();
 
     argument.define(argument_parser_with(
         argument.clone(),
         relation.clone(),
+        subsentence.clone(),
         text.clone(),
         source,
     ));
@@ -1441,8 +1461,9 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             },
         );
 
-    let predicate =
-        choice((predicate_with_leading_terms, relation_only)).map(StatementSyntax::Predicate);
+    let basic_predicate = choice((predicate_with_leading_terms, relation_only));
+    subsentence.define(basic_predicate.clone());
+    let predicate = basic_predicate.map(StatementSyntax::Predicate);
 
     let implicit_tagged_term = tense_modal().map(|tense_modal| TermSyntax::Tagged {
         tense_modal,
@@ -1748,6 +1769,9 @@ where
 fn argument_parser_with<'tokens, A, R, T>(
     argument: A,
     relation: R,
+    subsentence: impl Parser<'tokens, ParserInput<'tokens>, BasicPredicate, ParseExtra<'tokens>>
+    + Clone
+    + 'tokens,
     text: T,
     source: Option<&'tokens str>,
 ) -> BoxedParser<'tokens, ArgumentSyntax>
@@ -1767,11 +1791,30 @@ where
             .then(cmavo("boi").or_not())
             .map(|(letter, boi)| MathExpressionSyntax::Letter { letter, boi }),
     ));
-    let math_expression_body = math_operand
+    let math_expression1 = recursive(|math_expression1| {
+        math_operand
+            .clone()
+            .then(
+                cmavo("bi'e")
+                    .then(math_operator())
+                    .then(math_expression1)
+                    .or_not(),
+            )
+            .map(|(left_expression, bihe_tail)| match bihe_tail {
+                None => left_expression,
+                Some(((bihe, operator), right_expression)) => MathExpressionSyntax::Bihe {
+                    left_expression: Box::new(left_expression),
+                    bihe,
+                    operator,
+                    right_expression: Box::new(right_expression),
+                },
+            })
+    });
+    let math_expression_body = math_expression1
         .clone()
         .then(
             math_operator()
-                .then(math_operand)
+                .then(math_expression1)
                 .repeated()
                 .collect::<Vec<_>>(),
         )
@@ -1786,7 +1829,7 @@ where
             )
         });
 
-    let math_expression = cmavo("li")
+    let math_expression = cmavo_of("LI", &["li", "me'o"])
         .then(math_expression_body)
         .then(cmavo("lo'o").or_not())
         .map(|((li, expression), loho)| ArgumentSyntax::MathExpression {
@@ -1835,6 +1878,9 @@ where
         .not()
         .ignore_then(argument.clone())
         .map(|argument| ArgumentTailElementSyntax::Argument(Box::new(argument)));
+    let descriptor_relative_clauses = relative_clause(argument.clone(), subsentence.clone())
+        .repeated()
+        .collect::<Vec<_>>();
 
     let quantifier_tail = quantifier()
         .map(ArgumentTailElementSyntax::Quantifier)
@@ -1843,23 +1889,27 @@ where
                 (
                     Some(ArgumentTailElementSyntax::Argument(Box::new(argument))),
                     None,
+                    Vec::new(),
                 )
             }),
-            relation.clone().map(|relation| (None, Some(relation))),
+            relation
+                .clone()
+                .then(descriptor_relative_clauses.clone())
+                .map(|(relation, relative_clauses)| (None, Some(relation), relative_clauses)),
         )))
-        .map(|(quantifier, (argument, relation))| {
+        .map(|(quantifier, (argument, relation, relative_clauses))| {
             let tail_elements = std::iter::once(quantifier).chain(argument).collect();
-            (tail_elements, relation)
+            (tail_elements, relation, relative_clauses)
         });
 
-    let unquantified_tail =
-        tail_argument
-            .or_not()
-            .then(relation.clone())
-            .map(|(argument, relation)| {
-                let tail_elements = argument.into_iter().collect::<Vec<_>>();
-                (tail_elements, Some(relation))
-            });
+    let unquantified_tail = tail_argument
+        .or_not()
+        .then(relation.clone())
+        .then(descriptor_relative_clauses)
+        .map(|((argument, relation), relative_clauses)| {
+            let tail_elements = argument.into_iter().collect::<Vec<_>>();
+            (tail_elements, Some(relation), relative_clauses)
+        });
 
     let descriptor_tail = choice((quantifier_tail, unquantified_tail));
 
@@ -1868,15 +1918,17 @@ where
         .then(descriptor_tail.clone())
         .then(cmavo("ku").or_not())
         .map(
-            |((descriptor, (tail_elements, relation)), ku)| ArgumentSyntax::Descriptor {
-                descriptor: DescriptorSyntax {
-                    outer_quantifier: None,
-                    descriptor: Some(descriptor),
-                    tail_elements,
-                    relation,
-                    relative_clauses: Vec::new(),
-                    ku,
-                },
+            |((descriptor, (tail_elements, relation, relative_clauses)), ku)| {
+                ArgumentSyntax::Descriptor {
+                    descriptor: DescriptorSyntax {
+                        outer_quantifier: None,
+                        descriptor: Some(descriptor),
+                        tail_elements,
+                        relation,
+                        relative_clauses,
+                        ku,
+                    },
+                }
             },
         );
     let descriptor_with_outer_quantifier = quantifier()
@@ -1884,14 +1936,17 @@ where
         .then(descriptor_tail.clone())
         .then(cmavo("ku").or_not())
         .map(
-            |(((outer_quantifier, descriptor), (tail_elements, relation)), ku)| {
+            |(
+                ((outer_quantifier, descriptor), (tail_elements, relation, relative_clauses)),
+                ku,
+            )| {
                 ArgumentSyntax::Descriptor {
                     descriptor: DescriptorSyntax {
                         outer_quantifier: Some(outer_quantifier),
                         descriptor: Some(descriptor),
                         tail_elements,
                         relation,
-                        relative_clauses: Vec::new(),
+                        relative_clauses,
                         ku,
                     },
                 }
@@ -1901,16 +1956,23 @@ where
     let descriptor_without_gadri = quantifier()
         .map(ArgumentTailElementSyntax::Quantifier)
         .then(relation.clone())
-        .map(|(quantifier, relation)| ArgumentSyntax::Descriptor {
-            descriptor: DescriptorSyntax {
-                outer_quantifier: None,
-                descriptor: None,
-                tail_elements: vec![quantifier],
-                relation: Some(relation),
-                relative_clauses: Vec::new(),
-                ku: None,
+        .then(
+            relative_clause(argument.clone(), subsentence.clone())
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(
+            |((quantifier, relation), relative_clauses)| ArgumentSyntax::Descriptor {
+                descriptor: DescriptorSyntax {
+                    outer_quantifier: None,
+                    descriptor: None,
+                    tail_elements: vec![quantifier],
+                    relation: Some(relation),
+                    relative_clauses,
+                    ku: None,
+                },
             },
-        });
+        );
 
     let tense_tagged_argument =
         tense_modal()
@@ -1982,16 +2044,13 @@ where
             )
         })
         .then(
-            relative_clause(argument, relation)
+            relative_clause(argument, subsentence)
                 .repeated()
                 .collect::<Vec<_>>(),
         )
         .map(|(base_argument, relative_clauses)| {
             if relative_clauses.is_empty() {
                 base_argument
-            } else if let ArgumentSyntax::Descriptor { mut descriptor } = base_argument {
-                descriptor.relative_clauses.extend(relative_clauses);
-                ArgumentSyntax::Descriptor { descriptor }
             } else {
                 ArgumentSyntax::RelativeClause {
                     base_argument: Box::new(base_argument),
@@ -2109,18 +2168,18 @@ fn relative_clause<'tokens, R>(
     argument: impl Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>>
     + Clone
     + 'tokens,
-    relation: R,
+    subsentence: R,
 ) -> BoxedParser<'tokens, RelativeClauseSyntax>
 where
-    R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    R: Parser<'tokens, ParserInput<'tokens>, BasicPredicate, ParseExtra<'tokens>> + Clone + 'tokens,
 {
     let goi = goi_relative_clause(argument).map(RelativeClauseSyntax::Goi);
     let noi = cmavo_of("NOI", &["poi", "noi", "voi"])
-        .then(relation)
+        .then(subsentence)
         .then(cmavo("ku'o").or_not())
-        .map(|((marker, relation), kuho)| RelativeClauseSyntax::Noi {
+        .map(|((marker, subsentence), kuho)| RelativeClauseSyntax::Noi {
             marker,
-            relation,
+            subsentence,
             kuho,
         });
     choice((goi, noi)).boxed()
@@ -4000,7 +4059,7 @@ fn relative_clause_tree(relative_clause: RelativeClauseSyntax) -> SyntaxValue {
         RelativeClauseSyntax::Goi(relative_clause) => goi_relative_clause_tree(relative_clause),
         RelativeClauseSyntax::Noi {
             marker,
-            relation,
+            subsentence,
             kuho,
         } => {
             let constructor = if cmavo_text_matches(&marker, "noi") {
@@ -4025,14 +4084,7 @@ fn relative_clause_tree(relative_clause: RelativeClauseSyntax) -> SyntaxValue {
                         "subsentence",
                         node(
                             "PlainSubsentence",
-                            vec![unnamed_field(predicate_tree(BasicPredicate {
-                                leading_terms: Vec::new(),
-                                cu: None,
-                                relation,
-                                tail_terms: Vec::new(),
-                                vau: None,
-                                continuations: Vec::new(),
-                            }))],
+                            vec![unnamed_field(predicate_tree(subsentence))],
                         ),
                     ),
                     field("kuho", maybe_word(kuho)),
@@ -4258,6 +4310,21 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
             vec![
                 field("operator", math_operator_tree(operator)),
                 field("leftExpression", math_expression_tree(*left_expression)),
+                field("rightExpression", math_expression_tree(*right_expression)),
+            ],
+        ),
+        MathExpressionSyntax::Bihe {
+            left_expression,
+            bihe,
+            operator,
+            right_expression,
+        } => node(
+            "BiheExpression",
+            vec![
+                field("leftExpression", math_expression_tree(*left_expression)),
+                field("bihe", word_value(bihe)),
+                field("freeModifiers", nil()),
+                field("operator", math_operator_tree(operator)),
                 field("rightExpression", math_expression_tree(*right_expression)),
             ],
         ),
