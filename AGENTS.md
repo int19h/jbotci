@@ -46,24 +46,36 @@ If you add debug logging that is broadly useful beyond a one-off investigation, 
 
 # Design by contract
 
-Use design by contract for all code, including private members and types, and methods of traits and `impl`. DbC crate is https://github.com/x52dev/contracts. Capture all preconditions and postconditions, even those that are expensive to validate. Cheap contracts use `requires`, `ensures`, and `invariant`. Expensive contracts use `expensive_requires`, `expensive_ensures`, and `expensive_invariant` from `jbotci-contracts`; these are disabled by default and enabled with the `expensive_contracts` feature for occasional deep validation runs such as `cargo test --workspace --all-targets --features expensive_contracts -j 16 -- --test-threads=16`. Do not use `test_requires`, `test_ensures`, or `test_invariant` for production expensive contracts; reserve them for genuinely test-only APIs. Examples:
+Use `bityzba` for design by contract throughout the workspace, including private functions, trait methods, `impl` methods, and public model types. Import the macros you need from `bityzba::{requires, ensures, invariant, contract_trait, expensive_requires, expensive_ensures, expensive_invariant, fields}`.
 
-Keep contracts in mind whenever writing or touching code: define data-type invariants, function preconditions and postconditions, and function or `impl` invariants wherever they make correctness assumptions explicit.
+Cheap contracts use `requires`, `ensures`, and `invariant`; they run in normal builds and should be cheap enough for routine execution. Expensive contracts use `expensive_requires`, `expensive_ensures`, and `expensive_invariant`; they are disabled by default and enabled by `cargo test --workspace --all-targets --features expensive_contracts -j 16 -- --test-threads=16`. Do not use `test_requires`, `test_ensures`, or `test_invariant` for production expensive contracts; reserve them for genuinely test-only APIs.
 
-Prefer correctness by construction over boundary checks. If a public model type can be deserialized or otherwise constructed from unchecked data, validate it at that boundary with constructors or `TryFrom`/custom `Deserialize` before adding broad `is_valid` postconditions downstream. The `contracts` crate applies `#[invariant]` to functions and `impl` blocks rather than struct declarations; use it for mutating functions or `impl` methods that must preserve an invariant, and avoid encoding the same preservation rule as a separate `requires` plus `ensures` pair.
+Keep contracts in mind whenever writing or touching code. Capture preconditions, postconditions, type invariants, and function or `impl` invariants where they make correctness assumptions explicit. Prefer correctness by construction over downstream validity checks: if a public model type has an invariant, put `#[invariant]` on the type and construct it through generated validation APIs instead of exposing public `is_valid()`.
 
 ```rust
+use bityzba::{
+    contract_trait, ensures, expensive_ensures, expensive_requires, fields, invariant, requires,
+};
+
 #[contract_trait]
-trait MyRandom {
+trait RandomSource {
     #[requires(min < max)]
-    #[ensures(min <= ret, ret <= max)]
-    fn gen(min: f64, max: f64) -> f64;
+    #[ensures(min <= ret && ret <= max)]
+    #[expensive_ensures(samples_are_uniform(ret, min, max))]
+    fn gen(&self, min: f64, max: f64) -> f64;
+
+    #[expensive_requires(weights.iter().all(|weight| *weight > 0.0))]
+    fn choose(&self, weights: &[f64]) -> usize;
 }
 
 #[contract_trait]
-impl MyRandom for AlwaysMax {
-    fn gen(min: f64, max: f64) -> f64 {
+impl RandomSource for AlwaysMax {
+    fn gen(&self, _min: f64, max: f64) -> f64 {
         max
+    }
+
+    fn choose(&self, _weights: &[f64]) -> usize {
+        0
     }
 }
 
@@ -82,7 +94,75 @@ fn greeting(person_name: Option<&str>) -> String {
     s.push('!');
     s
 }
+
+#[invariant(self.byte_start <= self.byte_end, "byte range must be ordered")]
+#[invariant(self.char_start <= self.char_end, "character range must be ordered")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceSpan {
+    pub source_id: Option<SourceId>,
+    pub byte_start: usize,
+    pub byte_end: usize,
+    pub char_start: usize,
+    pub char_end: usize,
+}
+
+impl SourceSpan {
+    #[ensures(ret.as_ref().is_ok_and(|span| span.byte_start == byte_start))]
+    pub fn new(
+        source_id: Option<SourceId>,
+        byte_start: usize,
+        byte_end: usize,
+        char_start: usize,
+        char_end: usize,
+    ) -> Result<Self, SourceLocationError> {
+        Self::try_from_fields(fields! {
+            source_id: source_id,
+            byte_start: byte_start,
+            byte_end: byte_end,
+            char_start: char_start,
+            char_end: char_end,
+        })
+        .map_err(|_| SourceLocationError::InvalidSourceSpan)
+    }
+}
 ```
+
+For type invariants, `#[invariant]` on a named-field struct or enum creates a validated wrapper plus a raw unchecked `TypeRaw`. Values of the wrapper are valid by construction. Do not add public `is_valid()` to invariant-bearing model types. Keep private helper predicates only for smaller sub-concepts that are not themselves represented by validated types.
+
+Use `Type::try_from_fields(fields! { ... })` for full construction. Every field must be present exactly once; missing fields fail at compile time through builder typestate and duplicate fields are a macro error. Use `value.try_with_fields(fields! { ... })` for whole-value updates; it consumes the old value, applies the partial field set, and revalidates. Clone first if the old value must be retained.
+
+```rust
+let span = SourceSpan::try_from_fields(fields! {
+    source_id: None,
+    byte_start: 0,
+    byte_end: 12,
+    char_start: 0,
+    char_end: 12,
+})?;
+
+let span = span.try_with_fields(fields! {
+    byte_end: 16,
+    char_end: 16,
+})?;
+
+assert_eq!(span.byte_end, 16); // read-only field access through Deref
+```
+
+There is no generated `DerefMut`. Do not mutate fields directly. If low-level code must work with unchecked data, use `value.as_raw()`, `value.into_raw()`, `Type::try_from_raw(raw)`, or `TryFrom<TypeRaw>` explicitly and keep that escape hatch local.
+
+Use `fields!` pattern aliases when destructuring raw views so normal code does not mention raw type names:
+
+```rust
+let fields!(SourceSpan { byte_start, byte_end, .. }) = span.as_raw();
+
+match value.as_raw() {
+    fields!(SyntaxValue::Node { node }) => visit(node),
+    fields!(SyntaxValue::Word { word }) => visit_word(word),
+    _ => {}
+}
+```
+
+Use cheap contracts for local scalar checks, shape checks already needed by callers, and invariants that are constant-time or close to it. Use expensive contracts for corpus-wide validation, deep tree walks, normalization cross-checks, semantic equivalence checks, and any contract that allocates, traverses large collections, calls parsers, or performs work that would be inappropriate in normal builds.
 
 
 # CLL Errata: Commas and Glides

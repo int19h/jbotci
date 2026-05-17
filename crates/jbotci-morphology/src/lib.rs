@@ -5,16 +5,16 @@ mod segment;
 
 use std::fmt;
 
-use contracts::{ensures, requires};
-use jbotci_contracts::{expensive_ensures, expensive_requires};
+use bityzba::{ensures, fields, invariant};
+use bityzba::{expensive_ensures, expensive_requires};
 pub use jbotci_dialect::{
     CmavoDialectEntry, CmavoDialectTransform, DialectDefinition, DialectFeature,
 };
 use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
-use serde::de::Error as _;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[invariant(self.cmavo_dialect_entries.iter().all(CmavoDialectEntry::is_valid), "cmavo dialect entries must be normalized and internally valid")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct MorphologyOptions {
@@ -28,9 +28,8 @@ pub struct MorphologyOptions {
 }
 
 impl Default for MorphologyOptions {
-    #[ensures(ret.is_valid())]
     fn default() -> Self {
-        Self {
+        Self::try_from_fields(fields! {
             accept_latin: true,
             accept_cyrillic: true,
             accept_zbalermorna: true,
@@ -38,40 +37,32 @@ impl Default for MorphologyOptions {
             cmevla_as_relation_words: false,
             uppercase_marks_stress: true,
             enforce_cgv_ban: true,
-        }
+        })
+        .expect("default morphology options satisfy their invariant")
     }
 }
 
 impl MorphologyOptions {
-    #[ensures(ret -> self.cmavo_dialect_entries.iter().all(CmavoDialectEntry::is_valid))]
-    pub fn is_valid(&self) -> bool {
-        self.cmavo_dialect_entries
-            .iter()
-            .all(CmavoDialectEntry::is_valid)
-    }
-
-    #[requires(self.is_valid())]
-    #[requires(definition.is_valid())]
-    #[ensures(ret.is_valid())]
     #[ensures(ret.cmavo_dialect_entries == definition.cmavo_entries)]
     #[ensures(definition.features.contains(&DialectFeature::Cbm) -> ret.cmevla_as_relation_words)]
     #[ensures(definition.features.contains(&DialectFeature::AllowCgv) -> !ret.enforce_cgv_ban)]
     #[ensures(definition.features.contains(&DialectFeature::CaseInsensitive) -> !ret.uppercase_marks_stress)]
-    pub fn with_dialect_definition(mut self, definition: &DialectDefinition) -> Self {
-        self.cmavo_dialect_entries = definition.cmavo_entries.clone();
+    pub fn with_dialect_definition(self, definition: &DialectDefinition) -> Self {
+        let mut raw = self.into_raw();
+        raw.cmavo_dialect_entries = definition.cmavo_entries.clone();
         if definition.features.contains(&DialectFeature::Cbm) {
-            self.cmevla_as_relation_words = true;
+            raw.cmevla_as_relation_words = true;
         }
         if definition.features.contains(&DialectFeature::AllowCgv) {
-            self.enforce_cgv_ban = false;
+            raw.enforce_cgv_ban = false;
         }
         if definition
             .features
             .contains(&DialectFeature::CaseInsensitive)
         {
-            self.uppercase_marks_stress = false;
+            raw.uppercase_marks_stress = false;
         }
-        self
+        Self::try_from_raw(raw).expect("dialect definition options preserve morphology invariants")
     }
 }
 
@@ -118,57 +109,14 @@ impl fmt::Display for WordKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[invariant(!self.phonemes.is_empty(), "word phoneme text must not be empty")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Word {
     pub kind: WordKind,
     pub phonemes: String,
     pub span: SourceSpan,
     pub surface_override: Option<String>,
     pub dialect_transform: Option<CmavoDialectTransform>,
-}
-
-impl Word {
-    #[ensures(ret -> !self.phonemes.is_empty())]
-    #[ensures(ret -> source_span_is_valid(&self.span))]
-    #[ensures(ret -> self.dialect_transform.as_ref().is_none_or(CmavoDialectTransform::is_valid))]
-    pub fn is_valid(&self) -> bool {
-        !self.phonemes.is_empty()
-            && source_span_is_valid(&self.span)
-            && self
-                .dialect_transform
-                .as_ref()
-                .is_none_or(CmavoDialectTransform::is_valid)
-    }
-}
-
-impl<'de> Deserialize<'de> for Word {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct UncheckedWord {
-            kind: WordKind,
-            phonemes: String,
-            span: SourceSpan,
-            surface_override: Option<String>,
-            dialect_transform: Option<CmavoDialectTransform>,
-        }
-
-        let unchecked = UncheckedWord::deserialize(deserializer)?;
-        let word = Self {
-            kind: unchecked.kind,
-            phonemes: unchecked.phonemes,
-            span: unchecked.span,
-            surface_override: unchecked.surface_override,
-            dialect_transform: unchecked.dialect_transform,
-        };
-        if word.is_valid() {
-            Ok(word)
-        } else {
-            Err(D::Error::custom("invalid morphology word"))
-        }
-    }
 }
 
 impl fmt::Display for Word {
@@ -467,8 +415,6 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
     }
 }
 
-#[requires(left.is_valid())]
-#[requires(right.is_valid())]
 pub fn word_syntax_eq(left: &Word, right: &Word) -> bool {
     left.kind == right.kind && strip_diacritics(&left.phonemes) == strip_diacritics(&right.phonemes)
 }
@@ -507,7 +453,6 @@ pub fn segment_words_with_modifiers(
     )
 }
 
-#[requires(options.is_valid())]
 #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_with_options(
     input: &str,
@@ -528,7 +473,6 @@ pub fn segment_words_with_modifiers_with_source_id(
     )
 }
 
-#[requires(options.is_valid())]
 #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_with_options_and_source_id(
     input: &str,
@@ -561,7 +505,6 @@ pub fn segment_words_with_modifiers_raw_with_source_id(
     )
 }
 
-#[requires(options.is_valid())]
 #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_raw_with_options(
     input: &str,
@@ -570,7 +513,6 @@ pub fn segment_words_with_modifiers_raw_with_options(
     segment_words_with_modifiers_raw_with_options_and_source_id(input, options, None)
 }
 
-#[requires(options.is_valid())]
 #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
     input: &str,
@@ -584,21 +526,13 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
 fn word_with_modifiers_is_valid(word: &WordWithModifiers) -> bool {
     match word {
         WordWithModifiers::BaseWord { word_like } => word_like.is_valid(),
-        WordWithModifiers::StandaloneIndicator { indicator, nai } => {
-            indicator.is_valid() && nai.as_ref().is_none_or(|word| word.is_valid())
-        }
-        WordWithModifiers::Emphasized { bahe, word_like } => {
-            bahe.is_valid() && word_like.is_valid()
-        }
+        WordWithModifiers::StandaloneIndicator { .. } => true,
+        WordWithModifiers::Emphasized { word_like, .. } => word_like.is_valid(),
         WordWithModifiers::WithIndicator {
             base,
-            indicator,
-            nai,
-        } => {
-            base.is_valid()
-                && indicator.is_valid()
-                && nai.as_ref().is_none_or(|word| word.is_valid())
-        }
+            indicator: _,
+            nai: _,
+        } => base.is_valid(),
         WordWithModifiers::NotEof => true,
     }
 }
@@ -606,38 +540,18 @@ fn word_with_modifiers_is_valid(word: &WordWithModifiers) -> bool {
 #[cfg_attr(not(test), allow(dead_code))]
 fn word_like_is_valid(word_like: &WordLike) -> bool {
     match word_like {
-        WordLike::Bare { word } => word.is_valid(),
-        WordLike::ZoQuote { zo, word } => zo.is_valid() && word.is_valid(),
-        WordLike::ZoiQuote {
-            zoi,
-            opening_delimiter,
-            quoted_text,
-            closing_delimiter,
-        } => {
-            zoi.is_valid()
-                && opening_delimiter.is_valid()
-                && source_span_is_valid(quoted_text)
-                && closing_delimiter.is_valid()
-        }
-        WordLike::LohuQuote {
-            lohu,
-            quoted_words,
-            lehu,
-        } => lohu.is_valid() && quoted_words.iter().all(Word::is_valid) && lehu.is_valid(),
-        WordLike::SingleWordQuote {
-            marker,
-            quoted_text,
-        } => marker.is_valid() && source_span_is_valid(quoted_text),
-        WordLike::Letter { base, bu } => base.is_valid() && bu.is_valid(),
-        WordLike::ZeiLujvo { left, zei, right } => {
-            left.is_valid() && zei.is_valid() && right.is_valid()
-        }
+        WordLike::Bare { .. } | WordLike::ZoQuote { .. } => true,
+        WordLike::ZoiQuote { quoted_text, .. } => source_span_is_valid(quoted_text),
+        WordLike::LohuQuote { .. } => true,
+        WordLike::SingleWordQuote { quoted_text, .. } => source_span_is_valid(quoted_text),
+        WordLike::Letter { base, .. } => base.is_valid(),
+        WordLike::ZeiLujvo { left, .. } => left.is_valid(),
     }
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-fn source_span_is_valid(span: &SourceSpan) -> bool {
-    span.is_valid()
+fn source_span_is_valid(_span: &SourceSpan) -> bool {
+    true
 }
 
 fn optional_word_syntax_eq(left: Option<&Word>, right: Option<&Word>) -> bool {
@@ -785,8 +699,13 @@ mod tests {
         let WordLike::Bare { word } = word_like.as_mut() else {
             panic!("expected bare word");
         };
-        word.phonemes = "coĭ".to_owned();
-        word.span = SourceSpan::new(None, 99, 102, 99, 102).expect("valid span");
+        **word = (**word)
+            .clone()
+            .try_with_fields(fields! {
+                phonemes: String::from("coĭ"),
+                span: SourceSpan::new(None, 99, 102, 99, 102).expect("valid span"),
+            })
+            .expect("updated test word remains valid");
 
         assert!(word_with_modifiers_syntax_eq(
             &left.remove(0),
@@ -795,16 +714,17 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn invalid_morphology_options_contract_is_reported() {
-        let options = MorphologyOptions {
-            cmavo_dialect_entries: vec![CmavoDialectEntry::Expansion {
-                source: "mi".to_owned(),
-                replacement: Vec::new(),
-            }],
-            ..MorphologyOptions::default()
-        };
-        let _ = segment_words_with_modifiers_with_options("mi", &options);
+    fn invalid_morphology_options_are_rejected() {
+        assert!(
+            MorphologyOptions::default()
+                .try_with_fields(fields! {
+                    cmavo_dialect_entries: vec![CmavoDialectEntry::Expansion {
+                        source: "mi".to_owned(),
+                        replacement: Vec::new(),
+                    }],
+                })
+                .is_err()
+        );
     }
 
     #[test]
@@ -828,7 +748,11 @@ mod tests {
         )
         .expect_err("empty phoneme text must be rejected");
 
-        assert!(error.to_string().contains("invalid morphology word"));
+        assert!(
+            error
+                .to_string()
+                .contains("word phoneme text must not be empty")
+        );
     }
 
     fn base_word(word: &WordWithModifiers) -> Option<&Word> {

@@ -3,9 +3,9 @@ use std::process::{Command as ProcessCommand, ExitStatus};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
+use bityzba::{ensures, requires};
+use bityzba::{expensive_ensures, expensive_requires};
 use clap::{Args, Parser, Subcommand};
-use contracts::{ensures, requires};
-use jbotci_contracts::{expensive_ensures, expensive_requires};
 use jbotci_morphology::{
     MorphologyOptions, WordWithModifiers, segment_words_with_modifiers_with_options_and_source_id,
 };

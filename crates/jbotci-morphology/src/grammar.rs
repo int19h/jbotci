@@ -1,10 +1,10 @@
 use std::collections::VecDeque;
 
+use bityzba::{ensures, fields, requires};
+use bityzba::{expensive_ensures, expensive_invariant, expensive_requires};
 use chumsky::error::Rich;
 use chumsky::prelude::*;
 use chumsky::span::SimpleSpan;
-use contracts::{ensures, requires};
-use jbotci_contracts::{expensive_ensures, expensive_invariant, expensive_requires};
 use jbotci_source::{SourceId, SourceSpan};
 
 use crate::{MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordWithModifiers};
@@ -21,7 +21,6 @@ pub(crate) fn segment_words_with_modifiers(
     )?))
 }
 
-#[requires(options.is_valid())]
 #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub(crate) fn segment_words_with_modifiers_raw(
     input: &str,
@@ -70,7 +69,6 @@ struct Segmenter<'a> {
 }
 
 impl<'a> Segmenter<'a> {
-    #[requires(options.is_valid())]
     #[ensures(ret.index == 0)]
     #[ensures(ret.chars.len() == input.chars().count())]
     fn new(input: &'a str, options: &'a MorphologyOptions, source_id: Option<SourceId>) -> Self {
@@ -503,8 +501,7 @@ impl<'a> Segmenter<'a> {
         Ok(())
     }
 
-    #[expensive_requires(opening_delimiter.is_valid())]
-    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(end, word, start)| *end <= *start && word.is_valid())))]
+    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(end, _, start)| *end <= *start)))]
     fn find_zoi_close(
         &mut self,
         opening_delimiter: &Word,
@@ -710,14 +707,18 @@ impl<'a> Segmenter<'a> {
         kind: WordKind,
         phonemes: String,
     ) -> Result<WordWithModifiers, MorphologyError> {
+        let span = self.source_span(start, end)?;
         Ok(base_word_like(WordLike::Bare {
-            word: Box::new(Word {
-                kind,
-                phonemes,
-                span: self.source_span(start, end)?,
-                surface_override: None,
-                dialect_transform: None,
-            }),
+            word: Box::new(
+                Word::try_from_fields(fields! {
+                    kind: kind,
+                    phonemes: phonemes,
+                    span: span,
+                    surface_override: None,
+                    dialect_transform: None,
+                })
+                .expect("segmenter only constructs words with non-empty phoneme text"),
+            ),
         }))
     }
 
@@ -911,7 +912,6 @@ fn base_word_like(word_like: WordLike) -> WordWithModifiers {
     }
 }
 
-#[expensive_ensures(ret.as_ref().is_none_or(Word::is_valid))]
 fn extract_word(word: &WordWithModifiers) -> Option<Word> {
     match word {
         WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {
@@ -937,13 +937,16 @@ fn get_word_like(word: &WordWithModifiers) -> WordLike {
             word: indicator.clone(),
         },
         WordWithModifiers::NotEof => WordLike::Bare {
-            word: Box::new(Word {
-                kind: WordKind::Cmavo,
-                phonemes: String::new(),
-                span: SourceSpan::new(None, 0, 0, 0, 0).expect("valid empty span"),
-                surface_override: None,
-                dialect_transform: None,
-            }),
+            word: Box::new(
+                Word::try_from_fields(fields! {
+                    kind: WordKind::Cmavo,
+                    phonemes: String::from("<not-eof>"),
+                    span: SourceSpan::new(None, 0, 0, 0, 0).expect("valid empty span"),
+                    surface_override: None,
+                    dialect_transform: None,
+                })
+                .expect("not-eof sentinel word has non-empty phoneme text"),
+            ),
         },
     }
 }
@@ -1237,7 +1240,6 @@ fn pass_ui(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     out
 }
 
-#[expensive_ensures(ret.as_ref().is_none_or(Word::is_valid))]
 fn get_modifier_word(word: &WordWithModifiers) -> Option<Word> {
     match word {
         WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {

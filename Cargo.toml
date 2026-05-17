@@ -4,7 +4,7 @@ members = [
     "apps/jbotci",
     "apps/jbotci-server",
     "crates/jbotci-cll",
-    "crates/jbotci-contracts",
+    "crates/bityzba",
     "crates/jbotci-dialect",
     "crates/jbotci-dictionary",
     "crates/jbotci-jvozba",
@@ -44,7 +44,6 @@ expensive_contracts = []
 anyhow = "1"
 chumsky = { version = "0.13", features = ["memoization"] }
 clap = { version = "4", features = ["derive"] }
-contracts = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["unbounded_depth"] }
 serde_stacker = "0.1"
@@ -54,7 +53,7 @@ toml = { version = "0.9", features = ["unbounded"] }
 walkdir = "2"
 
 jbotci-cll = { path = "crates/jbotci-cll" }
-jbotci-contracts = { path = "crates/jbotci-contracts" }
+bityzba = { path = "crates/bityzba" }
 jbotci-dialect = { path = "crates/jbotci-dialect" }
 jbotci-dictionary = { path = "crates/jbotci-dictionary" }
 jbotci-jvozba = { path = "crates/jbotci-jvozba" }
@@ -66,12 +65,11 @@ jbotci-source = { path = "crates/jbotci-source" }
 jbotci-syntax = { path = "crates/jbotci-syntax" }
 
 [dev-dependencies]
-jbotci-contracts.workspace = true
+bityzba.workspace = true
 jbotci-morphology.workspace = true
 jbotci-dialect.workspace = true
 jbotci-source.workspace = true
 jbotci-syntax.workspace = true
-contracts.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_stacker.workspace = true

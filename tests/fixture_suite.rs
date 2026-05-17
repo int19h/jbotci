@@ -4,6 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use bityzba::fields;
 use jbotci_morphology::{WordKind, WordLike, WordWithModifiers};
 use jbotci_source::SourceId;
 use jbotci_syntax::{SyntaxField, SyntaxValue};
@@ -296,13 +297,16 @@ fn writer_keeps_tree_and_words_as_values() {
     let fixture_path = temp_root.join("fixture.toml");
     let word = WordWithModifiers::BaseWord {
         word_like: Box::new(WordLike::Bare {
-            word: Box::new(jbotci_morphology::Word {
-                kind: WordKind::Cmavo,
-                phonemes: "coi".into(),
-                span: jbotci_source_span(),
-                surface_override: None,
-                dialect_transform: None,
-            }),
+            word: Box::new(
+                jbotci_morphology::Word::try_from_fields(fields! {
+                    kind: WordKind::Cmavo,
+                    phonemes: String::from("coi"),
+                    span: jbotci_source_span(),
+                    surface_override: None,
+                    dialect_transform: None,
+                })
+                .expect("valid word"),
+            ),
         }),
     };
     let test_case = TestCase {

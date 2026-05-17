@@ -7,8 +7,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use contracts::{ensures, requires};
-use jbotci_contracts::expensive_ensures;
+use bityzba::{ensures, requires};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::WordWithModifiers;
 use jbotci_syntax::SyntaxValue;
@@ -38,8 +37,8 @@ pub struct TestCase {
 
 impl TestCase {
     #[ensures(ret -> !self.id.is_empty())]
-    #[expensive_ensures(ret -> self.dialect_definition().is_ok())]
-    #[expensive_ensures(ret -> self.validate_xfail_metadata().is_ok())]
+    #[bityzba::expensive_ensures(ret -> self.dialect_definition().is_ok())]
+    #[bityzba::expensive_ensures(ret -> self.validate_xfail_metadata().is_ok())]
     pub fn is_valid_fixture_metadata(&self) -> bool {
         !self.id.is_empty()
             && self
@@ -49,7 +48,6 @@ impl TestCase {
             && self.validate_xfail_metadata().is_ok()
     }
 
-    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(DialectDefinition::is_valid))]
     pub fn dialect_definition(&self) -> Result<DialectDefinition, FixtureError> {
         match &self.dialect {
             Some(formula) => {
@@ -983,7 +981,7 @@ pub fn load_profiles(
 }
 
 #[requires(!name.is_empty(), "fixture profile names must not be empty")]
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
+#[bityzba::expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
 pub fn load_profile(
     fixtures_root: impl AsRef<Path>,
     name: &str,
@@ -997,7 +995,7 @@ pub fn load_profile(
 }
 
 #[requires(selector.is_valid())]
-#[expensive_ensures(ret.iter().all(|fixture| fixture.test_case.is_valid_fixture_metadata()))]
+#[bityzba::expensive_ensures(ret.iter().all(|fixture| fixture.test_case.is_valid_fixture_metadata()))]
 pub fn filter_fixtures<'a>(
     root: &Path,
     fixtures: &'a [LoadedTestCase],

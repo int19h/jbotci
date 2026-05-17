@@ -2,7 +2,7 @@
 
 mod grammar;
 
-use jbotci_contracts::{expensive_ensures, expensive_requires};
+use bityzba::{expensive_ensures, expensive_requires};
 use jbotci_morphology::{WordWithModifiers, word_with_modifiers_syntax_eq};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

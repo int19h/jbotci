@@ -1,0 +1,35 @@
+error[E0560]: struct `Span` has no field named `start`
+  --> tests/ui/fail/literal_construct.rs:11:9
+   |
+ 4 | struct Span {
+   |        ---- `Span` defined here
+...
+11 |         start: 0,
+   |         ^^^^^ field does not exist
+   |
+help: `Span` is a tuple struct, use the appropriate syntax
+   |
+10 -     let _ = Span {
+11 -         start: 0,
+12 -         end: 1,
+13 -     };
+10 +     let _ = Span(/* SpanRaw */);
+   |
+
+error[E0560]: struct `Span` has no field named `end`
+  --> tests/ui/fail/literal_construct.rs:12:9
+   |
+ 4 | struct Span {
+   |        ---- `Span` defined here
+...
+12 |         end: 1,
+   |         ^^^ field does not exist
+   |
+help: `Span` is a tuple struct, use the appropriate syntax
+   |
+10 -     let _ = Span {
+11 -         start: 0,
+12 -         end: 1,
+13 -     };
+10 +     let _ = Span(/* SpanRaw */);
+   |

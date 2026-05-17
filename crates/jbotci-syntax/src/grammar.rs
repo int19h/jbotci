@@ -1,11 +1,11 @@
 use std::ops::Range;
 
+use bityzba::{expensive_ensures, expensive_requires, fields};
 use chumsky::Boxed;
 use chumsky::error::{Rich, RichReason};
 use chumsky::input::MappedInput;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
-use jbotci_contracts::{expensive_ensures, expensive_requires};
 use jbotci_morphology::{Word, WordKind, WordLike, WordWithModifiers};
 use jbotci_source::SourceSpan;
 
@@ -2729,7 +2729,6 @@ fn bare_word_kind_and_phonemes(word: &WordWithModifiers) -> Option<(WordKind, &s
     Some((word.kind, word.phonemes.as_str()))
 }
 
-#[expensive_requires(word.is_valid())]
 #[expensive_ensures(ret.is_valid())]
 fn base_word_from_record(word: Word) -> WordWithModifiers {
     WordWithModifiers::BaseWord {
@@ -4197,7 +4196,7 @@ fn normalize_word_like_cmavo_i(word_like: &mut WordLike) {
 
 fn normalize_word_record_cmavo_i(word: &mut jbotci_morphology::Word) {
     if word.kind == WordKind::Cmavo {
-        word.phonemes = word
+        let phonemes = word
             .phonemes
             .chars()
             .map(|ch| match ch {
@@ -4206,6 +4205,12 @@ fn normalize_word_record_cmavo_i(word: &mut jbotci_morphology::Word) {
                 ch => ch,
             })
             .collect();
+        *word = word
+            .clone()
+            .try_with_fields(fields! {
+                phonemes: phonemes,
+            })
+            .expect("cmavo normalization preserves non-empty phoneme text");
     }
 }
 

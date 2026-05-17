@@ -1,0 +1,32 @@
+[package]
+name = "bityzba"
+description = "Design-by-contract attributes and invariant-bearing type helpers."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license = "MPL-2.0"
+authors.workspace = true
+repository.workspace = true
+
+[lib]
+proc-macro = true
+
+[features]
+disable_contracts = []
+expensive_contracts = []
+mirai_assertions = []
+override_debug = []
+override_log = []
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["extra-traits", "full", "visit", "visit-mut"] }
+
+[dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true
+trybuild = "1"
+
+[lints]
+workspace = true

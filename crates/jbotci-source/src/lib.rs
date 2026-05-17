@@ -1,8 +1,7 @@
 //! Shared source-location types.
 
-use contracts::ensures;
-use serde::de::Error as _;
-use serde::{Deserialize, Deserializer, Serialize};
+use bityzba::{fields, invariant};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Stable identifier for an input source.
@@ -11,14 +10,15 @@ use thiserror::Error;
 pub struct SourceId(pub String);
 
 /// One-indexed line and column in source text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[invariant(self.line > 0, "line numbers are one-indexed and cannot be zero")]
+#[invariant(self.column > 0, "column numbers are one-indexed and cannot be zero")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct LineColumn {
     pub line: usize,
     pub column: usize,
 }
 
 impl LineColumn {
-    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(LineColumn::is_valid))]
     pub fn new(line: usize, column: usize) -> Result<Self, SourceLocationError> {
         if line == 0 {
             return Err(SourceLocationError::ZeroLine);
@@ -26,27 +26,8 @@ impl LineColumn {
         if column == 0 {
             return Err(SourceLocationError::ZeroColumn);
         }
-        Ok(Self { line, column })
-    }
-
-    pub const fn is_valid(&self) -> bool {
-        self.line > 0 && self.column > 0
-    }
-}
-
-impl<'de> Deserialize<'de> for LineColumn {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct UncheckedLineColumn {
-            line: usize,
-            column: usize,
-        }
-
-        let unchecked = UncheckedLineColumn::deserialize(deserializer)?;
-        Self::new(unchecked.line, unchecked.column).map_err(D::Error::custom)
+        Self::try_from_fields(fields! { line: line, column: column })
+            .map_err(|_| SourceLocationError::InvalidLineColumn)
     }
 }
 
@@ -56,7 +37,9 @@ impl<'de> Deserialize<'de> for LineColumn {
 /// byte-indexed, while user-facing diagnostics and the v0 corpus use character
 /// offsets. Constructors validate only internal range consistency; callers are
 /// responsible for deriving offsets from the same source text.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[invariant(self.byte_start <= self.byte_end, "byte range start must not exceed end")]
+#[invariant(self.char_start <= self.char_end, "character range start must not exceed end")]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SourceSpan {
     pub source_id: Option<SourceId>,
     pub byte_start: usize,
@@ -68,7 +51,6 @@ pub struct SourceSpan {
 }
 
 impl SourceSpan {
-    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(SourceSpan::is_valid))]
     pub fn new(
         source_id: Option<SourceId>,
         byte_start: usize,
@@ -88,69 +70,28 @@ impl SourceSpan {
                 end: char_end,
             });
         }
-        Ok(Self {
-            source_id,
-            byte_start,
-            byte_end,
-            char_start,
-            char_end,
+        Self::try_from_fields(fields! {
+            source_id: source_id,
+            byte_start: byte_start,
+            byte_end: byte_end,
+            char_start: char_start,
+            char_end: char_end,
             start: None,
             end: None,
         })
+        .map_err(|_| SourceLocationError::InvalidSourceSpan)
     }
 
-    pub fn is_valid(&self) -> bool {
-        self.byte_start <= self.byte_end
-            && self.char_start <= self.char_end
-            && self.start.as_ref().is_none_or(LineColumn::is_valid)
-            && self.end.as_ref().is_none_or(LineColumn::is_valid)
-    }
-
-    pub const fn byte_len(&self) -> usize {
+    pub fn byte_len(&self) -> usize {
         self.byte_end - self.byte_start
     }
 
-    pub const fn char_len(&self) -> usize {
+    pub fn char_len(&self) -> usize {
         self.char_end - self.char_start
     }
 
-    pub const fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.byte_start == self.byte_end && self.char_start == self.char_end
-    }
-}
-
-impl<'de> Deserialize<'de> for SourceSpan {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct UncheckedSourceSpan {
-            source_id: Option<SourceId>,
-            byte_start: usize,
-            byte_end: usize,
-            char_start: usize,
-            char_end: usize,
-            start: Option<LineColumn>,
-            end: Option<LineColumn>,
-        }
-
-        let unchecked = UncheckedSourceSpan::deserialize(deserializer)?;
-        let mut span = Self::new(
-            unchecked.source_id,
-            unchecked.byte_start,
-            unchecked.byte_end,
-            unchecked.char_start,
-            unchecked.char_end,
-        )
-        .map_err(D::Error::custom)?;
-        span.start = unchecked.start;
-        span.end = unchecked.end;
-        if span.is_valid() {
-            Ok(span)
-        } else {
-            Err(D::Error::custom("invalid source span"))
-        }
     }
 }
 
@@ -167,10 +108,14 @@ pub enum SourceLocationError {
     ZeroLine,
     #[error("column numbers are one-indexed and cannot be zero")]
     ZeroColumn,
+    #[error("invalid line-column location")]
+    InvalidLineColumn,
     #[error("byte range end {end} precedes start {start}")]
     ByteRangeInverted { start: usize, end: usize },
     #[error("character range end {end} precedes start {start}")]
     CharRangeInverted { start: usize, end: usize },
+    #[error("invalid source span")]
+    InvalidSourceSpan,
 }
 
 #[cfg(test)]
@@ -204,6 +149,10 @@ mod tests {
         )
         .expect_err("inverted byte ranges must be rejected");
 
-        assert!(error.to_string().contains("byte range end"));
+        assert!(
+            error
+                .to_string()
+                .contains("byte range start must not exceed end")
+        );
     }
 }

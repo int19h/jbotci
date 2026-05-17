@@ -1,0 +1,17 @@
+error[E0599]: no method named `finish` found for struct `SpanFields<BityzbaStartState, BityzbaEndState>` in the current scope
+  --> tests/ui/fail/wrong_field_name.rs:12:9
+   |
+ 3 |   #[invariant(self.start <= self.end)]
+   |   ------------------------------------ method `finish` not found for this struct
+...
+10 |       let _ = Span::try_from_fields(fields! {
+   |  ___________________________________-
+11 | |         start: 0,
+12 | |         finish: 2,
+   | |        -^^^^^^ method not found in `SpanFields<SpanFieldsSet, SpanFieldsUnset>`
+   | |________|
+   |
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following trait defines an item `finish`, perhaps you need to implement it:
+           candidate #1: `Hasher`

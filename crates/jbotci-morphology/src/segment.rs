@@ -1,4 +1,4 @@
-use contracts::{ensures, requires};
+use bityzba::{ensures, requires};
 
 use crate::{MorphologyOptions, WordKind};
 
@@ -42,14 +42,12 @@ pub(crate) fn is_separator(value: char) -> bool {
         )
 }
 
-#[requires(options.is_valid())]
 pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions) -> String {
     raw.chars()
         .filter_map(|value| normalize_char(value, options))
         .collect()
 }
 
-#[requires(options.is_valid())]
 #[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
 pub(crate) fn classify_word_with_options(
     raw_word: &str,
@@ -130,7 +128,6 @@ fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
         .collect()
 }
 
-#[requires(options.is_valid())]
 fn normalize_char(value: char, options: &MorphologyOptions) -> Option<char> {
     let normalized = match value {
         '\'' | 'h' | 'H' | '\u{2019}' | '\u{a78b}' | '\u{a78c}' | '\u{02bb}' | '\u{02bf}'

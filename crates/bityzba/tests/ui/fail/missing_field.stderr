@@ -1,0 +1,12 @@
+error[E0308]: mismatched types
+  --> tests/ui/fail/missing_field.rs:10:35
+   |
+10 |       let _ = Span::try_from_fields(fields! {
+   |  ___________________________________^
+11 | |         start: 0,
+12 | |     });
+   | |_____^ expected `SpanFields<SpanFieldsSet, SpanFieldsSet>`, found `SpanFields<SpanFieldsSet, ...>`
+   |
+   = note: expected struct `SpanFields<SpanFieldsSet, SpanFieldsSet>`
+              found struct `SpanFields<SpanFieldsSet, SpanFieldsUnset>`
+   = note: this error originates in the macro `fields` (in Nightly builds, run with -Z macro-backtrace for more info)

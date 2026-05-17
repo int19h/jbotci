@@ -1,0 +1,16 @@
+error[E0308]: mismatched types
+  --> tests/ui/fail/wrong_value_type.rs:11:16
+   |
+11 |         start: "zero",
+   |         -----  ^^^^^^ expected `usize`, found `&str`
+   |         |
+   |         arguments to this method are incorrect
+   |
+note: method defined here
+  --> tests/ui/fail/wrong_value_type.rs:5:5
+   |
+ 3 | #[invariant(self.start <= self.end)]
+   | ------------------------------------
+ 4 | struct Span {
+ 5 |     start: usize,
+   |     ^^^^^
