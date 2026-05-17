@@ -318,6 +318,12 @@ enum ArgumentSyntax {
         bo: WordWithModifiers,
         trailing_argument: Box<ArgumentSyntax>,
     },
+    Gek {
+        gek: ConnectiveSyntax,
+        leading_argument: Box<ArgumentSyntax>,
+        gik: ConnectiveSyntax,
+        trailing_argument: Box<ArgumentSyntax>,
+    },
     Descriptor {
         descriptor: DescriptorSyntax,
     },
@@ -1254,6 +1260,18 @@ impl ArgumentSyntax {
                     words.extend(tense_modal.words());
                 }
                 words.push(bo);
+                words.extend(trailing_argument.words());
+                words
+            }
+            ArgumentSyntax::Gek {
+                gek,
+                leading_argument,
+                gik,
+                trailing_argument,
+            } => {
+                let mut words = gek.words();
+                words.extend(leading_argument.words());
+                words.extend(gik.words());
                 words.extend(trailing_argument.words());
                 words
             }
@@ -2639,7 +2657,22 @@ where
     );
     let base_argument = choice((unquantified_base_argument, quantified_argument));
 
-    let argument4 = base_argument.clone();
+    let argument4 = recursive(|argument4| {
+        let gek_argument = modal_forethought_connective()
+            .then(argument.clone())
+            .then(gik_connective())
+            .then(argument4)
+            .map(
+                |(((gek, leading_argument), gik), trailing_argument)| ArgumentSyntax::Gek {
+                    gek,
+                    leading_argument: Box::new(leading_argument),
+                    gik,
+                    trailing_argument: Box::new(trailing_argument),
+                },
+            );
+
+        choice((gek_argument, base_argument.clone())).boxed()
+    });
     let argument3 = recursive(|argument3| {
         argument4
             .clone()
@@ -5228,6 +5261,20 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
                 ),
                 field("bo", word_value(bo)),
                 field("freeModifiers", nil()),
+                field("trailingArgument", argument_tree(*trailing_argument)),
+            ],
+        ),
+        ArgumentSyntax::Gek {
+            gek,
+            leading_argument,
+            gik,
+            trailing_argument,
+        } => node(
+            "GekArgument",
+            vec![
+                field("gek", connective_tree(gek)),
+                field("leadingArgument", argument_tree(*leading_argument)),
+                field("gik", connective_tree(gik)),
                 field("trailingArgument", argument_tree(*trailing_argument)),
             ],
         ),
