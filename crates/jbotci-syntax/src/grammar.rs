@@ -216,6 +216,7 @@ enum ArgumentSyntax {
     },
     Koha {
         koha: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Zohe {
         tag_words: Vec<WordWithModifiers>,
@@ -889,7 +890,16 @@ impl ArgumentSyntax {
                 words.extend(luhu);
                 words
             }
-            ArgumentSyntax::Koha { koha } => vec![koha],
+            ArgumentSyntax::Koha {
+                koha,
+                free_modifiers,
+            } => {
+                let mut words = vec![koha];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             ArgumentSyntax::Zohe {
                 tag_words,
                 maybe_ku,
@@ -1758,7 +1768,16 @@ where
         .then(cmavo("boi").or_not())
         .map(|(letter, boi)| ArgumentSyntax::Letter { letter, boi });
 
-    let koha = koha_argument().map(|koha| ArgumentSyntax::Koha { koha });
+    let koha = koha_argument()
+        .then(
+            vocative_free(argument.clone(), relation.clone())
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(koha, free_modifiers)| ArgumentSyntax::Koha {
+            koha,
+            free_modifiers,
+        });
     let zohe = cmavo("ku").map(|ku| ArgumentSyntax::Zohe {
         tag_words: Vec::new(),
         maybe_ku: Some(ku),
@@ -2094,7 +2113,10 @@ where
 #[ensures(true)]
 fn simple_vocative_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
     let vocative_argument = choice((
-        koha_argument().map(|koha| ArgumentSyntax::Koha { koha }),
+        koha_argument().map(|koha| ArgumentSyntax::Koha {
+            koha,
+            free_modifiers: Vec::new(),
+        }),
         cmevla_word()
             .repeated()
             .at_least(1)
@@ -3852,11 +3874,17 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
                 field("luhuFreeModifiers", nil()),
             ],
         ),
-        ArgumentSyntax::Koha { koha } => node(
+        ArgumentSyntax::Koha {
+            koha,
+            free_modifiers,
+        } => node(
             "KohaArgument",
             vec![
                 field("koha", word_value(koha)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         ArgumentSyntax::Zohe {
