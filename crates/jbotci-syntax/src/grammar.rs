@@ -585,6 +585,13 @@ enum TenseModalSyntax {
         nahe: Option<WordWithModifiers>,
         se: Option<WordWithModifiers>,
         bai: WordWithModifiers,
+        nai: Option<WordWithModifiers>,
+        ki: Option<WordWithModifiers>,
+        connectives: Vec<WordWithModifiers>,
+        extra_leaves: Vec<WordWithModifiers>,
+    },
+    Ki {
+        ki: WordWithModifiers,
     },
     Fiho {
         fiho: WordWithModifiers,
@@ -1777,12 +1784,25 @@ impl TenseModalSyntax {
                 direction,
                 distance,
             } => [vec![mohi, direction], distance.into_iter().collect()].concat(),
-            TenseModalSyntax::Simple { nahe, se, bai } => [
+            TenseModalSyntax::Simple {
+                nahe,
+                se,
+                bai,
+                nai,
+                ki,
+                connectives,
+                extra_leaves,
+            } => [
                 nahe.into_iter().collect::<Vec<_>>(),
                 se.into_iter().collect(),
                 vec![bai],
+                nai.into_iter().collect(),
+                ki.into_iter().collect(),
+                connectives,
+                extra_leaves,
             ]
             .concat(),
+            TenseModalSyntax::Ki { ki } => vec![ki],
             TenseModalSyntax::Fiho {
                 fiho,
                 relation,
@@ -4197,22 +4217,8 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             ],
         )
         .map(|word| TenseModalSyntax::Zaho { words: vec![word] }),
-        cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
-            .or_not()
-            .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
-            .then(cmavo_of(
-                "BAI",
-                &[
-                    "du'o", "si'u", "zau", "ki'i", "du'i", "cu'u", "tu'i", "ti'u", "di'o", "ji'u",
-                    "ri'a", "ni'i", "mu'i", "ki'u", "va'u", "koi", "ca'i", "ta'i", "pu'e", "ja'i",
-                    "kai", "bai", "fi'e", "de'i", "ci'o", "mau", "mu'u", "ri'i", "ra'i", "ka'a",
-                    "pa'u", "pa'a", "le'a", "ku'u", "tai", "bau", "ma'i", "ci'e", "fau", "po'i",
-                    "cau", "ma'e", "ci'u", "ra'a", "pu'a", "li'e", "la'u", "ba'i", "ka'i", "sau",
-                    "fa'e", "be'i", "ti'i", "ja'e", "ga'a", "va'o", "ji'o", "me'a", "do'e", "ji'e",
-                    "pi'o", "gau", "zu'e", "me'e", "rai",
-                ],
-            ))
-            .map(|((nahe, se), bai)| TenseModalSyntax::Simple { nahe, se, bai }),
+        simple_tense_modal(),
+        cmavo("ki").map(|ki| TenseModalSyntax::Ki { ki }),
         pa_word()
             .repeated()
             .at_least(1)
@@ -4236,6 +4242,76 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             }),
     ))
     .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn simple_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
+    let simple_atom = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+        .or_not()
+        .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
+        .then(cmavo_of(
+            "BAI",
+            &[
+                "du'o", "si'u", "zau", "ki'i", "du'i", "cu'u", "tu'i", "ti'u", "di'o", "ji'u",
+                "ri'a", "ni'i", "mu'i", "ki'u", "va'u", "koi", "ca'i", "ta'i", "pu'e", "ja'i",
+                "kai", "bai", "fi'e", "de'i", "ci'o", "mau", "mu'u", "ri'i", "ra'i", "ka'a",
+                "pa'u", "pa'a", "le'a", "ku'u", "tai", "bau", "ma'i", "ci'e", "fau", "po'i", "cau",
+                "ma'e", "ci'u", "ra'a", "pu'a", "li'e", "la'u", "ba'i", "ka'i", "sau", "fa'e",
+                "be'i", "ti'i", "ja'e", "ga'a", "va'o", "ji'o", "me'a", "do'e", "ji'e", "pi'o",
+                "gau", "zu'e", "me'e", "rai",
+            ],
+        ))
+        .then(cmavo("nai").or_not())
+        .then(cmavo("ki").or_not())
+        .map(|((((nahe, se), bai), nai), ki)| TenseModalSyntax::Simple {
+            nahe,
+            se,
+            bai,
+            nai,
+            ki,
+            connectives: Vec::new(),
+            extra_leaves: Vec::new(),
+        });
+
+    simple_atom
+        .clone()
+        .then(
+            cmavo_of("JA", &["je'i", "ja", "je", "jo", "ju"])
+                .then(simple_atom)
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(first, continuations)| {
+            continuations
+                .into_iter()
+                .fold(first, |first, (connective, next)| {
+                    let TenseModalSyntax::Simple {
+                        nahe,
+                        se,
+                        bai,
+                        nai,
+                        ki,
+                        mut connectives,
+                        mut extra_leaves,
+                    } = first
+                    else {
+                        return first;
+                    };
+                    connectives.push(connective);
+                    extra_leaves.extend(next.words());
+                    TenseModalSyntax::Simple {
+                        nahe,
+                        se,
+                        bai,
+                        nai,
+                        ki,
+                        connectives,
+                        extra_leaves,
+                    }
+                })
+        })
+        .boxed()
 }
 
 #[requires(true)]
@@ -6015,6 +6091,18 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
         TenseModalSyntax::Fiho { .. } => Vec::new(),
         _ => tense_modal.clone().words(),
     };
+    let ki_field = match &tense_modal {
+        TenseModalSyntax::Simple { ki: Some(ki), .. } | TenseModalSyntax::Ki { ki } => {
+            just(word_value(ki.clone()))
+        }
+        _ => nothing(),
+    };
+    let connectives_field = match &tense_modal {
+        TenseModalSyntax::Simple { connectives, .. } => {
+            list(connectives.iter().cloned().map(word_value).collect())
+        }
+        _ => nil(),
+    };
     let (time, space, simple, interval, zaho, caha, fiho) = match tense_modal {
         TenseModalSyntax::Pu { word } => (
             just(node(
@@ -6148,7 +6236,15 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             nothing(),
             nil(),
         ),
-        TenseModalSyntax::Simple { nahe, se, bai } => (
+        TenseModalSyntax::Simple {
+            nahe,
+            se,
+            bai,
+            nai,
+            ki: _,
+            connectives: _,
+            ..
+        } => (
             nothing(),
             nothing(),
             just(node(
@@ -6157,9 +6253,18 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
                     field("nahe", maybe_word(nahe)),
                     field("se", maybe_word(se)),
                     field("bai", just(word_value(bai))),
-                    field("nai", nothing()),
+                    field("nai", maybe_word(nai)),
                 ],
             )),
+            nothing(),
+            nil(),
+            nothing(),
+            nil(),
+        ),
+        TenseModalSyntax::Ki { ki: _ } => (
+            nothing(),
+            nothing(),
+            nothing(),
             nothing(),
             nil(),
             nothing(),
@@ -6245,10 +6350,10 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             field("interval", interval),
             field("zaho", zaho),
             field("caha", caha),
-            field("ki", nothing()),
+            field("ki", ki_field),
             field("cuhe", nothing()),
             field("fiho", fiho),
-            field("connectives", nil()),
+            field("connectives", connectives_field),
             field("freeModifiers", nil()),
         ],
     )
