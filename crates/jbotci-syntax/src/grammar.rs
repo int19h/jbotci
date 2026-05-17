@@ -2170,7 +2170,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     kehe,
                 });
             let na =
-                cmavo("na")
+                na_cmavo()
                     .then(gek_sentence.clone())
                     .map(|(na, inner)| GekSentenceSyntax::Na {
                         na,
@@ -3659,7 +3659,7 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
         });
     choice((
         cehe_connective,
-        cmavo("na")
+        na_cmavo()
             .or_not()
             .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
             .then(cmavo_of("A", &["a", "e", "o", "u", "ji"]))
@@ -3739,7 +3739,7 @@ fn append_connective_words(
 #[requires(true)]
 #[ensures(true)]
 fn jek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
-    cmavo("na")
+    na_cmavo()
         .or_not()
         .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
         .then(cmavo_of("JA", &["je'i", "ja", "je", "jo", "ju"]))
@@ -3900,7 +3900,7 @@ fn gik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 #[requires(true)]
 #[ensures(true)]
 fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
-    cmavo("na")
+    na_cmavo()
         .or_not()
         .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
         .then(cmavo_of("GIhA", &["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"]))
@@ -4074,6 +4074,7 @@ where
     .then(abstraction_term.clone().repeated().collect::<Vec<_>>())
     .then(cmavo("cu").or_not())
     .then(tense_modal().or_not())
+    .then(na_cmavo().or_not())
     .then(relation_units_inner(argument.clone()))
     .then(abstraction_term.repeated().collect::<Vec<_>>())
     .then(cmavo("kei").or_not())
@@ -4081,20 +4082,33 @@ where
         |(
             (
                 (
-                    (((nu, subsentence_leading_terms), subsentence_cu), subsentence_tense_modal),
+                    (
+                        (
+                            ((nu, subsentence_leading_terms), subsentence_cu),
+                            subsentence_tense_modal,
+                        ),
+                        subsentence_na,
+                    ),
                     subsentence_relation,
                 ),
                 subsentence_terms,
             ),
             kei,
         )| {
-            let subsentence_relation =
-                subsentence_tense_modal.map_or(subsentence_relation.clone(), |tense_modal| {
-                    RelationSyntax::TenseModal {
-                        tense_modal,
-                        inner_relation: Box::new(subsentence_relation),
-                    }
-                });
+            let subsentence_relation = match subsentence_na {
+                Some(na) => RelationSyntax::Na {
+                    na,
+                    inner_relation: Box::new(subsentence_relation),
+                },
+                None => subsentence_relation,
+            };
+            let subsentence_relation = match subsentence_tense_modal {
+                Some(tense_modal) => RelationSyntax::TenseModal {
+                    tense_modal,
+                    inner_relation: Box::new(subsentence_relation),
+                },
+                None => subsentence_relation,
+            };
             RelationUnitSyntax::Abstraction {
                 abstraction: AbstractionSyntax {
                     nu,
@@ -4253,7 +4267,7 @@ where
         .collect::<Vec<_>>()
         .map(relation_from_units);
 
-    let post_tense_relation = cmavo("na")
+    let post_tense_relation = na_cmavo()
         .then(relation.clone())
         .map(|(na, inner_relation)| RelationSyntax::Na {
             na,
@@ -4282,7 +4296,7 @@ where
                 },
             )
         });
-    let na_relation = cmavo("na")
+    let na_relation = na_cmavo()
         .then(relation)
         .map(|(na, inner_relation)| RelationSyntax::Na {
             na,
@@ -5504,6 +5518,12 @@ fn leading_indicator<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
 #[ensures(true)]
 fn pa_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     cmavo_of("PA", PA_WORDS)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn na_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
+    cmavo_of("NA", &["na", "ja'a"])
 }
 
 #[requires(true)]
