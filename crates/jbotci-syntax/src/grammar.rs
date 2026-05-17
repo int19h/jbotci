@@ -4762,12 +4762,27 @@ where
         .then(cmavo("me'u").or_not())
         .map(|((me, argument), mehu)| RelationUnitSyntax::Me { me, argument, mehu });
 
-    let word_unit = relation_word()
+    let brivla_word_unit = brivla_relation_word()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(word, free_modifiers)| RelationUnitSyntax::Word {
             word,
             free_modifiers,
         });
+    let goha_word_unit = cmavo_of("GOhA", GOHA_WORDS)
+        .then_ignore(
+            choice((
+                cmavo("ra'o").ignored(),
+                cmavo("be").ignored(),
+                free_modifier.clone().ignored(),
+            ))
+            .rewind()
+            .not(),
+        )
+        .map(|word| RelationUnitSyntax::Word {
+            word,
+            free_modifiers: Vec::new(),
+        });
+    let word_unit = choice((brivla_word_unit, goha_word_unit)).boxed();
     let goha_unit = cmavo_of("GOhA", GOHA_WORDS)
         .then(cmavo("ra'o").or_not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -5124,12 +5139,27 @@ where
             .then(argument.clone())
             .then(cmavo("me'u").or_not())
             .map(|((me, argument), mehu)| RelationUnitSyntax::Me { me, argument, mehu });
-        let word_unit = relation_word()
+        let brivla_word_unit = brivla_relation_word()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(|(word, free_modifiers)| RelationUnitSyntax::Word {
                 word,
                 free_modifiers,
             });
+        let goha_word_unit = cmavo_of("GOhA", GOHA_WORDS)
+            .then_ignore(
+                choice((
+                    cmavo("ra'o").ignored(),
+                    cmavo("be").ignored(),
+                    free_modifier.clone().ignored(),
+                ))
+                .rewind()
+                .not(),
+            )
+            .map(|word| RelationUnitSyntax::Word {
+                word,
+                free_modifiers: Vec::new(),
+            });
+        let word_unit = choice((brivla_word_unit, goha_word_unit)).boxed();
         let goha_unit = cmavo_of("GOhA", GOHA_WORDS)
             .then(cmavo("ra'o").or_not())
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -6410,6 +6440,12 @@ fn relation_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
 
 #[requires(true)]
 #[ensures(true)]
+fn brivla_relation_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
+    token_matching("BRIVLA", is_brivla_relation_word)
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn cmevla_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     token_matching("CMEVLA", is_cmevla_word)
 }
@@ -6469,6 +6505,12 @@ fn is_relation_word(word: &WordWithModifiers) -> bool {
         data!(WordWithModifiers::BaseWord { word_like }) => word_like_is_relation_word(word_like),
         _ => false,
     }
+}
+
+#[requires(true)]
+#[ensures(ret == (is_relation_word(word) && !GOHA_WORDS.iter().any(|text| cmavo_text_matches(word, text))))]
+fn is_brivla_relation_word(word: &WordWithModifiers) -> bool {
+    is_relation_word(word) && !GOHA_WORDS.iter().any(|text| cmavo_text_matches(word, text))
 }
 
 #[requires(true)]
