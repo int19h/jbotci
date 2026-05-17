@@ -1703,7 +1703,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         relation_fragment,
     ));
 
-    let connected_statement_tail = cmavo("i")
+    let i_connective_statement_tail = cmavo("i")
         .then(statement_connective())
         .then(tense_modal().then(cmavo("bo")).or_not())
         .then(simple_statement.clone())
@@ -1723,6 +1723,28 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             });
             (i, connective, trailing_statement)
         });
+    let i_bo_statement_tail = cmavo("i")
+        .then(tense_modal().or_not())
+        .then(cmavo("bo"))
+        .then(simple_statement.clone())
+        .map(|(((i, tense_modal), bo), trailing_statement)| {
+            let mut cmavo = tense_modal.map_or_else(Vec::new, TenseModalSyntax::words);
+            cmavo.push(bo);
+            (
+                i,
+                ConnectiveSyntax {
+                    kind: ConnectiveKind::Relation,
+                    se: None,
+                    nahe: None,
+                    na: None,
+                    cmavo,
+                    nai: None,
+                },
+                trailing_statement,
+            )
+        });
+    let connected_statement_tail =
+        choice((i_connective_statement_tail, i_bo_statement_tail)).boxed();
     let statement_body = simple_statement
         .clone()
         .then(connected_statement_tail.repeated().collect::<Vec<_>>())
