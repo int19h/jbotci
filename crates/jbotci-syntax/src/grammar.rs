@@ -3545,7 +3545,20 @@ fn vocative_markers<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
 #[requires(true)]
 #[ensures(true)]
 fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    let tagged_term_start = choice((tense_modal().ignored(), cmavo_of("FA", FA_WORDS).ignored()));
+    let cehe_connective = cmavo("ce'e")
+        .then_ignore(tagged_term_start.rewind().not())
+        .then(cmavo("nai").or_not())
+        .map(|(cmavo, nai)| ConnectiveSyntax {
+            kind: ConnectiveKind::NonLogical,
+            se: None,
+            nahe: None,
+            na: None,
+            cmavo: vec![cmavo],
+            nai,
+        });
     choice((
+        cehe_connective,
         cmavo("na")
             .or_not()
             .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
@@ -3562,7 +3575,7 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
         cmavo_of(
             "JOI",
             &[
-                "ce", "ce'e", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
+                "ce", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
             ],
         )
         .then(cmavo("nai").or_not())
@@ -3716,7 +3729,14 @@ fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyn
             nai: None,
         }
     });
-    choice((ga, modal_gi)).boxed()
+    let joik_gi = joik_connective()
+        .then(cmavo("gi"))
+        .then(cmavo("bo").or_not())
+        .map(|((connective, gi), bo)| {
+            let extra = [Some(gi), bo].into_iter().flatten().collect::<Vec<_>>();
+            append_connective_words(connective, extra)
+        });
+    choice((ga, joik_gi, modal_gi)).boxed()
 }
 
 #[requires(true)]
@@ -3813,6 +3833,8 @@ where
     let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
         .then(choice((
             ke_unit.clone(),
+            moi_unit.clone(),
+            nuha_unit.clone(),
             goha_unit.clone(),
             word_unit.clone(),
         )))
