@@ -1148,7 +1148,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         text.clone(),
         source,
     ));
-    relation.define(relation_parser_with(argument.clone()));
+    relation.define(relation_parser_with(argument.clone(), relation.clone()));
 
     let argument_term = argument.clone().map(TermSyntax::Argument);
     let fa_term = cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"])
@@ -1953,9 +1953,13 @@ fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax
         .boxed()
 }
 
-fn relation_parser_with<'tokens, P>(argument: P) -> BoxedParser<'tokens, RelationSyntax>
+fn relation_parser_with<'tokens, P, R>(
+    argument: P,
+    relation: R,
+) -> BoxedParser<'tokens, RelationSyntax>
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
     let me_unit = cmavo("me")
         .then(argument.clone())
@@ -2149,7 +2153,7 @@ where
         .map(relation_from_units);
 
     let post_tense_relation = cmavo("na")
-        .then(relation_units.clone())
+        .then(relation.clone())
         .map(|(na, inner_relation)| RelationSyntax::Na {
             na,
             inner_relation: Box::new(inner_relation),
@@ -2178,7 +2182,7 @@ where
             )
         });
     let na_relation = cmavo("na")
-        .then(connected_relation.clone())
+        .then(relation)
         .map(|(na, inner_relation)| RelationSyntax::Na {
             na,
             inner_relation: Box::new(inner_relation),
