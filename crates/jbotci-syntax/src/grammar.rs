@@ -130,6 +130,9 @@ struct PredicateTailContinuationSyntax {
     relation: RelationSyntax,
     terms: Vec<TermSyntax>,
     vau: Option<WordWithModifiers>,
+    bo_continuation: Option<PredicateTailBoContinuationSyntax>,
+    tail_terms: Vec<TermSyntax>,
+    tail_vau: Option<WordWithModifiers>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1124,6 +1127,13 @@ impl PredicateTailContinuationSyntax {
             words.extend(term.words());
         }
         words.extend(self.vau);
+        if let Some(bo_continuation) = self.bo_continuation {
+            words.extend(bo_continuation.words());
+        }
+        for term in self.tail_terms {
+            words.extend(term.words());
+        }
+        words.extend(self.tail_vau);
         words
     }
 }
@@ -2014,19 +2024,6 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         .boxed();
     let tail_term = choice((term.clone(), implicit_tagged_term.clone())).boxed();
     let cu = cmavo("cu");
-    let predicate_tail_continuation = predicate_tail_connective()
-        .then(relation.clone())
-        .then(tail_term.clone().repeated().collect::<Vec<_>>())
-        .then(cmavo("vau").or_not())
-        .map(
-            |(((connective, relation), terms), vau)| PredicateTailContinuationSyntax {
-                connective,
-                relation,
-                terms,
-                vau,
-            },
-        );
-
     let basic_predicate = recursive(|basic_predicate| {
         let gek_sentence = recursive(|gek_sentence| {
             let pair = modal_forethought_connective()
@@ -2105,6 +2102,36 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 },
             )
             .boxed();
+        let bo_or_ke_continuation_start = predicate_tail_connective()
+            .then(tense_modal().or_not())
+            .then(choice((cmavo("bo"), cmavo("ke"))))
+            .rewind();
+        let predicate_tail_continuation = bo_or_ke_continuation_start
+            .not()
+            .ignore_then(predicate_tail_connective())
+            .then(relation.clone())
+            .then(tail_term.clone().repeated().collect::<Vec<_>>())
+            .then(cmavo("vau").or_not())
+            .then(bo_continuation.clone().or_not())
+            .then(tail_term.clone().repeated().collect::<Vec<_>>())
+            .then(cmavo("vau").or_not())
+            .map(
+                |(
+                    (((((connective, relation), terms), vau), bo_continuation), tail_terms),
+                    tail_vau,
+                )| {
+                    PredicateTailContinuationSyntax {
+                        connective,
+                        relation,
+                        terms,
+                        vau,
+                        bo_continuation,
+                        tail_terms,
+                        tail_vau,
+                    }
+                },
+            )
+            .boxed();
         let predicate_with_leading_terms = term
             .clone()
             .repeated()
@@ -2115,32 +2142,30 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             .then(tail_term.clone().repeated().collect::<Vec<_>>())
             .then(cmavo("vau").or_not())
             .then(bo_continuation.clone().or_not())
-            .then(ke_continuation.clone().or_not())
             .then(
                 predicate_tail_continuation
                     .clone()
                     .repeated()
                     .collect::<Vec<_>>(),
             )
+            .then(ke_continuation.clone().or_not())
             .map(
                 |(
                     (
                         (((((leading_terms, cu), relation), tail_terms), vau), bo_continuation),
-                        ke_continuation,
-                    ),
-                    continuations,
-                )| {
-                    BasicPredicate {
-                        leading_terms,
-                        cu,
-                        relation,
-                        tail_terms,
-                        vau,
-                        gek_sentence: None,
-                        bo_continuation,
-                        ke_continuation,
                         continuations,
-                    }
+                    ),
+                    ke_continuation,
+                )| BasicPredicate {
+                    leading_terms,
+                    cu,
+                    relation,
+                    tail_terms,
+                    vau,
+                    gek_sentence: None,
+                    bo_continuation,
+                    ke_continuation,
+                    continuations,
                 },
             );
 
@@ -2149,17 +2174,17 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             .then(tail_term.clone().repeated().collect::<Vec<_>>())
             .then(cmavo("vau").or_not())
             .then(bo_continuation.or_not())
-            .then(ke_continuation.or_not())
             .then(
                 predicate_tail_continuation
                     .clone()
                     .repeated()
                     .collect::<Vec<_>>(),
             )
+            .then(ke_continuation.or_not())
             .map(
                 |(
-                    ((((relation, tail_terms), vau), bo_continuation), ke_continuation),
-                    continuations,
+                    ((((relation, tail_terms), vau), bo_continuation), continuations),
+                    ke_continuation,
                 )| BasicPredicate {
                     leading_terms: Vec::new(),
                     cu: None,
@@ -2309,12 +2334,14 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
 
     let i_connective_statement_tail = cmavo("i")
         .then(statement_connective())
-        .then(tense_modal().then(cmavo("bo")).or_not())
+        .then(tense_modal().or_not().then(cmavo("bo")).or_not())
         .then(simple_statement.clone())
         .map(|(((i, connective), tag_bo), trailing_statement)| {
             let connective = tag_bo.map_or(connective.clone(), |(tense_modal, bo)| {
                 let mut cmavo = connective.cmavo;
-                cmavo.extend(tense_modal.words());
+                if let Some(tense_modal) = tense_modal {
+                    cmavo.extend(tense_modal.words());
+                }
                 cmavo.push(bo);
                 ConnectiveSyntax {
                     kind: connective.kind,
@@ -2353,17 +2380,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         .clone()
         .then(connected_statement_tail.repeated().collect::<Vec<_>>())
         .map(|(leading_statement, continuations)| {
-            continuations.into_iter().fold(
-                leading_statement,
-                |leading_statement, (i, connective, trailing_statement)| {
-                    StatementSyntax::Connected {
-                        i,
-                        connective,
-                        leading_statement: Box::new(leading_statement),
-                        trailing_statement: Box::new(trailing_statement),
-                    }
-                },
-            )
+            build_connected_statement(leading_statement, continuations)
         });
 
     statement.define(statement_body);
@@ -2474,6 +2491,61 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
 
     text.define(text_body);
     text.then_ignore(end()).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+#[expensive_ensures(ret.clone().words().len() >= old(leading_statement.clone().words().len()))]
+fn build_connected_statement(
+    leading_statement: StatementSyntax,
+    continuations: Vec<(WordWithModifiers, ConnectiveSyntax, StatementSyntax)>,
+) -> StatementSyntax {
+    let mut statements = vec![leading_statement];
+    let mut connectors = Vec::new();
+    for (i, connective, trailing_statement) in continuations {
+        connectors.push((i, connective));
+        statements.push(trailing_statement);
+    }
+
+    for index in (0..connectors.len()).rev() {
+        if connective_has_bo(&connectors[index].1) {
+            let trailing_statement = statements.remove(index + 1);
+            let leading_statement = statements.remove(index);
+            let (i, connective) = connectors.remove(index);
+            statements.insert(
+                index,
+                StatementSyntax::Connected {
+                    i,
+                    connective,
+                    leading_statement: Box::new(leading_statement),
+                    trailing_statement: Box::new(trailing_statement),
+                },
+            );
+        }
+    }
+
+    let mut statements = statements.into_iter();
+    let mut connected_statement = statements
+        .next()
+        .expect("there is always at least the leading statement");
+    for ((i, connective), trailing_statement) in connectors.into_iter().zip(statements) {
+        connected_statement = StatementSyntax::Connected {
+            i,
+            connective,
+            leading_statement: Box::new(connected_statement),
+            trailing_statement: Box::new(trailing_statement),
+        };
+    }
+    connected_statement
+}
+
+#[requires(true)]
+#[ensures(ret == connective.cmavo.iter().any(|word| cmavo_text_matches(word, "bo")))]
+fn connective_has_bo(connective: &ConnectiveSyntax) -> bool {
+    connective
+        .cmavo
+        .iter()
+        .any(|word| cmavo_text_matches(word, "bo"))
 }
 
 #[requires(true)]
@@ -6007,12 +6079,22 @@ fn predicate_tail_continuation_tree(continuation: PredicateTailContinuationSynta
                                 ],
                             ),
                         ),
-                        field("boContinuation", nothing()),
+                        field(
+                            "boContinuation",
+                            continuation
+                                .bo_continuation
+                                .map_or_else(nothing, |bo_continuation| {
+                                    just(predicate_tail_bo_continuation_tree(bo_continuation))
+                                }),
+                        ),
                     ],
                 ),
             ),
-            field("tailTerms", nil()),
-            field("vau", nothing()),
+            field(
+                "tailTerms",
+                list(continuation.tail_terms.into_iter().map(term_tree).collect()),
+            ),
+            field("vau", maybe_word(continuation.tail_vau)),
             field("freeModifiers", nil()),
         ],
     )
