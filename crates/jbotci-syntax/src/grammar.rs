@@ -2219,15 +2219,29 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let fa_term = cmavo_of("FA", FA_WORDS)
         .then(argument.clone())
         .map(|(fa, argument)| TermSyntax::Fa { fa, argument });
-    let tagged_term = tense_modal()
-        .then(argument.clone())
-        .map(|(tense_modal, argument)| TermSyntax::Tagged {
-            tense_modal,
-            argument,
-        });
     let na_ku_term = na_cmavo()
         .then(cmavo("ku"))
         .map(|(na, na_ku)| TermSyntax::NaKu { na, na_ku });
+    let tagged_term = modal_forethought_connective()
+        .rewind()
+        .not()
+        .ignore_then(tense_modal())
+        .then(choice((
+            tense_modal().rewind().ignored(),
+            relation.clone().rewind().not().ignored(),
+        )))
+        .then(
+            argument
+                .clone()
+                .or(cmavo("ku").or_not().map(|maybe_ku| ArgumentSyntax::Zohe {
+                    tag_words: Vec::new(),
+                    maybe_ku,
+                })),
+        )
+        .map(|((tense_modal, _), argument)| TermSyntax::Tagged {
+            tense_modal,
+            argument,
+        });
     let base_simple_term = choice((fa_term, tagged_term, argument_term, na_ku_term)).boxed();
     let term = recursive(|term| {
         let gek_nuhi_termset = cmavo("nu'i")
@@ -2306,14 +2320,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             })
     })
     .boxed();
-    let implicit_tagged_term = tense_modal()
-        .then(relation.clone().rewind().not())
-        .map(|(tense_modal, _)| TermSyntax::Tagged {
-            tense_modal,
-            argument: implicit_zohe_argument(),
-        })
-        .boxed();
-    let tail_term = choice((term.clone(), implicit_tagged_term.clone())).boxed();
+    let tail_term = term.clone();
     let cu = cmavo("cu");
     let basic_predicate = recursive(|basic_predicate| {
         let gek_sentence = recursive(|gek_sentence| {
@@ -2557,7 +2564,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     subsentence.define(choice((prenex_subsentence, plain_subsentence)));
     let predicate = basic_predicate.map(StatementSyntax::Predicate);
 
-    let fragment_term = choice((term.clone(), implicit_tagged_term));
+    let fragment_term = term.clone();
 
     let term_fragment = fragment_term
         .repeated()
