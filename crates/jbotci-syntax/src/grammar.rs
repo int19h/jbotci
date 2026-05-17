@@ -130,6 +130,14 @@ enum FreeModifierSyntax {
         xi: WordWithModifiers,
         expression: MathExpressionSyntax,
     },
+    Soi {
+        soi: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        leading_argument: Box<ArgumentSyntax>,
+        trailing_argument: Option<Box<ArgumentSyntax>>,
+        sehu: Option<WordWithModifiers>,
+        sehu_free_modifiers: Vec<FreeModifierSyntax>,
+    },
     Vocative {
         vocative_markers: Vec<WordWithModifiers>,
         argument: Option<ArgumentSyntax>,
@@ -258,6 +266,7 @@ enum ArgumentSyntax {
     },
     Cmevla {
         cmevla: Vec<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     RelationVocative {
         leading_relative_clauses: Vec<RelativeClauseSyntax>,
@@ -581,6 +590,18 @@ enum RelationUnitSyntax {
         nuha: WordWithModifiers,
         math_operator: MathOperatorSyntax,
     },
+    Cei {
+        base: Box<RelationUnitSyntax>,
+        assignments: Vec<CeiAssignmentSyntax>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct CeiAssignmentSyntax {
+    cei: WordWithModifiers,
+    free_modifiers: Vec<FreeModifierSyntax>,
+    relation_unit: RelationUnitSyntax,
 }
 
 #[requires(true)]
@@ -758,6 +779,28 @@ impl FreeModifierSyntax {
             FreeModifierSyntax::Xi { xi, expression } => {
                 let mut words = vec![xi];
                 words.extend(expression.words());
+                words
+            }
+            FreeModifierSyntax::Soi {
+                soi,
+                free_modifiers,
+                leading_argument,
+                trailing_argument,
+                sehu,
+                sehu_free_modifiers,
+            } => {
+                let mut words = vec![soi];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(leading_argument.words());
+                if let Some(argument) = trailing_argument {
+                    words.extend(argument.words());
+                }
+                words.extend(sehu);
+                for free_modifier in sehu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             FreeModifierSyntax::Vocative {
@@ -1021,7 +1064,16 @@ impl ArgumentSyntax {
             }
             ArgumentSyntax::Descriptor { descriptor } => descriptor.words(),
             ArgumentSyntax::Name { la, names } => [vec![la], names].concat(),
-            ArgumentSyntax::Cmevla { cmevla } => cmevla,
+            ArgumentSyntax::Cmevla {
+                cmevla,
+                free_modifiers,
+            } => {
+                let mut words = cmevla;
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             ArgumentSyntax::RelationVocative {
                 leading_relative_clauses,
                 relation,
@@ -1392,6 +1444,17 @@ impl RelationUnitSyntax {
                 words.extend(math_operator.words());
                 words
             }
+            RelationUnitSyntax::Cei { base, assignments } => {
+                let mut words = base.words();
+                for assignment in assignments {
+                    words.push(assignment.cei);
+                    for free_modifier in assignment.free_modifiers {
+                        words.extend(free_modifier.words());
+                    }
+                    words.extend(assignment.relation_unit.words());
+                }
+                words
+            }
         }
     }
 }
@@ -1474,7 +1537,6 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let mut statement = Recursive::declare();
     let mut subsentence = Recursive::declare();
     let mut free_modifier = Recursive::declare();
-
     argument.define(argument_parser_with(
         argument.clone(),
         relation.clone(),
@@ -1682,6 +1744,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     free_modifier.define(choice((
         xi_free(),
         sei_free(term.clone(), relation.clone()),
+        soi_free(argument.clone()),
         to_free(text.clone(), free_modifier.clone()),
         vocative_free(argument.clone(), relation.clone(), subsentence.clone()),
     )));
@@ -1957,6 +2020,7 @@ where
         .then(
             choice((
                 xi_free(),
+                soi_free(argument.clone()),
                 vocative_free(argument.clone(), relation.clone(), subsentence.clone()),
             ))
             .repeated()
@@ -2409,7 +2473,10 @@ fn simple_vocative_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
             .repeated()
             .at_least(1)
             .collect::<Vec<_>>()
-            .map(|cmevla| ArgumentSyntax::Cmevla { cmevla }),
+            .map(|cmevla| ArgumentSyntax::Cmevla {
+                cmevla,
+                free_modifiers: Vec::new(),
+            }),
         relation_word().map(|word| ArgumentSyntax::RelationVocative {
             relation: RelationSyntax::Base { word },
             leading_relative_clauses: Vec::new(),
@@ -2451,6 +2518,29 @@ fn xi_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
 
 #[requires(true)]
 #[ensures(true)]
+fn soi_free<'tokens, A>(argument: A) -> BoxedParser<'tokens, FreeModifierSyntax>
+where
+    A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    cmavo("soi")
+        .then(argument.clone())
+        .then(argument.or_not())
+        .then(cmavo("se'u").or_not())
+        .map(
+            |(((soi, leading_argument), trailing_argument), sehu)| FreeModifierSyntax::Soi {
+                soi,
+                free_modifiers: Vec::new(),
+                leading_argument: Box::new(leading_argument),
+                trailing_argument: trailing_argument.map(Box::new),
+                sehu,
+                sehu_free_modifiers: Vec::new(),
+            },
+        )
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn vocative_free<'tokens, A, R>(
     argument: A,
     relation: R,
@@ -2481,10 +2571,14 @@ where
     let cmevla_vocative = optional_relative_clauses
         .clone()
         .then(cmevla_word().repeated().at_least(1).collect::<Vec<_>>())
+        .then(simple_vocative_free().repeated().collect::<Vec<_>>())
         .then(optional_relative_clauses)
         .map(
-            |((leading_relative_clauses, cmevla), trailing_relative_clauses)| {
-                let argument = ArgumentSyntax::Cmevla { cmevla };
+            |(((leading_relative_clauses, cmevla), free_modifiers), trailing_relative_clauses)| {
+                let argument = ArgumentSyntax::Cmevla {
+                    cmevla,
+                    free_modifiers,
+                };
                 let relative_clauses = leading_relative_clauses
                     .into_iter()
                     .chain(trailing_relative_clauses)
@@ -2719,6 +2813,12 @@ where
     let goha_unit = cmavo_of("GOhA", GOHA_WORDS)
         .then(cmavo("ra'o").or_not())
         .map(|(goha, raho)| RelationUnitSyntax::Goha { goha, raho });
+    let goha_raho_unit = cmavo_of("GOhA", GOHA_WORDS)
+        .then(cmavo("ra'o"))
+        .map(|(goha, raho)| RelationUnitSyntax::Goha {
+            goha,
+            raho: Some(raho),
+        });
     let moi_unit = pa_word()
         .repeated()
         .at_least(1)
@@ -2845,6 +2945,7 @@ where
     );
 
     let base_unit = choice((
+        goha_raho_unit,
         me_unit,
         abstraction_unit,
         jai_unit,
@@ -2855,7 +2956,8 @@ where
         moi_unit,
         word_unit,
         goha_unit,
-    ));
+    ))
+    .boxed();
     let bei_link = bei_link(argument.clone());
     let be_link = cmavo("be")
         .then(cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"]).or_not())
@@ -2866,18 +2968,47 @@ where
             (be, fa, first_argument, bei_links, beho)
         });
 
-    let linked_unit = base_unit.then(be_link.or_not()).map(|(base, be_link)| {
-        be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
-            RelationUnitSyntax::Be {
-                base: Box::new(base),
-                be,
-                fa,
-                first_argument,
-                bei_links,
-                beho,
+    let linked_unit = base_unit
+        .then(be_link.or_not())
+        .map(|(base, be_link)| {
+            be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
+                RelationUnitSyntax::Be {
+                    base: Box::new(base),
+                    be,
+                    fa,
+                    first_argument,
+                    bei_links,
+                    beho,
+                }
+            })
+        })
+        .boxed();
+    let cei_unit = linked_unit
+        .clone()
+        .then(
+            cmavo("cei")
+                .then(linked_unit.clone())
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(base, assignments)| {
+            if assignments.is_empty() {
+                base
+            } else {
+                RelationUnitSyntax::Cei {
+                    base: Box::new(base),
+                    assignments: assignments
+                        .into_iter()
+                        .map(|(cei, relation_unit)| CeiAssignmentSyntax {
+                            cei,
+                            free_modifiers: Vec::new(),
+                            relation_unit,
+                        })
+                        .collect(),
+                }
             }
         })
-    });
+        .boxed();
 
     let bo_unit = recursive(|bo_unit| {
         let guha_unit = guhek_connective()
@@ -2896,7 +3027,7 @@ where
                     },
                 },
             );
-        let atom_unit = choice((guha_unit, linked_unit.clone()));
+        let atom_unit = choice((guha_unit, cei_unit.clone())).boxed();
         let connected_bo_tail = statement_connective()
             .then(tense_modal().or_not())
             .then(cmavo("bo"))
@@ -3013,6 +3144,13 @@ where
         let goha_unit = cmavo_of("GOhA", GOHA_WORDS)
             .then(cmavo("ra'o").or_not())
             .map(|(goha, raho)| RelationUnitSyntax::Goha { goha, raho });
+        let goha_raho_unit =
+            cmavo_of("GOhA", GOHA_WORDS)
+                .then(cmavo("ra'o"))
+                .map(|(goha, raho)| RelationUnitSyntax::Goha {
+                    goha,
+                    raho: Some(raho),
+                });
         let moi_unit = pa_word()
             .repeated()
             .at_least(1)
@@ -3067,7 +3205,14 @@ where
             });
 
         let linked_unit = choice((
-            nahe_unit, se_unit, ke_unit, nuha_unit, moi_unit, word_unit, goha_unit,
+            goha_raho_unit,
+            nahe_unit,
+            se_unit,
+            ke_unit,
+            nuha_unit,
+            moi_unit,
+            word_unit,
+            goha_unit,
         ))
         .then(be_link.or_not())
         .map(|(base, be_link)| {
@@ -3081,7 +3226,34 @@ where
                     beho,
                 }
             })
-        });
+        })
+        .boxed();
+        let cei_unit = linked_unit
+            .clone()
+            .then(
+                cmavo("cei")
+                    .then(linked_unit.clone())
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(base, assignments)| {
+                if assignments.is_empty() {
+                    base
+                } else {
+                    RelationUnitSyntax::Cei {
+                        base: Box::new(base),
+                        assignments: assignments
+                            .into_iter()
+                            .map(|(cei, relation_unit)| CeiAssignmentSyntax {
+                                cei,
+                                free_modifiers: Vec::new(),
+                                relation_unit,
+                            })
+                            .collect(),
+                    }
+                }
+            })
+            .boxed();
 
         let bo_unit = recursive(|bo_unit| {
             let guha_unit = guhek_connective()
@@ -3102,7 +3274,7 @@ where
                         },
                     }
                 });
-            let atom_unit = choice((guha_unit, linked_unit.clone()));
+            let atom_unit = choice((guha_unit, cei_unit.clone())).boxed();
             let connected_bo_tail = statement_connective()
                 .then(tense_modal().or_not())
                 .then(cmavo("bo"))
@@ -3843,6 +4015,39 @@ fn free_modifier_tree(free_modifier: FreeModifierSyntax) -> SyntaxValue {
                 field("mathExpression", math_expression_tree(expression)),
             ],
         ),
+        FreeModifierSyntax::Soi {
+            soi,
+            free_modifiers,
+            leading_argument,
+            trailing_argument,
+            sehu,
+            sehu_free_modifiers,
+        } => node(
+            "SoiFree",
+            vec![
+                field("soi", word_value(soi)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field("leadingArgument", argument_tree(*leading_argument)),
+                field(
+                    "trailingArgument",
+                    trailing_argument
+                        .map_or_else(nothing, |argument| just(argument_tree(*argument))),
+                ),
+                field("sehu", maybe_word(sehu)),
+                field(
+                    "sehuFreeModifiers",
+                    list(
+                        sehu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
         FreeModifierSyntax::Vocative {
             vocative_markers,
             argument,
@@ -4324,11 +4529,17 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
                 field("nameFreeModifiers", nil()),
             ],
         ),
-        ArgumentSyntax::Cmevla { cmevla } => node(
+        ArgumentSyntax::Cmevla {
+            cmevla,
+            free_modifiers,
+        } => node(
             "CmevlaArgument",
             vec![
                 field("cmevla", nonempty_name_words(cmevla)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         ArgumentSyntax::RelationVocative {
@@ -5286,7 +5497,39 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
                 field("mathOperator", math_operator_tree(math_operator)),
             ],
         ),
+        RelationUnitSyntax::Cei { base, assignments } => node(
+            "CeiRelationUnit",
+            vec![
+                field("base", relation_unit_tree(*base)),
+                field(
+                    "assignments",
+                    list(assignments.into_iter().map(cei_assignment_tree).collect()),
+                ),
+            ],
+        ),
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cei_assignment_tree(assignment: CeiAssignmentSyntax) -> SyntaxValue {
+    node(
+        "CeiAssignment",
+        vec![
+            field("cei", word_value(assignment.cei)),
+            field(
+                "freeModifiers",
+                list(
+                    assignment
+                        .free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
+            field("relationUnit", relation_unit_tree(assignment.relation_unit)),
+        ],
+    )
 }
 
 #[requires(true)]
