@@ -3,7 +3,7 @@
 mod grammar;
 
 use jbotci_contracts::{expensive_ensures, expensive_requires};
-use jbotci_morphology::WordWithModifiers;
+use jbotci_morphology::{WordWithModifiers, word_with_modifiers_syntax_eq};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -298,6 +298,43 @@ impl SyntaxValue {
             Self::Word { word } => word.is_valid(),
             Self::Json { .. } => true,
         }
+    }
+}
+
+#[expensive_requires(left.is_valid())]
+#[expensive_requires(right.is_valid())]
+pub fn syntax_values_equivalent(left: &SyntaxValue, right: &SyntaxValue) -> bool {
+    match (left, right) {
+        (SyntaxValue::Null, SyntaxValue::Null) => true,
+        (SyntaxValue::Bool { value: left }, SyntaxValue::Bool { value: right }) => left == right,
+        (SyntaxValue::Integer { value: left }, SyntaxValue::Integer { value: right }) => {
+            left == right
+        }
+        (SyntaxValue::Text { value: left }, SyntaxValue::Text { value: right }) => left == right,
+        (SyntaxValue::List { items: left }, SyntaxValue::List { items: right }) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right.iter())
+                    .all(|(left, right)| syntax_values_equivalent(left, right))
+        }
+        (SyntaxValue::Node { node: left }, SyntaxValue::Node { node: right }) => {
+            left.constructor == right.constructor
+                && left.fields.len() == right.fields.len()
+                && left
+                    .fields
+                    .iter()
+                    .zip(right.fields.iter())
+                    .all(|(left, right)| {
+                        left.name == right.name
+                            && syntax_values_equivalent(&left.value, &right.value)
+                    })
+        }
+        (SyntaxValue::Word { word: left }, SyntaxValue::Word { word: right }) => {
+            word_with_modifiers_syntax_eq(left, right)
+        }
+        (SyntaxValue::Json { value: left }, SyntaxValue::Json { value: right }) => left == right,
+        _ => false,
     }
 }
 

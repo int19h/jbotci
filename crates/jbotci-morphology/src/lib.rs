@@ -6,7 +6,7 @@ mod segment;
 use std::fmt;
 
 use contracts::{ensures, requires};
-use jbotci_contracts::expensive_ensures;
+use jbotci_contracts::{expensive_ensures, expensive_requires};
 pub use jbotci_dialect::{
     CmavoDialectEntry, CmavoDialectTransform, DialectDefinition, DialectFeature,
 };
@@ -285,6 +285,168 @@ impl fmt::Display for WordWithModifiers {
     }
 }
 
+#[expensive_requires(left.is_valid())]
+#[expensive_requires(right.is_valid())]
+pub fn word_with_modifiers_syntax_eq(left: &WordWithModifiers, right: &WordWithModifiers) -> bool {
+    match (left, right) {
+        (
+            WordWithModifiers::BaseWord { word_like: left },
+            WordWithModifiers::BaseWord { word_like: right },
+        ) => word_like_syntax_eq(left, right),
+        (
+            WordWithModifiers::StandaloneIndicator {
+                indicator: left_indicator,
+                nai: left_nai,
+            },
+            WordWithModifiers::StandaloneIndicator {
+                indicator: right_indicator,
+                nai: right_nai,
+            },
+        ) => {
+            word_syntax_eq(left_indicator, right_indicator)
+                && optional_word_syntax_eq(left_nai.as_deref(), right_nai.as_deref())
+        }
+        (
+            WordWithModifiers::Emphasized {
+                bahe: left_bahe,
+                word_like: left_word_like,
+            },
+            WordWithModifiers::Emphasized {
+                bahe: right_bahe,
+                word_like: right_word_like,
+            },
+        ) => {
+            word_syntax_eq(left_bahe, right_bahe)
+                && word_like_syntax_eq(left_word_like, right_word_like)
+        }
+        (
+            WordWithModifiers::WithIndicator {
+                base: left_base,
+                indicator: left_indicator,
+                nai: left_nai,
+            },
+            WordWithModifiers::WithIndicator {
+                base: right_base,
+                indicator: right_indicator,
+                nai: right_nai,
+            },
+        ) => {
+            word_with_modifiers_syntax_eq(left_base, right_base)
+                && word_syntax_eq(left_indicator, right_indicator)
+                && optional_word_syntax_eq(left_nai.as_deref(), right_nai.as_deref())
+        }
+        (WordWithModifiers::NotEof, WordWithModifiers::NotEof) => true,
+        _ => false,
+    }
+}
+
+#[expensive_requires(left.is_valid())]
+#[expensive_requires(right.is_valid())]
+pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
+    match (left, right) {
+        (WordLike::Bare { word: left }, WordLike::Bare { word: right }) => {
+            word_syntax_eq(left, right)
+        }
+        (
+            WordLike::ZoQuote {
+                zo: left_zo,
+                word: left_word,
+            },
+            WordLike::ZoQuote {
+                zo: right_zo,
+                word: right_word,
+            },
+        ) => word_syntax_eq(left_zo, right_zo) && word_syntax_eq(left_word, right_word),
+        (
+            WordLike::ZoiQuote {
+                zoi: left_zoi,
+                opening_delimiter: left_opening,
+                quoted_text: left_quoted,
+                closing_delimiter: left_closing,
+            },
+            WordLike::ZoiQuote {
+                zoi: right_zoi,
+                opening_delimiter: right_opening,
+                quoted_text: right_quoted,
+                closing_delimiter: right_closing,
+            },
+        ) => {
+            word_syntax_eq(left_zoi, right_zoi)
+                && word_syntax_eq(left_opening, right_opening)
+                && left_quoted == right_quoted
+                && word_syntax_eq(left_closing, right_closing)
+        }
+        (
+            WordLike::LohuQuote {
+                lohu: left_lohu,
+                quoted_words: left_words,
+                lehu: left_lehu,
+            },
+            WordLike::LohuQuote {
+                lohu: right_lohu,
+                quoted_words: right_words,
+                lehu: right_lehu,
+            },
+        ) => {
+            word_syntax_eq(left_lohu, right_lohu)
+                && left_words.len() == right_words.len()
+                && left_words
+                    .iter()
+                    .zip(right_words.iter())
+                    .all(|(left, right)| word_syntax_eq(left, right))
+                && word_syntax_eq(left_lehu, right_lehu)
+        }
+        (
+            WordLike::SingleWordQuote {
+                marker: left_marker,
+                quoted_text: left_quoted,
+            },
+            WordLike::SingleWordQuote {
+                marker: right_marker,
+                quoted_text: right_quoted,
+            },
+        ) => word_syntax_eq(left_marker, right_marker) && left_quoted == right_quoted,
+        (
+            WordLike::Letter {
+                base: left_base,
+                bu: left_bu,
+            },
+            WordLike::Letter {
+                base: right_base,
+                bu: right_bu,
+            },
+        ) => word_like_syntax_eq(left_base, right_base) && word_syntax_eq(left_bu, right_bu),
+        (
+            WordLike::ZeiLujvo {
+                left: left_left,
+                zei: left_zei,
+                right: left_right,
+            },
+            WordLike::ZeiLujvo {
+                left: right_left,
+                zei: right_zei,
+                right: right_right,
+            },
+        ) => {
+            word_like_syntax_eq(left_left, right_left)
+                && word_syntax_eq(left_zei, right_zei)
+                && word_syntax_eq(left_right, right_right)
+        }
+        _ => false,
+    }
+}
+
+#[requires(left.is_valid())]
+#[requires(right.is_valid())]
+pub fn word_syntax_eq(left: &Word, right: &Word) -> bool {
+    left.kind == right.kind && strip_diacritics(&left.phonemes) == strip_diacritics(&right.phonemes)
+}
+
+#[ensures(!ret.is_empty() || text.is_empty())]
+pub fn strip_diacritics(text: &str) -> String {
+    text.chars().filter_map(strip_diacritic).collect()
+}
+
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum MorphologyError {
     #[error("unsupported morphology at character {char_offset}: `{word}` ({reason})")]
@@ -447,6 +609,27 @@ fn source_span_is_valid(span: &SourceSpan) -> bool {
     span.byte_start <= span.byte_end && span.char_start <= span.char_end
 }
 
+fn optional_word_syntax_eq(left: Option<&Word>, right: Option<&Word>) -> bool {
+    match (left, right) {
+        (None, None) => true,
+        (Some(left), Some(right)) => word_syntax_eq(left, right),
+        _ => false,
+    }
+}
+
+fn strip_diacritic(value: char) -> Option<char> {
+    Some(match value {
+        'á' | 'à' | 'Á' | 'À' => 'a',
+        'é' | 'è' | 'É' | 'È' => 'e',
+        'í' | 'ì' | 'ĭ' | 'Ĭ' | 'Í' | 'Ì' => 'i',
+        'ó' | 'ò' | 'Ó' | 'Ò' => 'o',
+        'ú' | 'ù' | 'ŭ' | 'Ŭ' | 'Ú' | 'Ù' => 'u',
+        'ý' | 'ỳ' | 'Ý' | 'Ỳ' => 'y',
+        '\u{0301}' | '\u{0300}' | '\u{0306}' => return None,
+        other => other,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -559,6 +742,25 @@ mod tests {
             base_word(&words[1]).map(|word| word.phonemes.as_str()),
             Some("italĭas")
         );
+    }
+
+    #[test]
+    fn syntax_equivalence_ignores_spans_and_diacritics_on_words() {
+        let mut left = segment_words_with_modifiers("coi").expect("valid morphology");
+        let mut right = segment_words_with_modifiers("coi").expect("valid morphology");
+        let WordWithModifiers::BaseWord { word_like } = &mut right[0] else {
+            panic!("expected base word");
+        };
+        let WordLike::Bare { word } = word_like.as_mut() else {
+            panic!("expected bare word");
+        };
+        word.phonemes = "coĭ".to_owned();
+        word.span = SourceSpan::new(None, 99, 102, 99, 102).expect("valid span");
+
+        assert!(word_with_modifiers_syntax_eq(
+            &left.remove(0),
+            &right.remove(0)
+        ));
     }
 
     #[test]

@@ -12,6 +12,7 @@ use jbotci_morphology::{
 use jbotci_source::SourceId;
 use jbotci_syntax::{
     ParseOptions, SyntaxError, SyntaxValue, parse_syntax_tree_with_source_and_options,
+    syntax_values_equivalent,
 };
 use rayon::prelude::*;
 
@@ -454,7 +455,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                 let Some(expected_tree) = &expectation.parse_tree else {
                     return FacetResult::failed("syntax success expectation has no parse-tree");
                 };
-                if &parsed.parse_tree == expected_tree {
+                if syntax_values_equivalent(expected_tree, &parsed.parse_tree) {
                     syntax_xfail_result(expectation, ExpectationStatus::Success, true)
                         .unwrap_or_else(FacetResult::passed)
                 } else if expectation.xfail.is_some()
@@ -479,7 +480,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     let Some(expected_tree) = &expectation.parse_tree else {
                         return FacetResult::failed("syntax success xfail has no parse-tree");
                     };
-                    if &parsed.parse_tree == expected_tree {
+                    if syntax_values_equivalent(expected_tree, &parsed.parse_tree) {
                         syntax_xfail_result(expectation, ExpectationStatus::Success, true)
                             .unwrap_or_else(|| {
                                 FacetResult::failed(
@@ -562,7 +563,9 @@ fn syntax_difference(
         {
             None
         }
-        (SyntaxValue::Word { word: left }, SyntaxValue::Word { word: right }) if left == right => {
+        (SyntaxValue::Word { word: left }, SyntaxValue::Word { word: right })
+            if jbotci_morphology::word_with_modifiers_syntax_eq(left, right) =>
+        {
             None
         }
         (SyntaxValue::Word { word: left }, SyntaxValue::Word { word: right }) => {
