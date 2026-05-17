@@ -1859,13 +1859,6 @@ where
             },
         });
 
-    let quantified_argument =
-        quantifier()
-            .then(argument.clone())
-            .map(|(quantifier, inner_argument)| ArgumentSyntax::Quantified {
-                quantifier,
-                inner_argument: Box::new(inner_argument),
-            });
     let tense_tagged_argument =
         tense_modal()
             .then(argument.clone())
@@ -1899,7 +1892,7 @@ where
             },
         );
 
-    let base_argument = choice((
+    let unquantified_base_argument = choice((
         quote,
         math_expression,
         letter,
@@ -1910,11 +1903,17 @@ where
         nahe_bo_argument,
         descriptor_with_outer_quantifier,
         descriptor_with_gadri,
-        quantified_argument,
         descriptor_without_gadri,
         zohe,
         koha,
     ));
+    let quantified_argument = quantifier().then(unquantified_base_argument.clone()).map(
+        |(quantifier, inner_argument)| ArgumentSyntax::Quantified {
+            quantifier,
+            inner_argument: Box::new(inner_argument),
+        },
+    );
+    let base_argument = choice((unquantified_base_argument, quantified_argument));
 
     base_argument
         .clone()
