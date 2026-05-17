@@ -359,6 +359,11 @@ enum MathExpressionSyntax {
         letter: Vec<WordWithModifiers>,
         boi: Option<WordWithModifiers>,
     },
+    Binary {
+        operator: MathOperatorSyntax,
+        left_expression: Box<MathExpressionSyntax>,
+        right_expression: Box<MathExpressionSyntax>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -835,6 +840,16 @@ impl MathExpressionSyntax {
             MathExpressionSyntax::Number(quantifier) => quantifier.words(),
             MathExpressionSyntax::Letter { letter, boi } => {
                 [letter, boi.into_iter().collect()].concat()
+            }
+            MathExpressionSyntax::Binary {
+                operator,
+                left_expression,
+                right_expression,
+            } => {
+                let mut words = left_expression.words();
+                words.extend(operator.words());
+                words.extend(right_expression.words());
+                words
             }
         }
     }
@@ -1743,7 +1758,7 @@ where
 {
     let quote = quote_argument(source, text);
 
-    let math_atom = choice((
+    let math_operand = choice((
         quantifier().map(MathExpressionSyntax::Number),
         letter_word()
             .repeated()
@@ -1752,9 +1767,27 @@ where
             .then(cmavo("boi").or_not())
             .map(|(letter, boi)| MathExpressionSyntax::Letter { letter, boi }),
     ));
+    let math_expression_body = math_operand
+        .clone()
+        .then(
+            math_operator()
+                .then(math_operand)
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(first, continuations)| {
+            continuations.into_iter().fold(
+                first,
+                |left_expression, (operator, right_expression)| MathExpressionSyntax::Binary {
+                    operator,
+                    left_expression: Box::new(left_expression),
+                    right_expression: Box::new(right_expression),
+                },
+            )
+        });
 
     let math_expression = cmavo("li")
-        .then(math_atom)
+        .then(math_expression_body)
         .then(cmavo("lo'o").or_not())
         .map(|((li, expression), loho)| ArgumentSyntax::MathExpression {
             li,
@@ -4214,6 +4247,18 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
                 field("letter", nonempty_letter_words(letter)),
                 field("boi", maybe_word(boi)),
                 field("freeModifiers", nil()),
+            ],
+        ),
+        MathExpressionSyntax::Binary {
+            operator,
+            left_expression,
+            right_expression,
+        } => node(
+            "BinaryExpression",
+            vec![
+                field("operator", math_operator_tree(operator)),
+                field("leftExpression", math_expression_tree(*left_expression)),
+                field("rightExpression", math_expression_tree(*right_expression)),
             ],
         ),
     }
