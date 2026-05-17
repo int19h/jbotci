@@ -304,6 +304,10 @@ enum TermSyntax {
         na: WordWithModifiers,
         na_ku: WordWithModifiers,
     },
+    BareNa {
+        na: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+    },
     Tagged {
         tense_modal: TenseModalSyntax,
         argument: ArgumentSyntax,
@@ -1370,6 +1374,13 @@ impl TermSyntax {
                 words
             }
             TermSyntax::NaKu { na, na_ku } => vec![na, na_ku],
+            TermSyntax::BareNa { na, free_modifiers } => {
+                let mut words = vec![na];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             TermSyntax::Tagged {
                 tense_modal,
                 argument,
@@ -2241,6 +2252,23 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let na_ku_term = na_cmavo()
         .then(cmavo("ku"))
         .map(|(na, na_ku)| TermSyntax::NaKu { na, na_ku });
+    let bare_na_term_blocker = choice((
+        relation.clone().ignored(),
+        modal_forethought_connective().ignored(),
+        cmavo_of("JA", &["je'i", "ja", "je", "jo", "ju"]).ignored(),
+        cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .or_not()
+            .then(cmavo_of("A", &["a", "e", "o", "u", "ji"]))
+            .ignored(),
+        cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .or_not()
+            .then(cmavo_of("GIhA", &["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"]))
+            .ignored(),
+    ));
+    let bare_na_term = na_cmavo()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(bare_na_term_blocker.rewind().not())
+        .map(|((na, free_modifiers), _)| TermSyntax::BareNa { na, free_modifiers });
     let tagged_term = modal_forethought_connective()
         .rewind()
         .not()
@@ -2261,7 +2289,14 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             tense_modal,
             argument,
         });
-    let base_simple_term = choice((fa_term, tagged_term, argument_term, na_ku_term)).boxed();
+    let base_simple_term = choice((
+        fa_term,
+        tagged_term,
+        argument_term,
+        na_ku_term,
+        bare_na_term,
+    ))
+    .boxed();
     let term = recursive(|term| {
         let gek_nuhi_termset = cmavo("nu'i")
             .or_not()
@@ -7225,6 +7260,16 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
                 field("na", word_value(na)),
                 field("naKu", word_value(na_ku)),
                 field("freeModifiers", nil()),
+            ],
+        ),
+        TermSyntax::BareNa { na, free_modifiers } => node(
+            "BareNaTerm",
+            vec![
+                field("na", word_value(na)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         TermSyntax::Tagged {
