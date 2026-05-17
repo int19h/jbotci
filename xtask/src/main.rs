@@ -10,6 +10,7 @@ use clap::{Args, Parser, Subcommand};
 use jbotci_morphology::{
     MorphologyOptions, WordWithModifiers, segment_words_with_modifiers_with_options_and_source_id,
 };
+use jbotci_output::pretty_brackets;
 use jbotci_source::SourceId;
 use jbotci_syntax::{
     ParseOptions, SyntaxError, SyntaxValue, SyntaxValueData,
@@ -424,10 +425,53 @@ impl FixtureBackend for NotImplementedBackend {
         match facet {
             Facet::Morphology => run_morphology_fixture(fixture),
             Facet::Syntax => run_syntax_fixture(fixture),
-            Facet::SyntaxRefs | Facet::Warnings | Facet::Brackets => {
+            Facet::Brackets => run_brackets_fixture(fixture),
+            Facet::SyntaxRefs | Facet::Warnings => {
                 FacetResult::skipped(format!("{facet} runner is not implemented yet"))
             }
         }
+    }
+}
+
+#[expensive_requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.brackets.as_ref())
+    else {
+        return FacetResult::skipped("fixture has no brackets expectation");
+    };
+    let options = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => MorphologyOptions::default().with_dialect_definition(&dialect),
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) {
+        Ok(words) => words,
+        Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
+    };
+    let parsed = match parse_syntax_tree_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &ParseOptions::default(),
+    ) {
+        Ok(parsed) => parsed,
+        Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
+    };
+    match pretty_brackets(&parsed.parse_tree, &fixture.test_case.lojban) {
+        Ok(actual) if actual == expectation.text => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format!(
+            "brackets mismatch: expected `{}`, got `{actual}`",
+            expectation.text
+        )),
+        Err(error) => FacetResult::failed(format!("brackets render error: {error}")),
     }
 }
 
