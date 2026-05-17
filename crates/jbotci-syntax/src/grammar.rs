@@ -6177,9 +6177,7 @@ fn is_relation_word(word: &WordWithModifiers) -> bool {
     match word.as_data() {
         data!(WordWithModifiers::WithIndicator { base, .. }) => return is_relation_word(base),
         data!(WordWithModifiers::Emphasized { word_like, .. }) => {
-            return word_like_kind(word_like).is_some_and(|kind| {
-                matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
-            });
+            return word_like_is_relation_word(word_like);
         }
         data!(WordWithModifiers::StandaloneIndicator { .. }) | data!(WordWithModifiers::NotEof) => {
             return false;
@@ -6191,9 +6189,25 @@ fn is_relation_word(word: &WordWithModifiers) -> bool {
         return true;
     }
 
-    bare_word_kind_and_phonemes(word).is_some_and(|(kind, _)| {
-        matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
-    })
+    match word.as_data() {
+        data!(WordWithModifiers::BaseWord { word_like }) => word_like_is_relation_word(word_like),
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_like_is_relation_word(word_like: &WordLike) -> bool {
+    match word_like.as_data() {
+        data!(WordLike::Bare { word }) => {
+            matches!(
+                word.kind,
+                WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla
+            )
+        }
+        data!(WordLike::ZeiLujvo { .. }) => true,
+        _ => false,
+    }
 }
 
 #[requires(true)]
