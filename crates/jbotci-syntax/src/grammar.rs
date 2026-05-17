@@ -42,7 +42,7 @@ const GOHA_WORDS: &[&str] = &[
     "mo", "nei", "go'u", "go'o", "go'i", "no'a", "go'e", "go'a", "du", "bu'a", "bu'e", "bu'i",
     "co'e",
 ];
-const FA_WORDS: &[&str] = &["fa", "fe", "fi", "fo", "fu", "fi'a"];
+const FA_WORDS: &[&str] = &["fa", "fe", "fi", "fo", "fu", "fai", "fi'a"];
 const UI_WORDS: &[&str] = &[
     "i'a", "ie", "a'e", "u'i", "i'o", "i'e", "a'a", "ia", "o'i", "o'e", "e'e", "oi", "uo", "e'i",
     "u'o", "au", "ua", "a'i", "i'u", "ii", "u'a", "ui", "a'o", "ai", "a'u", "iu", "ei", "o'o",
@@ -570,6 +570,7 @@ enum RelationUnitSyntax {
     },
     Jai {
         jai: WordWithModifiers,
+        tense_modal: Option<TenseModalSyntax>,
         inner_unit: Box<RelationUnitSyntax>,
     },
     Be {
@@ -1407,8 +1408,15 @@ impl RelationUnitSyntax {
                 words
             }
             RelationUnitSyntax::Wrapped { relation } => relation.words(),
-            RelationUnitSyntax::Jai { jai, inner_unit } => {
+            RelationUnitSyntax::Jai {
+                jai,
+                tense_modal,
+                inner_unit,
+            } => {
                 let mut words = vec![jai];
+                if let Some(tense_modal) = tense_modal {
+                    words.extend(tense_modal.words());
+                }
                 words.extend(inner_unit.words());
                 words
             }
@@ -2917,9 +2925,11 @@ where
         });
 
     let jai_unit = cmavo("jai")
-        .then(word_unit.clone())
-        .map(|(jai, inner_unit)| RelationUnitSyntax::Jai {
+        .then(tense_modal().or_not())
+        .then(choice((se_unit.clone(), word_unit.clone())))
+        .map(|((jai, tense_modal), inner_unit)| RelationUnitSyntax::Jai {
             jai,
+            tense_modal,
             inner_unit: Box::new(inner_unit),
         });
 
@@ -5533,12 +5543,20 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
             "WrappedRelationUnit",
             vec![field("relation", relation_tree(relation))],
         ),
-        RelationUnitSyntax::Jai { jai, inner_unit } => node(
+        RelationUnitSyntax::Jai {
+            jai,
+            tense_modal,
+            inner_unit,
+        } => node(
             "JaiRelationUnit",
             vec![
                 field("jai", word_value(jai)),
                 field("freeModifiers", nil()),
-                field("tenseModal", nothing()),
+                field(
+                    "tenseModal",
+                    tense_modal
+                        .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+                ),
                 field("innerUnit", relation_unit_tree(*inner_unit)),
             ],
         ),
