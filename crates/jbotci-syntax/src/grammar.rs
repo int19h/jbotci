@@ -4816,7 +4816,11 @@ where
 
     let jai_unit = cmavo("jai")
         .then(tense_modal().or_not())
-        .then(choice((se_unit.clone(), word_unit.clone())))
+        .then(choice((
+            se_unit.clone(),
+            goha_unit.clone(),
+            word_unit.clone(),
+        )))
         .map(|((jai, tense_modal), inner_unit)| RelationUnitSyntax::Jai {
             jai,
             tense_modal,
