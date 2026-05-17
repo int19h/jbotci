@@ -2530,7 +2530,13 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         .then(cmevla_word().repeated().collect::<Vec<_>>())
         .then(leading_indicator().repeated().collect::<Vec<_>>())
         .then(free_modifier.repeated().collect::<Vec<_>>())
-        .then(statement_connective().or_not())
+        .then(
+            modal_forethought_connective()
+                .rewind()
+                .not()
+                .ignore_then(statement_connective())
+                .or_not(),
+        )
         .then(
             cmavo_of("NIhO", &["ni'o", "no'i"])
                 .repeated()
@@ -3587,6 +3593,33 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
             cmavo: vec![cmavo],
             nai,
         }),
+        cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .or_not()
+            .then(cmavo_of("BIhI", &["mi'i", "bi'o", "bi'i"]))
+            .then(cmavo("nai").or_not())
+            .map(|((se, cmavo), nai)| ConnectiveSyntax {
+                kind: ConnectiveKind::Interval,
+                se,
+                nahe: None,
+                na: None,
+                cmavo: vec![cmavo],
+                nai,
+            }),
+        cmavo_of("GAhO", &["ga'o", "ke'i"])
+            .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
+            .then(cmavo_of("BIhI", &["mi'i", "bi'o", "bi'i"]))
+            .then(cmavo("nai").or_not())
+            .then(cmavo_of("GAhO", &["ga'o", "ke'i"]))
+            .map(
+                |((((left_interval, se), cmavo), nai), right_interval)| ConnectiveSyntax {
+                    kind: ConnectiveKind::Interval,
+                    se,
+                    nahe: None,
+                    na: None,
+                    cmavo: vec![left_interval, cmavo, right_interval],
+                    nai,
+                },
+            ),
     ))
     .boxed()
 }
@@ -3661,6 +3694,21 @@ fn joik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
                 cmavo: vec![cmavo],
                 nai,
             }),
+        cmavo_of("GAhO", &["ga'o", "ke'i"])
+            .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
+            .then(cmavo_of("BIhI", &["mi'i", "bi'o", "bi'i"]))
+            .then(cmavo("nai").or_not())
+            .then(cmavo_of("GAhO", &["ga'o", "ke'i"]))
+            .map(
+                |((((left_interval, se), cmavo), nai), right_interval)| ConnectiveSyntax {
+                    kind: ConnectiveKind::Interval,
+                    se,
+                    nahe: None,
+                    na: None,
+                    cmavo: vec![left_interval, cmavo, right_interval],
+                    nai,
+                },
+            ),
     ))
     .boxed()
 }
