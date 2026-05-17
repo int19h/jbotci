@@ -532,6 +532,21 @@ enum MathExpressionSyntax {
         operands: Vec<MathExpressionSyntax>,
         kuhe: Option<WordWithModifiers>,
     },
+    Nihe {
+        nihe: WordWithModifiers,
+        relation: RelationSyntax,
+        tehu: Option<WordWithModifiers>,
+    },
+    Mohe {
+        mohe: WordWithModifiers,
+        argument: Box<ArgumentSyntax>,
+        tehu: Option<WordWithModifiers>,
+    },
+    Lahe {
+        markers: Vec<WordWithModifiers>,
+        inner_expression: Box<MathExpressionSyntax>,
+        luhu: Option<WordWithModifiers>,
+    },
     Connected {
         left_expression: Box<MathExpressionSyntax>,
         connective: ConnectiveSyntax,
@@ -559,6 +574,19 @@ enum MathOperatorSyntax {
     Maho {
         maho: WordWithModifiers,
         math_expression: Box<MathExpressionSyntax>,
+        tehu: Option<WordWithModifiers>,
+    },
+    Se {
+        se: WordWithModifiers,
+        inner_operator: Box<MathOperatorSyntax>,
+    },
+    Nahe {
+        nahe: WordWithModifiers,
+        inner_operator: Box<MathOperatorSyntax>,
+    },
+    Nahu {
+        nahu: WordWithModifiers,
+        relation: RelationSyntax,
         tehu: Option<WordWithModifiers>,
     },
     Connected {
@@ -1378,6 +1406,36 @@ impl MathExpressionSyntax {
                 words.extend(kuhe);
                 words
             }
+            MathExpressionSyntax::Nihe {
+                nihe,
+                relation,
+                tehu,
+            } => {
+                let mut words = vec![nihe];
+                words.extend(relation.words());
+                words.extend(tehu);
+                words
+            }
+            MathExpressionSyntax::Mohe {
+                mohe,
+                argument,
+                tehu,
+            } => {
+                let mut words = vec![mohe];
+                words.extend(argument.words());
+                words.extend(tehu);
+                words
+            }
+            MathExpressionSyntax::Lahe {
+                markers,
+                inner_expression,
+                luhu,
+            } => {
+                let mut words = markers;
+                words.extend(inner_expression.words());
+                words.extend(luhu);
+                words
+            }
             MathExpressionSyntax::Connected {
                 left_expression,
                 connective,
@@ -1762,6 +1820,29 @@ impl MathOperatorSyntax {
             } => {
                 let mut words = vec![maho];
                 words.extend(math_expression.words());
+                words.extend(tehu);
+                words
+            }
+            MathOperatorSyntax::Se { se, inner_operator } => {
+                let mut words = vec![se];
+                words.extend(inner_operator.words());
+                words
+            }
+            MathOperatorSyntax::Nahe {
+                nahe,
+                inner_operator,
+            } => {
+                let mut words = vec![nahe];
+                words.extend(inner_operator.words());
+                words
+            }
+            MathOperatorSyntax::Nahu {
+                nahu,
+                relation,
+                tehu,
+            } => {
+                let mut words = vec![nahu];
+                words.extend(relation.words());
                 words.extend(tehu);
                 words
             }
@@ -2194,7 +2275,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     })
     .boxed();
     let implicit_tagged_term = tense_modal()
-        .map(|tense_modal| TermSyntax::Tagged {
+        .then(relation.clone().rewind().not())
+        .map(|(tense_modal, _)| TermSyntax::Tagged {
             tense_modal,
             argument: implicit_zohe_argument(),
         })
@@ -2842,6 +2924,201 @@ fn math_expression_body<'tokens>() -> BoxedParser<'tokens, MathExpressionSyntax>
 
 #[requires(true)]
 #[ensures(true)]
+fn math_expression_body_with_context<'tokens, A, R>(
+    argument: A,
+    relation: R,
+) -> BoxedParser<'tokens, MathExpressionSyntax>
+where
+    A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    math_parser_pair_with_context(argument, relation).0
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn math_parser_pair_with_context<'tokens, A, R>(
+    argument: A,
+    relation: R,
+) -> (
+    BoxedParser<'tokens, MathExpressionSyntax>,
+    BoxedParser<'tokens, MathOperatorSyntax>,
+)
+where
+    A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    let mut expression = Recursive::declare();
+    let mut operator = Recursive::declare();
+    expression.define(math_expression_body_with_context_inner(
+        expression.clone(),
+        operator.clone(),
+        argument.clone(),
+        relation.clone(),
+    ));
+    operator.define(math_operator_with_context(
+        expression.clone(),
+        operator.clone(),
+        relation,
+    ));
+    (expression.boxed(), operator.boxed())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn math_expression_body_with_context_inner<'tokens, E, O, A, R>(
+    expression: E,
+    operator: O,
+    argument: A,
+    relation: R,
+) -> BoxedParser<'tokens, MathExpressionSyntax>
+where
+    E: Parser<'tokens, ParserInput<'tokens>, MathExpressionSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+    O: Parser<'tokens, ParserInput<'tokens>, MathOperatorSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+    A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    let number = number_quantifier().map(MathExpressionSyntax::Number);
+    let letter = letter_string()
+        .then(cmavo("boi").or_not())
+        .map(|(letter, boi)| MathExpressionSyntax::Letter { letter, boi });
+    let nihe = cmavo("ni'e")
+        .then(relation.clone())
+        .then(cmavo("te'u").or_not())
+        .map(|((nihe, relation), tehu)| MathExpressionSyntax::Nihe {
+            nihe,
+            relation,
+            tehu,
+        });
+    let mohe = cmavo("mo'e")
+        .then(argument)
+        .then(cmavo("te'u").or_not())
+        .map(|((mohe, argument), tehu)| MathExpressionSyntax::Mohe {
+            mohe,
+            argument: Box::new(argument),
+            tehu,
+        });
+    let vei = cmavo("vei")
+        .then(expression.clone())
+        .then(cmavo("ve'o").or_not())
+        .map(
+            |((vei, inner_expression), veho)| MathExpressionSyntax::Vei {
+                vei,
+                inner_expression: Box::new(inner_expression),
+                veho,
+            },
+        );
+    let gek = modal_forethought_connective()
+        .then(expression.clone())
+        .then(gik_connective())
+        .then(expression)
+        .map(
+            |(((gek, left_expression), gik), right_expression)| MathExpressionSyntax::Gek {
+                gek,
+                left_expression: Box::new(left_expression),
+                gik,
+                right_expression: Box::new(right_expression),
+            },
+        );
+    let math_operand_atom = choice((gek, vei, nihe, mohe, number, letter)).boxed();
+    let math_operand = math_operand_atom
+        .clone()
+        .then(
+            argument_connective()
+                .then(math_operand_atom)
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(first, continuations)| {
+            continuations.into_iter().fold(
+                first,
+                |left_expression, (connective, right_expression)| MathExpressionSyntax::Connected {
+                    left_expression: Box::new(left_expression),
+                    connective,
+                    right_expression: Box::new(right_expression),
+                },
+            )
+        })
+        .boxed();
+    let math_expression2 = recursive(|math_expression2| {
+        let lahe = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+            .then(cmavo("bo"))
+            .then(math_expression2.clone())
+            .then(cmavo("lu'u").or_not())
+            .map(
+                |(((nahe, bo), inner_expression), luhu)| MathExpressionSyntax::Lahe {
+                    markers: vec![nahe, bo],
+                    inner_expression: Box::new(inner_expression),
+                    luhu,
+                },
+            );
+        let forethought = cmavo("pe'o")
+            .or_not()
+            .then(operator.clone())
+            .then(
+                math_expression2
+                    .clone()
+                    .repeated()
+                    .at_least(1)
+                    .collect::<Vec<_>>(),
+            )
+            .then(cmavo("ku'e").or_not())
+            .map(
+                |(((peho, operator), operands), kuhe)| MathExpressionSyntax::Forethought {
+                    peho,
+                    operator,
+                    operands,
+                    kuhe,
+                },
+            );
+        choice((math_operand.clone(), lahe, forethought)).boxed()
+    });
+    let math_expression1 = recursive(|math_expression1| {
+        math_expression2
+            .clone()
+            .then(
+                cmavo("bi'e")
+                    .then(operator.clone())
+                    .then(math_expression1)
+                    .or_not(),
+            )
+            .map(|(left_expression, bihe_tail)| match bihe_tail {
+                None => left_expression,
+                Some(((bihe, operator), right_expression)) => MathExpressionSyntax::Bihe {
+                    left_expression: Box::new(left_expression),
+                    bihe,
+                    operator,
+                    right_expression: Box::new(right_expression),
+                },
+            })
+    });
+    math_expression1
+        .clone()
+        .then(
+            operator
+                .then(math_expression1)
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(first, continuations)| {
+            continuations.into_iter().fold(
+                first,
+                |left_expression, (operator, right_expression)| MathExpressionSyntax::Binary {
+                    operator,
+                    left_expression: Box::new(left_expression),
+                    right_expression: Box::new(right_expression),
+                },
+            )
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn math_parser_pair<'tokens>() -> (
     BoxedParser<'tokens, MathExpressionSyntax>,
     BoxedParser<'tokens, MathOperatorSyntax>,
@@ -3001,7 +3278,10 @@ where
     let quote = quote_argument(source, text);
 
     let math_expression = cmavo_of("LI", &["li", "me'o"])
-        .then(math_expression_body())
+        .then(math_expression_body_with_context(
+            argument.clone(),
+            relation.clone(),
+        ))
         .then(cmavo("lo'o").or_not())
         .map(|((li, expression), loho)| ArgumentSyntax::MathExpression {
             li,
@@ -3075,6 +3355,7 @@ where
             ],
             argument => vec![ArgumentTailElementSyntax::Argument(Box::new(argument))],
         });
+    let contextual_quantifier = quantifier_with_context(argument.clone(), relation.clone());
     let descriptor_relative_clauses = relative_clauses(argument.clone(), subsentence.clone())
         .or_not()
         .map(Option::unwrap_or_default);
@@ -3094,14 +3375,16 @@ where
         .clone()
         .then(descriptor_relative_clauses.clone())
         .map(|(relation, relative_clauses)| (Vec::new(), Some(relation), relative_clauses));
-    let quantifier_relation_tail = quantifier()
+    let quantifier_relation_tail = contextual_quantifier
+        .clone()
         .map(ArgumentTailElementSyntax::Quantifier)
         .then(relation.clone())
         .then(descriptor_relative_clauses.clone())
         .map(|((quantifier, relation), relative_clauses)| {
             (vec![quantifier], Some(relation), relative_clauses)
         });
-    let quantifier_argument_tail = quantifier()
+    let quantifier_argument_tail = contextual_quantifier
+        .clone()
         .map(ArgumentTailElementSyntax::Quantifier)
         .then(argument.clone())
         .map(|(quantifier, argument)| {
@@ -3146,7 +3429,8 @@ where
                 }
             },
         );
-    let descriptor_with_outer_quantifier = quantifier()
+    let descriptor_with_outer_quantifier = contextual_quantifier
+        .clone()
         .then(le_cmavo().or(la_cmavo()))
         .then(descriptor_tail.clone())
         .then(cmavo("ku").or_not())
@@ -3168,7 +3452,8 @@ where
             },
         );
 
-    let descriptor_without_gadri = quantifier()
+    let descriptor_without_gadri = contextual_quantifier
+        .clone()
         .map(ArgumentTailElementSyntax::Quantifier)
         .then(relation.clone())
         .then(
@@ -3255,7 +3540,7 @@ where
                 }
             }
         });
-    let quantified_argument = quantifier()
+    let quantified_argument = contextual_quantifier
         .then(unquantified_base_argument_core)
         .then(base_relative_clauses)
         .map(|((quantifier, inner_argument), relative_clauses)| {
@@ -3507,6 +3792,27 @@ fn quantifier<'tokens>() -> BoxedParser<'tokens, QuantifierSyntax> {
 
 #[requires(true)]
 #[ensures(true)]
+fn quantifier_with_context<'tokens, A, R>(
+    argument: A,
+    relation: R,
+) -> BoxedParser<'tokens, QuantifierSyntax>
+where
+    A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    let vei_quantifier = cmavo("vei")
+        .then(math_expression_body_with_context(argument, relation))
+        .then(cmavo("ve'o").or_not())
+        .map(|((vei, math_expression), veho)| QuantifierSyntax::Vei {
+            vei,
+            math_expression: Box::new(math_expression),
+            veho,
+        });
+    choice((vei_quantifier, number_quantifier())).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn quote_argument<'tokens, T>(
     source: Option<&'tokens str>,
     text: T,
@@ -3695,12 +4001,13 @@ fn simple_vocative_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
 #[requires(true)]
 #[ensures(true)]
 fn xi_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
-    let xi_expression =
+    let number_or_letter =
         number_or_letter_words()
             .then(cmavo("boi").or_not())
             .map(|(number, boi)| {
                 MathExpressionSyntax::Number(QuantifierSyntax::Number { number, boi })
             });
+    let xi_expression = choice((number_or_letter, math_expression_body()));
 
     cmavo("xi")
         .then(xi_expression)
@@ -4154,6 +4461,84 @@ where
             },
         );
     let atom = choice((forethought, maho, vuhu)).boxed();
+    atom.clone()
+        .then(
+            statement_connective()
+                .then(atom)
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(first, continuations)| {
+            continuations
+                .into_iter()
+                .fold(first, |left_operator, (connective, right_operator)| {
+                    MathOperatorSyntax::Connected {
+                        left_operator: Box::new(left_operator),
+                        connective,
+                        right_operator: Box::new(right_operator),
+                    }
+                })
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn math_operator_with_context<'tokens, E, O, R>(
+    expression: E,
+    operator: O,
+    relation: R,
+) -> BoxedParser<'tokens, MathOperatorSyntax>
+where
+    E: Parser<'tokens, ParserInput<'tokens>, MathExpressionSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+    O: Parser<'tokens, ParserInput<'tokens>, MathOperatorSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+    R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    let vuhu = cmavo_of("VUhU", VUHU_WORDS).map(|vuhu| MathOperatorSyntax::Vuhu { vuhu });
+    let maho = cmavo("ma'o")
+        .then(expression)
+        .then(cmavo("te'u").or_not())
+        .map(|((maho, math_expression), tehu)| MathOperatorSyntax::Maho {
+            maho,
+            math_expression: Box::new(math_expression),
+            tehu,
+        });
+    let se = cmavo_of("SE", &["se", "te", "ve", "xe"])
+        .then(operator.clone())
+        .map(|(se, inner_operator)| MathOperatorSyntax::Se {
+            se,
+            inner_operator: Box::new(inner_operator),
+        });
+    let nahe = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+        .then(operator.clone())
+        .map(|(nahe, inner_operator)| MathOperatorSyntax::Nahe {
+            nahe,
+            inner_operator: Box::new(inner_operator),
+        });
+    let nahu = cmavo("na'u")
+        .then(relation)
+        .then(cmavo("te'u").or_not())
+        .map(|((nahu, relation), tehu)| MathOperatorSyntax::Nahu {
+            nahu,
+            relation,
+            tehu,
+        });
+    let forethought = guhek_connective()
+        .then(operator.clone())
+        .then(gik_connective())
+        .then(operator)
+        .map(
+            |(((guhek, left_operator), gik), right_operator)| MathOperatorSyntax::Connected {
+                left_operator: Box::new(left_operator),
+                connective: append_connective_words(guhek, gik.words()),
+                right_operator: Box::new(right_operator),
+            },
+        );
+    let atom = choice((se, nahe, forethought, nahu, maho, vuhu)).boxed();
     atom.clone()
         .then(
             statement_connective()
@@ -7358,6 +7743,51 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
                 field("kuheFreeModifiers", nil()),
             ],
         ),
+        MathExpressionSyntax::Nihe {
+            nihe,
+            relation,
+            tehu,
+        } => node(
+            "NiheExpression",
+            vec![
+                field("nihe", word_value(nihe)),
+                field("freeModifiers", nil()),
+                field("relation", relation_tree(relation)),
+                field("tehu", maybe_word(tehu)),
+                field("tehuFreeModifiers", nil()),
+            ],
+        ),
+        MathExpressionSyntax::Mohe {
+            mohe,
+            argument,
+            tehu,
+        } => node(
+            "MoheExpression",
+            vec![
+                field("mohe", word_value(mohe)),
+                field("freeModifiers", nil()),
+                field("argument", argument_tree(*argument)),
+                field("tehu", maybe_word(tehu)),
+                field("tehuFreeModifiers", nil()),
+            ],
+        ),
+        MathExpressionSyntax::Lahe {
+            markers,
+            inner_expression,
+            luhu,
+        } => node(
+            "LaheExpression",
+            vec![
+                field(
+                    "markers",
+                    list(markers.into_iter().map(word_value).collect()),
+                ),
+                field("freeModifiers", nil()),
+                field("innerExpression", math_expression_tree(*inner_expression)),
+                field("luhu", maybe_word(luhu)),
+                field("luhuFreeModifiers", nil()),
+            ],
+        ),
         MathExpressionSyntax::Connected {
             left_expression,
             connective,
@@ -7421,6 +7851,39 @@ fn math_operator_tree(operator: MathOperatorSyntax) -> SyntaxValue {
                 field("maho", word_value(maho)),
                 field("freeModifiers", nil()),
                 field("mathExpression", math_expression_tree(*math_expression)),
+                field("tehu", maybe_word(tehu)),
+                field("tehuFreeModifiers", nil()),
+            ],
+        ),
+        MathOperatorSyntax::Se { se, inner_operator } => node(
+            "SeOperator",
+            vec![
+                field("se", word_value(se)),
+                field("freeModifiers", nil()),
+                field("innerOperator", math_operator_tree(*inner_operator)),
+            ],
+        ),
+        MathOperatorSyntax::Nahe {
+            nahe,
+            inner_operator,
+        } => node(
+            "NaheOperator",
+            vec![
+                field("nahe", word_value(nahe)),
+                field("freeModifiers", nil()),
+                field("innerOperator", math_operator_tree(*inner_operator)),
+            ],
+        ),
+        MathOperatorSyntax::Nahu {
+            nahu,
+            relation,
+            tehu,
+        } => node(
+            "NahuOperator",
+            vec![
+                field("nahu", word_value(nahu)),
+                field("freeModifiers", nil()),
+                field("relation", relation_tree(relation)),
                 field("tehu", maybe_word(tehu)),
                 field("tehuFreeModifiers", nil()),
             ],
