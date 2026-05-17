@@ -2207,82 +2207,106 @@ fn relation_units_inner<'tokens, P>(argument: P) -> BoxedParser<'tokens, Relatio
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
-    let word_unit = relation_word().map(|word| RelationUnitSyntax::Word { word });
-    let moi_unit = pa_word()
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<_>>()
-        .then(cmavo_of("MOI", MOI_WORDS))
-        .map(|(number, moi)| RelationUnitSyntax::Moi { number, moi });
-    let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
-        .then(choice((moi_unit.clone(), word_unit.clone())))
-        .map(|(se, inner_unit)| RelationUnitSyntax::Se {
-            se,
-            inner_unit: Box::new(inner_unit),
-        });
-    let be_link = cmavo("be")
-        .then(cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"]).or_not())
-        .then(argument)
-        .then(cmavo("be'o").or_not())
-        .map(|(((be, fa), first_argument), beho)| (be, fa, first_argument, beho));
+    recursive(|inner_relation| {
+        let word_unit = relation_word().map(|word| RelationUnitSyntax::Word { word });
+        let moi_unit = pa_word()
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .then(cmavo_of("MOI", MOI_WORDS))
+            .map(|(number, moi)| RelationUnitSyntax::Moi { number, moi });
+        let ke_unit = cmavo("ke")
+            .then(inner_relation.clone())
+            .then(cmavo("ke'e").or_not())
+            .map(|((ke, relation), kehe)| RelationUnitSyntax::Ke {
+                ke_tense_modal: None,
+                ke,
+                relation,
+                kehe,
+            });
+        let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .then(choice((
+                ke_unit.clone(),
+                moi_unit.clone(),
+                word_unit.clone(),
+            )))
+            .map(|(se, inner_unit)| RelationUnitSyntax::Se {
+                se,
+                inner_unit: Box::new(inner_unit),
+            });
+        let nahe_unit = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+            .then(choice((
+                ke_unit.clone(),
+                moi_unit.clone(),
+                word_unit.clone(),
+            )))
+            .map(|(nahe, inner_unit)| RelationUnitSyntax::Nahe {
+                nahe,
+                inner_unit: Box::new(inner_unit),
+            });
+        let be_link = cmavo("be")
+            .then(cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"]).or_not())
+            .then(argument.clone())
+            .then(cmavo("be'o").or_not())
+            .map(|(((be, fa), first_argument), beho)| (be, fa, first_argument, beho));
 
-    let linked_unit = choice((se_unit, moi_unit, word_unit))
-        .then(be_link.or_not())
-        .map(|(base, be_link)| {
-            be_link.map_or(base.clone(), |(be, fa, first_argument, beho)| {
-                RelationUnitSyntax::Be {
-                    base: Box::new(base),
-                    be,
-                    fa,
-                    first_argument,
-                    beho,
-                }
-            })
-        });
-
-    let bo_unit = recursive(|bo_unit| {
-        linked_unit
-            .clone()
-            .then(cmavo("bo").then(bo_unit).or_not())
-            .map(|(leading_unit, bo_tail)| {
-                bo_tail.map_or(leading_unit.clone(), |(bo, trailing_unit)| {
-                    RelationUnitSyntax::Bo {
-                        leading_unit: Box::new(leading_unit),
-                        bo_connective: None,
-                        bo_tense_modal: None,
-                        bo,
-                        trailing_unit: Box::new(trailing_unit),
+        let linked_unit = choice((nahe_unit, se_unit, ke_unit, moi_unit, word_unit))
+            .then(be_link.or_not())
+            .map(|(base, be_link)| {
+                be_link.map_or(base.clone(), |(be, fa, first_argument, beho)| {
+                    RelationUnitSyntax::Be {
+                        base: Box::new(base),
+                        be,
+                        fa,
+                        first_argument,
+                        beho,
                     }
                 })
-            })
-    });
+            });
 
-    let connected_unit = bo_unit
-        .clone()
-        .then(
-            statement_connective()
-                .then(bo_unit)
-                .repeated()
-                .collect::<Vec<_>>(),
-        )
-        .map(|(first, continuations)| {
-            continuations
-                .into_iter()
-                .fold(first, |leading_unit, (connective, trailing_unit)| {
-                    RelationUnitSyntax::Connected {
+        let bo_unit = recursive(|bo_unit| {
+            linked_unit
+                .clone()
+                .then(cmavo("bo").then(bo_unit).or_not())
+                .map(|(leading_unit, bo_tail)| {
+                    bo_tail.map_or(leading_unit.clone(), |(bo, trailing_unit)| {
+                        RelationUnitSyntax::Bo {
+                            leading_unit: Box::new(leading_unit),
+                            bo_connective: None,
+                            bo_tense_modal: None,
+                            bo,
+                            trailing_unit: Box::new(trailing_unit),
+                        }
+                    })
+                })
+        });
+
+        let connected_unit = bo_unit
+            .clone()
+            .then(
+                statement_connective()
+                    .then(bo_unit)
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(first, continuations)| {
+                continuations.into_iter().fold(
+                    first,
+                    |leading_unit, (connective, trailing_unit)| RelationUnitSyntax::Connected {
                         leading_unit: Box::new(leading_unit),
                         connective,
                         trailing_unit: Box::new(trailing_unit),
-                    }
-                })
-        });
+                    },
+                )
+            });
 
-    connected_unit
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<_>>()
-        .map(relation_from_units)
-        .boxed()
+        connected_unit
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .map(relation_from_units)
+    })
+    .boxed()
 }
 
 #[expensive_requires(!units.is_empty(), "relation unit sequences must be non-empty")]
