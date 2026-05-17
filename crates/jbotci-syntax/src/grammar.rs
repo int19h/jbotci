@@ -208,6 +208,12 @@ enum ArgumentSyntax {
         tag_fa: Option<WordWithModifiers>,
         inner_argument: Box<ArgumentSyntax>,
     },
+    NaheBo {
+        nahe: WordWithModifiers,
+        bo: WordWithModifiers,
+        inner_argument: Box<ArgumentSyntax>,
+        luhu: Option<WordWithModifiers>,
+    },
     Koha {
         koha: WordWithModifiers,
     },
@@ -870,6 +876,17 @@ impl ArgumentSyntax {
             } => {
                 let mut words = tag_words;
                 words.extend(inner_argument.words());
+                words
+            }
+            ArgumentSyntax::NaheBo {
+                nahe,
+                bo,
+                inner_argument,
+                luhu,
+            } => {
+                let mut words = vec![nahe, bo];
+                words.extend(inner_argument.words());
+                words.extend(luhu);
                 words
             }
             ArgumentSyntax::Koha { koha } => vec![koha],
@@ -1869,6 +1886,18 @@ where
             tag_fa: Some(fa),
             inner_argument: Box::new(inner_argument),
         });
+    let nahe_bo_argument = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+        .then(cmavo("bo"))
+        .then(argument.clone())
+        .then(cmavo("lu'u").or_not())
+        .map(
+            |(((nahe, bo), inner_argument), luhu)| ArgumentSyntax::NaheBo {
+                nahe,
+                bo,
+                inner_argument: Box::new(inner_argument),
+                luhu,
+            },
+        );
 
     let base_argument = choice((
         quote,
@@ -1878,6 +1907,7 @@ where
         name,
         tense_tagged_argument,
         fa_tagged_argument,
+        nahe_bo_argument,
         descriptor_with_outer_quantifier,
         descriptor_with_gadri,
         quantified_argument,
@@ -2155,13 +2185,15 @@ fn vocative_markers<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
 #[ensures(true)]
 fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     choice((
-        cmavo_of("A", &["a", "e", "o", "u"])
+        cmavo("na")
+            .or_not()
+            .then(cmavo_of("A", &["a", "e", "o", "u"]))
             .then(cmavo("nai").or_not())
-            .map(|(cmavo, nai)| ConnectiveSyntax {
+            .map(|((na, cmavo), nai)| ConnectiveSyntax {
                 kind: ConnectiveKind::Afterthought,
                 se: None,
                 nahe: None,
-                na: None,
+                na,
                 cmavo: vec![cmavo],
                 nai,
             }),
@@ -3805,6 +3837,22 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
                 field("innerArgument", argument_tree(*inner_argument)),
             ],
         ),
+        ArgumentSyntax::NaheBo {
+            nahe,
+            bo,
+            inner_argument,
+            luhu,
+        } => node(
+            "NaheBoArgument",
+            vec![
+                field("nahe", word_value(nahe)),
+                field("bo", word_value(bo)),
+                field("freeModifiers", nil()),
+                field("innerArgument", argument_tree(*inner_argument)),
+                field("luhu", maybe_word(luhu)),
+                field("luhuFreeModifiers", nil()),
+            ],
+        ),
         ArgumentSyntax::Koha { koha } => node(
             "KohaArgument",
             vec![
@@ -3869,10 +3917,7 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
         ArgumentSyntax::Cmevla { cmevla } => node(
             "CmevlaArgument",
             vec![
-                field(
-                    "cmevla",
-                    plain_list(cmevla.into_iter().map(name_word_value).collect()),
-                ),
+                field("cmevla", nonempty_name_words(cmevla)),
                 field("freeModifiers", nil()),
             ],
         ),
