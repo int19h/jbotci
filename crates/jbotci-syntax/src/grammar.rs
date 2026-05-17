@@ -283,6 +283,10 @@ enum TermSyntax {
         fa: WordWithModifiers,
         argument: ArgumentSyntax,
     },
+    NaKu {
+        na: WordWithModifiers,
+        na_ku: WordWithModifiers,
+    },
     Tagged {
         tense_modal: TenseModalSyntax,
         argument: ArgumentSyntax,
@@ -703,10 +707,7 @@ enum TenseModalSyntax {
 #[invariant(true)]
 struct AbstractionSyntax {
     nu: WordWithModifiers,
-    subsentence_leading_terms: Vec<TermSyntax>,
-    subsentence_cu: Option<WordWithModifiers>,
-    subsentence_relation: Box<RelationSyntax>,
-    subsentence_terms: Vec<TermSyntax>,
+    subsentence: Box<SubsentenceSyntax>,
     kei: Option<WordWithModifiers>,
 }
 
@@ -1296,6 +1297,7 @@ impl TermSyntax {
                 words.extend(argument.words());
                 words
             }
+            TermSyntax::NaKu { na, na_ku } => vec![na, na_ku],
             TermSyntax::Tagged {
                 tense_modal,
                 argument,
@@ -1938,14 +1940,7 @@ impl AbstractionSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         let mut words = vec![self.nu];
-        for term in self.subsentence_leading_terms {
-            words.extend(term.words());
-        }
-        words.extend(self.subsentence_cu);
-        words.extend((*self.subsentence_relation).words());
-        for term in self.subsentence_terms {
-            words.extend(term.words());
-        }
+        words.extend((*self.subsentence).words());
         words.extend(self.kei);
         words
     }
@@ -2042,7 +2037,11 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         text.clone(),
         source,
     ));
-    relation.define(relation_parser_with(argument.clone(), relation.clone()));
+    relation.define(relation_parser_with(
+        argument.clone(),
+        relation.clone(),
+        subsentence.clone(),
+    ));
 
     let argument_term = argument.clone().map(TermSyntax::Argument);
     let fa_term = cmavo_of("FA", FA_WORDS)
@@ -2054,7 +2053,10 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             tense_modal,
             argument,
         });
-    let base_simple_term = choice((fa_term, tagged_term, argument_term)).boxed();
+    let na_ku_term = na_cmavo()
+        .then(cmavo("ku"))
+        .map(|(na, na_ku)| TermSyntax::NaKu { na, na_ku });
+    let base_simple_term = choice((fa_term, tagged_term, argument_term, na_ku_term)).boxed();
     let term = recursive(|term| {
         let gek_nuhi_termset = cmavo("nu'i")
             .or_not()
@@ -3956,13 +3958,17 @@ fn math_operator<'tokens>() -> BoxedParser<'tokens, MathOperatorSyntax> {
 
 #[requires(true)]
 #[ensures(true)]
-fn relation_parser_with<'tokens, P, R>(
+fn relation_parser_with<'tokens, P, R, S>(
     argument: P,
     relation: R,
+    subsentence: S,
 ) -> BoxedParser<'tokens, RelationSyntax>
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    S: Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
 {
     let me_unit = cmavo("me")
         .then(argument.clone())
@@ -4048,83 +4054,25 @@ where
             inner_unit: Box::new(inner_unit),
         });
 
-    let abstraction_argument_term = argument.clone().map(TermSyntax::Argument);
-    let abstraction_fa_term = cmavo_of("FA", FA_WORDS)
-        .then(argument.clone())
-        .map(|(fa, argument)| TermSyntax::Fa { fa, argument });
-    let abstraction_tagged_term =
-        tense_modal()
-            .then(argument.clone())
-            .map(|(tense_modal, argument)| TermSyntax::Tagged {
-                tense_modal,
-                argument,
-            });
-    let abstraction_term = choice((
-        abstraction_fa_term,
-        abstraction_tagged_term,
-        abstraction_argument_term,
-    ));
-
-    let abstraction_unit = cmavo_of(
+    let abstraction_subsentence_unit = cmavo_of(
         "NU",
         &[
             "nu", "ni", "du'u", "si'o", "li'i", "ka", "jei", "su'u", "zu'o", "mu'e", "pu'u", "za'i",
         ],
     )
-    .then(abstraction_term.clone().repeated().collect::<Vec<_>>())
-    .then(cmavo("cu").or_not())
-    .then(tense_modal().or_not())
-    .then(na_cmavo().or_not())
-    .then(relation_units_inner(argument.clone()))
-    .then(abstraction_term.repeated().collect::<Vec<_>>())
+    .then(subsentence)
     .then(cmavo("kei").or_not())
-    .map(
-        |(
-            (
-                (
-                    (
-                        (
-                            ((nu, subsentence_leading_terms), subsentence_cu),
-                            subsentence_tense_modal,
-                        ),
-                        subsentence_na,
-                    ),
-                    subsentence_relation,
-                ),
-                subsentence_terms,
-            ),
+    .map(|((nu, subsentence), kei)| RelationUnitSyntax::Abstraction {
+        abstraction: AbstractionSyntax {
+            nu,
+            subsentence: Box::new(subsentence),
             kei,
-        )| {
-            let subsentence_relation = match subsentence_na {
-                Some(na) => RelationSyntax::Na {
-                    na,
-                    inner_relation: Box::new(subsentence_relation),
-                },
-                None => subsentence_relation,
-            };
-            let subsentence_relation = match subsentence_tense_modal {
-                Some(tense_modal) => RelationSyntax::TenseModal {
-                    tense_modal,
-                    inner_relation: Box::new(subsentence_relation),
-                },
-                None => subsentence_relation,
-            };
-            RelationUnitSyntax::Abstraction {
-                abstraction: AbstractionSyntax {
-                    nu,
-                    subsentence_leading_terms,
-                    subsentence_cu,
-                    subsentence_relation: Box::new(subsentence_relation),
-                    subsentence_terms,
-                    kei,
-                },
-            }
         },
-    )
+    })
     .boxed();
 
     let se_abstraction_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
-        .then(abstraction_unit.clone())
+        .then(abstraction_subsentence_unit.clone())
         .map(|(se, inner_unit)| RelationUnitSyntax::Se {
             se,
             inner_unit: Box::new(inner_unit),
@@ -4134,7 +4082,7 @@ where
         goha_raho_unit,
         me_unit,
         se_abstraction_unit,
-        abstraction_unit,
+        abstraction_subsentence_unit,
         jai_unit,
         nahe_unit,
         se_unit,
@@ -6515,6 +6463,14 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
                 field("kuFreeModifiers", nil()),
             ],
         ),
+        TermSyntax::NaKu { na, na_ku } => node(
+            "NaKuTerm",
+            vec![
+                field("na", word_value(na)),
+                field("naKu", word_value(na_ku)),
+                field("freeModifiers", nil()),
+            ],
+        ),
         TermSyntax::Tagged {
             tense_modal,
             argument,
@@ -7362,23 +7318,7 @@ fn abstraction_tree(abstraction: AbstractionSyntax) -> SyntaxValue {
             field("nai", nothing()),
             field("freeModifiers", nil()),
             field("additionalNu", nil()),
-            field(
-                "subsentence",
-                node(
-                    "PlainSubsentence",
-                    vec![unnamed_field(predicate_tree(BasicPredicate {
-                        leading_terms: abstraction.subsentence_leading_terms,
-                        cu: abstraction.subsentence_cu,
-                        relation: *abstraction.subsentence_relation,
-                        tail_terms: abstraction.subsentence_terms,
-                        vau: None,
-                        gek_sentence: None,
-                        bo_continuation: None,
-                        ke_continuation: None,
-                        continuations: Vec::new(),
-                    }))],
-                ),
-            ),
+            field("subsentence", subsentence_tree(*abstraction.subsentence)),
             field("kei", maybe_word(abstraction.kei)),
             field("keiFreeModifiers", nil()),
         ],
