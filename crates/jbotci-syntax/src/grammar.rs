@@ -4713,18 +4713,33 @@ where
         });
 
     let base_unit = choice((
-        goha_raho_unit,
-        me_unit,
-        se_abstraction_unit,
-        abstraction_subsentence_unit,
-        jai_unit,
-        nahe_unit,
-        se_unit,
-        ke_unit,
-        nuha_unit,
-        moi_unit,
-        word_unit,
-        goha_unit,
+        goha_raho_unit.clone(),
+        me_unit.clone(),
+        se_abstraction_unit.clone(),
+        abstraction_subsentence_unit.clone(),
+        jai_unit.clone(),
+        nahe_unit.clone(),
+        se_unit.clone(),
+        ke_unit.clone(),
+        nuha_unit.clone(),
+        moi_unit.clone(),
+        word_unit.clone(),
+        goha_unit.clone(),
+    ))
+    .boxed();
+    let base_unit_for_cei = choice((
+        goha_raho_unit.clone(),
+        me_unit.clone(),
+        se_abstraction_unit.clone(),
+        abstraction_subsentence_unit.clone(),
+        jai_unit.clone(),
+        nahe_unit.clone(),
+        se_unit.clone(),
+        ke_unit.clone(),
+        nuha_unit.clone(),
+        moi_unit.clone(),
+        goha_unit.clone(),
+        word_unit.clone(),
     ))
     .boxed();
     let bei_link = bei_link(argument.clone());
@@ -4737,45 +4752,44 @@ where
             (be, fa, first_argument, bei_links, beho)
         });
 
-    let linked_unit = base_unit
-        .then(be_link.or_not())
-        .map(|(base, be_link)| {
-            be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
-                RelationUnitSyntax::Be {
-                    base: Box::new(base),
-                    be,
-                    fa,
-                    first_argument,
-                    bei_links,
-                    beho,
-                }
+    let linked_unit_from = |base_unit: BoxedParser<'tokens, RelationUnitSyntax>| {
+        base_unit
+            .then(be_link.clone().or_not())
+            .map(|(base, be_link)| {
+                be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
+                    RelationUnitSyntax::Be {
+                        base: Box::new(base),
+                        be,
+                        fa,
+                        first_argument,
+                        bei_links,
+                        beho,
+                    }
+                })
             })
-        })
-        .boxed();
-    let cei_unit = linked_unit
+            .boxed()
+    };
+    let linked_unit = linked_unit_from(base_unit);
+    let linked_unit_for_cei = linked_unit_from(base_unit_for_cei);
+    let cei_unit = linked_unit_for_cei
         .clone()
         .then(
             cmavo("cei")
-                .then(linked_unit.clone())
+                .then(linked_unit_for_cei.clone())
                 .repeated()
+                .at_least(1)
                 .collect::<Vec<_>>(),
         )
-        .map(|(base, assignments)| {
-            if assignments.is_empty() {
-                base
-            } else {
-                RelationUnitSyntax::Cei {
-                    base: Box::new(base),
-                    assignments: assignments
-                        .into_iter()
-                        .map(|(cei, relation_unit)| CeiAssignmentSyntax {
-                            cei,
-                            free_modifiers: Vec::new(),
-                            relation_unit,
-                        })
-                        .collect(),
-                }
-            }
+        .map(|(base, be_link)| RelationUnitSyntax::Cei {
+            base: Box::new(base),
+            assignments: be_link
+                .into_iter()
+                .map(|(cei, relation_unit)| CeiAssignmentSyntax {
+                    cei,
+                    free_modifiers: Vec::new(),
+                    relation_unit,
+                })
+                .collect(),
         })
         .boxed();
 
@@ -4796,7 +4810,7 @@ where
                     },
                 },
             );
-        let atom_unit = choice((guha_unit, cei_unit.clone())).boxed();
+        let atom_unit = choice((guha_unit, cei_unit.clone(), linked_unit.clone())).boxed();
         let connected_bo_tail = statement_connective()
             .then(tense_modal().or_not())
             .then(cmavo("bo"))
@@ -4970,57 +4984,68 @@ where
                 (be, fa, first_argument, bei_links, beho)
             });
 
-        let linked_unit = choice((
-            goha_raho_unit,
-            nahe_unit,
-            se_unit,
-            ke_unit,
-            nuha_unit,
-            moi_unit,
-            word_unit,
-            goha_unit,
+        let base_unit = choice((
+            goha_raho_unit.clone(),
+            nahe_unit.clone(),
+            se_unit.clone(),
+            ke_unit.clone(),
+            nuha_unit.clone(),
+            moi_unit.clone(),
+            word_unit.clone(),
+            goha_unit.clone(),
         ))
-        .then(be_link.or_not())
-        .map(|(base, be_link)| {
-            be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
-                RelationUnitSyntax::Be {
-                    base: Box::new(base),
-                    be,
-                    fa,
-                    first_argument,
-                    bei_links,
-                    beho,
-                }
-            })
-        })
         .boxed();
-        let cei_unit = linked_unit
+        let base_unit_for_cei = choice((
+            goha_raho_unit.clone(),
+            nahe_unit.clone(),
+            se_unit.clone(),
+            ke_unit.clone(),
+            nuha_unit.clone(),
+            moi_unit.clone(),
+            goha_unit.clone(),
+            word_unit.clone(),
+        ))
+        .boxed();
+        let linked_unit_from = |base_unit: BoxedParser<'tokens, RelationUnitSyntax>| {
+            base_unit
+                .then(be_link.clone().or_not())
+                .map(|(base, be_link)| {
+                    be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
+                        RelationUnitSyntax::Be {
+                            base: Box::new(base),
+                            be,
+                            fa,
+                            first_argument,
+                            bei_links,
+                            beho,
+                        }
+                    })
+                })
+                .boxed()
+        };
+        let linked_unit = linked_unit_from(base_unit);
+        let linked_unit_for_cei = linked_unit_from(base_unit_for_cei);
+        let cei_unit = linked_unit_for_cei
             .clone()
             .then(
                 cmavo("cei")
-                    .then(linked_unit.clone())
+                    .then(linked_unit_for_cei.clone())
                     .repeated()
+                    .at_least(1)
                     .collect::<Vec<_>>(),
             )
-            .map(|(base, assignments)| {
-                if assignments.is_empty() {
-                    base
-                } else {
-                    RelationUnitSyntax::Cei {
-                        base: Box::new(base),
-                        assignments: assignments
-                            .into_iter()
-                            .map(|(cei, relation_unit)| CeiAssignmentSyntax {
-                                cei,
-                                free_modifiers: Vec::new(),
-                                relation_unit,
-                            })
-                            .collect(),
-                    }
-                }
+            .map(|(base, be_link)| RelationUnitSyntax::Cei {
+                base: Box::new(base),
+                assignments: be_link
+                    .into_iter()
+                    .map(|(cei, relation_unit)| CeiAssignmentSyntax {
+                        cei,
+                        free_modifiers: Vec::new(),
+                        relation_unit,
+                    })
+                    .collect(),
             })
             .boxed();
-
         let bo_unit = recursive(|bo_unit| {
             let guha_unit = guhek_connective()
                 .then(inner_relation.clone())
@@ -5040,7 +5065,7 @@ where
                         },
                     }
                 });
-            let atom_unit = choice((guha_unit, cei_unit.clone())).boxed();
+            let atom_unit = choice((guha_unit, cei_unit.clone(), linked_unit.clone())).boxed();
             let connected_bo_tail = statement_connective()
                 .then(tense_modal().or_not())
                 .then(cmavo("bo"))
@@ -5068,8 +5093,7 @@ where
                     )
                 })
         });
-
-        let connected_unit = bo_unit
+        bo_unit
             .clone()
             .then(
                 statement_connective()
@@ -5086,9 +5110,7 @@ where
                         trailing_unit: Box::new(trailing_unit),
                     },
                 )
-            });
-
-        connected_unit
+            })
             .repeated()
             .at_least(1)
             .collect::<Vec<_>>()
