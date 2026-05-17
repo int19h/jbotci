@@ -292,6 +292,7 @@ enum QuoteSyntax {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 struct DescriptorSyntax {
+    outer_quantifier: Option<QuantifierSyntax>,
     descriptor: Option<WordWithModifiers>,
     tail_elements: Vec<ArgumentTailElementSyntax>,
     relation: Option<RelationSyntax>,
@@ -975,7 +976,12 @@ impl DescriptorSyntax {
     #[requires(true)]
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
-        let mut words = self.descriptor.into_iter().collect::<Vec<_>>();
+        let mut words = self
+            .outer_quantifier
+            .into_iter()
+            .flat_map(QuantifierSyntax::words)
+            .collect::<Vec<_>>();
+        words.extend(self.descriptor);
         for element in self.tail_elements {
             words.extend(element.words());
         }
@@ -1789,11 +1795,12 @@ where
 
     let descriptor_with_gadri = le_cmavo()
         .or(la_cmavo())
-        .then(descriptor_tail)
+        .then(descriptor_tail.clone())
         .then(cmavo("ku").or_not())
         .map(
             |((descriptor, (tail_elements, relation)), ku)| ArgumentSyntax::Descriptor {
                 descriptor: DescriptorSyntax {
+                    outer_quantifier: None,
                     descriptor: Some(descriptor),
                     tail_elements,
                     relation,
@@ -1802,12 +1809,31 @@ where
                 },
             },
         );
+    let descriptor_with_outer_quantifier = quantifier()
+        .then(le_cmavo().or(la_cmavo()))
+        .then(descriptor_tail.clone())
+        .then(cmavo("ku").or_not())
+        .map(
+            |(((outer_quantifier, descriptor), (tail_elements, relation)), ku)| {
+                ArgumentSyntax::Descriptor {
+                    descriptor: DescriptorSyntax {
+                        outer_quantifier: Some(outer_quantifier),
+                        descriptor: Some(descriptor),
+                        tail_elements,
+                        relation,
+                        relative_clauses: Vec::new(),
+                        ku,
+                    },
+                }
+            },
+        );
 
     let descriptor_without_gadri = quantifier()
         .map(ArgumentTailElementSyntax::Quantifier)
         .then(relation.clone())
         .map(|(quantifier, relation)| ArgumentSyntax::Descriptor {
             descriptor: DescriptorSyntax {
+                outer_quantifier: None,
                 descriptor: None,
                 tail_elements: vec![quantifier],
                 relation: Some(relation),
@@ -1852,6 +1878,7 @@ where
         name,
         tense_tagged_argument,
         fa_tagged_argument,
+        descriptor_with_outer_quantifier,
         descriptor_with_gadri,
         quantified_argument,
         descriptor_without_gadri,
@@ -3504,10 +3531,7 @@ fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
                 node(
                     "NumberExpression",
                     vec![
-                        field(
-                            "number",
-                            plain_list(number.into_iter().map(word_value).collect()),
-                        ),
+                        field("number", nonempty_number_words(number)),
                         field("boi", maybe_word(boi)),
                         field("freeModifiers", nil()),
                     ],
@@ -3998,7 +4022,12 @@ fn descriptor_tree(descriptor: DescriptorSyntax) -> SyntaxValue {
                     .map_or_else(nothing, |descriptor| just(word_value(descriptor))),
             ),
             field("descriptorFreeModifiers", nil()),
-            field("outerQuantifier", nothing()),
+            field(
+                "outerQuantifier",
+                descriptor
+                    .outer_quantifier
+                    .map_or_else(nothing, |quantifier| just(quantifier_tree(quantifier))),
+            ),
             field(
                 "tailElements",
                 list(
@@ -4081,10 +4110,7 @@ fn quantifier_tree(quantifier: QuantifierSyntax) -> SyntaxValue {
     node(
         "NumberQuantifier",
         vec![
-            field(
-                "number",
-                plain_list(quantifier.number.into_iter().map(word_value).collect()),
-            ),
+            field("number", nonempty_number_words(quantifier.number)),
             field("boi", maybe_word(quantifier.boi)),
             field("boiFreeModifiers", nil()),
         ],
@@ -4097,10 +4123,7 @@ fn quantifier_expression_tree(quantifier: QuantifierSyntax) -> SyntaxValue {
     node(
         "NumberExpression",
         vec![
-            field(
-                "number",
-                plain_list(quantifier.number.into_iter().map(word_value).collect()),
-            ),
+            field("number", nonempty_number_words(quantifier.number)),
             field("boi", maybe_word(quantifier.boi)),
             field("freeModifiers", nil()),
         ],
@@ -4473,7 +4496,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
                         if number.is_empty() {
                             nothing()
                         } else {
-                            just(plain_list(number.into_iter().map(word_value).collect()))
+                            just(nonempty_number_words(number))
                         },
                     ),
                     field("roiOrTahe", word_value(roi_or_tahe)),
@@ -4523,6 +4546,18 @@ fn nonempty_relation_units(units: Vec<RelationUnitSyntax>) -> SyntaxValue {
 #[ensures(true)]
 fn nonempty_letter_words(words: Vec<WordWithModifiers>) -> SyntaxValue {
     let mut rendered = words.into_iter().map(letter_word_value).collect::<Vec<_>>();
+    if rendered.len() <= 1 {
+        return plain_list(rendered);
+    }
+
+    let tail = rendered.split_off(1);
+    plain_list(vec![rendered.remove(0), list(tail)])
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn nonempty_number_words(words: Vec<WordWithModifiers>) -> SyntaxValue {
+    let mut rendered = words.into_iter().map(word_value).collect::<Vec<_>>();
     if rendered.len() <= 1 {
         return plain_list(rendered);
     }
@@ -4689,10 +4724,7 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
         RelationUnitSyntax::Moi { number, moi } => node(
             "MoiRelationUnit",
             vec![
-                field(
-                    "number",
-                    plain_list(number.into_iter().map(word_value).collect()),
-                ),
+                field("number", nonempty_number_words(number)),
                 field("moi", word_value(moi)),
                 field("freeModifiers", nil()),
             ],
