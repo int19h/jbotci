@@ -256,6 +256,10 @@ enum RelativeClauseSyntax {
         subsentence: BasicPredicate,
         kuho: Option<WordWithModifiers>,
     },
+    Zihe {
+        zihe: WordWithModifiers,
+        inner: Box<RelativeClauseSyntax>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -994,6 +998,11 @@ impl RelativeClauseSyntax {
                 let mut words = vec![marker];
                 words.extend(subsentence.words());
                 words.extend(kuho);
+                words
+            }
+            RelativeClauseSyntax::Zihe { zihe, inner } => {
+                let mut words = vec![zihe];
+                words.extend(inner.words());
                 words
             }
         }
@@ -1887,9 +1896,9 @@ where
         .not()
         .ignore_then(argument.clone())
         .map(|argument| ArgumentTailElementSyntax::Argument(Box::new(argument)));
-    let descriptor_relative_clauses = relative_clause(argument.clone(), subsentence.clone())
-        .repeated()
-        .collect::<Vec<_>>();
+    let descriptor_relative_clauses = relative_clauses(argument.clone(), subsentence.clone())
+        .or_not()
+        .map(Option::unwrap_or_default);
 
     let quantifier_tail = quantifier()
         .map(ArgumentTailElementSyntax::Quantifier)
@@ -1966,9 +1975,9 @@ where
         .map(ArgumentTailElementSyntax::Quantifier)
         .then(relation.clone())
         .then(
-            relative_clause(argument.clone(), subsentence.clone())
-                .repeated()
-                .collect::<Vec<_>>(),
+            relative_clauses(argument.clone(), subsentence.clone())
+                .or_not()
+                .map(Option::unwrap_or_default),
         )
         .map(
             |((quantifier, relation), relative_clauses)| ArgumentSyntax::Descriptor {
@@ -2053,9 +2062,9 @@ where
             )
         })
         .then(
-            relative_clause(argument, subsentence)
-                .repeated()
-                .collect::<Vec<_>>(),
+            relative_clauses(argument, subsentence)
+                .or_not()
+                .map(Option::unwrap_or_default),
         )
         .map(|(base_argument, relative_clauses)| {
             if relative_clauses.is_empty() {
@@ -2169,6 +2178,33 @@ where
         );
 
     choice((compound_quote, lu_quote)).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn relative_clauses<'tokens, A, S>(
+    argument: A,
+    subsentence: S,
+) -> BoxedParser<'tokens, Vec<RelativeClauseSyntax>>
+where
+    A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    S: Parser<'tokens, ParserInput<'tokens>, BasicPredicate, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    let clause = relative_clause(argument, subsentence);
+    clause
+        .clone()
+        .then(
+            cmavo("zi'e")
+                .then(clause)
+                .map(|(zihe, inner)| RelativeClauseSyntax::Zihe {
+                    zihe,
+                    inner: Box::new(inner),
+                })
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(first, rest)| std::iter::once(first).chain(rest).collect())
+        .boxed()
 }
 
 #[requires(true)]
@@ -4124,6 +4160,14 @@ fn relative_clause_tree(relative_clause: RelativeClauseSyntax) -> SyntaxValue {
                 ],
             )
         }
+        RelativeClauseSyntax::Zihe { zihe, inner } => node(
+            "ZiheRelativeClause",
+            vec![
+                field("zihe", word_value(zihe)),
+                field("freeModifiers", nil()),
+                field("inner", relative_clause_tree(*inner)),
+            ],
+        ),
     }
 }
 
