@@ -468,6 +468,17 @@ enum MathExpressionSyntax {
         letter: Vec<WordWithModifiers>,
         boi: Option<WordWithModifiers>,
     },
+    Vei {
+        vei: WordWithModifiers,
+        inner_expression: Box<MathExpressionSyntax>,
+        veho: Option<WordWithModifiers>,
+    },
+    Gek {
+        gek: ConnectiveSyntax,
+        left_expression: Box<MathExpressionSyntax>,
+        gik: ConnectiveSyntax,
+        right_expression: Box<MathExpressionSyntax>,
+    },
     Binary {
         operator: MathOperatorSyntax,
         left_expression: Box<MathExpressionSyntax>,
@@ -1149,6 +1160,28 @@ impl MathExpressionSyntax {
             MathExpressionSyntax::Number(quantifier) => quantifier.words(),
             MathExpressionSyntax::Letter { letter, boi } => {
                 [letter, boi.into_iter().collect()].concat()
+            }
+            MathExpressionSyntax::Vei {
+                vei,
+                inner_expression,
+                veho,
+            } => {
+                let mut words = vec![vei];
+                words.extend(inner_expression.words());
+                words.extend(veho);
+                words
+            }
+            MathExpressionSyntax::Gek {
+                gek,
+                left_expression,
+                gik,
+                right_expression,
+            } => {
+                let mut words = gek.words();
+                words.extend(left_expression.words());
+                words.extend(gik.words());
+                words.extend(right_expression.words());
+                words
             }
             MathExpressionSyntax::Binary {
                 operator,
@@ -2433,52 +2466,76 @@ where
 {
     let quote = quote_argument(source, text);
 
-    let math_operand = choice((
-        quantifier().map(MathExpressionSyntax::Number),
-        letter_word()
+    let math_expression_body = recursive(|math_expression_body| {
+        let number = quantifier().map(MathExpressionSyntax::Number);
+        let letter = letter_word()
             .repeated()
             .at_least(1)
             .collect::<Vec<_>>()
             .then(cmavo("boi").or_not())
-            .map(|(letter, boi)| MathExpressionSyntax::Letter { letter, boi }),
-    ));
-    let math_expression1 = recursive(|math_expression1| {
-        math_operand
+            .map(|(letter, boi)| MathExpressionSyntax::Letter { letter, boi });
+        let vei = cmavo("vei")
+            .then(math_expression_body.clone())
+            .then(cmavo("ve'o").or_not())
+            .map(
+                |((vei, inner_expression), veho)| MathExpressionSyntax::Vei {
+                    vei,
+                    inner_expression: Box::new(inner_expression),
+                    veho,
+                },
+            );
+        let gek = modal_forethought_connective()
+            .then(math_expression_body.clone())
+            .then(gik_connective())
+            .then(math_expression_body.clone())
+            .map(
+                |(((gek, left_expression), gik), right_expression)| MathExpressionSyntax::Gek {
+                    gek,
+                    left_expression: Box::new(left_expression),
+                    gik,
+                    right_expression: Box::new(right_expression),
+                },
+            );
+        let math_operand = choice((gek, vei, number, letter)).boxed();
+        let math_expression1 = recursive(|math_expression1| {
+            math_operand
+                .clone()
+                .then(
+                    cmavo("bi'e")
+                        .then(math_operator())
+                        .then(math_expression1)
+                        .or_not(),
+                )
+                .map(|(left_expression, bihe_tail)| match bihe_tail {
+                    None => left_expression,
+                    Some(((bihe, operator), right_expression)) => MathExpressionSyntax::Bihe {
+                        left_expression: Box::new(left_expression),
+                        bihe,
+                        operator,
+                        right_expression: Box::new(right_expression),
+                    },
+                })
+        });
+        math_expression1
             .clone()
             .then(
-                cmavo("bi'e")
-                    .then(math_operator())
+                math_operator()
                     .then(math_expression1)
-                    .or_not(),
+                    .repeated()
+                    .collect::<Vec<_>>(),
             )
-            .map(|(left_expression, bihe_tail)| match bihe_tail {
-                None => left_expression,
-                Some(((bihe, operator), right_expression)) => MathExpressionSyntax::Bihe {
-                    left_expression: Box::new(left_expression),
-                    bihe,
-                    operator,
-                    right_expression: Box::new(right_expression),
-                },
+            .map(|(first, continuations)| {
+                continuations.into_iter().fold(
+                    first,
+                    |left_expression, (operator, right_expression)| MathExpressionSyntax::Binary {
+                        operator,
+                        left_expression: Box::new(left_expression),
+                        right_expression: Box::new(right_expression),
+                    },
+                )
             })
+            .boxed()
     });
-    let math_expression_body = math_expression1
-        .clone()
-        .then(
-            math_operator()
-                .then(math_expression1)
-                .repeated()
-                .collect::<Vec<_>>(),
-        )
-        .map(|(first, continuations)| {
-            continuations.into_iter().fold(
-                first,
-                |left_expression, (operator, right_expression)| MathExpressionSyntax::Binary {
-                    operator,
-                    left_expression: Box::new(left_expression),
-                    right_expression: Box::new(right_expression),
-                },
-            )
-        });
 
     let math_expression = cmavo_of("LI", &["li", "me'o"])
         .then(math_expression_body)
@@ -5716,6 +5773,34 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
                 field("letter", nonempty_letter_words(letter)),
                 field("boi", maybe_word(boi)),
                 field("freeModifiers", nil()),
+            ],
+        ),
+        MathExpressionSyntax::Vei {
+            vei,
+            inner_expression,
+            veho,
+        } => node(
+            "VeiExpression",
+            vec![
+                field("vei", word_value(vei)),
+                field("freeModifiers", nil()),
+                field("innerExpression", math_expression_tree(*inner_expression)),
+                field("veho", maybe_word(veho)),
+                field("vehoFreeModifiers", nil()),
+            ],
+        ),
+        MathExpressionSyntax::Gek {
+            gek,
+            left_expression,
+            gik,
+            right_expression,
+        } => node(
+            "GekExpression",
+            vec![
+                field("gek", connective_tree(gek)),
+                field("leftExpression", math_expression_tree(*left_expression)),
+                field("gik", connective_tree(gik)),
+                field("rightExpression", math_expression_tree(*right_expression)),
             ],
         ),
         MathExpressionSyntax::Binary {
