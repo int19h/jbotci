@@ -293,6 +293,9 @@ struct DescriptorSyntax {
 #[invariant(true)]
 struct ConnectiveSyntax {
     kind: ConnectiveKind,
+    se: Option<WordWithModifiers>,
+    nahe: Option<WordWithModifiers>,
+    na: Option<WordWithModifiers>,
     cmavo: Vec<WordWithModifiers>,
     nai: Option<WordWithModifiers>,
 }
@@ -955,7 +958,14 @@ impl ConnectiveSyntax {
     #[requires(true)]
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
-        [self.cmavo, self.nai.into_iter().collect()].concat()
+        [
+            self.se.into_iter().collect(),
+            self.nahe.into_iter().collect(),
+            self.na.into_iter().collect(),
+            self.cmavo,
+            self.nai.into_iter().collect(),
+        ]
+        .concat()
     }
 }
 
@@ -1408,6 +1418,9 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                         cmavo.push(bo);
                         ConnectiveSyntax {
                             kind: connective.kind,
+                            se: connective.se,
+                            nahe: connective.nahe,
+                            na: connective.na,
                             cmavo,
                             nai: connective.nai,
                         }
@@ -1443,15 +1456,28 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             (None, None) => None,
             (Some(connective), None) => Some(connective),
             (connective, Some((tense_modal, bo))) => {
-                let mut cmavo = connective
-                    .map(|connective| connective.cmavo)
-                    .unwrap_or_default();
+                let (kind, se, nahe, na, nai, mut cmavo) = connective.map_or(
+                    (ConnectiveKind::Relation, None, None, None, None, Vec::new()),
+                    |connective| {
+                        (
+                            connective.kind,
+                            connective.se,
+                            connective.nahe,
+                            connective.na,
+                            connective.nai,
+                            connective.cmavo,
+                        )
+                    },
+                );
                 cmavo.extend(tense_modal.words());
                 cmavo.push(bo);
                 Some(ConnectiveSyntax {
-                    kind: ConnectiveKind::Relation,
+                    kind,
+                    se,
+                    nahe,
+                    na,
                     cmavo,
-                    nai: None,
+                    nai,
                 })
             }
         });
@@ -2018,6 +2044,9 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
             .then(cmavo("nai").or_not())
             .map(|(cmavo, nai)| ConnectiveSyntax {
                 kind: ConnectiveKind::Afterthought,
+                se: None,
+                nahe: None,
+                na: None,
                 cmavo: vec![cmavo],
                 nai,
             }),
@@ -2030,9 +2059,68 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
         .then(cmavo("nai").or_not())
         .map(|(cmavo, nai)| ConnectiveSyntax {
             kind: ConnectiveKind::NonLogical,
+            se: None,
+            nahe: None,
+            na: None,
             cmavo: vec![cmavo],
             nai,
         }),
+    ))
+    .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn jek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    cmavo("na")
+        .or_not()
+        .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
+        .then(cmavo_of("JA", &["je'i", "ja", "je", "jo", "ju"]))
+        .then(cmavo("nai").or_not())
+        .map(|(((na, se), cmavo), nai)| ConnectiveSyntax {
+            kind: ConnectiveKind::Relation,
+            se,
+            nahe: None,
+            na,
+            cmavo: vec![cmavo],
+            nai,
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn joik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    choice((
+        cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .or_not()
+            .then(cmavo_of(
+                "JOI",
+                &[
+                    "ce", "ce'e", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
+                ],
+            ))
+            .then(cmavo("nai").or_not())
+            .map(|((se, cmavo), nai)| ConnectiveSyntax {
+                kind: ConnectiveKind::NonLogical,
+                se,
+                nahe: None,
+                na: None,
+                cmavo: vec![cmavo],
+                nai,
+            }),
+        cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .or_not()
+            .then(cmavo_of("BIhI", &["mi'i", "bi'o", "bi'i"]))
+            .then(cmavo("nai").or_not())
+            .map(|((se, cmavo), nai)| ConnectiveSyntax {
+                kind: ConnectiveKind::Interval,
+                se,
+                nahe: None,
+                na: None,
+                cmavo: vec![cmavo],
+                nai,
+            }),
     ))
     .boxed()
 }
@@ -2040,45 +2128,21 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 #[requires(true)]
 #[ensures(true)]
 fn statement_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
-    choice((
-        cmavo_of("JA", &["je'i", "ja", "je", "jo", "ju"])
-            .then(cmavo("nai").or_not())
-            .map(|(cmavo, nai)| ConnectiveSyntax {
-                kind: ConnectiveKind::Relation,
-                cmavo: vec![cmavo],
-                nai,
-            }),
-        cmavo_of(
-            "JOI",
-            &[
-                "ce", "ce'e", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
-            ],
-        )
-        .then(cmavo("nai").or_not())
-        .map(|(cmavo, nai)| ConnectiveSyntax {
-            kind: ConnectiveKind::NonLogical,
-            cmavo: vec![cmavo],
-            nai,
-        }),
-        cmavo_of("BIhI", &["mi'i", "bi'o", "bi'i"])
-            .then(cmavo("nai").or_not())
-            .map(|(cmavo, nai)| ConnectiveSyntax {
-                kind: ConnectiveKind::Interval,
-                cmavo: vec![cmavo],
-                nai,
-            }),
-    ))
-    .boxed()
+    choice((joik_connective(), jek_connective())).boxed()
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     cmavo_of("GIhA", &["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"])
-        .map(|cmavo| ConnectiveSyntax {
+        .then(cmavo("nai").or_not())
+        .map(|(cmavo, nai)| ConnectiveSyntax {
             kind: ConnectiveKind::PredicateTail,
+            se: None,
+            nahe: None,
+            na: None,
             cmavo: vec![cmavo],
-            nai: None,
+            nai,
         })
         .boxed()
 }
@@ -2247,19 +2311,30 @@ where
     });
 
     let bo_unit = recursive(|bo_unit| {
+        let connected_bo_tail = statement_connective()
+            .then(tense_modal().or_not())
+            .then(cmavo("bo"))
+            .then(bo_unit.clone())
+            .map(|(((connective, bo_tense_modal), bo), trailing_unit)| {
+                (Some(connective), bo_tense_modal, bo, trailing_unit)
+            });
+        let bare_bo_tail = cmavo("bo")
+            .then(bo_unit)
+            .map(|(bo, trailing_unit)| (None, None, bo, trailing_unit));
         linked_unit
             .clone()
-            .then(cmavo("bo").then(bo_unit).or_not())
+            .then(choice((connected_bo_tail, bare_bo_tail)).or_not())
             .map(|(leading_unit, bo_tail)| {
-                bo_tail.map_or(leading_unit.clone(), |(bo, trailing_unit)| {
-                    RelationUnitSyntax::Bo {
+                bo_tail.map_or(
+                    leading_unit.clone(),
+                    |(bo_connective, bo_tense_modal, bo, trailing_unit)| RelationUnitSyntax::Bo {
                         leading_unit: Box::new(leading_unit),
-                        bo_connective: None,
-                        bo_tense_modal: None,
+                        bo_connective,
+                        bo_tense_modal,
                         bo,
                         trailing_unit: Box::new(trailing_unit),
-                    }
-                })
+                    },
+                )
             })
     });
 
@@ -2409,19 +2484,32 @@ where
             });
 
         let bo_unit = recursive(|bo_unit| {
+            let connected_bo_tail = statement_connective()
+                .then(tense_modal().or_not())
+                .then(cmavo("bo"))
+                .then(bo_unit.clone())
+                .map(|(((connective, bo_tense_modal), bo), trailing_unit)| {
+                    (Some(connective), bo_tense_modal, bo, trailing_unit)
+                });
+            let bare_bo_tail = cmavo("bo")
+                .then(bo_unit)
+                .map(|(bo, trailing_unit)| (None, None, bo, trailing_unit));
             linked_unit
                 .clone()
-                .then(cmavo("bo").then(bo_unit).or_not())
+                .then(choice((connected_bo_tail, bare_bo_tail)).or_not())
                 .map(|(leading_unit, bo_tail)| {
-                    bo_tail.map_or(leading_unit.clone(), |(bo, trailing_unit)| {
-                        RelationUnitSyntax::Bo {
-                            leading_unit: Box::new(leading_unit),
-                            bo_connective: None,
-                            bo_tense_modal: None,
-                            bo,
-                            trailing_unit: Box::new(trailing_unit),
-                        }
-                    })
+                    bo_tail.map_or(
+                        leading_unit.clone(),
+                        |(bo_connective, bo_tense_modal, bo, trailing_unit)| {
+                            RelationUnitSyntax::Bo {
+                                leading_unit: Box::new(leading_unit),
+                                bo_connective,
+                                bo_tense_modal,
+                                bo,
+                                trailing_unit: Box::new(trailing_unit),
+                            }
+                        },
+                    )
                 })
         });
 
@@ -3744,9 +3832,9 @@ fn connective_tree(connective: ConnectiveSyntax) -> SyntaxValue {
         "Connective",
         vec![
             field("kind", node(kind, Vec::new())),
-            field("se", nothing()),
-            field("nahe", nothing()),
-            field("na", nothing()),
+            field("se", maybe_word(connective.se)),
+            field("nahe", maybe_word(connective.nahe)),
+            field("na", maybe_word(connective.na)),
             field(
                 "cmavo",
                 list(connective.cmavo.into_iter().map(word_value).collect()),
