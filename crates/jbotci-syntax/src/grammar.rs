@@ -104,6 +104,12 @@ enum GekSentenceSyntax {
         tail_terms: Vec<TermSyntax>,
         vau: Option<WordWithModifiers>,
     },
+    Ke {
+        tense_modal: Option<TenseModalSyntax>,
+        ke: WordWithModifiers,
+        inner: Box<GekSentenceSyntax>,
+        kehe: Option<WordWithModifiers>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1019,6 +1025,21 @@ impl GekSentenceSyntax {
                     words.extend(term.words());
                 }
                 words.extend(vau);
+                words
+            }
+            GekSentenceSyntax::Ke {
+                tense_modal,
+                ke,
+                inner,
+                kehe,
+            } => {
+                let mut words = Vec::new();
+                if let Some(tense_modal) = tense_modal {
+                    words.extend(tense_modal.words());
+                }
+                words.push(ke);
+                words.extend(inner.words());
+                words.extend(kehe);
                 words
             }
         }
@@ -1943,6 +1964,49 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         );
 
     let basic_predicate = recursive(|basic_predicate| {
+        let gek_sentence = recursive(|gek_sentence| {
+            let pair = modal_forethought_connective()
+                .then(basic_predicate.clone())
+                .then(gik_connective())
+                .then(basic_predicate.clone())
+                .then(term.clone().repeated().collect::<Vec<_>>())
+                .then(cmavo("vau").or_not())
+                .map(|(((((gek, first), gik), second), tail_terms), vau)| {
+                    GekSentenceSyntax::Pair {
+                        gek,
+                        first: Box::new(first),
+                        gik,
+                        second: Box::new(second),
+                        tail_terms,
+                        vau,
+                    }
+                });
+            let ke = tense_modal()
+                .or_not()
+                .then(cmavo("ke"))
+                .then(gek_sentence.clone())
+                .then(cmavo("ke'e").or_not())
+                .map(|(((tense_modal, ke), inner), kehe)| GekSentenceSyntax::Ke {
+                    tense_modal,
+                    ke,
+                    inner: Box::new(inner),
+                    kehe,
+                });
+            choice((pair, ke)).boxed()
+        });
+        let implicit_tagged_term_before_grouped_gek =
+            tense_modal()
+                .then(cmavo("ke").rewind())
+                .map(|(tense_modal, _)| TermSyntax::Tagged {
+                    tense_modal,
+                    argument: implicit_zohe_argument(),
+                });
+        let non_grouped_gek_term = cmavo("ke").rewind().not().ignore_then(term.clone());
+        let gek_leading_term = choice((
+            implicit_tagged_term_before_grouped_gek,
+            non_grouped_gek_term,
+        ))
+        .boxed();
         let bo_continuation = predicate_tail_connective()
             .then(tense_modal().or_not())
             .then(cmavo("bo"))
@@ -2044,66 +2108,35 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     continuations,
                 },
             );
-        let forethought_predicate = modal_forethought_connective()
-            .then(basic_predicate.clone())
-            .then(gik_connective())
-            .then(basic_predicate.clone())
-            .then(term.clone().repeated().collect::<Vec<_>>())
-            .then(cmavo("vau").or_not())
-            .map(
-                |(((((gek, first), gik), second), tail_terms), vau)| BasicPredicate {
-                    leading_terms: Vec::new(),
-                    cu: None,
-                    relation: RelationSyntax::Compound { units: Vec::new() },
-                    tail_terms: Vec::new(),
-                    vau: None,
-                    gek_sentence: Some(GekSentenceSyntax::Pair {
-                        gek,
-                        first: Box::new(first),
-                        gik,
-                        second: Box::new(second),
-                        tail_terms,
-                        vau,
-                    }),
-                    bo_continuation: None,
-                    ke_continuation: None,
-                    continuations: Vec::new(),
-                },
-            );
-        let forethought_predicate_with_leading_terms = term
+        let forethought_predicate = gek_sentence.clone().map(|gek_sentence| BasicPredicate {
+            leading_terms: Vec::new(),
+            cu: None,
+            relation: RelationSyntax::Compound { units: Vec::new() },
+            tail_terms: Vec::new(),
+            vau: None,
+            gek_sentence: Some(gek_sentence),
+            bo_continuation: None,
+            ke_continuation: None,
+            continuations: Vec::new(),
+        });
+        let forethought_predicate_with_leading_terms = gek_leading_term
             .clone()
             .repeated()
             .at_least(1)
             .collect::<Vec<_>>()
             .then(cu.clone().or_not())
-            .then(modal_forethought_connective())
-            .then(basic_predicate.clone())
-            .then(gik_connective())
-            .then(basic_predicate.clone())
-            .then(term.clone().repeated().collect::<Vec<_>>())
-            .then(cmavo("vau").or_not())
-            .map(
-                |(((((((leading_terms, cu), gek), first), gik), second), tail_terms), vau)| {
-                    BasicPredicate {
-                        leading_terms,
-                        cu,
-                        relation: RelationSyntax::Compound { units: Vec::new() },
-                        tail_terms: Vec::new(),
-                        vau: None,
-                        gek_sentence: Some(GekSentenceSyntax::Pair {
-                            gek,
-                            first: Box::new(first),
-                            gik,
-                            second: Box::new(second),
-                            tail_terms,
-                            vau,
-                        }),
-                        bo_continuation: None,
-                        ke_continuation: None,
-                        continuations: Vec::new(),
-                    }
-                },
-            );
+            .then(gek_sentence)
+            .map(|((leading_terms, cu), gek_sentence)| BasicPredicate {
+                leading_terms,
+                cu,
+                relation: RelationSyntax::Compound { units: Vec::new() },
+                tail_terms: Vec::new(),
+                vau: None,
+                gek_sentence: Some(gek_sentence),
+                bo_continuation: None,
+                ke_continuation: None,
+                continuations: Vec::new(),
+            });
 
         choice((
             forethought_predicate_with_leading_terms,
@@ -3400,21 +3433,31 @@ fn guhek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 #[requires(true)]
 #[ensures(true)]
 fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
-    tense_modal()
-        .then(cmavo("gi"))
-        .map(|(tense_modal, gi)| {
-            let mut cmavo = tense_modal.words();
-            cmavo.push(gi);
-            ConnectiveSyntax {
-                kind: ConnectiveKind::Forethought,
-                se: None,
-                nahe: None,
-                na: None,
-                cmavo,
-                nai: None,
-            }
-        })
-        .boxed()
+    let ga = cmavo_of("SE", &["se", "te", "ve", "xe"])
+        .or_not()
+        .then(cmavo_of("GA", &["ga", "ge", "go", "gu"]))
+        .then(cmavo("nai").or_not())
+        .map(|((se, ga), nai)| ConnectiveSyntax {
+            kind: ConnectiveKind::Forethought,
+            se,
+            nahe: None,
+            na: None,
+            cmavo: vec![ga],
+            nai,
+        });
+    let modal_gi = tense_modal().then(cmavo("gi")).map(|(tense_modal, gi)| {
+        let mut cmavo = tense_modal.words();
+        cmavo.push(gi);
+        ConnectiveSyntax {
+            kind: ConnectiveKind::Forethought,
+            se: None,
+            nahe: None,
+            na: None,
+            cmavo,
+            nai: None,
+        }
+    });
+    choice((ga, modal_gi)).boxed()
 }
 
 #[requires(true)]
@@ -5159,6 +5202,26 @@ fn gek_sentence_tree(gek_sentence: GekSentenceSyntax) -> SyntaxValue {
                 ),
                 field("vau", maybe_word(vau)),
                 field("freeModifiers", nil()),
+            ],
+        ),
+        GekSentenceSyntax::Ke {
+            tense_modal,
+            ke,
+            inner,
+            kehe,
+        } => node(
+            "KeGekSentence",
+            vec![
+                field(
+                    "tenseModal",
+                    tense_modal
+                        .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+                ),
+                field("ke", word_value(ke)),
+                field("keFreeModifiers", nil()),
+                field("inner", gek_sentence_tree(*inner)),
+                field("kehe", maybe_word(kehe)),
+                field("keheFreeModifiers", nil()),
             ],
         ),
     }
