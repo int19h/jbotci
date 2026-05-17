@@ -496,6 +496,10 @@ enum RelationUnitSyntax {
     Word {
         word: WordWithModifiers,
     },
+    Goha {
+        goha: WordWithModifiers,
+        raho: Option<WordWithModifiers>,
+    },
     Se {
         se: WordWithModifiers,
         inner_unit: Box<RelationUnitSyntax>,
@@ -1210,6 +1214,11 @@ impl RelationUnitSyntax {
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             RelationUnitSyntax::Word { word } => vec![word],
+            RelationUnitSyntax::Goha { goha, raho } => {
+                let mut words = vec![goha];
+                words.extend(raho);
+                words
+            }
             RelationUnitSyntax::Se { se, inner_unit } => {
                 let mut words = vec![se];
                 words.extend(inner_unit.words());
@@ -2467,6 +2476,9 @@ where
         .map(|((me, argument), mehu)| RelationUnitSyntax::Me { me, argument, mehu });
 
     let word_unit = relation_word().map(|word| RelationUnitSyntax::Word { word });
+    let goha_unit = cmavo_of("GOhA", GOHA_WORDS)
+        .then(cmavo("ra'o").or_not())
+        .map(|(goha, raho)| RelationUnitSyntax::Goha { goha, raho });
     let moi_unit = pa_word()
         .repeated()
         .at_least(1)
@@ -2491,7 +2503,11 @@ where
         });
 
     let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
-        .then(choice((ke_unit.clone(), word_unit.clone())))
+        .then(choice((
+            ke_unit.clone(),
+            goha_unit.clone(),
+            word_unit.clone(),
+        )))
         .map(|(se, inner_unit)| RelationUnitSyntax::Se {
             se,
             inner_unit: Box::new(inner_unit),
@@ -2513,6 +2529,7 @@ where
             wrapped_tense_unit,
             ke_unit.clone(),
             moi_unit.clone(),
+            goha_unit.clone(),
             word_unit.clone(),
         )))
         .map(|(nahe, inner_unit)| RelationUnitSyntax::Nahe {
@@ -2596,6 +2613,7 @@ where
         ke_unit,
         nuha_unit,
         moi_unit,
+        goha_unit,
         word_unit,
     ));
     let bei_link = bei_link(argument.clone());
@@ -2752,6 +2770,9 @@ where
 {
     recursive(|inner_relation| {
         let word_unit = relation_word().map(|word| RelationUnitSyntax::Word { word });
+        let goha_unit = cmavo_of("GOhA", GOHA_WORDS)
+            .then(cmavo("ra'o").or_not())
+            .map(|(goha, raho)| RelationUnitSyntax::Goha { goha, raho });
         let moi_unit = pa_word()
             .repeated()
             .at_least(1)
@@ -2777,6 +2798,7 @@ where
             .then(choice((
                 ke_unit.clone(),
                 moi_unit.clone(),
+                goha_unit.clone(),
                 word_unit.clone(),
             )))
             .map(|(se, inner_unit)| RelationUnitSyntax::Se {
@@ -2787,6 +2809,7 @@ where
             .then(choice((
                 ke_unit.clone(),
                 moi_unit.clone(),
+                goha_unit.clone(),
                 word_unit.clone(),
             )))
             .map(|(nahe, inner_unit)| RelationUnitSyntax::Nahe {
@@ -2803,20 +2826,22 @@ where
                 (be, fa, first_argument, bei_links, beho)
             });
 
-        let linked_unit = choice((nahe_unit, se_unit, ke_unit, nuha_unit, moi_unit, word_unit))
-            .then(be_link.or_not())
-            .map(|(base, be_link)| {
-                be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
-                    RelationUnitSyntax::Be {
-                        base: Box::new(base),
-                        be,
-                        fa,
-                        first_argument,
-                        bei_links,
-                        beho,
-                    }
-                })
-            });
+        let linked_unit = choice((
+            nahe_unit, se_unit, ke_unit, nuha_unit, moi_unit, goha_unit, word_unit,
+        ))
+        .then(be_link.or_not())
+        .map(|(base, be_link)| {
+            be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
+                RelationUnitSyntax::Be {
+                    base: Box::new(base),
+                    be,
+                    fa,
+                    first_argument,
+                    bei_links,
+                    beho,
+                }
+            })
+        });
 
         let bo_unit = recursive(|bo_unit| {
             let guha_unit = guhek_connective()
@@ -2899,6 +2924,10 @@ where
 fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
     match units.as_slice() {
         [RelationUnitSyntax::Word { word }] => RelationSyntax::Base { word: word.clone() },
+        [RelationUnitSyntax::Goha { goha, raho: None }] => {
+            RelationSyntax::Base { word: goha.clone() }
+        }
+        [RelationUnitSyntax::Goha { .. }] => RelationSyntax::Compound { units },
         [RelationUnitSyntax::Se { se, inner_unit }] => RelationSyntax::Se {
             se: se.clone(),
             inner_relation: Box::new(relation_unit_to_relation(inner_unit.as_ref())),
@@ -2955,6 +2984,9 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
 fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
     match unit {
         RelationUnitSyntax::Word { word } => RelationSyntax::Base { word: word.clone() },
+        RelationUnitSyntax::Goha { goha, raho: None } => {
+            RelationSyntax::Base { word: goha.clone() }
+        }
         RelationUnitSyntax::Se { se, inner_unit } => RelationSyntax::Se {
             se: se.clone(),
             inner_relation: Box::new(relation_unit_to_relation(inner_unit)),
@@ -4062,10 +4094,10 @@ fn relative_clause_tree(relative_clause: RelativeClauseSyntax) -> SyntaxValue {
             subsentence,
             kuho,
         } => {
-            let constructor = if cmavo_text_matches(&marker, "noi") {
-                "NoiRelativeClause"
-            } else {
+            let constructor = if cmavo_text_matches(&marker, "poi") {
                 "PoiRelativeClause"
+            } else {
+                "NoiRelativeClause"
             };
 
             node(
@@ -4777,6 +4809,14 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
             "WordRelationUnit",
             vec![
                 field("word", word_value(word)),
+                field("freeModifiers", nil()),
+            ],
+        ),
+        RelationUnitSyntax::Goha { goha, raho } => node(
+            "GohaRelationUnit",
+            vec![
+                field("goha", word_value(goha)),
+                field("raho", maybe_word(raho)),
                 field("freeModifiers", nil()),
             ],
         ),
