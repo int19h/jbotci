@@ -50,6 +50,8 @@ Use design by contract for all code, including private members and types, and me
 
 Keep contracts in mind whenever writing or touching code: define data-type invariants, function preconditions and postconditions, and function or `impl` invariants wherever they make correctness assumptions explicit.
 
+Prefer correctness by construction over boundary checks. If a public model type can be deserialized or otherwise constructed from unchecked data, validate it at that boundary with constructors or `TryFrom`/custom `Deserialize` before adding broad `is_valid` postconditions downstream. The `contracts` crate applies `#[invariant]` to functions and `impl` blocks rather than struct declarations; use it for mutating functions or `impl` methods that must preserve an invariant, and avoid encoding the same preservation rule as a separate `requires` plus `ensures` pair.
+
 ```rust
 #[contract_trait]
 trait MyRandom {

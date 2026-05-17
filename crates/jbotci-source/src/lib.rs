@@ -1,6 +1,8 @@
 //! Shared source-location types.
 
-use serde::{Deserialize, Serialize};
+use contracts::ensures;
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 /// Stable identifier for an input source.
@@ -9,14 +11,15 @@ use thiserror::Error;
 pub struct SourceId(pub String);
 
 /// One-indexed line and column in source text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct LineColumn {
     pub line: usize,
     pub column: usize,
 }
 
 impl LineColumn {
-    pub const fn new(line: usize, column: usize) -> Result<Self, SourceLocationError> {
+    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(LineColumn::is_valid))]
+    pub fn new(line: usize, column: usize) -> Result<Self, SourceLocationError> {
         if line == 0 {
             return Err(SourceLocationError::ZeroLine);
         }
@@ -24,6 +27,26 @@ impl LineColumn {
             return Err(SourceLocationError::ZeroColumn);
         }
         Ok(Self { line, column })
+    }
+
+    pub const fn is_valid(&self) -> bool {
+        self.line > 0 && self.column > 0
+    }
+}
+
+impl<'de> Deserialize<'de> for LineColumn {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct UncheckedLineColumn {
+            line: usize,
+            column: usize,
+        }
+
+        let unchecked = UncheckedLineColumn::deserialize(deserializer)?;
+        Self::new(unchecked.line, unchecked.column).map_err(D::Error::custom)
     }
 }
 
@@ -33,7 +56,7 @@ impl LineColumn {
 /// byte-indexed, while user-facing diagnostics and the v0 corpus use character
 /// offsets. Constructors validate only internal range consistency; callers are
 /// responsible for deriving offsets from the same source text.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct SourceSpan {
     pub source_id: Option<SourceId>,
     pub byte_start: usize,
@@ -45,6 +68,7 @@ pub struct SourceSpan {
 }
 
 impl SourceSpan {
+    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(SourceSpan::is_valid))]
     pub fn new(
         source_id: Option<SourceId>,
         byte_start: usize,
@@ -75,6 +99,13 @@ impl SourceSpan {
         })
     }
 
+    pub fn is_valid(&self) -> bool {
+        self.byte_start <= self.byte_end
+            && self.char_start <= self.char_end
+            && self.start.as_ref().is_none_or(LineColumn::is_valid)
+            && self.end.as_ref().is_none_or(LineColumn::is_valid)
+    }
+
     pub const fn byte_len(&self) -> usize {
         self.byte_end - self.byte_start
     }
@@ -85,6 +116,41 @@ impl SourceSpan {
 
     pub const fn is_empty(&self) -> bool {
         self.byte_start == self.byte_end && self.char_start == self.char_end
+    }
+}
+
+impl<'de> Deserialize<'de> for SourceSpan {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct UncheckedSourceSpan {
+            source_id: Option<SourceId>,
+            byte_start: usize,
+            byte_end: usize,
+            char_start: usize,
+            char_end: usize,
+            start: Option<LineColumn>,
+            end: Option<LineColumn>,
+        }
+
+        let unchecked = UncheckedSourceSpan::deserialize(deserializer)?;
+        let mut span = Self::new(
+            unchecked.source_id,
+            unchecked.byte_start,
+            unchecked.byte_end,
+            unchecked.char_start,
+            unchecked.char_end,
+        )
+        .map_err(D::Error::custom)?;
+        span.start = unchecked.start;
+        span.end = unchecked.end;
+        if span.is_valid() {
+            Ok(span)
+        } else {
+            Err(D::Error::custom("invalid source span"))
+        }
     }
 }
 
@@ -121,5 +187,23 @@ mod tests {
             SourceSpan::new(None, 0, 0, 4, 3),
             Err(SourceLocationError::CharRangeInverted { .. })
         ));
+    }
+
+    #[test]
+    fn deserialization_rejects_invalid_spans() {
+        let error = serde_json::from_str::<SourceSpan>(
+            r#"{
+                "source_id": null,
+                "byte_start": 4,
+                "byte_end": 3,
+                "char_start": 0,
+                "char_end": 0,
+                "start": null,
+                "end": null
+            }"#,
+        )
+        .expect_err("inverted byte ranges must be rejected");
+
+        assert!(error.to_string().contains("byte range end"));
     }
 }

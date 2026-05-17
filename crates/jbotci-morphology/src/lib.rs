@@ -11,7 +11,8 @@ pub use jbotci_dialect::{
     CmavoDialectEntry, CmavoDialectTransform, DialectDefinition, DialectFeature,
 };
 use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
-use serde::{Deserialize, Serialize};
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -117,7 +118,7 @@ impl fmt::Display for WordKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Word {
     pub kind: WordKind,
     pub phonemes: String,
@@ -137,6 +138,36 @@ impl Word {
                 .dialect_transform
                 .as_ref()
                 .is_none_or(CmavoDialectTransform::is_valid)
+    }
+}
+
+impl<'de> Deserialize<'de> for Word {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct UncheckedWord {
+            kind: WordKind,
+            phonemes: String,
+            span: SourceSpan,
+            surface_override: Option<String>,
+            dialect_transform: Option<CmavoDialectTransform>,
+        }
+
+        let unchecked = UncheckedWord::deserialize(deserializer)?;
+        let word = Self {
+            kind: unchecked.kind,
+            phonemes: unchecked.phonemes,
+            span: unchecked.span,
+            surface_override: unchecked.surface_override,
+            dialect_transform: unchecked.dialect_transform,
+        };
+        if word.is_valid() {
+            Ok(word)
+        } else {
+            Err(D::Error::custom("invalid morphology word"))
+        }
     }
 }
 
@@ -606,7 +637,7 @@ fn word_like_is_valid(word_like: &WordLike) -> bool {
 
 #[cfg_attr(not(test), allow(dead_code))]
 fn source_span_is_valid(span: &SourceSpan) -> bool {
-    span.byte_start <= span.byte_end && span.char_start <= span.char_end
+    span.is_valid()
 }
 
 fn optional_word_syntax_eq(left: Option<&Word>, right: Option<&Word>) -> bool {
@@ -774,6 +805,30 @@ mod tests {
             ..MorphologyOptions::default()
         };
         let _ = segment_words_with_modifiers_with_options("mi", &options);
+    }
+
+    #[test]
+    fn word_deserialization_rejects_invalid_words() {
+        let error = serde_json::from_str::<Word>(
+            r#"{
+                "kind": "cmavo",
+                "phonemes": "",
+                "span": {
+                    "source_id": null,
+                    "byte_start": 0,
+                    "byte_end": 0,
+                    "char_start": 0,
+                    "char_end": 0,
+                    "start": null,
+                    "end": null
+                },
+                "surface_override": null,
+                "dialect_transform": null
+            }"#,
+        )
+        .expect_err("empty phoneme text must be rejected");
+
+        assert!(error.to_string().contains("invalid morphology word"));
     }
 
     fn base_word(word: &WordWithModifiers) -> Option<&Word> {

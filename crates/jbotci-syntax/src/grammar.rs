@@ -29,6 +29,7 @@ const PA_WORDS: &[&str] = &[
     "pa", "re", "ci", "vo", "mu", "xa", "ze", "bi", "so", "0", "1", "2", "3", "4", "5", "6", "7",
     "8", "9",
 ];
+const MOI_WORDS: &[&str] = &["moi", "mei", "si'e", "cu'o", "va'e"];
 const KOHA_WORDS: &[&str] = &[
     "da'u", "da'e", "di'u", "di'e", "de'u", "de'e", "dei", "do'i", "mi'o", "ma'a", "mi'a", "do'o",
     "ko'a", "fo'u", "ko'e", "ko'i", "ko'o", "ko'u", "fo'a", "fo'e", "fo'i", "fo'o", "vo'a", "vo'e",
@@ -322,6 +323,13 @@ enum RelationSyntax {
         co: WordWithModifiers,
         trailing_relation: Box<RelationSyntax>,
     },
+    Bo {
+        leading_relation: Box<RelationSyntax>,
+        bo_connective: Option<ConnectiveSyntax>,
+        bo_tense_modal: Option<TenseModalSyntax>,
+        bo: WordWithModifiers,
+        trailing_relation: Box<RelationSyntax>,
+    },
     Na {
         na: WordWithModifiers,
         inner_relation: Box<RelationSyntax>,
@@ -425,6 +433,18 @@ enum RelationUnitSyntax {
         nahe: WordWithModifiers,
         inner_unit: Box<RelationUnitSyntax>,
     },
+    Bo {
+        leading_unit: Box<RelationUnitSyntax>,
+        bo_connective: Option<ConnectiveSyntax>,
+        bo_tense_modal: Option<TenseModalSyntax>,
+        bo: WordWithModifiers,
+        trailing_unit: Box<RelationUnitSyntax>,
+    },
+    Connected {
+        leading_unit: Box<RelationUnitSyntax>,
+        connective: ConnectiveSyntax,
+        trailing_unit: Box<RelationUnitSyntax>,
+    },
     Wrapped {
         relation: RelationSyntax,
     },
@@ -446,6 +466,10 @@ enum RelationUnitSyntax {
         me: WordWithModifiers,
         argument: ArgumentSyntax,
         mehu: Option<WordWithModifiers>,
+    },
+    Moi {
+        number: Vec<WordWithModifiers>,
+        moi: WordWithModifiers,
     },
 }
 
@@ -908,6 +932,24 @@ impl RelationSyntax {
                 words.extend(trailing_relation.words());
                 words
             }
+            RelationSyntax::Bo {
+                leading_relation,
+                bo_connective,
+                bo_tense_modal,
+                bo,
+                trailing_relation,
+            } => {
+                let mut words = leading_relation.words();
+                if let Some(connective) = bo_connective {
+                    words.extend(connective.words());
+                }
+                if let Some(tense_modal) = bo_tense_modal {
+                    words.extend(tense_modal.words());
+                }
+                words.push(bo);
+                words.extend(trailing_relation.words());
+                words
+            }
             RelationSyntax::Na { na, inner_relation } => {
                 let mut words = vec![na];
                 words.extend(inner_relation.words());
@@ -966,6 +1008,34 @@ impl RelationUnitSyntax {
                 words.extend(inner_unit.words());
                 words
             }
+            RelationUnitSyntax::Bo {
+                leading_unit,
+                bo_connective,
+                bo_tense_modal,
+                bo,
+                trailing_unit,
+            } => {
+                let mut words = leading_unit.words();
+                if let Some(connective) = bo_connective {
+                    words.extend(connective.words());
+                }
+                if let Some(tense_modal) = bo_tense_modal {
+                    words.extend(tense_modal.words());
+                }
+                words.push(bo);
+                words.extend(trailing_unit.words());
+                words
+            }
+            RelationUnitSyntax::Connected {
+                leading_unit,
+                connective,
+                trailing_unit,
+            } => {
+                let mut words = leading_unit.words();
+                words.extend(connective.words());
+                words.extend(trailing_unit.words());
+                words
+            }
             RelationUnitSyntax::Wrapped { relation } => relation.words(),
             RelationUnitSyntax::Jai { jai, inner_unit } => {
                 let mut words = vec![jai];
@@ -991,6 +1061,11 @@ impl RelationUnitSyntax {
                 let mut words = vec![me];
                 words.extend(argument.words());
                 words.extend(mehu);
+                words
+            }
+            RelationUnitSyntax::Moi { number, moi } => {
+                let mut words = number;
+                words.push(moi);
                 words
             }
         }
@@ -1888,6 +1963,12 @@ where
         .map(|((me, argument), mehu)| RelationUnitSyntax::Me { me, argument, mehu });
 
     let word_unit = relation_word().map(|word| RelationUnitSyntax::Word { word });
+    let moi_unit = pa_word()
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .then(cmavo_of("MOI", MOI_WORDS))
+        .map(|(number, moi)| RelationUnitSyntax::Moi { number, moi });
 
     let ke_unit = cmavo("ke")
         .then(relation_units_inner(argument.clone()))
@@ -1918,7 +1999,12 @@ where
         );
 
     let nahe_unit = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
-        .then(choice((wrapped_tense_unit, word_unit.clone())))
+        .then(choice((
+            wrapped_tense_unit,
+            ke_unit.clone(),
+            moi_unit.clone(),
+            word_unit.clone(),
+        )))
         .map(|(nahe, inner_unit)| RelationUnitSyntax::Nahe {
             nahe,
             inner_unit: Box::new(inner_unit),
@@ -1998,6 +2084,7 @@ where
         nahe_unit,
         se_unit,
         ke_unit,
+        moi_unit,
         word_unit,
     ));
     let be_link = cmavo("be")
@@ -2006,19 +2093,56 @@ where
         .then(cmavo("be'o").or_not())
         .map(|(((be, fa), first_argument), beho)| (be, fa, first_argument, beho));
 
-    let relation_units = base_unit
-        .then(be_link.or_not())
-        .map(|(base, be_link)| {
-            be_link.map_or(base.clone(), |(be, fa, first_argument, beho)| {
-                RelationUnitSyntax::Be {
-                    base: Box::new(base),
-                    be,
-                    fa,
-                    first_argument,
-                    beho,
-                }
-            })
+    let linked_unit = base_unit.then(be_link.or_not()).map(|(base, be_link)| {
+        be_link.map_or(base.clone(), |(be, fa, first_argument, beho)| {
+            RelationUnitSyntax::Be {
+                base: Box::new(base),
+                be,
+                fa,
+                first_argument,
+                beho,
+            }
         })
+    });
+
+    let bo_unit = recursive(|bo_unit| {
+        linked_unit
+            .clone()
+            .then(cmavo("bo").then(bo_unit).or_not())
+            .map(|(leading_unit, bo_tail)| {
+                bo_tail.map_or(leading_unit.clone(), |(bo, trailing_unit)| {
+                    RelationUnitSyntax::Bo {
+                        leading_unit: Box::new(leading_unit),
+                        bo_connective: None,
+                        bo_tense_modal: None,
+                        bo,
+                        trailing_unit: Box::new(trailing_unit),
+                    }
+                })
+            })
+    });
+
+    let connected_unit = bo_unit
+        .clone()
+        .then(
+            statement_connective()
+                .then(bo_unit)
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(first, continuations)| {
+            continuations
+                .into_iter()
+                .fold(first, |leading_unit, (connective, trailing_unit)| {
+                    RelationUnitSyntax::Connected {
+                        leading_unit: Box::new(leading_unit),
+                        connective,
+                        trailing_unit: Box::new(trailing_unit),
+                    }
+                })
+        });
+
+    let relation_units = connected_unit
         .repeated()
         .at_least(1)
         .collect::<Vec<_>>()
@@ -2080,8 +2204,14 @@ where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
     let word_unit = relation_word().map(|word| RelationUnitSyntax::Word { word });
+    let moi_unit = pa_word()
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .then(cmavo_of("MOI", MOI_WORDS))
+        .map(|(number, moi)| RelationUnitSyntax::Moi { number, moi });
     let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
-        .then(word_unit.clone())
+        .then(choice((moi_unit.clone(), word_unit.clone())))
         .map(|(se, inner_unit)| RelationUnitSyntax::Se {
             se,
             inner_unit: Box::new(inner_unit),
@@ -2092,7 +2222,7 @@ where
         .then(cmavo("be'o").or_not())
         .map(|(((be, fa), first_argument), beho)| (be, fa, first_argument, beho));
 
-    choice((se_unit, word_unit))
+    let linked_unit = choice((se_unit, moi_unit, word_unit))
         .then(be_link.or_not())
         .map(|(base, be_link)| {
             be_link.map_or(base.clone(), |(be, fa, first_argument, beho)| {
@@ -2104,7 +2234,46 @@ where
                     beho,
                 }
             })
-        })
+        });
+
+    let bo_unit = recursive(|bo_unit| {
+        linked_unit
+            .clone()
+            .then(cmavo("bo").then(bo_unit).or_not())
+            .map(|(leading_unit, bo_tail)| {
+                bo_tail.map_or(leading_unit.clone(), |(bo, trailing_unit)| {
+                    RelationUnitSyntax::Bo {
+                        leading_unit: Box::new(leading_unit),
+                        bo_connective: None,
+                        bo_tense_modal: None,
+                        bo,
+                        trailing_unit: Box::new(trailing_unit),
+                    }
+                })
+            })
+    });
+
+    let connected_unit = bo_unit
+        .clone()
+        .then(
+            statement_connective()
+                .then(bo_unit)
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(first, continuations)| {
+            continuations
+                .into_iter()
+                .fold(first, |leading_unit, (connective, trailing_unit)| {
+                    RelationUnitSyntax::Connected {
+                        leading_unit: Box::new(leading_unit),
+                        connective,
+                        trailing_unit: Box::new(trailing_unit),
+                    }
+                })
+        });
+
+    connected_unit
         .repeated()
         .at_least(1)
         .collect::<Vec<_>>()
@@ -2112,6 +2281,7 @@ where
         .boxed()
 }
 
+#[expensive_requires(!units.is_empty(), "relation unit sequences must be non-empty")]
 fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
     match units.as_slice() {
         [RelationUnitSyntax::Word { word }] => RelationSyntax::Base { word: word.clone() },
@@ -2134,6 +2304,32 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
         },
         [RelationUnitSyntax::Abstraction { abstraction }] => RelationSyntax::Abstraction {
             abstraction: abstraction.clone(),
+        },
+        [
+            RelationUnitSyntax::Bo {
+                leading_unit,
+                bo_connective,
+                bo_tense_modal,
+                bo,
+                trailing_unit,
+            },
+        ] => RelationSyntax::Bo {
+            leading_relation: Box::new(relation_unit_to_relation(leading_unit)),
+            bo_connective: bo_connective.clone(),
+            bo_tense_modal: bo_tense_modal.clone(),
+            bo: bo.clone(),
+            trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
+        },
+        [
+            RelationUnitSyntax::Connected {
+                leading_unit,
+                connective,
+                trailing_unit,
+            },
+        ] => RelationSyntax::Connected {
+            connective: connective.clone(),
+            leading_relation: Box::new(relation_unit_to_relation(leading_unit)),
+            trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
         },
         _ => RelationSyntax::Compound { units },
     }
@@ -2159,6 +2355,28 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
         },
         RelationUnitSyntax::Abstraction { abstraction } => RelationSyntax::Abstraction {
             abstraction: abstraction.clone(),
+        },
+        RelationUnitSyntax::Bo {
+            leading_unit,
+            bo_connective,
+            bo_tense_modal,
+            bo,
+            trailing_unit,
+        } => RelationSyntax::Bo {
+            leading_relation: Box::new(relation_unit_to_relation(leading_unit)),
+            bo_connective: bo_connective.clone(),
+            bo_tense_modal: bo_tense_modal.clone(),
+            bo: bo.clone(),
+            trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
+        },
+        RelationUnitSyntax::Connected {
+            leading_unit,
+            connective,
+            trailing_unit,
+        } => RelationSyntax::Connected {
+            connective: connective.clone(),
+            leading_relation: Box::new(relation_unit_to_relation(leading_unit)),
+            trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
         },
         unit => RelationSyntax::Compound {
             units: vec![unit.clone()],
@@ -3377,6 +3595,31 @@ fn relation_tree(relation: RelationSyntax) -> SyntaxValue {
                 field("trailingRelation", relation_tree(*trailing_relation)),
             ],
         ),
+        RelationSyntax::Bo {
+            leading_relation,
+            bo_connective,
+            bo_tense_modal,
+            bo,
+            trailing_relation,
+        } => node(
+            "BoRelation",
+            vec![
+                field("leadingRelation", relation_tree(*leading_relation)),
+                field(
+                    "boConnective",
+                    bo_connective
+                        .map_or_else(nothing, |connective| just(connective_tree(connective))),
+                ),
+                field(
+                    "boTenseModal",
+                    bo_tense_modal
+                        .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+                ),
+                field("bo", word_value(bo)),
+                field("freeModifiers", nil()),
+                field("trailingRelation", relation_tree(*trailing_relation)),
+            ],
+        ),
         RelationSyntax::Na { na, inner_relation } => node(
             "NaRelation",
             vec![
@@ -3749,6 +3992,43 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
                 field("innerUnit", relation_unit_tree(*inner_unit)),
             ],
         ),
+        RelationUnitSyntax::Bo {
+            leading_unit,
+            bo_connective,
+            bo_tense_modal,
+            bo,
+            trailing_unit,
+        } => node(
+            "BoRelationUnit",
+            vec![
+                field("leadingUnit", relation_unit_tree(*leading_unit)),
+                field(
+                    "boConnective",
+                    bo_connective
+                        .map_or_else(nothing, |connective| just(connective_tree(connective))),
+                ),
+                field(
+                    "boTenseModal",
+                    bo_tense_modal
+                        .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+                ),
+                field("bo", word_value(bo)),
+                field("freeModifiers", nil()),
+                field("trailingUnit", relation_unit_tree(*trailing_unit)),
+            ],
+        ),
+        RelationUnitSyntax::Connected {
+            leading_unit,
+            connective,
+            trailing_unit,
+        } => node(
+            "ConnectedRelationUnit",
+            vec![
+                field("leadingUnit", relation_unit_tree(*leading_unit)),
+                field("connective", connective_tree(connective)),
+                field("trailingUnit", relation_unit_tree(*trailing_unit)),
+            ],
+        ),
         RelationUnitSyntax::Wrapped { relation } => node(
             "WrappedRelationUnit",
             vec![field("relation", relation_tree(relation))],
@@ -3796,6 +4076,17 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
                 field("mehuFreeModifiers", nil()),
                 field("moiMarker", nothing()),
                 field("moiFreeModifiers", nil()),
+            ],
+        ),
+        RelationUnitSyntax::Moi { number, moi } => node(
+            "MoiRelationUnit",
+            vec![
+                field(
+                    "number",
+                    plain_list(number.into_iter().map(word_value).collect()),
+                ),
+                field("moi", word_value(moi)),
+                field("freeModifiers", nil()),
             ],
         ),
     }

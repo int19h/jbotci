@@ -4,7 +4,7 @@ use chumsky::error::Rich;
 use chumsky::prelude::*;
 use chumsky::span::SimpleSpan;
 use contracts::{ensures, requires};
-use jbotci_contracts::{expensive_ensures, expensive_requires};
+use jbotci_contracts::{expensive_ensures, expensive_invariant, expensive_requires};
 use jbotci_source::{SourceId, SourceSpan};
 
 use crate::{MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordWithModifiers};
@@ -140,9 +140,8 @@ impl<'a> Segmenter<'a> {
         Ok(vec![word])
     }
 
-    #[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
     #[expensive_requires(segment.iter().all(WordWithModifiers::is_valid))]
-    #[expensive_ensures(ret.as_ref().is_err() || acc.iter().all(WordWithModifiers::is_valid))]
+    #[expensive_invariant(acc.iter().all(WordWithModifiers::is_valid))]
     fn process_segment(
         &mut self,
         acc: &mut Vec<WordWithModifiers>,
@@ -387,15 +386,13 @@ impl<'a> Segmenter<'a> {
         Ok(())
     }
 
-    #[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
-    #[expensive_ensures(acc.iter().all(WordWithModifiers::is_valid))]
+    #[expensive_invariant(acc.iter().all(WordWithModifiers::is_valid))]
     fn handle_si(&self, acc: &mut Vec<WordWithModifiers>) {
         let (_prev, rest) = skip_acc_y(acc);
         *acc = rest;
     }
 
-    #[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
-    #[expensive_ensures(ret.as_ref().is_err() || acc.iter().all(WordWithModifiers::is_valid))]
+    #[expensive_invariant(acc.iter().all(WordWithModifiers::is_valid))]
     fn handle_sa(&mut self, acc: &mut Vec<WordWithModifiers>) -> Result<(), MorphologyError> {
         let mut sa_count = 1;
         loop {
@@ -467,15 +464,13 @@ impl<'a> Segmenter<'a> {
         Ok(vec![word])
     }
 
-    #[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
-    #[expensive_ensures(acc.iter().all(WordWithModifiers::is_valid))]
+    #[expensive_invariant(acc.iter().all(WordWithModifiers::is_valid))]
     fn handle_su(&self, acc: &mut Vec<WordWithModifiers>) {
         *acc = erase_back_to_su_boundary(acc);
     }
 
-    #[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
     #[expensive_requires(zei_word_with_modifiers.is_valid())]
-    #[expensive_ensures(ret.as_ref().is_err() || acc.iter().all(WordWithModifiers::is_valid))]
+    #[expensive_invariant(acc.iter().all(WordWithModifiers::is_valid))]
     fn handle_zei(
         &mut self,
         acc: &mut Vec<WordWithModifiers>,
