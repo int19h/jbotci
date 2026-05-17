@@ -149,6 +149,12 @@ enum FreeModifierSyntax {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 enum StatementSyntax {
+    Tuhe {
+        tense_modal: Option<TenseModalSyntax>,
+        tuhe: WordWithModifiers,
+        text: Box<TextSyntax>,
+        tuhu: Option<WordWithModifiers>,
+    },
     Prenex {
         prenex_terms: Vec<TermSyntax>,
         zohu: WordWithModifiers,
@@ -679,6 +685,21 @@ impl StatementSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
+            StatementSyntax::Tuhe {
+                tense_modal,
+                tuhe,
+                text,
+                tuhu,
+            } => {
+                let mut words = Vec::new();
+                if let Some(tense_modal) = tense_modal {
+                    words.extend(tense_modal.words());
+                }
+                words.push(tuhe);
+                words.extend(text.words());
+                words.extend(tuhu);
+                words
+            }
             StatementSyntax::Prenex {
                 prenex_terms,
                 zohu,
@@ -1759,10 +1780,24 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 inner_statement: Box::new(inner_statement),
             },
         );
+    let tuhe_statement = tense_modal()
+        .or_not()
+        .then(cmavo("tu'e"))
+        .then(text.clone())
+        .then(cmavo("tu'u").or_not())
+        .map(
+            |(((tense_modal, tuhe), text), tuhu)| StatementSyntax::Tuhe {
+                tense_modal,
+                tuhe,
+                text: Box::new(text),
+                tuhu,
+            },
+        );
 
     let simple_statement = choice((
         prenex_statement,
         predicate,
+        tuhe_statement,
         be_link_fragment,
         relative_clause_fragment,
         term_fragment,
@@ -3967,6 +4002,7 @@ fn source_text(source: Option<&str>, span: &SourceSpan) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn lojban_text_tree(text: TextSyntax) -> SyntaxValue {
+    let paragraphs = paragraphs_tree(text.clone());
     node(
         "LojbanText",
         vec![
@@ -4006,35 +4042,38 @@ fn lojban_text_tree(text: TextSyntax) -> SyntaxValue {
                 text.leading_connective
                     .map_or_else(nothing, |connective| just(connective_tree(connective))),
             ),
-            field(
-                "paragraphs",
-                if text.paragraph_statements.is_empty() {
-                    nil()
-                } else {
-                    list(vec![node(
-                        "Paragraph",
-                        vec![
-                            field("i", nothing()),
-                            field(
-                                "niho",
-                                list(text.paragraph_niho.into_iter().map(word_value).collect()),
-                            ),
-                            field("freeModifiers", nil()),
-                            field(
-                                "statements",
-                                list(
-                                    text.paragraph_statements
-                                        .into_iter()
-                                        .map(paragraph_statement_tree)
-                                        .collect(),
-                                ),
-                            ),
-                        ],
-                    )])
-                },
-            ),
+            field("paragraphs", paragraphs),
         ],
     )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn paragraphs_tree(text: TextSyntax) -> SyntaxValue {
+    if text.paragraph_statements.is_empty() {
+        nil()
+    } else {
+        list(vec![node(
+            "Paragraph",
+            vec![
+                field("i", nothing()),
+                field(
+                    "niho",
+                    list(text.paragraph_niho.into_iter().map(word_value).collect()),
+                ),
+                field("freeModifiers", nil()),
+                field(
+                    "statements",
+                    list(
+                        text.paragraph_statements
+                            .into_iter()
+                            .map(paragraph_statement_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        )])
+    }
 }
 
 #[requires(true)]
@@ -4200,6 +4239,26 @@ fn free_modifier_tree(free_modifier: FreeModifierSyntax) -> SyntaxValue {
 #[ensures(true)]
 fn statement_tree(statement: StatementSyntax) -> SyntaxValue {
     match statement {
+        StatementSyntax::Tuhe {
+            tense_modal,
+            tuhe,
+            text,
+            tuhu,
+        } => node(
+            "TuheStatement",
+            vec![
+                field(
+                    "tenseModal",
+                    tense_modal
+                        .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+                ),
+                field("tuhe", word_value(tuhe)),
+                field("tuheFreeModifiers", nil()),
+                field("paragraphs", paragraphs_tree(*text)),
+                field("tuhu", maybe_word(tuhu)),
+                field("tuhuFreeModifiers", nil()),
+            ],
+        ),
         StatementSyntax::Prenex {
             prenex_terms,
             zohu,
