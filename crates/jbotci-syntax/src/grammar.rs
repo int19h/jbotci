@@ -2611,7 +2611,6 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let prenex_subsentence = term
         .clone()
         .repeated()
-        .at_least(1)
         .collect::<Vec<_>>()
         .then(cmavo("zo'u"))
         .then(subsentence.clone())
@@ -4725,6 +4724,7 @@ where
     let ke_unit = cmavo("ke")
         .then(relation_units_inner(
             argument.clone(),
+            subsentence.clone(),
             free_modifier.clone(),
         ))
         .then(cmavo("ke'e").or_not())
@@ -4751,6 +4751,7 @@ where
     let wrapped_tense_unit = tense_modal()
         .then(relation_units_inner(
             argument.clone(),
+            subsentence.clone(),
             free_modifier.clone(),
         ))
         .map(
@@ -5017,17 +5018,25 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn relation_units_inner<'tokens, P, F>(
+fn relation_units_inner<'tokens, P, S, F>(
     argument: P,
+    subsentence: S,
     free_modifier: F,
 ) -> BoxedParser<'tokens, RelationSyntax>
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    S: Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
     F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
         + Clone
         + 'tokens,
 {
     recursive(|inner_relation| {
+        let me_unit = cmavo("me")
+            .then(argument.clone())
+            .then(cmavo("me'u").or_not())
+            .map(|((me, argument), mehu)| RelationUnitSyntax::Me { me, argument, mehu });
         let word_unit = relation_word()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(|(word, free_modifiers)| RelationUnitSyntax::Word {
@@ -5058,6 +5067,31 @@ where
             .map(|(nuha, math_operator)| RelationUnitSyntax::Nuha {
                 nuha,
                 math_operator,
+            });
+        let nu_cmavo = || cmavo_of("NU", NU_WORDS);
+        let additional_nu = statement_connective()
+            .then(nu_cmavo())
+            .map(|(connective, nu)| AdditionalNuSyntax { connective, nu });
+        let abstraction_subsentence_unit = nu_cmavo()
+            .then(additional_nu.repeated().collect::<Vec<_>>())
+            .then(subsentence.clone())
+            .then(cmavo("kei").or_not())
+            .map(
+                |(((nu, additional_nu), subsentence), kei)| RelationUnitSyntax::Abstraction {
+                    abstraction: AbstractionSyntax {
+                        nu,
+                        additional_nu,
+                        subsentence: Box::new(subsentence),
+                        kei,
+                    },
+                },
+            )
+            .boxed();
+        let se_abstraction_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .then(abstraction_subsentence_unit.clone())
+            .map(|(se, inner_unit)| RelationUnitSyntax::Se {
+                se,
+                inner_unit: Box::new(inner_unit),
             });
         let ke_unit = cmavo("ke")
             .then(inner_relation.clone())
@@ -5102,6 +5136,9 @@ where
 
         let base_unit = choice((
             goha_raho_unit.clone(),
+            me_unit.clone(),
+            se_abstraction_unit.clone(),
+            abstraction_subsentence_unit.clone(),
             nahe_unit.clone(),
             se_unit.clone(),
             ke_unit.clone(),
@@ -5113,6 +5150,9 @@ where
         .boxed();
         let base_unit_for_cei = choice((
             goha_raho_unit.clone(),
+            me_unit.clone(),
+            se_abstraction_unit,
+            abstraction_subsentence_unit,
             nahe_unit.clone(),
             se_unit.clone(),
             ke_unit.clone(),
