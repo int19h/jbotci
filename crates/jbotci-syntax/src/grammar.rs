@@ -42,6 +42,7 @@ const GOHA_WORDS: &[&str] = &[
     "mo", "nei", "go'u", "go'o", "go'i", "no'a", "go'e", "go'a", "du", "bu'a", "bu'e", "bu'i",
     "co'e",
 ];
+const FA_WORDS: &[&str] = &["fa", "fe", "fi", "fo", "fu", "fi'a"];
 const UI_WORDS: &[&str] = &[
     "i'a", "ie", "a'e", "u'i", "i'o", "i'e", "a'a", "ia", "o'i", "o'e", "e'e", "oi", "uo", "e'i",
     "u'o", "au", "ua", "a'i", "i'u", "ii", "u'a", "ui", "a'o", "ai", "a'u", "iu", "ei", "o'o",
@@ -498,6 +499,11 @@ enum TenseModalSyntax {
         nahe: Option<WordWithModifiers>,
         se: Option<WordWithModifiers>,
         bai: WordWithModifiers,
+    },
+    Fiho {
+        fiho: WordWithModifiers,
+        relation: Box<RelationSyntax>,
+        fehu: Option<WordWithModifiers>,
     },
     Caha {
         word: WordWithModifiers,
@@ -1499,6 +1505,16 @@ impl TenseModalSyntax {
                 vec![bai],
             ]
             .concat(),
+            TenseModalSyntax::Fiho {
+                fiho,
+                relation,
+                fehu,
+            } => {
+                let mut words = vec![fiho];
+                words.extend((*relation).words());
+                words.extend(fehu);
+                words
+            }
             TenseModalSyntax::Zaho { words } => words,
             TenseModalSyntax::Interval {
                 number,
@@ -1547,7 +1563,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     relation.define(relation_parser_with(argument.clone(), relation.clone()));
 
     let argument_term = argument.clone().map(TermSyntax::Argument);
-    let fa_term = cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"])
+    let fa_term = cmavo_of("FA", FA_WORDS)
         .then(argument.clone())
         .map(|(fa, argument)| TermSyntax::Fa { fa, argument });
     let tagged_term = tense_modal()
@@ -1656,7 +1672,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         });
 
     let be_link_fragment = cmavo("be")
-        .then(cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"]).or_not())
+        .then(cmavo_of("FA", FA_WORDS).or_not())
         .then(argument.clone())
         .then(cmavo("be'o").or_not())
         .map(|(((be, fa), first_argument), beho)| {
@@ -2219,14 +2235,15 @@ where
                     inner_argument: Box::new(inner_argument),
                 }
             });
-    let fa_tagged_argument = cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"])
-        .then(argument.clone())
-        .map(|(fa, inner_argument)| ArgumentSyntax::Tagged {
-            tag_words: vec![fa.clone()],
-            tag_tense_modal: None,
-            tag_fa: Some(fa),
-            inner_argument: Box::new(inner_argument),
-        });
+    let fa_tagged_argument =
+        cmavo_of("FA", FA_WORDS)
+            .then(argument.clone())
+            .map(|(fa, inner_argument)| ArgumentSyntax::Tagged {
+                tag_words: vec![fa.clone()],
+                tag_tense_modal: None,
+                tag_fa: Some(fa),
+                inner_argument: Box::new(inner_argument),
+            });
     let nahe_bo_argument = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
         .then(cmavo("bo"))
         .then(argument.clone())
@@ -2907,7 +2924,7 @@ where
         });
 
     let abstraction_argument_term = argument.clone().map(TermSyntax::Argument);
-    let abstraction_fa_term = cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"])
+    let abstraction_fa_term = cmavo_of("FA", FA_WORDS)
         .then(argument.clone())
         .map(|(fa, argument)| TermSyntax::Fa { fa, argument });
     let abstraction_tagged_term =
@@ -2982,7 +2999,7 @@ where
     .boxed();
     let bei_link = bei_link(argument.clone());
     let be_link = cmavo("be")
-        .then(cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"]).or_not())
+        .then(cmavo_of("FA", FA_WORDS).or_not())
         .then(argument.clone().or_not())
         .then(bei_link.repeated().collect::<Vec<_>>())
         .then(cmavo("be'o").or_not())
@@ -3218,7 +3235,7 @@ where
             });
         let bei_link = bei_link(argument.clone());
         let be_link = cmavo("be")
-            .then(cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"]).or_not())
+            .then(cmavo_of("FA", FA_WORDS).or_not())
             .then(argument.clone().or_not())
             .then(bei_link.repeated().collect::<Vec<_>>())
             .then(cmavo("be'o").or_not())
@@ -3483,6 +3500,33 @@ fn relation_to_empty_predicate(relation: RelationSyntax) -> BasicPredicate {
 
 #[requires(true)]
 #[ensures(true)]
+fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
+    let word_unit = relation_word().map(|word| RelationUnitSyntax::Word { word });
+    let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
+        .then(word_unit.clone())
+        .map(|(se, inner_unit)| RelationUnitSyntax::Se {
+            se,
+            inner_unit: Box::new(inner_unit),
+        });
+    let relation = choice((se_unit, word_unit))
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .map(relation_from_units);
+
+    cmavo("fi'o")
+        .then(relation)
+        .then(cmavo("fe'u").or_not())
+        .map(|((fiho, relation), fehu)| TenseModalSyntax::Fiho {
+            fiho,
+            relation: Box::new(relation),
+            fehu,
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
     #[derive(Clone)]
     #[invariant(true)]
@@ -3536,6 +3580,7 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             ),
         cmavo_of("CAhA", &["ca'a", "pu'i", "nu'o", "ka'e"])
             .map(|word| TenseModalSyntax::Caha { word }),
+        fiho_tense_modal(),
         cmavo_of(
             "ZAhO",
             &[
@@ -5092,8 +5137,11 @@ fn abstraction_tree(abstraction: AbstractionSyntax) -> SyntaxValue {
 #[requires(true)]
 #[ensures(true)]
 fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
-    let leaves = tense_modal.clone().words();
-    let (time, space, simple, interval, zaho, caha) = match tense_modal {
+    let leaves = match &tense_modal {
+        TenseModalSyntax::Fiho { .. } => Vec::new(),
+        _ => tense_modal.clone().words(),
+    };
+    let (time, space, simple, interval, zaho, caha, fiho) = match tense_modal {
         TenseModalSyntax::Pu { word } => (
             just(node(
                 "Time",
@@ -5109,6 +5157,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             nothing(),
             nil(),
             nothing(),
+            nil(),
         ),
         TenseModalSyntax::PuDistance { pu, distance } => (
             just(node(
@@ -5125,6 +5174,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             nothing(),
             nil(),
             nothing(),
+            nil(),
         ),
         TenseModalSyntax::TimeInterval { word } => (
             just(node(
@@ -5141,6 +5191,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             nothing(),
             nil(),
             nothing(),
+            nil(),
         ),
         TenseModalSyntax::PuCaha { pu, caha } => (
             just(node(
@@ -5157,6 +5208,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             nothing(),
             nil(),
             just(word_value(caha)),
+            nil(),
         ),
         TenseModalSyntax::SpaceDistance { word } => (
             nothing(),
@@ -5175,6 +5227,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             nothing(),
             nil(),
             nothing(),
+            nil(),
         ),
         TenseModalSyntax::SpaceDirection { word } => (
             nothing(),
@@ -5193,6 +5246,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             nothing(),
             nil(),
             nothing(),
+            nil(),
         ),
         TenseModalSyntax::SpaceMovement {
             mohi,
@@ -5218,6 +5272,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             nothing(),
             nil(),
             nothing(),
+            nil(),
         ),
         TenseModalSyntax::Simple { nahe, se, bai } => (
             nothing(),
@@ -5234,6 +5289,30 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             nothing(),
             nil(),
             nothing(),
+            nil(),
+        ),
+        TenseModalSyntax::Fiho {
+            fiho,
+            relation,
+            fehu,
+        } => (
+            nothing(),
+            nothing(),
+            nothing(),
+            nothing(),
+            nil(),
+            nothing(),
+            list(vec![node(
+                "FihoModal",
+                vec![
+                    field("nahe", nothing()),
+                    field("fiho", word_value(fiho)),
+                    field("fihoFreeModifiers", nil()),
+                    field("relation", relation_tree(*relation)),
+                    field("fehu", maybe_word(fehu)),
+                    field("fehuFreeModifiers", nil()),
+                ],
+            )]),
         ),
         TenseModalSyntax::Caha { word } => (
             nothing(),
@@ -5242,6 +5321,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             nothing(),
             nil(),
             just(word_value(word)),
+            nil(),
         ),
         TenseModalSyntax::Zaho { words } => (
             nothing(),
@@ -5250,6 +5330,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             nothing(),
             list(words.into_iter().map(word_value).collect()),
             nothing(),
+            nil(),
         ),
         TenseModalSyntax::Interval {
             number,
@@ -5276,6 +5357,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             )),
             nil(),
             nothing(),
+            nil(),
         ),
     };
 
@@ -5291,7 +5373,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             field("caha", caha),
             field("ki", nothing()),
             field("cuhe", nothing()),
-            field("fiho", nil()),
+            field("fiho", fiho),
             field("connectives", nil()),
             field("freeModifiers", nil()),
         ],
@@ -5561,7 +5643,7 @@ where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
     cmavo("bei")
-        .then(cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"]).or_not())
+        .then(cmavo_of("FA", FA_WORDS).or_not())
         .then(argument.or_not())
         .map(|((bei, fa), argument)| BeiLinkSyntax { bei, fa, argument })
         .boxed()
