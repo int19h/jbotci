@@ -1498,32 +1498,33 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         relation_fragment,
     ));
 
+    let connected_statement_tail = cmavo("i")
+        .then(statement_connective())
+        .then(tense_modal().then(cmavo("bo")).or_not())
+        .then(simple_statement.clone())
+        .map(|(((i, connective), tag_bo), trailing_statement)| {
+            let connective = tag_bo.map_or(connective.clone(), |(tense_modal, bo)| {
+                let mut cmavo = connective.cmavo;
+                cmavo.extend(tense_modal.words());
+                cmavo.push(bo);
+                ConnectiveSyntax {
+                    kind: connective.kind,
+                    se: connective.se,
+                    nahe: connective.nahe,
+                    na: connective.na,
+                    cmavo,
+                    nai: connective.nai,
+                }
+            });
+            (i, connective, trailing_statement)
+        });
     let statement_body = simple_statement
         .clone()
-        .then(
-            cmavo("i")
-                .then(statement_connective())
-                .then(tense_modal().then(cmavo("bo")).or_not())
-                .then(simple_statement.clone())
-                .or_not(),
-        )
-        .map(|(leading_statement, connected)| {
-            connected.map_or(
-                leading_statement.clone(),
-                |(((i, connective), tag_bo), trailing_statement)| {
-                    let connective = tag_bo.map_or(connective.clone(), |(tense_modal, bo)| {
-                        let mut cmavo = connective.cmavo;
-                        cmavo.extend(tense_modal.words());
-                        cmavo.push(bo);
-                        ConnectiveSyntax {
-                            kind: connective.kind,
-                            se: connective.se,
-                            nahe: connective.nahe,
-                            na: connective.na,
-                            cmavo,
-                            nai: connective.nai,
-                        }
-                    });
+        .then(connected_statement_tail.repeated().collect::<Vec<_>>())
+        .map(|(leading_statement, continuations)| {
+            continuations.into_iter().fold(
+                leading_statement,
+                |leading_statement, (i, connective, trailing_statement)| {
                     StatementSyntax::Connected {
                         i,
                         connective,
