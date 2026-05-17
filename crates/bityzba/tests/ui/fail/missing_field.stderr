@@ -1,12 +1,12 @@
 error[E0308]: mismatched types
-  --> tests/ui/fail/missing_field.rs:10:23
+  --> tests/ui/fail/missing_field.rs:10:13
    |
-10 |       let _ = Span::new(fields! {
-   |  _______________________^
+10 |       let _ = new!(Span {
+   |  _____________^
 11 | |         start: 0,
 12 | |     });
-   | |_____^ expected `SpanFields<SpanFieldsSet, SpanFieldsSet>`, found `SpanFields<SpanFieldsSet, ...>`
+   | |______^ expected `SpanDataBuilderSet`, found `SpanDataBuilderUnset`
    |
-   = note: expected struct `SpanFields<SpanFieldsSet, SpanFieldsSet>`
-              found struct `SpanFields<SpanFieldsSet, SpanFieldsUnset>`
-   = note: this error originates in the macro `fields` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: expected struct `SpanDataBuilder<SpanDataBuilderSet, SpanDataBuilderSet>`
+              found struct `SpanDataBuilder<SpanDataBuilderSet, SpanDataBuilderUnset>`
+   = note: this error originates in the macro `new` (in Nightly builds, run with -Z macro-backtrace for more info)

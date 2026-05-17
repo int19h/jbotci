@@ -44,7 +44,7 @@ fn invariant_impl(
     // The following expansion of the attributes will then implement the
     // invariant just like it's done for functions.
 
-    // The mode received is "raw", so it can't be "Disabled" or "LogOnly"
+    // The mode received is unreduced, so it can't be "Disabled" or "LogOnly"
     // but it can't hurt to deal with it anyway.
     let name = match mode.name() {
         Some(n) => n.to_string() + "invariant",

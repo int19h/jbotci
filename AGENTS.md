@@ -46,7 +46,7 @@ If you add debug logging that is broadly useful beyond a one-off investigation, 
 
 # Design by contract
 
-Use `bityzba` for design by contract throughout the workspace, including private functions, trait methods, `impl` methods, and public model types. Import the macros you need from `bityzba::{requires, ensures, invariant, contract_trait, expensive_requires, expensive_ensures, expensive_invariant, fields}`.
+Use `bityzba` for design by contract throughout the workspace, including private functions, trait methods, `impl` methods, and public model types. Import the macros you need from `bityzba::{requires, ensures, invariant, contract_trait, expensive_requires, expensive_ensures, expensive_invariant, data, new, try_new}`.
 
 Cheap contracts use `requires`, `ensures`, and `invariant`; they run in normal builds and should be cheap enough for routine execution. Expensive contracts use `expensive_requires`, `expensive_ensures`, and `expensive_invariant`; they are disabled by default and enabled by `cargo test --workspace --all-targets --features expensive_contracts -j 16 -- --test-threads=16`. Do not use `test_requires`, `test_ensures`, or `test_invariant` for production expensive contracts; reserve them for genuinely test-only APIs.
 
@@ -54,7 +54,8 @@ Keep contracts in mind whenever writing or touching code. Capture preconditions,
 
 ```rust
 use bityzba::{
-    contract_trait, ensures, expensive_ensures, expensive_requires, fields, invariant, requires,
+    contract_trait, data, ensures, expensive_ensures, expensive_requires, invariant, new,
+    requires, try_new,
 };
 
 #[contract_trait]
@@ -97,7 +98,6 @@ fn greeting(person_name: Option<&str>) -> String {
 
 #[invariant(self.byte_start <= self.byte_end, "byte range must be ordered")]
 #[invariant(self.char_start <= self.char_end, "character range must be ordered")]
-#[bityzba(no_new)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceSpan {
     pub source_id: Option<SourceId>,
@@ -130,7 +130,7 @@ impl SourceSpan {
                 end: char_end,
             });
         }
-        Ok(Self::from_raw(fields!(SourceSpan {
+        Ok(Self::from_data(data!(SourceSpan {
             source_id: source_id,
             byte_start: byte_start,
             byte_end: byte_end,
@@ -143,12 +143,12 @@ impl SourceSpan {
 }
 ```
 
-For type invariants, `#[invariant]` on a named-field struct or enum creates a validated wrapper plus a raw unchecked `TypeRaw`. Values of the wrapper are valid by construction. Do not add public `is_valid()` to invariant-bearing model types. Keep private helper predicates only for smaller sub-concepts that are not themselves represented by validated types.
+For type invariants, `#[invariant]` on a named-field struct or enum creates a validated wrapper plus an unchecked `TypeData`. Values of the wrapper are valid by construction. Do not add public `is_valid()` to invariant-bearing model types. Keep private helper predicates only for smaller sub-concepts that are not themselves represented by validated types.
 
-By default, use `Type::new(fields! { ... })` for full construction. Every field must be present exactly once; missing fields fail at compile time through builder typestate and duplicate fields are a macro error. Use `value.with_fields(fields! { ... })` for whole-value updates; it consumes the old value, applies the partial field set, and revalidates. Clone first if the old value must be retained. If a type needs a hand-written `new` that does real work beyond invariant validation, add `#[bityzba(no_new)]` after the invariant attributes and implement that constructor in terms of `from_raw` or `try_from_raw`.
+Use `new!(Type { ... })` for normal full construction and `try_new!(Type { ... })` at fallible unchecked boundaries. Every field must be present exactly once; missing fields fail at compile time through builder typestate and duplicate fields are a macro error. Use `value.with_data(data! { ... })` for whole-value updates; it consumes the old value, applies the partial field set, and revalidates. Clone first if the old value must be retained. `bityzba` does not generate `Type::new`; if a type needs a hand-written constructor that does real work beyond invariant validation, implement it in terms of `from_data` or `try_from_data`.
 
 ```rust
-let span = CheckedSpan::new(fields! {
+let span = new!(CheckedSpan {
     source_id: None,
     byte_start: 0,
     byte_end: 12,
@@ -156,7 +156,15 @@ let span = CheckedSpan::new(fields! {
     char_end: 12,
 });
 
-let span = span.with_fields(fields! {
+let span = try_new!(CheckedSpan {
+    source_id: None,
+    byte_start: 0,
+    byte_end: 12,
+    char_start: 0,
+    char_end: 12,
+})?;
+
+let span = span.with_data(data! {
     byte_end: 16,
     char_end: 16,
 });
@@ -164,19 +172,30 @@ let span = span.with_fields(fields! {
 assert_eq!(span.byte_end, 16); // read-only field access through Deref
 ```
 
-There is no generated `DerefMut`. Do not mutate fields directly. If low-level code must work with unchecked data, use `value.as_raw()`, `value.into_raw()`, `Type::try_from_raw(raw)`, `Type::from_raw(raw)`, or `TryFrom<TypeRaw>` explicitly and keep that escape hatch local.
-
-Use `fields!` pattern aliases when destructuring raw views so normal code does not mention raw type names:
+Enums use `new!` with the normal variant shape: named variants use braces, tuple variants use parentheses, and unit variants use a path.
 
 ```rust
-let fields!(SourceSpan { byte_start, byte_end, .. }) = span.as_raw();
+let value = new!(SyntaxValue::Node { node });
+let value = new!(SyntaxValue::Null);
+let value = new!(Example::Pair(left, right));
+```
 
-match value.as_raw() {
-    fields!(SyntaxValue::Node { node }) => visit(node),
-    fields!(SyntaxValue::Word { word }) => visit_word(word),
+There is no generated `DerefMut`. Do not mutate fields directly. If low-level code must work with unchecked data, use `value.as_data()`, `value.into_data()`, `Type::try_from_data(data)`, `Type::from_data(data)`, or `TryFrom<TypeData>` explicitly and keep that escape hatch local.
+
+Use `data!` pattern aliases when destructuring data views so normal code does not mention data type names:
+
+```rust
+let data!(SourceSpan { byte_start, byte_end, .. }) = span.as_data();
+
+match value.as_data() {
+    data!(SyntaxValue::Node { node }) => visit(node),
+    data!(SyntaxValue::Word { word }) => visit_word(word),
+    data!(Example::Pair(left, right)) => visit_pair(left, right),
     _ => {}
 }
 ```
+
+`data!(Type { ... })` and `TypeData` are unchecked escape hatches for serde internals, low-level tests, fixtures, and rare advanced code. They obey normal Rust privacy; use `new!` for public construction of structs with private fields.
 
 Use cheap contracts for local scalar checks, shape checks already needed by callers, and invariants that are constant-time or close to it. Use expensive contracts for corpus-wide validation, deep tree walks, normalization cross-checks, semantic equivalence checks, and any contract that allocates, traverses large collections, calls parsers, or performs work that would be inappropriate in normal builds.
 

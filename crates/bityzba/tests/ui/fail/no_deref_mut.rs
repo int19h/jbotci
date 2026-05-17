@@ -1,4 +1,4 @@
-use bityzba::{fields, invariant};
+use bityzba::{invariant, new};
 
 #[invariant(self.start <= self.end)]
 struct Span {
@@ -7,7 +7,7 @@ struct Span {
 }
 
 fn main() {
-    let mut span = Span::new(fields! {
+    let mut span = new!(Span {
         start: 0,
         end: 1,
     });

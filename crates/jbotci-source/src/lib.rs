@@ -1,6 +1,6 @@
 //! Shared source-location types.
 
-use bityzba::{fields, invariant};
+use bityzba::{data, invariant};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -12,7 +12,6 @@ pub struct SourceId(pub String);
 /// One-indexed line and column in source text.
 #[invariant(self.line > 0, "line numbers are one-indexed and cannot be zero")]
 #[invariant(self.column > 0, "column numbers are one-indexed and cannot be zero")]
-#[bityzba(no_new)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct LineColumn {
     pub line: usize,
@@ -27,7 +26,7 @@ impl LineColumn {
         if column == 0 {
             return Err(SourceLocationError::ZeroColumn);
         }
-        Ok(Self::from_raw(fields!(LineColumn {
+        Ok(Self::from_data(data!(LineColumn {
             line: line,
             column: column,
         })))
@@ -42,7 +41,6 @@ impl LineColumn {
 /// responsible for deriving offsets from the same source text.
 #[invariant(self.byte_start <= self.byte_end, "byte range start must not exceed end")]
 #[invariant(self.char_start <= self.char_end, "character range start must not exceed end")]
-#[bityzba(no_new)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SourceSpan {
     pub source_id: Option<SourceId>,
@@ -74,7 +72,7 @@ impl SourceSpan {
                 end: char_end,
             });
         }
-        Ok(Self::from_raw(fields!(SourceSpan {
+        Ok(Self::from_data(data!(SourceSpan {
             source_id: source_id,
             byte_start: byte_start,
             byte_end: byte_end,

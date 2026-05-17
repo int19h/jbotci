@@ -80,11 +80,11 @@ impl Buffer {
 ## Type Invariants
 
 `#[invariant]` on a named-field struct or enum creates a wrapper type and an
-unchecked raw type named `TypeRaw`. Values of the wrapper type are valid by
+unchecked data type named `TypeData`. Values of the wrapper type are valid by
 construction. Public `is_valid()` is not the model for invariant-bearing types.
 
 ```rust
-use bityzba::{fields, invariant};
+use bityzba::{data, invariant, new, try_new};
 use serde::{Deserialize, Serialize};
 
 #[invariant(self.byte_start <= self.byte_end, "byte range must be ordered")]
@@ -101,57 +101,63 @@ pub struct SourceSpan {
 The macro generates:
 
 - `SourceSpan`, the validated wrapper.
-- `SourceSpanRaw`, the unchecked data shape.
+- `SourceSpanData`, the unchecked data shape.
 - `SourceSpanInvariantError`.
-- `SourceSpan::new(fields! { ... })` for full construction.
-- `span.with_fields(fields! { ... })` for whole-value updates.
-- `SourceSpan::try_from_raw(raw)`, `TryFrom<SourceSpanRaw>`, `as_raw()`, and
-  `into_raw()`.
+- `new!(SourceSpan { ... })` and `try_new!(SourceSpan { ... })` for full
+  construction.
+- `span.with_data(data! { ... })` for whole-value updates.
+- `SourceSpan::try_from_data(data)`, `TryFrom<SourceSpanData>`, `as_data()`, and
+  `into_data()`.
 - Serde implementations that validate during deserialization when the original
   type derived serde traits.
 
 Full construction requires every field exactly once. Missing fields fail at
 compile time through builder typestate; duplicate fields are rejected by
-`fields!`.
+`data!`.
 
 ```rust
-let span = SourceSpan::new(fields! {
+let span = new!(SourceSpan {
     byte_start: 0,
     byte_end: 4,
     char_start: 0,
     char_end: 4,
 });
+
+let fallible_span = try_new!(SourceSpan {
+    byte_start: 0,
+    byte_end: 4,
+    char_start: 0,
+    char_end: 4,
+})?;
 ```
 
-`with_fields` consumes the old value, applies a partial field set, and
+`with_data` consumes the old value, applies a partial field set, and
 revalidates the whole result. Clone first if the old value must be retained.
 
 ```rust
-let longer = span.with_fields(fields! {
+let longer = span.with_data(data! {
     byte_end: 8,
     char_end: 8,
 });
 ```
 
-`Deref<Target = TypeRaw>` is implemented for read-only field access:
+`Deref<Target = TypeData>` is implemented for read-only field access:
 
 ```rust
 assert_eq!(longer.byte_end, 8);
 ```
 
-There is no `DerefMut`. Mutate invariant-bearing values through
-`with_fields` or through an explicit raw reconstruction followed by
-`try_from_raw` or `from_raw`.
+There is no `DerefMut`. Mutate invariant-bearing values through `with_data` or
+through explicit data reconstruction followed by `try_from_data` or
+`from_data`.
 
-If a type needs to provide its own `new` constructor, add
-`#[bityzba(no_new)]` after the invariant attributes. `from_raw`,
-`try_from_raw`, raw conversion, serde validation, `Deref`, and
-`with_fields` are still generated; only the field-builder `new` method is
-omitted.
+`bityzba` does not generate `Type::new`, so a type can define its own `new`
+constructor when construction does useful work beyond invariant validation.
+Use `from_data` after explicit checks have proved the invariant, or
+`try_from_data` when converting unchecked input directly.
 
 ```rust
 #[invariant(self.start <= self.end)]
-#[bityzba(no_new)]
 pub struct Span {
     pub start: usize,
     pub end: usize,
@@ -162,7 +168,7 @@ impl Span {
         if start > end {
             return Err(SpanError::Inverted);
         }
-        Ok(Self::from_raw(fields!(Span {
+        Ok(Self::from_data(data!(Span {
             start: start,
             end: end,
         })))
@@ -170,34 +176,48 @@ impl Span {
 }
 ```
 
+Enums use the same construction macros. Named variants use braces, tuple
+variants use parentheses, and unit variants use a path:
+
+```rust
+let value = new!(SyntaxValue::Node { node });
+let value = new!(SyntaxValue::Null);
+let value = new!(Example::Pair(left, right));
+```
+
+For structs with private fields, `new!` expands through generated hidden
+builder methods, so construction can be part of the public API without exposing
+literal field access. `data!(Type { ... })` does not bypass Rust privacy.
+
 ## Pattern Matching
 
-Pattern-match through `as_raw()` and `fields!` aliases to avoid spelling raw
+Pattern-match through `as_data()` and `data!` aliases to avoid spelling data
 type names in normal code:
 
 ```rust
-let fields!(SourceSpan { byte_start, byte_end, .. }) = longer.as_raw();
+let data!(SourceSpan { byte_start, byte_end, .. }) = longer.as_data();
 assert!(byte_start <= byte_end);
 ```
 
 Enum variants use the same alias form:
 
 ```rust
-match value.as_raw() {
-    fields!(SyntaxValue::Node { node }) => visit(node),
-    fields!(SyntaxValue::Word { word }) => visit_word(word),
+match value.as_data() {
+    data!(SyntaxValue::Node { node }) => visit(node),
+    data!(SyntaxValue::Word { word }) => visit_word(word),
+    data!(Example::Pair(left, right)) => visit_pair(left, right),
     _ => {}
 }
 ```
 
-For path-qualified enum variants, `fields!` follows normal Rust naming
+For path-qualified enum variants, `data!` follows normal Rust naming
 conventions: the enum type segment immediately before the variant is rewritten
-to `TypeRaw`, as in `fields!(crate::model::Value::Node { node })`.
+to `TypeData`, as in `data!(crate::model::Value::Node { node })`.
 
-## Raw Escape Hatches
+## Data Escape Hatches
 
-`TypeRaw` exists for serde internals, low-level tests, generated fixtures, and
+`TypeData` exists for serde internals, low-level tests, generated fixtures, and
 rare advanced code that must represent unchecked data. Normal construction and
-updates should use `fields!` and the generated validation APIs. Enum helper
-constructors should use `fields!(Type::Variant { ... })` rather than spelling
-`TypeRaw`.
+updates should use `new!`, `try_new!`, `with_data`, and the generated
+validation APIs. Enum helper constructors should use `new!(Type::Variant {
+... })` rather than spelling `TypeData`.

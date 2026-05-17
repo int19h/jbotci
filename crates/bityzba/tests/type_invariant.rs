@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use bityzba::{fields, invariant};
+use bityzba::{data, invariant, new, try_new};
 use serde::{Deserialize, Serialize};
 
 #[invariant(self.start <= self.end, "span bounds must be ordered")]
@@ -13,14 +13,21 @@ struct Span {
     pub label: String,
 }
 
-#[invariant(matches!(self.as_raw(), ChoiceRaw::Named { name } if !name.is_empty()) || matches!(self.as_raw(), ChoiceRaw::Unset))]
+#[invariant(matches!(self.as_data(), ChoiceData::Named { name } if !name.is_empty()) || matches!(self.as_data(), ChoiceData::Unset))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Choice {
     Unset,
     Named { name: String },
 }
 
-#[invariant(tree_raw_is_valid(self.as_raw()))]
+#[invariant(matches!(self.as_data(), TupleChoiceData::Pair(label, _) if !label.is_empty()) || matches!(self.as_data(), TupleChoiceData::Unset))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum TupleChoice {
+    Unset,
+    Pair(String, usize),
+}
+
+#[invariant(tree_data_is_valid(self.as_data()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 enum Tree {
@@ -29,7 +36,6 @@ enum Tree {
 }
 
 #[invariant(self.start <= self.end)]
-#[bityzba(no_new)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CustomSpan {
     start: usize,
@@ -41,25 +47,25 @@ impl CustomSpan {
         if start > end {
             return Err("inverted span");
         }
-        Ok(Self::from_raw(fields!(CustomSpan {
+        Ok(Self::from_data(data!(CustomSpan {
             start: start,
             end: end,
         })))
     }
 }
 
-fn tree_raw_is_valid(raw: &TreeRaw) -> bool {
-    match raw {
-        fields!(Tree::Leaf { label }) => !label.is_empty(),
-        fields!(Tree::Branch { children }) => children
+fn tree_data_is_valid(data: &TreeData) -> bool {
+    match data {
+        data!(Tree::Leaf { label }) => !label.is_empty(),
+        data!(Tree::Branch { children }) => children
             .iter()
-            .all(|child| tree_raw_is_valid(child.as_raw())),
+            .all(|child| tree_data_is_valid(child.as_data())),
     }
 }
 
 #[test]
-fn constructs_valid_struct_from_fields() {
-    let span = Span::new(fields! {
+fn constructs_valid_struct_from_data() {
+    let span = new!(Span {
         start: 1,
         end: 3,
         label: String::from("sumti"),
@@ -68,18 +74,18 @@ fn constructs_valid_struct_from_fields() {
     assert_eq!(span.start, 1);
     assert_eq!(span.end, 3);
 
-    let fields!(Span { start, label, .. }) = span.as_raw();
+    let data!(Span { start, label, .. }) = span.as_data();
     assert_eq!(*start, 1);
     assert_eq!(label, "sumti");
 }
 
 #[test]
-fn rejects_invalid_struct_fields() {
-    let error = Span::try_from_raw(fields!(Span {
+fn rejects_invalid_struct_data() {
+    let error = try_new!(Span {
         start: 3,
         end: 1,
         label: String::from("bad"),
-    }))
+    })
     .expect_err("invalid bounds");
 
     assert!(error.to_string().contains("span bounds must be ordered"));
@@ -87,19 +93,19 @@ fn rejects_invalid_struct_fields() {
 
 #[test]
 fn updates_by_revalidating_whole_value() {
-    let span = Span::new(fields! {
+    let span = new!(Span {
         start: 1,
         end: 3,
         label: String::from("sumti"),
     });
 
-    let updated = span.with_fields(fields! {
+    let updated = span.with_data(data! {
         end: 4,
     });
 
     assert_eq!(updated.end, 4);
     let panic = std::panic::catch_unwind(|| {
-        let _ = updated.with_fields(fields! {
+        let _ = updated.with_data(data! {
             end: 0,
         });
     });
@@ -108,7 +114,7 @@ fn updates_by_revalidating_whole_value() {
 
 #[test]
 fn serde_deserialization_validates_invariant() {
-    let span = Span::new(fields! {
+    let span = new!(Span {
         start: 1,
         end: 3,
         label: String::from("sumti"),
@@ -125,43 +131,61 @@ fn serde_deserialization_validates_invariant() {
 }
 
 #[test]
-fn enum_raw_conversion_validates_invariant() {
-    assert!(Choice::try_from_raw(fields!(Choice::Unset)).is_ok());
+fn enum_data_conversion_validates_invariant() {
+    assert!(try_new!(Choice::Unset).is_ok());
     assert!(
-        Choice::try_from_raw(fields!(Choice::Named {
+        try_new!(Choice::Named {
             name: String::new()
-        }))
+        })
         .is_err()
     );
 
-    let choice = Choice::from_raw(fields!(Choice::Named {
+    let choice = new!(Choice::Named {
         name: String::from("cmavo"),
-    }));
+    });
 
-    match choice.as_raw() {
-        fields!(Choice::Named { name }) => assert_eq!(name, "cmavo"),
-        fields!(Choice::Unset) => panic!("wrong variant"),
+    match choice.as_data() {
+        data!(Choice::Named { name }) => assert_eq!(name, "cmavo"),
+        data!(Choice::Unset) => panic!("wrong variant"),
     }
 }
 
 #[test]
-fn recursive_enum_invariants_validate_children() {
-    let leaf = Tree::from_raw(fields!(Tree::Leaf {
-        label: String::from("leaf"),
-    }));
-    let tree = Tree::from_raw(fields!(Tree::Branch {
-        children: vec![leaf],
-    }));
+fn tuple_enum_variants_construct_and_match_through_macros() {
+    let unset = new!(TupleChoice::Unset);
+    assert!(matches!(unset.as_data(), data!(TupleChoice::Unset)));
 
-    match tree.as_raw() {
-        fields!(Tree::Branch { children }) => {
+    let choice = new!(TupleChoice::Pair(String::from("cmavo"), 2));
+
+    match choice.as_data() {
+        data!(TupleChoice::Pair(label, count)) => {
+            assert_eq!(label, "cmavo");
+            assert_eq!(*count, 2);
+        }
+        data!(TupleChoice::Unset) => panic!("wrong variant"),
+    }
+
+    assert!(try_new!(TupleChoice::Pair(String::new(), 2)).is_err());
+}
+
+#[test]
+fn recursive_enum_invariants_validate_children() {
+    let leaf = new!(Tree::Leaf {
+        label: String::from("leaf"),
+    });
+    let tree = new!(Tree::Branch {
+        children: vec![leaf],
+    });
+
+    match tree.as_data() {
+        data!(Tree::Branch { children }) => {
             assert_eq!(children.len(), 1);
-            match children[0].as_raw() {
-                fields!(Tree::Leaf { label }) => assert_eq!(label, "leaf"),
-                fields!(Tree::Branch { .. }) => panic!("wrong child variant"),
+            match children[0].as_data() {
+                data!(Tree::Leaf { label }) => assert_eq!(label, "leaf"),
+                data!(Tree::Branch { .. }) => panic!("wrong child variant"),
             }
         }
-        fields!(Tree::Leaf { .. }) => panic!("wrong root variant"),
+        data!(Tree::Leaf { .. }) => panic!("wrong root variant"),
     }
 
     let invalid = r#"{"kind":"leaf","label":""}"#;
@@ -169,7 +193,7 @@ fn recursive_enum_invariants_validate_children() {
 }
 
 #[test]
-fn type_invariant_can_skip_generated_new_for_custom_constructor() {
+fn type_invariant_allows_user_defined_new_constructor() {
     let span = CustomSpan::new(1, 3).expect("valid custom span");
     assert_eq!(span.start, 1);
     assert_eq!(span.end, 3);

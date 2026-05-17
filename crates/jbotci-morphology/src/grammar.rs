@@ -1,15 +1,15 @@
 use std::collections::VecDeque;
 
 use bityzba::expensive_ensures;
-use bityzba::{ensures, fields, requires};
+use bityzba::{data, ensures, new, requires};
 use chumsky::error::Rich;
 use chumsky::prelude::*;
 use chumsky::span::SimpleSpan;
 use jbotci_source::{SourceId, SourceSpan};
 
 use crate::{
-    MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordLikeRaw, WordWithModifiers,
-    WordWithModifiersRaw,
+    MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordLikeData, WordWithModifiers,
+    WordWithModifiersData,
 };
 
 type MorphExtra<'src> = extra::Err<Rich<'src, char>>;
@@ -690,7 +690,7 @@ impl<'a> Segmenter<'a> {
         phonemes: String,
     ) -> Result<WordWithModifiers, MorphologyError> {
         let span = self.source_span(start, end)?;
-        Ok(base_word_like(WordLike::bare(Word::new(fields! {
+        Ok(base_word_like(WordLike::bare(new!(Word {
             kind: kind,
             phonemes: phonemes,
             span: span,
@@ -885,32 +885,32 @@ fn base_word_like(word_like: WordLike) -> WordWithModifiers {
 }
 
 fn extract_word(word: &WordWithModifiers) -> Option<Word> {
-    match word.as_raw() {
-        fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
-            fields!(WordLike::Bare { word }) => Some((**word).clone()),
+    match word.as_data() {
+        data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
+            data!(WordLike::Bare { word }) => Some((**word).clone()),
             _ => None,
         },
-        fields!(WordWithModifiers::Emphasized { word_like, .. }) => match word_like.as_raw() {
-            fields!(WordLike::Bare { word }) => Some((**word).clone()),
+        data!(WordWithModifiers::Emphasized { word_like, .. }) => match word_like.as_data() {
+            data!(WordLike::Bare { word }) => Some((**word).clone()),
             _ => None,
         },
-        fields!(WordWithModifiers::WithIndicator { base, .. }) => extract_word(base),
-        fields!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
+        data!(WordWithModifiers::WithIndicator { base, .. }) => extract_word(base),
+        data!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
             Some((**indicator).clone())
         }
-        fields!(WordWithModifiers::NotEof) => None,
+        data!(WordWithModifiers::NotEof) => None,
     }
 }
 
 fn get_word_like(word: &WordWithModifiers) -> WordLike {
-    match word.as_raw() {
-        fields!(WordWithModifiers::BaseWord { word_like }) => (**word_like).clone(),
-        fields!(WordWithModifiers::Emphasized { word_like, .. }) => (**word_like).clone(),
-        fields!(WordWithModifiers::WithIndicator { base, .. }) => get_word_like(base),
-        fields!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
+    match word.as_data() {
+        data!(WordWithModifiers::BaseWord { word_like }) => (**word_like).clone(),
+        data!(WordWithModifiers::Emphasized { word_like, .. }) => (**word_like).clone(),
+        data!(WordWithModifiers::WithIndicator { base, .. }) => get_word_like(base),
+        data!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
             WordLike::bare((**indicator).clone())
         }
-        fields!(WordWithModifiers::NotEof) => WordLike::bare(Word::new(fields! {
+        data!(WordWithModifiers::NotEof) => WordLike::bare(new!(Word {
             kind: WordKind::Cmavo,
             phonemes: String::from("<not-eof>"),
             span: SourceSpan::new(None, 0, 0, 0, 0).expect("valid empty span"),
@@ -922,28 +922,28 @@ fn get_word_like(word: &WordWithModifiers) -> WordLike {
 
 #[requires(!text.is_empty())]
 fn is_simple_cmavo_text(word: &WordWithModifiers, text: &str) -> bool {
-    match word.as_raw() {
-        fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
-            fields!(WordLike::Bare { word }) => {
+    match word.as_data() {
+        data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
+            data!(WordLike::Bare { word }) => {
                 word.kind == WordKind::Cmavo && canonicalize_text(&word.phonemes) == text
             }
             _ => false,
         },
-        fields!(WordWithModifiers::Emphasized { word_like, .. }) => match word_like.as_raw() {
-            fields!(WordLike::Bare { word }) => {
+        data!(WordWithModifiers::Emphasized { word_like, .. }) => match word_like.as_data() {
+            data!(WordLike::Bare { word }) => {
                 word.kind == WordKind::Cmavo && canonicalize_text(&word.phonemes) == text
             }
             _ => false,
         },
-        fields!(WordWithModifiers::WithIndicator { base, .. }) => is_simple_cmavo_text(base, text),
+        data!(WordWithModifiers::WithIndicator { base, .. }) => is_simple_cmavo_text(base, text),
         _ => false,
     }
 }
 
 fn is_y_word(word: &WordWithModifiers) -> bool {
-    match word.as_raw() {
-        fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
-            fields!(WordLike::Bare { word }) => {
+    match word.as_data() {
+        data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
+            data!(WordLike::Bare { word }) => {
                 word.kind == WordKind::Cmavo && is_y_word_text(&word.phonemes)
             }
             _ => false,
@@ -1019,8 +1019,8 @@ fn sa_match_tag<'a>(
     options: &MorphologyOptions,
     word: &'a WordWithModifiers,
 ) -> Option<SAMatchTag<'a>> {
-    match get_word_like(word).into_raw() {
-        fields!(WordLike::Bare { word }) => match word.kind {
+    match get_word_like(word).into_data() {
+        data!(WordLike::Bare { word }) => match word.kind {
             WordKind::Cmavo => {
                 visible_selmaho(&WordLike::bare((*word).clone())).map(SAMatchTag::Selmaho)
             }
@@ -1028,7 +1028,7 @@ fn sa_match_tag<'a>(
             WordKind::Cmevla if options.cmevla_as_relation_words => Some(SAMatchTag::Brivla),
             WordKind::Cmevla => Some(SAMatchTag::Cmevla),
         },
-        other => visible_selmaho(&WordLike::from_raw(other)).map(SAMatchTag::Selmaho),
+        other => visible_selmaho(&WordLike::from_data(other)).map(SAMatchTag::Selmaho),
     }
 }
 
@@ -1051,14 +1051,14 @@ fn find_nth_matching_word(
 }
 
 fn visible_selmaho(word_like: &WordLike) -> Option<&'static str> {
-    match word_like.as_raw() {
-        fields!(WordLike::Bare { word }) if word.kind == WordKind::Cmavo => selmaho(&word.phonemes),
-        fields!(WordLike::ZoQuote { .. }) => Some("ZO"),
-        fields!(WordLike::ZoiQuote { zoi, .. }) => selmaho(&zoi.phonemes),
-        fields!(WordLike::LohuQuote { .. }) => Some("LOhU"),
-        fields!(WordLike::SingleWordQuote { marker, .. }) => selmaho(&marker.phonemes),
-        fields!(WordLike::Letter { .. }) => Some("BU"),
-        fields!(WordLike::ZeiLujvo { .. }) => Some("ZEI"),
+    match word_like.as_data() {
+        data!(WordLike::Bare { word }) if word.kind == WordKind::Cmavo => selmaho(&word.phonemes),
+        data!(WordLike::ZoQuote { .. }) => Some("ZO"),
+        data!(WordLike::ZoiQuote { zoi, .. }) => selmaho(&zoi.phonemes),
+        data!(WordLike::LohuQuote { .. }) => Some("LOhU"),
+        data!(WordLike::SingleWordQuote { marker, .. }) => selmaho(&marker.phonemes),
+        data!(WordLike::Letter { .. }) => Some("BU"),
+        data!(WordLike::ZeiLujvo { .. }) => Some("ZEI"),
         _ => None,
     }
 }
@@ -1189,17 +1189,17 @@ fn pass_ui(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
 }
 
 fn get_modifier_word(word: &WordWithModifiers) -> Option<Word> {
-    match word.as_raw() {
-        fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
-            fields!(WordLike::Bare { word }) => Some((**word).clone()),
+    match word.as_data() {
+        data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
+            data!(WordLike::Bare { word }) => Some((**word).clone()),
             _ => None,
         },
-        fields!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
+        data!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
             Some((**indicator).clone())
         }
-        fields!(WordWithModifiers::Emphasized { bahe, .. }) => Some((**bahe).clone()),
-        fields!(WordWithModifiers::WithIndicator { indicator, .. }) => Some((**indicator).clone()),
-        fields!(WordWithModifiers::NotEof) => None,
+        data!(WordWithModifiers::Emphasized { bahe, .. }) => Some((**bahe).clone()),
+        data!(WordWithModifiers::WithIndicator { indicator, .. }) => Some((**indicator).clone()),
+        data!(WordWithModifiers::NotEof) => None,
     }
 }
 
@@ -1339,10 +1339,10 @@ mod tests {
             .expect("valid morphology");
 
         assert_eq!(words.len(), 1);
-        let fields!(WordWithModifiers::BaseWord { word_like }) = words[0].as_raw() else {
+        let data!(WordWithModifiers::BaseWord { word_like }) = words[0].as_data() else {
             panic!("expected base word");
         };
-        let fields!(WordLike::ZoQuote { zo, word }) = word_like.as_raw() else {
+        let data!(WordLike::ZoQuote { zo, word }) = word_like.as_data() else {
             panic!("expected ZO quote");
         };
         assert_eq!(zo.phonemes, "zo");
@@ -1356,15 +1356,15 @@ mod tests {
                 .expect("valid morphology");
 
         assert_eq!(words.len(), 1);
-        let fields!(WordWithModifiers::BaseWord { word_like }) = words[0].as_raw() else {
+        let data!(WordWithModifiers::BaseWord { word_like }) = words[0].as_data() else {
             panic!("expected base word");
         };
-        let fields!(WordLike::ZoiQuote {
+        let data!(WordLike::ZoiQuote {
             zoi,
             opening_delimiter,
             quoted_text,
             closing_delimiter,
-        }) = word_like.as_raw()
+        }) = word_like.as_data()
         else {
             panic!("expected ZOI quote");
         };
@@ -1400,9 +1400,9 @@ mod tests {
     }
 
     fn bare_word(word: &WordWithModifiers) -> Option<&Word> {
-        match word.as_raw() {
-            fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
-                fields!(WordLike::Bare { word }) => Some(word),
+        match word.as_data() {
+            data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
+                data!(WordLike::Bare { word }) => Some(word),
                 _ => None,
             },
             _ => None,

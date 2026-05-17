@@ -3,17 +3,17 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 pub(crate) mod codegen;
+pub(crate) mod data;
 pub(crate) mod doc;
 pub(crate) mod ensures;
-pub(crate) mod fields;
 pub(crate) mod invariant;
 pub(crate) mod parse;
 pub(crate) mod requires;
 pub(crate) mod traits;
 pub(crate) mod type_invariant;
 
+pub(crate) use data::{data, new_value, try_new_value};
 pub(crate) use ensures::ensures;
-pub(crate) use fields::fields;
 pub(crate) use invariant::invariant;
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;

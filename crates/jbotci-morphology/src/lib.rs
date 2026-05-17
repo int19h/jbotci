@@ -6,7 +6,7 @@ mod segment;
 use std::fmt;
 
 use bityzba::expensive_invariant;
-use bityzba::{ensures, fields, invariant};
+use bityzba::{data, ensures, invariant, new};
 pub use jbotci_dialect::{
     CmavoDialectEntry, CmavoDialectTransform, DialectDefinition, DialectFeature,
 };
@@ -29,7 +29,7 @@ pub struct MorphologyOptions {
 
 impl Default for MorphologyOptions {
     fn default() -> Self {
-        Self::new(fields! {
+        new!(MorphologyOptions {
             accept_latin: true,
             accept_cyrillic: true,
             accept_zbalermorna: true,
@@ -50,7 +50,7 @@ impl MorphologyOptions {
         let cmevla_as_relation_words = self.cmevla_as_relation_words;
         let enforce_cgv_ban = self.enforce_cgv_ban;
         let uppercase_marks_stress = self.uppercase_marks_stress;
-        self.with_fields(fields! {
+        self.with_data(data! {
             cmavo_dialect_entries: definition.cmavo_entries.clone(),
             cmevla_as_relation_words: cmevla_as_relation_words
                 || definition.features.contains(&DialectFeature::Cbm),
@@ -121,7 +121,7 @@ impl fmt::Display for Word {
     }
 }
 
-#[expensive_invariant(word_like_raw_is_valid(self.as_raw()))]
+#[expensive_invariant(word_like_data_is_valid(self.as_data()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum WordLike {
@@ -160,16 +160,16 @@ pub enum WordLike {
 
 impl WordLike {
     pub fn bare(word: Word) -> Self {
-        Self::from_raw(fields!(WordLike::Bare {
+        new!(WordLike::Bare {
             word: Box::new(word),
-        }))
+        })
     }
 
     pub fn zo_quote(zo: Word, word: Word) -> Self {
-        Self::from_raw(fields!(WordLike::ZoQuote {
+        new!(WordLike::ZoQuote {
             zo: Box::new(zo),
             word: Box::new(word),
-        }))
+        })
     }
 
     pub fn zoi_quote(
@@ -178,51 +178,51 @@ impl WordLike {
         quoted_text: SourceSpan,
         closing_delimiter: Word,
     ) -> Self {
-        Self::from_raw(fields!(WordLike::ZoiQuote {
+        new!(WordLike::ZoiQuote {
             zoi: Box::new(zoi),
             opening_delimiter: Box::new(opening_delimiter),
             quoted_text: quoted_text,
             closing_delimiter: Box::new(closing_delimiter),
-        }))
+        })
     }
 
     pub fn lohu_quote(lohu: Word, quoted_words: Vec<Word>, lehu: Word) -> Self {
-        Self::from_raw(fields!(WordLike::LohuQuote {
+        new!(WordLike::LohuQuote {
             lohu: Box::new(lohu),
             quoted_words: quoted_words,
             lehu: Box::new(lehu),
-        }))
+        })
     }
 
     pub fn single_word_quote(marker: Word, quoted_text: SourceSpan) -> Self {
-        Self::from_raw(fields!(WordLike::SingleWordQuote {
+        new!(WordLike::SingleWordQuote {
             marker: Box::new(marker),
             quoted_text: quoted_text,
-        }))
+        })
     }
 
     pub fn letter(base: WordLike, bu: Word) -> Self {
-        Self::from_raw(fields!(WordLike::Letter {
+        new!(WordLike::Letter {
             base: Box::new(base),
             bu: Box::new(bu),
-        }))
+        })
     }
 
     pub fn zei_lujvo(left: WordLike, zei: Word, right: Word) -> Self {
-        Self::from_raw(fields!(WordLike::ZeiLujvo {
+        new!(WordLike::ZeiLujvo {
             left: Box::new(left),
             zei: Box::new(zei),
             right: Box::new(right),
-        }))
+        })
     }
 }
 
 impl fmt::Display for WordLike {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.as_raw() {
-            fields!(WordLike::Bare { word }) => write!(f, "{word}"),
-            fields!(WordLike::ZoQuote { zo, word }) => write!(f, "{zo}-<<{word}>>"),
-            fields!(WordLike::ZoiQuote {
+        match self.as_data() {
+            data!(WordLike::Bare { word }) => write!(f, "{word}"),
+            data!(WordLike::ZoQuote { zo, word }) => write!(f, "{zo}-<<{word}>>"),
+            data!(WordLike::ZoiQuote {
                 zoi,
                 opening_delimiter,
                 quoted_text,
@@ -232,7 +232,7 @@ impl fmt::Display for WordLike {
                 "{zoi}-{opening_delimiter}-<{} chars>-{closing_delimiter}",
                 quoted_text.char_len()
             ),
-            fields!(WordLike::LohuQuote {
+            data!(WordLike::LohuQuote {
                 lohu,
                 quoted_words,
                 lehu,
@@ -246,19 +246,19 @@ impl fmt::Display for WordLike {
                 }
                 write!(f, ">>-{lehu}")
             }
-            fields!(WordLike::SingleWordQuote {
+            data!(WordLike::SingleWordQuote {
                 marker,
                 quoted_text,
             }) => write!(f, "{marker}-<{} chars>", quoted_text.char_len()),
-            fields!(WordLike::Letter { base, bu }) => write!(f, "{base}-{bu}"),
-            fields!(WordLike::ZeiLujvo { left, zei, right }) => {
+            data!(WordLike::Letter { base, bu }) => write!(f, "{base}-{bu}"),
+            data!(WordLike::ZeiLujvo { left, zei, right }) => {
                 write!(f, "{left}-{zei}-{right}")
             }
         }
     }
 }
 
-#[expensive_invariant(word_with_modifiers_raw_is_valid(self.as_raw()))]
+#[expensive_invariant(word_with_modifiers_data_is_valid(self.as_data()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum WordWithModifiers {
@@ -283,53 +283,53 @@ pub enum WordWithModifiers {
 
 impl WordWithModifiers {
     pub fn base_word(word_like: WordLike) -> Self {
-        Self::from_raw(fields!(WordWithModifiers::BaseWord {
+        new!(WordWithModifiers::BaseWord {
             word_like: Box::new(word_like),
-        }))
+        })
     }
 
     pub fn standalone_indicator(indicator: Word, nai: Option<Word>) -> Self {
-        Self::from_raw(fields!(WordWithModifiers::StandaloneIndicator {
+        new!(WordWithModifiers::StandaloneIndicator {
             indicator: Box::new(indicator),
             nai: nai.map(Box::new),
-        }))
+        })
     }
 
     pub fn emphasized(bahe: Word, word_like: WordLike) -> Self {
-        Self::from_raw(fields!(WordWithModifiers::Emphasized {
+        new!(WordWithModifiers::Emphasized {
             bahe: Box::new(bahe),
             word_like: Box::new(word_like),
-        }))
+        })
     }
 
     pub fn with_indicator(base: WordWithModifiers, indicator: Word, nai: Option<Word>) -> Self {
-        Self::from_raw(fields!(WordWithModifiers::WithIndicator {
+        new!(WordWithModifiers::WithIndicator {
             base: Box::new(base),
             indicator: Box::new(indicator),
             nai: nai.map(Box::new),
-        }))
+        })
     }
 
     pub fn not_eof() -> Self {
-        Self::from_raw(fields!(WordWithModifiers::NotEof))
+        new!(WordWithModifiers::NotEof)
     }
 }
 
 impl fmt::Display for WordWithModifiers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.as_raw() {
-            fields!(WordWithModifiers::BaseWord { word_like }) => write!(f, "{word_like}"),
-            fields!(WordWithModifiers::StandaloneIndicator { indicator, nai }) => {
+        match self.as_data() {
+            data!(WordWithModifiers::BaseWord { word_like }) => write!(f, "{word_like}"),
+            data!(WordWithModifiers::StandaloneIndicator { indicator, nai }) => {
                 write!(f, "{indicator}")?;
                 if let Some(nai) = nai {
                     write!(f, "-{nai}")?;
                 }
                 Ok(())
             }
-            fields!(WordWithModifiers::Emphasized { bahe, word_like }) => {
+            data!(WordWithModifiers::Emphasized { bahe, word_like }) => {
                 write!(f, "{bahe}-{word_like}")
             }
-            fields!(WordWithModifiers::WithIndicator {
+            data!(WordWithModifiers::WithIndicator {
                 base,
                 indicator,
                 nai,
@@ -340,23 +340,23 @@ impl fmt::Display for WordWithModifiers {
                 }
                 Ok(())
             }
-            fields!(WordWithModifiers::NotEof) => f.write_str("<not-eof>"),
+            data!(WordWithModifiers::NotEof) => f.write_str("<not-eof>"),
         }
     }
 }
 
 pub fn word_with_modifiers_syntax_eq(left: &WordWithModifiers, right: &WordWithModifiers) -> bool {
-    match (left.as_raw(), right.as_raw()) {
+    match (left.as_data(), right.as_data()) {
         (
-            fields!(WordWithModifiers::BaseWord { word_like: left }),
-            fields!(WordWithModifiers::BaseWord { word_like: right }),
+            data!(WordWithModifiers::BaseWord { word_like: left }),
+            data!(WordWithModifiers::BaseWord { word_like: right }),
         ) => word_like_syntax_eq(left, right),
         (
-            fields!(WordWithModifiers::StandaloneIndicator {
+            data!(WordWithModifiers::StandaloneIndicator {
                 indicator: left_indicator,
                 nai: left_nai,
             }),
-            fields!(WordWithModifiers::StandaloneIndicator {
+            data!(WordWithModifiers::StandaloneIndicator {
                 indicator: right_indicator,
                 nai: right_nai,
             }),
@@ -365,11 +365,11 @@ pub fn word_with_modifiers_syntax_eq(left: &WordWithModifiers, right: &WordWithM
                 && optional_word_syntax_eq(left_nai.as_deref(), right_nai.as_deref())
         }
         (
-            fields!(WordWithModifiers::Emphasized {
+            data!(WordWithModifiers::Emphasized {
                 bahe: left_bahe,
                 word_like: left_word_like,
             }),
-            fields!(WordWithModifiers::Emphasized {
+            data!(WordWithModifiers::Emphasized {
                 bahe: right_bahe,
                 word_like: right_word_like,
             }),
@@ -378,12 +378,12 @@ pub fn word_with_modifiers_syntax_eq(left: &WordWithModifiers, right: &WordWithM
                 && word_like_syntax_eq(left_word_like, right_word_like)
         }
         (
-            fields!(WordWithModifiers::WithIndicator {
+            data!(WordWithModifiers::WithIndicator {
                 base: left_base,
                 indicator: left_indicator,
                 nai: left_nai,
             }),
-            fields!(WordWithModifiers::WithIndicator {
+            data!(WordWithModifiers::WithIndicator {
                 base: right_base,
                 indicator: right_indicator,
                 nai: right_nai,
@@ -393,34 +393,34 @@ pub fn word_with_modifiers_syntax_eq(left: &WordWithModifiers, right: &WordWithM
                 && word_syntax_eq(left_indicator, right_indicator)
                 && optional_word_syntax_eq(left_nai.as_deref(), right_nai.as_deref())
         }
-        (fields!(WordWithModifiers::NotEof), fields!(WordWithModifiers::NotEof)) => true,
+        (data!(WordWithModifiers::NotEof), data!(WordWithModifiers::NotEof)) => true,
         _ => false,
     }
 }
 
 pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
-    match (left.as_raw(), right.as_raw()) {
-        (fields!(WordLike::Bare { word: left }), fields!(WordLike::Bare { word: right })) => {
+    match (left.as_data(), right.as_data()) {
+        (data!(WordLike::Bare { word: left }), data!(WordLike::Bare { word: right })) => {
             word_syntax_eq(left, right)
         }
         (
-            fields!(WordLike::ZoQuote {
+            data!(WordLike::ZoQuote {
                 zo: left_zo,
                 word: left_word,
             }),
-            fields!(WordLike::ZoQuote {
+            data!(WordLike::ZoQuote {
                 zo: right_zo,
                 word: right_word,
             }),
         ) => word_syntax_eq(left_zo, right_zo) && word_syntax_eq(left_word, right_word),
         (
-            fields!(WordLike::ZoiQuote {
+            data!(WordLike::ZoiQuote {
                 zoi: left_zoi,
                 opening_delimiter: left_opening,
                 quoted_text: left_quoted,
                 closing_delimiter: left_closing,
             }),
-            fields!(WordLike::ZoiQuote {
+            data!(WordLike::ZoiQuote {
                 zoi: right_zoi,
                 opening_delimiter: right_opening,
                 quoted_text: right_quoted,
@@ -433,12 +433,12 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
                 && word_syntax_eq(left_closing, right_closing)
         }
         (
-            fields!(WordLike::LohuQuote {
+            data!(WordLike::LohuQuote {
                 lohu: left_lohu,
                 quoted_words: left_words,
                 lehu: left_lehu,
             }),
-            fields!(WordLike::LohuQuote {
+            data!(WordLike::LohuQuote {
                 lohu: right_lohu,
                 quoted_words: right_words,
                 lehu: right_lehu,
@@ -453,32 +453,32 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
                 && word_syntax_eq(left_lehu, right_lehu)
         }
         (
-            fields!(WordLike::SingleWordQuote {
+            data!(WordLike::SingleWordQuote {
                 marker: left_marker,
                 quoted_text: left_quoted,
             }),
-            fields!(WordLike::SingleWordQuote {
+            data!(WordLike::SingleWordQuote {
                 marker: right_marker,
                 quoted_text: right_quoted,
             }),
         ) => word_syntax_eq(left_marker, right_marker) && left_quoted == right_quoted,
         (
-            fields!(WordLike::Letter {
+            data!(WordLike::Letter {
                 base: left_base,
                 bu: left_bu,
             }),
-            fields!(WordLike::Letter {
+            data!(WordLike::Letter {
                 base: right_base,
                 bu: right_bu,
             }),
         ) => word_like_syntax_eq(left_base, right_base) && word_syntax_eq(left_bu, right_bu),
         (
-            fields!(WordLike::ZeiLujvo {
+            data!(WordLike::ZeiLujvo {
                 left: left_left,
                 zei: left_zei,
                 right: left_right,
             }),
-            fields!(WordLike::ZeiLujvo {
+            data!(WordLike::ZeiLujvo {
                 left: right_left,
                 zei: right_zei,
                 right: right_right,
@@ -592,33 +592,33 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-fn word_with_modifiers_raw_is_valid(word: &WordWithModifiersRaw) -> bool {
+fn word_with_modifiers_data_is_valid(word: &WordWithModifiersData) -> bool {
     match word {
-        fields!(WordWithModifiers::BaseWord { word_like }) => {
-            word_like_raw_is_valid(word_like.as_raw())
+        data!(WordWithModifiers::BaseWord { word_like }) => {
+            word_like_data_is_valid(word_like.as_data())
         }
-        fields!(WordWithModifiers::StandaloneIndicator { .. }) => true,
-        fields!(WordWithModifiers::Emphasized { word_like, .. }) => {
-            word_like_raw_is_valid(word_like.as_raw())
+        data!(WordWithModifiers::StandaloneIndicator { .. }) => true,
+        data!(WordWithModifiers::Emphasized { word_like, .. }) => {
+            word_like_data_is_valid(word_like.as_data())
         }
-        fields!(WordWithModifiers::WithIndicator {
+        data!(WordWithModifiers::WithIndicator {
             base,
             indicator: _,
             nai: _,
-        }) => word_with_modifiers_raw_is_valid(base.as_raw()),
-        fields!(WordWithModifiers::NotEof) => true,
+        }) => word_with_modifiers_data_is_valid(base.as_data()),
+        data!(WordWithModifiers::NotEof) => true,
     }
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-fn word_like_raw_is_valid(word_like: &WordLikeRaw) -> bool {
+fn word_like_data_is_valid(word_like: &WordLikeData) -> bool {
     match word_like {
-        fields!(WordLike::Bare { .. }) | fields!(WordLike::ZoQuote { .. }) => true,
-        fields!(WordLike::ZoiQuote { quoted_text, .. }) => source_span_is_valid(quoted_text),
-        fields!(WordLike::LohuQuote { .. }) => true,
-        fields!(WordLike::SingleWordQuote { quoted_text, .. }) => source_span_is_valid(quoted_text),
-        fields!(WordLike::Letter { base, .. }) => word_like_raw_is_valid(base.as_raw()),
-        fields!(WordLike::ZeiLujvo { left, .. }) => word_like_raw_is_valid(left.as_raw()),
+        data!(WordLike::Bare { .. }) | data!(WordLike::ZoQuote { .. }) => true,
+        data!(WordLike::ZoiQuote { quoted_text, .. }) => source_span_is_valid(quoted_text),
+        data!(WordLike::LohuQuote { .. }) => true,
+        data!(WordLike::SingleWordQuote { quoted_text, .. }) => source_span_is_valid(quoted_text),
+        data!(WordLike::Letter { base, .. }) => word_like_data_is_valid(base.as_data()),
+        data!(WordLike::ZeiLujvo { left, .. }) => word_like_data_is_valid(left.as_data()),
     }
 }
 
@@ -766,14 +766,14 @@ mod tests {
     fn syntax_equivalence_ignores_spans_and_diacritics_on_words() {
         let mut left = segment_words_with_modifiers("coi").expect("valid morphology");
         let mut right = segment_words_with_modifiers("coi").expect("valid morphology");
-        let word = match right[0].as_raw() {
-            fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
-                fields!(WordLike::Bare { word }) => (**word).clone(),
+        let word = match right[0].as_data() {
+            data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
+                data!(WordLike::Bare { word }) => (**word).clone(),
                 _ => panic!("expected bare word"),
             },
             _ => panic!("expected base word"),
         };
-        right[0] = WordWithModifiers::base_word(WordLike::bare(word.with_fields(fields! {
+        right[0] = WordWithModifiers::base_word(WordLike::bare(word.with_data(data! {
             phonemes: String::from("coĭ"),
             span: SourceSpan::new(None, 99, 102, 99, 102).expect("valid span"),
         })));
@@ -787,7 +787,7 @@ mod tests {
     #[test]
     fn invalid_morphology_options_are_rejected() {
         let panic = std::panic::catch_unwind(|| {
-            let _ = MorphologyOptions::default().with_fields(fields! {
+            let _ = MorphologyOptions::default().with_data(data! {
                 cmavo_dialect_entries: vec![CmavoDialectEntry::Expansion {
                     source: "mi".to_owned(),
                     replacement: Vec::new(),
@@ -826,9 +826,9 @@ mod tests {
     }
 
     fn base_word(word: &WordWithModifiers) -> Option<&Word> {
-        match word.as_raw() {
-            fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
-                fields!(WordLike::Bare { word }) => Some(word),
+        match word.as_data() {
+            data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
+                data!(WordLike::Bare { word }) => Some(word),
                 _ => None,
             },
             _ => None,

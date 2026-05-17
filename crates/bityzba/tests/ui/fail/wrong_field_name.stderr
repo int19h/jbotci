@@ -1,14 +1,14 @@
-error[E0599]: no method named `finish` found for struct `SpanFields<BityzbaStartState, BityzbaEndState>` in the current scope
+error[E0599]: no method named `finish` found for struct `SpanDataBuilder<BityzbaStartState, BityzbaEndState>` in the current scope
   --> tests/ui/fail/wrong_field_name.rs:12:9
    |
  3 |   #[invariant(self.start <= self.end)]
    |   ------------------------------------ method `finish` not found for this struct
 ...
-10 |       let _ = Span::new(fields! {
-   |  _______________________-
+10 |       let _ = new!(Span {
+   |  _____________-
 11 | |         start: 0,
 12 | |         finish: 2,
-   | |        -^^^^^^ method not found in `SpanFields<SpanFieldsSet, SpanFieldsUnset>`
+   | |        -^^^^^^ method not found in `SpanDataBuilder<SpanDataBuilderSet, SpanDataBuilderUnset>`
    | |________|
    |
    |

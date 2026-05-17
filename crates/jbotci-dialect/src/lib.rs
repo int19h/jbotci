@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use bityzba::expensive_ensures;
-use bityzba::{ensures, fields, invariant, requires};
+use bityzba::{ensures, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -477,7 +477,7 @@ fn definition_from_entries(entries: Vec<DialectDefinitionEntry>) -> DialectDefin
             }
         }
     }
-    DialectDefinition::new(fields! {
+    new!(DialectDefinition {
         cmavo_entries: cmavo_entries,
         features: features,
     })
@@ -1092,7 +1092,7 @@ mod tests {
     #[test]
     fn cmavo_transform_validity_checks_output_bounds() {
         assert!(
-            CmavoDialectTransform::try_from_raw(fields!(CmavoDialectTransform {
+            CmavoDialectTransform::try_from_data(bityzba::data!(CmavoDialectTransform {
                 source_text: String::from("mi"),
                 target_text: String::from("do"),
                 group_key: String::from("mi->do"),

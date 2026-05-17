@@ -3,7 +3,7 @@ use std::process::{Command as ProcessCommand, ExitStatus};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
-use bityzba::{ensures, fields, requires};
+use bityzba::{data, ensures, requires};
 use bityzba::{expensive_ensures, expensive_requires};
 use clap::{Args, Parser, Subcommand};
 use jbotci_morphology::{
@@ -11,7 +11,7 @@ use jbotci_morphology::{
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
-    ParseOptions, SyntaxError, SyntaxValue, SyntaxValueRaw,
+    ParseOptions, SyntaxError, SyntaxValue, SyntaxValueData,
     parse_syntax_tree_with_source_and_options, syntax_values_equivalent,
 };
 use rayon::prelude::*;
@@ -544,37 +544,39 @@ fn syntax_difference(
     actual: &SyntaxValue,
     path: &mut Vec<String>,
 ) -> Option<String> {
-    match (expected.as_raw(), actual.as_raw()) {
-        (fields!(SyntaxValue::Null), fields!(SyntaxValue::Null)) => None,
+    match (expected.as_data(), actual.as_data()) {
+        (data!(SyntaxValue::Null), data!(SyntaxValue::Null)) => None,
+        (data!(SyntaxValue::Bool { value: left }), data!(SyntaxValue::Bool { value: right }))
+            if left == right =>
+        {
+            None
+        }
         (
-            fields!(SyntaxValue::Bool { value: left }),
-            fields!(SyntaxValue::Bool { value: right }),
+            data!(SyntaxValue::Integer { value: left }),
+            data!(SyntaxValue::Integer { value: right }),
         ) if left == right => None,
-        (
-            fields!(SyntaxValue::Integer { value: left }),
-            fields!(SyntaxValue::Integer { value: right }),
-        ) if left == right => None,
-        (
-            fields!(SyntaxValue::Text { value: left }),
-            fields!(SyntaxValue::Text { value: right }),
-        ) if left == right => None,
-        (fields!(SyntaxValue::Word { word: left }), fields!(SyntaxValue::Word { word: right }))
+        (data!(SyntaxValue::Text { value: left }), data!(SyntaxValue::Text { value: right }))
+            if left == right =>
+        {
+            None
+        }
+        (data!(SyntaxValue::Word { word: left }), data!(SyntaxValue::Word { word: right }))
             if jbotci_morphology::word_with_modifiers_syntax_eq(left, right) =>
         {
             None
         }
-        (fields!(SyntaxValue::Word { word: left }), fields!(SyntaxValue::Word { word: right })) => {
+        (data!(SyntaxValue::Word { word: left }), data!(SyntaxValue::Word { word: right })) => {
             Some(format!("expected word `{left}`, got `{right}`"))
         }
-        (
-            fields!(SyntaxValue::Json { value: left }),
-            fields!(SyntaxValue::Json { value: right }),
-        ) if left == right => None,
-        (
-            fields!(SyntaxValue::List { items: left }),
-            fields!(SyntaxValue::List { items: right }),
-        ) => compare_syntax_slices(left, right, path),
-        (fields!(SyntaxValue::Node { node: left }), fields!(SyntaxValue::Node { node: right })) => {
+        (data!(SyntaxValue::Json { value: left }), data!(SyntaxValue::Json { value: right }))
+            if left == right =>
+        {
+            None
+        }
+        (data!(SyntaxValue::List { items: left }), data!(SyntaxValue::List { items: right })) => {
+            compare_syntax_slices(left, right, path)
+        }
+        (data!(SyntaxValue::Node { node: left }), data!(SyntaxValue::Node { node: right })) => {
             if left.constructor != right.constructor {
                 return Some(format!(
                     "expected constructor `{}`, got `{}`",
@@ -644,15 +646,15 @@ fn compare_syntax_slices(
 
 #[ensures(!ret.is_empty())]
 fn syntax_value_kind(value: &SyntaxValue) -> &'static str {
-    match value.as_raw() {
-        fields!(SyntaxValue::Null) => "null",
-        fields!(SyntaxValue::Bool { .. }) => "bool",
-        fields!(SyntaxValue::Integer { .. }) => "integer",
-        fields!(SyntaxValue::Text { .. }) => "text",
-        fields!(SyntaxValue::List { .. }) => "list",
-        fields!(SyntaxValue::Node { .. }) => "node",
-        fields!(SyntaxValue::Word { .. }) => "word",
-        fields!(SyntaxValue::Json { .. }) => "json",
+    match value.as_data() {
+        data!(SyntaxValue::Null) => "null",
+        data!(SyntaxValue::Bool { .. }) => "bool",
+        data!(SyntaxValue::Integer { .. }) => "integer",
+        data!(SyntaxValue::Text { .. }) => "text",
+        data!(SyntaxValue::List { .. }) => "list",
+        data!(SyntaxValue::Node { .. }) => "node",
+        data!(SyntaxValue::Word { .. }) => "word",
+        data!(SyntaxValue::Json { .. }) => "json",
     }
 }
 

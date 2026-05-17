@@ -36,18 +36,18 @@ fn generate_struct(
     fields: FieldsNamed,
 ) -> TokenStream {
     let contracts = collect_type_invariants(mode, attr, &mut item.attrs);
-    let (options, option_errors) = collect_type_options(&mut item.attrs);
+    let option_errors = collect_type_option_errors(&mut item.attrs);
     let shape = TypeShape::new(&item.ident, &item.vis, &item.generics, &item.attrs);
     let generics = &item.generics;
-    let raw_attrs = item.attrs.clone();
-    let raw_ident = shape.raw_ident.clone();
+    let data_attrs = item.attrs.clone();
+    let data_ident = shape.data_ident.clone();
     let wrapper_ident = shape.wrapper_ident.clone();
     let error_ident = shape.error_ident.clone();
     let builder_ident = shape.builder_ident.clone();
-    let update_builder_ident = format_ident!("{wrapper_ident}UpdateFields");
+    let update_builder_ident = format_ident!("{wrapper_ident}DataUpdate");
     let builder_unset_ident = format_ident!("{builder_ident}Unset");
     let builder_set_ident = format_ident!("{builder_ident}Set");
-    let raw_vis = shape.raw_vis.clone();
+    let data_vis = shape.data_vis.clone();
     let wrapper_vis = shape.wrapper_vis.clone();
     let field_idents = fields
         .named
@@ -59,7 +59,7 @@ fn generate_struct(
         .iter()
         .map(|field| field.ty.clone())
         .collect::<Vec<_>>();
-    let raw_fields = fields.named.iter().collect::<Vec<_>>();
+    let data_fields = fields.named.iter().collect::<Vec<_>>();
     let state_idents = field_idents
         .iter()
         .map(|ident| format_ident!("Bityzba{}State", snake_to_upper_camel(&ident.to_string())))
@@ -174,27 +174,17 @@ fn generate_struct(
     let invariant_docs = invariant_docs(&contracts);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let turbofish = ty_generics.as_turbofish();
-    let new_impl = options.generate_new.then(|| {
-        quote! {
-            pub fn new<F>(fields: F) -> Self
-            where
-                F: ::std::ops::FnOnce(#all_unset_builder_ty) -> #all_set_builder_ty,
-            {
-                Self::from_raw(fields(#builder_ident::new()).build())
-            }
-        }
-    });
 
     quote! {
         #(#option_errors)*
 
-        #(#raw_attrs)*
-        #raw_vis struct #raw_ident #generics #where_clause {
-            #(#raw_fields,)*
+        #(#data_attrs)*
+        #data_vis struct #data_ident #generics #where_clause {
+            #(#data_fields,)*
         }
 
         #(#wrapper_attrs)*
-        #wrapper_vis struct #wrapper_ident #generics (#raw_ident #ty_generics) #where_clause;
+        #wrapper_vis struct #wrapper_ident #generics (#data_ident #ty_generics) #where_clause;
 
         #[derive(Debug, Clone, PartialEq, Eq)]
         #wrapper_vis struct #error_ident {
@@ -241,8 +231,8 @@ fn generate_struct(
         #(#setter_impls)*
 
         impl #impl_generics #all_set_builder_ty #where_clause {
-            fn build(self) -> #raw_ident #ty_generics {
-                #raw_ident {
+            fn build(self) -> #data_ident #ty_generics {
+                #data_ident {
                     #(
                         #field_idents: self.#field_idents.expect("typestate builder guarantees every field is set"),
                     )*
@@ -256,9 +246,9 @@ fn generate_struct(
         }
 
         impl #impl_generics #update_builder_ident #ty_generics #where_clause {
-            fn from_raw(raw: #raw_ident #ty_generics) -> Self {
+            fn from_data(data: #data_ident #ty_generics) -> Self {
                 Self {
-                    #(#field_idents: ::std::option::Option::Some(raw.#field_idents),)*
+                    #(#field_idents: ::std::option::Option::Some(data.#field_idents),)*
                 }
             }
 
@@ -269,8 +259,8 @@ fn generate_struct(
                 }
             )*
 
-            fn build(self) -> #raw_ident #ty_generics {
-                #raw_ident {
+            fn build(self) -> #data_ident #ty_generics {
+                #data_ident {
                     #(
                         #field_idents: self.#field_idents.expect("update builder starts with every field set"),
                     )*
@@ -279,10 +269,24 @@ fn generate_struct(
         }
 
         impl #impl_generics #wrapper_ident #ty_generics #where_clause {
-            #new_impl
+            #[doc(hidden)]
+            pub fn __bityzba_from_data_builder<F>(data: F) -> Self
+            where
+                F: ::std::ops::FnOnce(#all_unset_builder_ty) -> #all_set_builder_ty,
+            {
+                Self::from_data(data(#builder_ident::new()).build())
+            }
 
-            pub fn try_from_raw(raw: #raw_ident #ty_generics) -> ::std::result::Result<Self, #error_ident #ty_generics> {
-                let value = Self(raw);
+            #[doc(hidden)]
+            pub fn __bityzba_try_from_data_builder<F>(data: F) -> ::std::result::Result<Self, #error_ident #ty_generics>
+            where
+                F: ::std::ops::FnOnce(#all_unset_builder_ty) -> #all_set_builder_ty,
+            {
+                Self::try_from_data(data(#builder_ident::new()).build())
+            }
+
+            pub fn try_from_data(data: #data_ident #ty_generics) -> ::std::result::Result<Self, #error_ident #ty_generics> {
+                let value = Self(data);
                 if value.__bityzba_invariant() {
                     ::std::result::Result::Ok(value)
                 } else {
@@ -290,23 +294,23 @@ fn generate_struct(
                 }
             }
 
-            pub fn from_raw(raw: #raw_ident #ty_generics) -> Self {
-                Self::try_from_raw(raw)
-                    .expect("raw value must satisfy type invariant")
+            pub fn from_data(data: #data_ident #ty_generics) -> Self {
+                Self::try_from_data(data)
+                    .expect("data value must satisfy type invariant")
             }
 
-            pub fn with_fields<F>(self, fields: F) -> Self
+            pub fn with_data<F>(self, data: F) -> Self
             where
                 F: ::std::ops::FnOnce(#update_builder_ident #ty_generics) -> #update_builder_ident #ty_generics,
             {
-                Self::from_raw(fields(#update_builder_ident::from_raw(self.0)).build())
+                Self::from_data(data(#update_builder_ident::from_data(self.0)).build())
             }
 
-            pub fn as_raw(&self) -> &#raw_ident #ty_generics {
+            pub fn as_data(&self) -> &#data_ident #ty_generics {
                 &self.0
             }
 
-            pub fn into_raw(self) -> #raw_ident #ty_generics {
+            pub fn into_data(self) -> #data_ident #ty_generics {
                 self.0
             }
 
@@ -315,19 +319,19 @@ fn generate_struct(
             }
         }
 
-        impl #impl_generics ::std::convert::TryFrom<#raw_ident #ty_generics> for #wrapper_ident #ty_generics #where_clause {
+        impl #impl_generics ::std::convert::TryFrom<#data_ident #ty_generics> for #wrapper_ident #ty_generics #where_clause {
             type Error = #error_ident #ty_generics;
 
-            fn try_from(raw: #raw_ident #ty_generics) -> ::std::result::Result<Self, Self::Error> {
-                Self::try_from_raw(raw)
+            fn try_from(data: #data_ident #ty_generics) -> ::std::result::Result<Self, Self::Error> {
+                Self::try_from_data(data)
             }
         }
 
         impl #impl_generics ::std::ops::Deref for #wrapper_ident #ty_generics #where_clause {
-            type Target = #raw_ident #ty_generics;
+            type Target = #data_ident #ty_generics;
 
             fn deref(&self) -> &Self::Target {
-                self.as_raw()
+                self.as_data()
             }
         }
 
@@ -339,13 +343,13 @@ fn generate_struct(
 
 fn generate_enum(mode: ContractMode, attr: TokenStream, mut item: ItemEnum) -> TokenStream {
     let contracts = collect_type_invariants(mode, attr, &mut item.attrs);
-    let (_options, option_errors) = collect_type_options(&mut item.attrs);
+    let option_errors = collect_type_option_errors(&mut item.attrs);
     let shape = TypeShape::new(&item.ident, &item.vis, &item.generics, &item.attrs);
-    let raw_attrs = item.attrs.clone();
-    let raw_ident = shape.raw_ident.clone();
+    let data_attrs = item.attrs.clone();
+    let data_ident = shape.data_ident.clone();
     let wrapper_ident = shape.wrapper_ident.clone();
     let error_ident = shape.error_ident.clone();
-    let raw_vis = shape.raw_vis.clone();
+    let data_vis = shape.data_vis.clone();
     let wrapper_vis = shape.wrapper_vis.clone();
     let variants = item.variants;
     let wrapper_attrs = shape.wrapper_attrs();
@@ -361,13 +365,13 @@ fn generate_enum(mode: ContractMode, attr: TokenStream, mut item: ItemEnum) -> T
     quote! {
         #(#option_errors)*
 
-        #(#raw_attrs)*
-        #raw_vis enum #raw_ident #generics #where_clause {
+        #(#data_attrs)*
+        #data_vis enum #data_ident #generics #where_clause {
             #variants
         }
 
         #(#wrapper_attrs)*
-        #wrapper_vis struct #wrapper_ident #generics (#raw_ident #ty_generics) #where_clause;
+        #wrapper_vis struct #wrapper_ident #generics (#data_ident #ty_generics) #where_clause;
 
         #[derive(Debug, Clone, PartialEq, Eq)]
         #wrapper_vis struct #error_ident {
@@ -391,8 +395,8 @@ fn generate_enum(mode: ContractMode, attr: TokenStream, mut item: ItemEnum) -> T
         impl #impl_generics ::std::error::Error for #error_ident #ty_generics #where_clause {}
 
         impl #impl_generics #wrapper_ident #ty_generics #where_clause {
-            pub fn try_from_raw(raw: #raw_ident #ty_generics) -> ::std::result::Result<Self, #error_ident #ty_generics> {
-                let value = Self(raw);
+            pub fn try_from_data(data: #data_ident #ty_generics) -> ::std::result::Result<Self, #error_ident #ty_generics> {
+                let value = Self(data);
                 if value.__bityzba_invariant() {
                     ::std::result::Result::Ok(value)
                 } else {
@@ -400,16 +404,16 @@ fn generate_enum(mode: ContractMode, attr: TokenStream, mut item: ItemEnum) -> T
                 }
             }
 
-            pub fn from_raw(raw: #raw_ident #ty_generics) -> Self {
-                Self::try_from_raw(raw)
-                    .expect("raw value must satisfy type invariant")
+            pub fn from_data(data: #data_ident #ty_generics) -> Self {
+                Self::try_from_data(data)
+                    .expect("data value must satisfy type invariant")
             }
 
-            pub fn as_raw(&self) -> &#raw_ident #ty_generics {
+            pub fn as_data(&self) -> &#data_ident #ty_generics {
                 &self.0
             }
 
-            pub fn into_raw(self) -> #raw_ident #ty_generics {
+            pub fn into_data(self) -> #data_ident #ty_generics {
                 self.0
             }
 
@@ -418,19 +422,19 @@ fn generate_enum(mode: ContractMode, attr: TokenStream, mut item: ItemEnum) -> T
             }
         }
 
-        impl #impl_generics ::std::convert::TryFrom<#raw_ident #ty_generics> for #wrapper_ident #ty_generics #where_clause {
+        impl #impl_generics ::std::convert::TryFrom<#data_ident #ty_generics> for #wrapper_ident #ty_generics #where_clause {
             type Error = #error_ident #ty_generics;
 
-            fn try_from(raw: #raw_ident #ty_generics) -> ::std::result::Result<Self, Self::Error> {
-                Self::try_from_raw(raw)
+            fn try_from(data: #data_ident #ty_generics) -> ::std::result::Result<Self, Self::Error> {
+                Self::try_from_data(data)
             }
         }
 
         impl #impl_generics ::std::ops::Deref for #wrapper_ident #ty_generics #where_clause {
-            type Target = #raw_ident #ty_generics;
+            type Target = #data_ident #ty_generics;
 
             fn deref(&self) -> &Self::Target {
-                self.as_raw()
+                self.as_data()
             }
         }
 
@@ -440,19 +444,7 @@ fn generate_enum(mode: ContractMode, attr: TokenStream, mut item: ItemEnum) -> T
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct TypeOptions {
-    generate_new: bool,
-}
-
-impl Default for TypeOptions {
-    fn default() -> Self {
-        Self { generate_new: true }
-    }
-}
-
-fn collect_type_options(attrs: &mut Vec<Attribute>) -> (TypeOptions, Vec<TokenStream>) {
-    let mut options = TypeOptions::default();
+fn collect_type_option_errors(attrs: &mut Vec<Attribute>) -> Vec<TokenStream> {
     let mut errors = Vec::new();
     let mut retained = Vec::new();
 
@@ -460,8 +452,9 @@ fn collect_type_options(attrs: &mut Vec<Attribute>) -> (TypeOptions, Vec<TokenSt
         if attr.path().is_ident("bityzba") {
             if let Err(error) = attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("no_new") {
-                    options.generate_new = false;
-                    Ok(())
+                    Err(meta.error(
+                        "`#[bityzba(no_new)]` is obsolete; bityzba no longer generates `Type::new`",
+                    ))
                 } else {
                     Err(meta.error("unsupported bityzba type option"))
                 }
@@ -474,7 +467,7 @@ fn collect_type_options(attrs: &mut Vec<Attribute>) -> (TypeOptions, Vec<TokenSt
     }
 
     *attrs = retained;
-    (options, errors)
+    errors
 }
 
 fn collect_type_invariants(
@@ -591,11 +584,11 @@ fn snake_to_upper_camel(name: &str) -> String {
 
 struct TypeShape {
     wrapper_ident: Ident,
-    raw_ident: Ident,
+    data_ident: Ident,
     error_ident: Ident,
     builder_ident: Ident,
     wrapper_vis: Visibility,
-    raw_vis: Visibility,
+    data_vis: Visibility,
     generics: Generics,
     derive_traits: Vec<Ident>,
     derives_serialize: bool,
@@ -634,11 +627,11 @@ impl TypeShape {
 
         Self {
             wrapper_ident: ident.clone(),
-            raw_ident: format_ident!("{ident}Raw"),
+            data_ident: format_ident!("{ident}Data"),
             error_ident: format_ident!("{ident}InvariantError"),
-            builder_ident: format_ident!("{ident}Fields"),
+            builder_ident: format_ident!("{ident}DataBuilder"),
             wrapper_vis: vis.clone(),
-            raw_vis: vis.clone(),
+            data_vis: vis.clone(),
             generics: generics.clone(),
             derive_traits,
             derives_serialize,
@@ -662,13 +655,13 @@ impl TypeShape {
             return TokenStream::new();
         }
         let wrapper_ident = &self.wrapper_ident;
-        let raw_ident = &self.raw_ident;
+        let data_ident = &self.data_ident;
         let mut generics = self.generics.clone();
         let (_, ty_generics, _) = self.generics.split_for_impl();
         generics
             .make_where_clause()
             .predicates
-            .push(syn::parse_quote!(#raw_ident #ty_generics: serde::Serialize));
+            .push(syn::parse_quote!(#data_ident #ty_generics: serde::Serialize));
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         quote! {
             impl #impl_generics serde::Serialize for #wrapper_ident #ty_generics #where_clause
@@ -677,7 +670,7 @@ impl TypeShape {
                 where
                     S: serde::Serializer,
                 {
-                    self.as_raw().serialize(serializer)
+                    self.as_data().serialize(serializer)
                 }
             }
         }
@@ -688,7 +681,7 @@ impl TypeShape {
             return TokenStream::new();
         }
         let wrapper_ident = &self.wrapper_ident;
-        let raw_ident = &self.raw_ident;
+        let data_ident = &self.data_ident;
         let mut impl_generics_source = self.generics.clone();
         impl_generics_source
             .params
@@ -697,7 +690,7 @@ impl TypeShape {
         impl_generics_source
             .make_where_clause()
             .predicates
-            .push(syn::parse_quote!(#raw_ident #ty_generics: serde::Deserialize<'de>));
+            .push(syn::parse_quote!(#data_ident #ty_generics: serde::Deserialize<'de>));
         let (impl_generics, _, where_clause) = impl_generics_source.split_for_impl();
         quote! {
             impl #impl_generics serde::Deserialize<'de> for #wrapper_ident #ty_generics #where_clause
@@ -706,8 +699,8 @@ impl TypeShape {
                 where
                     D: serde::Deserializer<'de>,
                 {
-                    let raw = #raw_ident::deserialize(deserializer)?;
-                    Self::try_from_raw(raw).map_err(serde::de::Error::custom)
+                    let data = #data_ident::deserialize(deserializer)?;
+                    Self::try_from_data(data).map_err(serde::de::Error::custom)
                 }
             }
         }
@@ -718,20 +711,20 @@ impl TypeShape {
             return TokenStream::new();
         }
         let wrapper_ident = &self.wrapper_ident;
-        let raw_ident = &self.raw_ident;
+        let data_ident = &self.data_ident;
         let mut generics = self.generics.clone();
         let (_, ty_generics, _) = self.generics.split_for_impl();
         generics
             .make_where_clause()
             .predicates
-            .push(syn::parse_quote!(#raw_ident #ty_generics: ::std::default::Default));
+            .push(syn::parse_quote!(#data_ident #ty_generics: ::std::default::Default));
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         quote! {
             impl #impl_generics ::std::default::Default for #wrapper_ident #ty_generics #where_clause
             {
                 fn default() -> Self {
-                    Self::try_from_raw(#raw_ident::default())
-                        .expect("default raw value must satisfy type invariant")
+                    Self::try_from_data(#data_ident::default())
+                        .expect("default data value must satisfy type invariant")
                 }
             }
         }
