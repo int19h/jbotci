@@ -70,6 +70,17 @@ struct BasicPredicate {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+enum SubsentenceSyntax {
+    Plain(BasicPredicate),
+    Prenex {
+        prenex_terms: Vec<TermSyntax>,
+        zohu: WordWithModifiers,
+        inner_subsentence: Box<SubsentenceSyntax>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
 struct PredicateTailContinuationSyntax {
     connective: ConnectiveSyntax,
     relation: RelationSyntax,
@@ -114,6 +125,10 @@ enum FreeModifierSyntax {
         text: Box<TextSyntax>,
         toi: Option<WordWithModifiers>,
         toi_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    Xi {
+        xi: WordWithModifiers,
+        expression: MathExpressionSyntax,
     },
     Vocative {
         vocative_markers: Vec<WordWithModifiers>,
@@ -253,7 +268,7 @@ enum RelativeClauseSyntax {
     Goi(GoiRelativeClauseSyntax),
     Noi {
         marker: WordWithModifiers,
-        subsentence: BasicPredicate,
+        subsentence: SubsentenceSyntax,
         kuho: Option<WordWithModifiers>,
     },
     Zihe {
@@ -736,6 +751,11 @@ impl FreeModifierSyntax {
                 }
                 words
             }
+            FreeModifierSyntax::Xi { xi, expression } => {
+                let mut words = vec![xi];
+                words.extend(expression.words());
+                words
+            }
             FreeModifierSyntax::Vocative {
                 vocative_markers,
                 argument,
@@ -770,6 +790,29 @@ impl BasicPredicate {
             words.extend(continuation.words());
         }
         words
+    }
+}
+
+impl SubsentenceSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        match self {
+            SubsentenceSyntax::Plain(predicate) => predicate.words(),
+            SubsentenceSyntax::Prenex {
+                prenex_terms,
+                zohu,
+                inner_subsentence,
+            } => {
+                let mut words = prenex_terms
+                    .into_iter()
+                    .flat_map(TermSyntax::words)
+                    .collect::<Vec<_>>();
+                words.push(zohu);
+                words.extend(inner_subsentence.words());
+                words
+            }
+        }
     }
 }
 
@@ -1485,7 +1528,22 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         );
 
     let basic_predicate = choice((predicate_with_leading_terms, relation_only));
-    subsentence.define(basic_predicate.clone());
+    let plain_subsentence = basic_predicate.clone().map(SubsentenceSyntax::Plain);
+    let prenex_subsentence = term
+        .clone()
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .then(cmavo("zo'u"))
+        .then(subsentence.clone())
+        .map(
+            |((prenex_terms, zohu), inner_subsentence)| SubsentenceSyntax::Prenex {
+                prenex_terms,
+                zohu,
+                inner_subsentence: Box::new(inner_subsentence),
+            },
+        );
+    subsentence.define(choice((prenex_subsentence, plain_subsentence)));
     let predicate = basic_predicate.map(StatementSyntax::Predicate);
 
     let implicit_tagged_term = tense_modal().map(|tense_modal| TermSyntax::Tagged {
@@ -1596,6 +1654,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
 
     statement.define(statement_body);
     free_modifier.define(choice((
+        xi_free(),
         sei_free(term.clone(), relation.clone()),
         to_free(text.clone(), free_modifier.clone()),
         vocative_free(argument.clone(), relation.clone()),
@@ -1792,7 +1851,7 @@ where
 fn argument_parser_with<'tokens, A, R, T>(
     argument: A,
     relation: R,
-    subsentence: impl Parser<'tokens, ParserInput<'tokens>, BasicPredicate, ParseExtra<'tokens>>
+    subsentence: impl Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
     + Clone
     + 'tokens,
     text: T,
@@ -1870,7 +1929,7 @@ where
 
     let koha = koha_argument()
         .then(
-            vocative_free(argument.clone(), relation.clone())
+            choice((xi_free(), vocative_free(argument.clone(), relation.clone())))
                 .repeated()
                 .collect::<Vec<_>>(),
         )
@@ -2202,7 +2261,9 @@ fn relative_clauses<'tokens, A, S>(
 ) -> BoxedParser<'tokens, Vec<RelativeClauseSyntax>>
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
-    S: Parser<'tokens, ParserInput<'tokens>, BasicPredicate, ParseExtra<'tokens>> + Clone + 'tokens,
+    S: Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
 {
     let clause = relative_clause(argument, subsentence);
     clause
@@ -2230,7 +2291,9 @@ fn relative_clause<'tokens, R>(
     subsentence: R,
 ) -> BoxedParser<'tokens, RelativeClauseSyntax>
 where
-    R: Parser<'tokens, ParserInput<'tokens>, BasicPredicate, ParseExtra<'tokens>> + Clone + 'tokens,
+    R: Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
 {
     let goi = goi_relative_clause(argument).map(RelativeClauseSyntax::Goi);
     let noi = cmavo_of("NOI", &["poi", "noi", "voi"])
@@ -2289,6 +2352,25 @@ fn simple_vocative_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
                 dohu,
             },
         )
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn xi_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
+    let xi_expression = choice((
+        quantifier().map(MathExpressionSyntax::Number),
+        letter_word()
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .then(cmavo("boi").or_not())
+            .map(|(letter, boi)| MathExpressionSyntax::Letter { letter, boi }),
+    ));
+
+    cmavo("xi")
+        .then(xi_expression)
+        .map(|(xi, expression)| FreeModifierSyntax::Xi { xi, expression })
         .boxed()
 }
 
@@ -3645,6 +3727,14 @@ fn free_modifier_tree(free_modifier: FreeModifierSyntax) -> SyntaxValue {
                 ),
             ],
         ),
+        FreeModifierSyntax::Xi { xi, expression } => node(
+            "XiFree",
+            vec![
+                field("xi", word_value(xi)),
+                field("freeModifiers", nil()),
+                field("mathExpression", math_expression_tree(expression)),
+            ],
+        ),
         FreeModifierSyntax::Vocative {
             vocative_markers,
             argument,
@@ -4136,6 +4226,38 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
 
 #[requires(true)]
 #[ensures(true)]
+fn subsentence_tree(subsentence: SubsentenceSyntax) -> SyntaxValue {
+    match subsentence {
+        SubsentenceSyntax::Plain(predicate) => node(
+            "PlainSubsentence",
+            vec![unnamed_field(predicate_tree(predicate))],
+        ),
+        SubsentenceSyntax::Prenex {
+            prenex_terms,
+            zohu,
+            inner_subsentence,
+        } => node(
+            "PrenexSubsentence",
+            vec![
+                unnamed_field(node(
+                    "Prenex",
+                    vec![
+                        field(
+                            "terms",
+                            list(prenex_terms.into_iter().map(term_tree).collect()),
+                        ),
+                        field("zohu", word_value(zohu)),
+                        field("zohuFreeModifiers", nil()),
+                    ],
+                )),
+                unnamed_field(subsentence_tree(*inner_subsentence)),
+            ],
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn relative_clause_tree(relative_clause: RelativeClauseSyntax) -> SyntaxValue {
     match relative_clause {
         RelativeClauseSyntax::Goi(relative_clause) => goi_relative_clause_tree(relative_clause),
@@ -4162,13 +4284,7 @@ fn relative_clause_tree(relative_clause: RelativeClauseSyntax) -> SyntaxValue {
                         word_value(marker),
                     ),
                     field("leadingFreeModifiers", nil()),
-                    field(
-                        "subsentence",
-                        node(
-                            "PlainSubsentence",
-                            vec![unnamed_field(predicate_tree(subsentence))],
-                        ),
-                    ),
+                    field("subsentence", subsentence_tree(subsentence)),
                     field("kuho", maybe_word(kuho)),
                     field("trailingFreeModifiers", nil()),
                 ],
