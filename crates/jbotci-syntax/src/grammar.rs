@@ -2269,14 +2269,20 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(bare_na_term_blocker.rewind().not())
         .map(|((na, free_modifiers), _)| TermSyntax::BareNa { na, free_modifiers });
-    let tagged_term = modal_forethought_connective()
+    let tagged_term_start = modal_forethought_connective()
         .rewind()
         .not()
-        .ignore_then(tense_modal())
-        .then(choice((
-            tense_modal().rewind().ignored(),
-            relation.clone().rewind().not().ignored(),
-        )))
+        .ignore_then(tense_modal());
+    let tagged_term_before_tag =
+        tagged_term_start
+            .clone()
+            .then(tense_modal().rewind())
+            .map(|(tense_modal, _)| TermSyntax::Tagged {
+                tense_modal,
+                argument: implicit_zohe_argument(),
+            });
+    let tagged_term_before_non_relation = tagged_term_start
+        .then(relation.clone().rewind().not())
         .then(
             argument
                 .clone()
@@ -2289,6 +2295,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             tense_modal,
             argument,
         });
+    let tagged_term = choice((tagged_term_before_tag, tagged_term_before_non_relation));
     let base_simple_term = choice((
         fa_term,
         tagged_term,
