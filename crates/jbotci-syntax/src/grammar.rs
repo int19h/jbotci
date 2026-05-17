@@ -79,6 +79,8 @@ struct PredicateTailBoContinuationSyntax {
     tense_modal: Option<TenseModalSyntax>,
     bo: WordWithModifiers,
     predicate_tail: Box<BasicPredicate>,
+    tail_terms: Vec<TermSyntax>,
+    vau: Option<WordWithModifiers>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,6 +111,10 @@ enum GekSentenceSyntax {
         ke: WordWithModifiers,
         inner: Box<GekSentenceSyntax>,
         kehe: Option<WordWithModifiers>,
+    },
+    Na {
+        na: WordWithModifiers,
+        inner: Box<GekSentenceSyntax>,
     },
 }
 
@@ -1029,6 +1035,10 @@ impl PredicateTailBoContinuationSyntax {
         }
         words.push(self.bo);
         words.extend(self.predicate_tail.words());
+        for term in self.tail_terms {
+            words.extend(term.words());
+        }
+        words.extend(self.vau);
         words
     }
 }
@@ -1088,6 +1098,11 @@ impl GekSentenceSyntax {
                 words.push(ke);
                 words.extend(inner.words());
                 words.extend(kehe);
+                words
+            }
+            GekSentenceSyntax::Na { na, inner } => {
+                let mut words = vec![na];
+                words.extend(inner.words());
                 words
             }
         }
@@ -2053,7 +2068,14 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     inner: Box::new(inner),
                     kehe,
                 });
-            choice((pair, ke)).boxed()
+            let na =
+                cmavo("na")
+                    .then(gek_sentence.clone())
+                    .map(|(na, inner)| GekSentenceSyntax::Na {
+                        na,
+                        inner: Box::new(inner),
+                    });
+            choice((pair, ke, na)).boxed()
         });
         let implicit_tagged_term_before_grouped_gek =
             tense_modal()
@@ -2072,14 +2094,20 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             .then(tense_modal().or_not())
             .then(cmavo("bo"))
             .then(basic_predicate.clone())
-            .map(|(((connective, tense_modal), bo), predicate_tail)| {
-                PredicateTailBoContinuationSyntax {
-                    connective,
-                    tense_modal,
-                    bo,
-                    predicate_tail: Box::new(predicate_tail),
-                }
-            })
+            .then(tail_term.clone().repeated().collect::<Vec<_>>())
+            .then(cmavo("vau").or_not())
+            .map(
+                |(((((connective, tense_modal), bo), predicate_tail), tail_terms), vau)| {
+                    PredicateTailBoContinuationSyntax {
+                        connective,
+                        tense_modal,
+                        bo,
+                        predicate_tail: Box::new(predicate_tail),
+                        tail_terms,
+                        vau,
+                    }
+                },
+            )
             .boxed();
         let ke_continuation = predicate_tail_connective()
             .then(tense_modal().or_not())
@@ -3659,13 +3687,16 @@ fn gik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 #[requires(true)]
 #[ensures(true)]
 fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
-    cmavo_of("GIhA", &["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"])
+    cmavo("na")
+        .or_not()
+        .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
+        .then(cmavo_of("GIhA", &["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"]))
         .then(cmavo("nai").or_not())
-        .map(|(cmavo, nai)| ConnectiveSyntax {
+        .map(|(((na, se), cmavo), nai)| ConnectiveSyntax {
             kind: ConnectiveKind::PredicateTail,
-            se: None,
+            se,
             nahe: None,
-            na: None,
+            na,
             cmavo: vec![cmavo],
             nai,
         })
@@ -5957,8 +5988,11 @@ fn predicate_tail_bo_continuation_tree(
                 "predicateTail",
                 predicate_tail2_tree(*continuation.predicate_tail),
             ),
-            field("tailTerms", nil()),
-            field("vau", nothing()),
+            field(
+                "tailTerms",
+                list(continuation.tail_terms.into_iter().map(term_tree).collect()),
+            ),
+            field("vau", maybe_word(continuation.vau)),
         ],
     )
 }
@@ -6042,6 +6076,14 @@ fn gek_sentence_tree(gek_sentence: GekSentenceSyntax) -> SyntaxValue {
                 field("inner", gek_sentence_tree(*inner)),
                 field("kehe", maybe_word(kehe)),
                 field("keheFreeModifiers", nil()),
+            ],
+        ),
+        GekSentenceSyntax::Na { na, inner } => node(
+            "NaGekSentence",
+            vec![
+                field("na", word_value(na)),
+                field("freeModifiers", nil()),
+                field("inner", gek_sentence_tree(*inner)),
             ],
         ),
     }
