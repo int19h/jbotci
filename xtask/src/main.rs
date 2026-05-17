@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
 use contracts::{ensures, requires};
+use jbotci_contracts::{expensive_ensures, expensive_requires};
 use jbotci_morphology::{
     MorphologyOptions, WordWithModifiers, segment_words_with_modifiers_with_options_and_source_id,
 };
@@ -225,6 +226,8 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
     Ok(())
 }
 
+#[expensive_requires(profile.is_valid())]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.total_results() == summary.selected_fixtures * profile.facets.len()))]
 fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
     root: &Path,
     profile: &FixtureProfile,
@@ -276,6 +279,7 @@ const FIXTURE_WORKER_STACK_SIZE: usize = 32 * 1024 * 1024;
 const DEFAULT_TEST_JOBS: usize = 16;
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
 fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
     let mut profile = match &args.profile {
         Some(name) => load_profile(&args.root, name)
@@ -289,6 +293,8 @@ fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
     Ok(profile)
 }
 
+#[requires(selector.is_valid())]
+#[ensures(selector.is_valid())]
 fn merge_cli_selector(selector: &mut FixtureSelector, args: &FixtureRunArgs) {
     selector.provenance.extend(args.provenance.clone());
     selector.tags.extend(args.tags.clone());
@@ -338,6 +344,8 @@ fn absolute_path(path: &Path) -> Result<PathBuf> {
     }
 }
 
+#[requires(v0_root.is_absolute() || v0_root.components().next().is_some())]
+#[requires(output.is_absolute() || output.components().next().is_some())]
 fn run_v0_exporter(v0_root: &Path, output: &Path) -> Result<()> {
     if let Some(parent) = output.parent() {
         std::fs::create_dir_all(parent)
@@ -399,6 +407,8 @@ impl FixtureBackend for NotImplementedBackend {
     }
 }
 
+#[expensive_requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
 fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let Some(expectation) = &fixture.test_case.expectations.syntax else {
         return FacetResult::skipped("fixture has no syntax expectation");
@@ -518,6 +528,8 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
 }
 
 #[ensures(!ret.is_empty())]
+#[expensive_requires(expected.is_valid())]
+#[expensive_requires(actual.is_valid())]
 fn format_syntax_mismatch(expected: &SyntaxValue, actual: &SyntaxValue) -> String {
     let mut path = Vec::new();
     let detail = syntax_difference(expected, actual, &mut path)
@@ -632,6 +644,7 @@ fn compare_syntax_slices(
     None
 }
 
+#[ensures(!ret.is_empty())]
 fn syntax_value_kind(value: &SyntaxValue) -> &'static str {
     match value {
         SyntaxValue::Null => "null",
@@ -645,6 +658,7 @@ fn syntax_value_kind(value: &SyntaxValue) -> &'static str {
     }
 }
 
+#[ensures(!ret.is_empty())]
 fn path_text(path: &[String]) -> String {
     if path.is_empty() {
         "<root>".to_owned()
@@ -653,6 +667,7 @@ fn path_text(path: &[String]) -> String {
     }
 }
 
+#[ensures(ret.as_ref().is_none_or(FacetResult::is_valid))]
 fn syntax_xfail_result(
     expectation: &fixtures::SyntaxExpectation,
     actual_status: ExpectationStatus,
@@ -677,6 +692,8 @@ fn syntax_xfail_result(
     )))
 }
 
+#[expensive_requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
 fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let Some(expectation) = &fixture.test_case.expectations.morphology else {
         return FacetResult::skipped("fixture has no morphology expectation");
@@ -759,6 +776,7 @@ fn format_morphology_mismatch(
     }
 }
 
+#[ensures(ret.as_ref().is_none_or(|status| matches!(status, ExpectationStatus::Success | ExpectationStatus::Failure | ExpectationStatus::Pending | ExpectationStatus::NotApplicable)))]
 fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<ExpectationStatus> {
     let expectations = &fixture.test_case.expectations;
     match facet {
@@ -771,5 +789,16 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
             .as_ref()
             .and_then(|output| output.brackets.as_ref())
             .map(|_| ExpectationStatus::Success),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "cargo subcommand arguments must not be empty")]
+    fn empty_cargo_command_contract_is_reported() {
+        let _ = cargo(&[]);
     }
 }

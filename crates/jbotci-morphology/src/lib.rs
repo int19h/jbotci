@@ -5,7 +5,8 @@ mod segment;
 
 use std::fmt;
 
-use contracts::{ensures, requires, test_ensures};
+use contracts::{ensures, requires};
+use jbotci_contracts::expensive_ensures;
 pub use jbotci_dialect::{
     CmavoDialectEntry, CmavoDialectTransform, DialectDefinition, DialectFeature,
 };
@@ -125,6 +126,20 @@ pub struct Word {
     pub dialect_transform: Option<CmavoDialectTransform>,
 }
 
+impl Word {
+    #[ensures(ret -> !self.phonemes.is_empty())]
+    #[ensures(ret -> source_span_is_valid(&self.span))]
+    #[ensures(ret -> self.dialect_transform.as_ref().is_none_or(CmavoDialectTransform::is_valid))]
+    pub fn is_valid(&self) -> bool {
+        !self.phonemes.is_empty()
+            && source_span_is_valid(&self.span)
+            && self
+                .dialect_transform
+                .as_ref()
+                .is_none_or(CmavoDialectTransform::is_valid)
+    }
+}
+
 impl fmt::Display for Word {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.kind, self.phonemes)
@@ -165,6 +180,13 @@ pub enum WordLike {
         zei: Box<Word>,
         right: Box<Word>,
     },
+}
+
+impl WordLike {
+    #[expensive_ensures(ret -> word_like_is_valid(self))]
+    pub fn is_valid(&self) -> bool {
+        word_like_is_valid(self)
+    }
 }
 
 impl fmt::Display for WordLike {
@@ -228,6 +250,13 @@ pub enum WordWithModifiers {
     NotEof,
 }
 
+impl WordWithModifiers {
+    #[expensive_ensures(ret -> word_with_modifiers_is_valid(self))]
+    pub fn is_valid(&self) -> bool {
+        word_with_modifiers_is_valid(self)
+    }
+}
+
 impl fmt::Display for WordWithModifiers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -274,7 +303,7 @@ pub enum MorphologyError {
     SourceSpan(#[from] SourceLocationError),
 }
 
-#[test_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(word_with_modifiers_is_valid)))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers(
     input: &str,
 ) -> Result<Vec<WordWithModifiers>, MorphologyError> {
@@ -286,7 +315,7 @@ pub fn segment_words_with_modifiers(
 }
 
 #[requires(options.is_valid())]
-#[test_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(word_with_modifiers_is_valid)))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_with_options(
     input: &str,
     options: &MorphologyOptions,
@@ -294,7 +323,7 @@ pub fn segment_words_with_modifiers_with_options(
     segment_words_with_modifiers_with_options_and_source_id(input, options, None)
 }
 
-#[test_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(word_with_modifiers_is_valid)))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_with_source_id(
     input: &str,
     source_id: SourceId,
@@ -307,7 +336,7 @@ pub fn segment_words_with_modifiers_with_source_id(
 }
 
 #[requires(options.is_valid())]
-#[test_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(word_with_modifiers_is_valid)))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_with_options_and_source_id(
     input: &str,
     options: &MorphologyOptions,
@@ -316,7 +345,7 @@ pub fn segment_words_with_modifiers_with_options_and_source_id(
     grammar::segment_words_with_modifiers(input, options, source_id)
 }
 
-#[test_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(word_with_modifiers_is_valid)))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_raw(
     input: &str,
 ) -> Result<Vec<WordWithModifiers>, MorphologyError> {
@@ -327,7 +356,7 @@ pub fn segment_words_with_modifiers_raw(
     )
 }
 
-#[test_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(word_with_modifiers_is_valid)))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_raw_with_source_id(
     input: &str,
     source_id: SourceId,
@@ -340,7 +369,7 @@ pub fn segment_words_with_modifiers_raw_with_source_id(
 }
 
 #[requires(options.is_valid())]
-#[test_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(word_with_modifiers_is_valid)))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_raw_with_options(
     input: &str,
     options: &MorphologyOptions,
@@ -349,7 +378,7 @@ pub fn segment_words_with_modifiers_raw_with_options(
 }
 
 #[requires(options.is_valid())]
-#[test_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(word_with_modifiers_is_valid)))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
     input: &str,
     options: &MorphologyOptions,
@@ -361,21 +390,21 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
 #[cfg_attr(not(test), allow(dead_code))]
 fn word_with_modifiers_is_valid(word: &WordWithModifiers) -> bool {
     match word {
-        WordWithModifiers::BaseWord { word_like } => word_like_is_valid(word_like),
+        WordWithModifiers::BaseWord { word_like } => word_like.is_valid(),
         WordWithModifiers::StandaloneIndicator { indicator, nai } => {
-            word_is_valid(indicator) && nai.as_ref().is_none_or(|word| word_is_valid(word))
+            indicator.is_valid() && nai.as_ref().is_none_or(|word| word.is_valid())
         }
         WordWithModifiers::Emphasized { bahe, word_like } => {
-            word_is_valid(bahe) && word_like_is_valid(word_like)
+            bahe.is_valid() && word_like.is_valid()
         }
         WordWithModifiers::WithIndicator {
             base,
             indicator,
             nai,
         } => {
-            word_with_modifiers_is_valid(base)
-                && word_is_valid(indicator)
-                && nai.as_ref().is_none_or(|word| word_is_valid(word))
+            base.is_valid()
+                && indicator.is_valid()
+                && nai.as_ref().is_none_or(|word| word.is_valid())
         }
         WordWithModifiers::NotEof => true,
     }
@@ -384,42 +413,33 @@ fn word_with_modifiers_is_valid(word: &WordWithModifiers) -> bool {
 #[cfg_attr(not(test), allow(dead_code))]
 fn word_like_is_valid(word_like: &WordLike) -> bool {
     match word_like {
-        WordLike::Bare { word } => word_is_valid(word),
-        WordLike::ZoQuote { zo, word } => word_is_valid(zo) && word_is_valid(word),
+        WordLike::Bare { word } => word.is_valid(),
+        WordLike::ZoQuote { zo, word } => zo.is_valid() && word.is_valid(),
         WordLike::ZoiQuote {
             zoi,
             opening_delimiter,
             quoted_text,
             closing_delimiter,
         } => {
-            word_is_valid(zoi)
-                && word_is_valid(opening_delimiter)
+            zoi.is_valid()
+                && opening_delimiter.is_valid()
                 && source_span_is_valid(quoted_text)
-                && word_is_valid(closing_delimiter)
+                && closing_delimiter.is_valid()
         }
         WordLike::LohuQuote {
             lohu,
             quoted_words,
             lehu,
-        } => word_is_valid(lohu) && quoted_words.iter().all(word_is_valid) && word_is_valid(lehu),
+        } => lohu.is_valid() && quoted_words.iter().all(Word::is_valid) && lehu.is_valid(),
         WordLike::SingleWordQuote {
             marker,
             quoted_text,
-        } => word_is_valid(marker) && source_span_is_valid(quoted_text),
-        WordLike::Letter { base, bu } => word_like_is_valid(base) && word_is_valid(bu),
+        } => marker.is_valid() && source_span_is_valid(quoted_text),
+        WordLike::Letter { base, bu } => base.is_valid() && bu.is_valid(),
         WordLike::ZeiLujvo { left, zei, right } => {
-            word_like_is_valid(left) && word_is_valid(zei) && word_is_valid(right)
+            left.is_valid() && zei.is_valid() && right.is_valid()
         }
     }
-}
-
-#[cfg_attr(not(test), allow(dead_code))]
-fn word_is_valid(word: &Word) -> bool {
-    !word.phonemes.is_empty()
-        && source_span_is_valid(&word.span)
-        && word.dialect_transform.as_ref().is_none_or(|transform| {
-            transform.output_count > 0 && transform.output_index < transform.output_count
-        })
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
@@ -539,6 +559,19 @@ mod tests {
             base_word(&words[1]).map(|word| word.phonemes.as_str()),
             Some("italĭas")
         );
+    }
+
+    #[test]
+    #[should_panic]
+    fn invalid_morphology_options_contract_is_reported() {
+        let options = MorphologyOptions {
+            cmavo_dialect_entries: vec![CmavoDialectEntry::Expansion {
+                source: "mi".to_owned(),
+                replacement: Vec::new(),
+            }],
+            ..MorphologyOptions::default()
+        };
+        let _ = segment_words_with_modifiers_with_options("mi", &options);
     }
 
     fn base_word(word: &WordWithModifiers) -> Option<&Word> {

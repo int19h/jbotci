@@ -7,7 +7,8 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use contracts::{ensures, requires, test_ensures};
+use contracts::{ensures, requires};
+use jbotci_contracts::expensive_ensures;
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::WordWithModifiers;
 use jbotci_syntax::SyntaxValue;
@@ -37,15 +38,18 @@ pub struct TestCase {
 
 impl TestCase {
     #[ensures(ret -> !self.id.is_empty())]
+    #[expensive_ensures(ret -> self.dialect_definition().is_ok())]
+    #[expensive_ensures(ret -> self.validate_xfail_metadata().is_ok())]
     pub fn is_valid_fixture_metadata(&self) -> bool {
         !self.id.is_empty()
             && self
                 .dialect
                 .as_deref()
                 .is_none_or(|formula| parse_dialect_definition(formula).is_ok())
+            && self.validate_xfail_metadata().is_ok()
     }
 
-    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(DialectDefinition::is_valid))]
+    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(DialectDefinition::is_valid))]
     pub fn dialect_definition(&self) -> Result<DialectDefinition, FixtureError> {
         match &self.dialect {
             Some(formula) => {
@@ -59,6 +63,7 @@ impl TestCase {
         }
     }
 
+    #[ensures(ret.iter().all(|facet| self.expectation_status(*facet).is_some()))]
     pub fn available_facets(&self) -> BTreeSet<Facet> {
         let mut facets = BTreeSet::new();
         if self
@@ -84,6 +89,7 @@ impl TestCase {
         facets
     }
 
+    #[ensures(ret.is_ok() || self.expectations.syntax.as_ref().and_then(|syntax| syntax.xfail.as_ref()).is_some())]
     pub fn validate_xfail_metadata(&self) -> Result<(), FixtureError> {
         let Some(syntax) = &self.expectations.syntax else {
             return Ok(());
@@ -98,6 +104,33 @@ impl TestCase {
             });
         }
         Ok(())
+    }
+
+    fn expectation_status(&self, facet: Facet) -> Option<ExpectationStatus> {
+        match facet {
+            Facet::Morphology => self
+                .expectations
+                .morphology
+                .as_ref()
+                .map(|value| value.status),
+            Facet::Syntax => self.expectations.syntax.as_ref().map(|value| value.status),
+            Facet::SyntaxRefs => self
+                .expectations
+                .syntax_refs
+                .as_ref()
+                .map(|_| ExpectationStatus::Success),
+            Facet::Warnings => self
+                .expectations
+                .warnings
+                .as_ref()
+                .map(|_| ExpectationStatus::Success),
+            Facet::Brackets => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.brackets.as_ref())
+                .map(|_| ExpectationStatus::Success),
+        }
     }
 }
 
@@ -398,6 +431,13 @@ pub struct FixtureProfile {
     pub selector: FixtureSelector,
 }
 
+impl FixtureProfile {
+    #[ensures(ret -> self.selector.is_valid())]
+    pub fn is_valid(&self) -> bool {
+        self.selector.is_valid()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FixtureSelector {
@@ -413,6 +453,19 @@ pub struct FixtureSelector {
     pub cll: Option<CllSelector>,
     #[serde(default)]
     pub muplis: Option<MuplisSelector>,
+}
+
+impl FixtureSelector {
+    #[ensures(ret -> self.provenance.iter().all(|value| !value.is_empty()))]
+    #[ensures(ret -> self.tags.iter().all(|value| !value.is_empty()))]
+    #[ensures(ret -> self.ids.iter().all(|value| !value.is_empty()))]
+    #[ensures(ret -> self.path_prefixes.iter().all(|value| !value.is_empty()))]
+    pub fn is_valid(&self) -> bool {
+        self.provenance.iter().all(|value| !value.is_empty())
+            && self.tags.iter().all(|value| !value.is_empty())
+            && self.ids.iter().all(|value| !value.is_empty())
+            && self.path_prefixes.iter().all(|value| !value.is_empty())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -509,7 +562,6 @@ fn default_schema_version() -> u16 {
     1
 }
 
-#[test_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|test_case| !test_case.id.is_empty()))]
 pub fn load_fixture_file(path: impl AsRef<Path>) -> Result<TestCase, FixtureError> {
     let path = path.as_ref();
     let text = read_text(path)?;
@@ -544,6 +596,8 @@ pub fn write_fixture_file(
     })
 }
 
+#[requires(test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|text| !text.is_empty()))]
 fn format_test_case_toml(test_case: &TestCase) -> Result<String, toml::ser::Error> {
     let mut output = String::new();
     push_field(&mut output, "id", &test_case.id)?;
@@ -825,6 +879,7 @@ pub fn load_fixture_tree(root: impl AsRef<Path>) -> Result<Vec<LoadedTestCase>, 
     Ok(loaded)
 }
 
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|paths| paths.iter().all(|path| path.extension().is_some_and(|ext| ext == "toml"))))]
 pub fn fixture_paths(root: impl AsRef<Path>) -> Result<Vec<PathBuf>, FixtureError> {
     let root = root.as_ref();
     let mut paths = Vec::new();
@@ -868,6 +923,7 @@ where
     Ok(count)
 }
 
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.fixture_count > 0))]
 pub fn validate_fixture_tree(root: impl AsRef<Path>) -> Result<FixtureSummary, FixtureError> {
     let root = root.as_ref();
     let mut seen = BTreeMap::new();
@@ -926,6 +982,8 @@ pub fn load_profiles(
     Ok(profiles)
 }
 
+#[requires(!name.is_empty(), "fixture profile names must not be empty")]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
 pub fn load_profile(
     fixtures_root: impl AsRef<Path>,
     name: &str,
@@ -938,6 +996,8 @@ pub fn load_profile(
     toml::from_str(&text).map_err(|source| FixtureError::ParseToml { path, source })
 }
 
+#[requires(selector.is_valid())]
+#[expensive_ensures(ret.iter().all(|fixture| fixture.test_case.is_valid_fixture_metadata()))]
 pub fn filter_fixtures<'a>(
     root: &Path,
     fixtures: &'a [LoadedTestCase],
@@ -949,6 +1009,7 @@ pub fn filter_fixtures<'a>(
         .collect()
 }
 
+#[requires(selector.is_valid())]
 pub fn fixture_matches_selector(
     root: &Path,
     fixture: &LoadedTestCase,
@@ -957,6 +1018,7 @@ pub fn fixture_matches_selector(
     matches_selector(root, fixture, selector)
 }
 
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.written > 0))]
 pub fn import_export_file(
     input_path: impl AsRef<Path>,
     output_root: impl AsRef<Path>,
@@ -981,6 +1043,8 @@ pub fn import_export_file(
     Ok(ImportSummary { written })
 }
 
+#[requires(case.is_valid_fixture_metadata())]
+#[ensures(ret.extension().is_some_and(|ext| ext == "toml"))]
 pub fn path_for_case(case: &TestCase) -> PathBuf {
     match case.provenance.first() {
         Some(Provenance::Cll {
@@ -1041,6 +1105,7 @@ pub struct FacetResult {
 }
 
 impl FacetResult {
+    #[ensures(ret.is_valid())]
     pub fn passed() -> Self {
         Self {
             status: FacetStatus::Passed,
@@ -1048,6 +1113,7 @@ impl FacetResult {
         }
     }
 
+    #[ensures(ret.is_valid())]
     pub fn failed(message: impl Into<String>) -> Self {
         Self {
             status: FacetStatus::Failed,
@@ -1055,6 +1121,7 @@ impl FacetResult {
         }
     }
 
+    #[ensures(ret.is_valid())]
     pub fn skipped(message: impl Into<String>) -> Self {
         Self {
             status: FacetStatus::Skipped,
@@ -1062,10 +1129,23 @@ impl FacetResult {
         }
     }
 
+    #[ensures(ret.is_valid())]
     pub fn xfailed(message: impl Into<String>) -> Self {
         Self {
             status: FacetStatus::Xfailed,
             message: Some(message.into()),
+        }
+    }
+
+    #[ensures(ret -> (self.status == FacetStatus::Passed) == self.message.is_none())]
+    #[ensures(ret -> self.message.as_ref().is_none_or(|message| !message.is_empty()))]
+    pub fn is_valid(&self) -> bool {
+        match self.status {
+            FacetStatus::Passed => self.message.is_none(),
+            FacetStatus::Failed | FacetStatus::Skipped | FacetStatus::Xfailed => self
+                .message
+                .as_ref()
+                .is_some_and(|message| !message.is_empty()),
         }
     }
 }
@@ -1089,6 +1169,12 @@ pub struct RunSummary {
 }
 
 impl RunSummary {
+    #[ensures(ret == self.passed + self.failed + self.skipped + self.xfailed)]
+    pub fn total_results(&self) -> usize {
+        self.passed + self.failed + self.skipped + self.xfailed
+    }
+
+    #[requires(result.is_valid())]
     pub fn record_result(&mut self, result: &FacetResult) {
         match result.status {
             FacetStatus::Passed => self.passed += 1,
@@ -1107,6 +1193,9 @@ impl RunSummary {
     }
 }
 
+#[ensures(ret.selected_fixtures == fixtures.len())]
+#[ensures(ret.selected_facets == facets.len())]
+#[ensures(ret.total_results() == fixtures.len() * facets.len())]
 pub fn run_fixture_facets<B: FixtureBackend>(
     backend: &B,
     fixtures: &[&LoadedTestCase],
@@ -1125,6 +1214,9 @@ pub fn run_fixture_facets<B: FixtureBackend>(
     summary
 }
 
+#[ensures(ret.selected_fixtures == fixtures.len())]
+#[ensures(ret.selected_facets == facets.len())]
+#[ensures(ret.total_results() == fixtures.len() * facets.len())]
 pub fn run_fixture_facets_parallel<B: FixtureBackend + Sync>(
     backend: &B,
     fixtures: &[&LoadedTestCase],

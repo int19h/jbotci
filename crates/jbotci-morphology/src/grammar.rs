@@ -3,6 +3,8 @@ use std::collections::VecDeque;
 use chumsky::error::Rich;
 use chumsky::prelude::*;
 use chumsky::span::SimpleSpan;
+use contracts::{ensures, requires};
+use jbotci_contracts::{expensive_ensures, expensive_requires};
 use jbotci_source::{SourceId, SourceSpan};
 
 use crate::{MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordWithModifiers};
@@ -19,6 +21,8 @@ pub(crate) fn segment_words_with_modifiers(
     )?))
 }
 
+#[requires(options.is_valid())]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub(crate) fn segment_words_with_modifiers_raw(
     input: &str,
     options: &MorphologyOptions,
@@ -66,6 +70,9 @@ struct Segmenter<'a> {
 }
 
 impl<'a> Segmenter<'a> {
+    #[requires(options.is_valid())]
+    #[ensures(ret.index == 0)]
+    #[ensures(ret.chars.len() == input.chars().count())]
     fn new(input: &'a str, options: &'a MorphologyOptions, source_id: Option<SourceId>) -> Self {
         Self {
             input,
@@ -79,6 +86,7 @@ impl<'a> Segmenter<'a> {
         }
     }
 
+    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
     fn segment_raw(mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
         let mut acc = Vec::new();
         while self.skip_magic_noise(true)? {
@@ -91,6 +99,7 @@ impl<'a> Segmenter<'a> {
         Ok(acc)
     }
 
+    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
     fn next_segment(&mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
         self.skip_separators();
         if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
@@ -131,6 +140,9 @@ impl<'a> Segmenter<'a> {
         Ok(vec![word])
     }
 
+    #[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
+    #[expensive_requires(segment.iter().all(WordWithModifiers::is_valid))]
+    #[expensive_ensures(ret.as_ref().is_err() || acc.iter().all(WordWithModifiers::is_valid))]
     fn process_segment(
         &mut self,
         acc: &mut Vec<WordWithModifiers>,
@@ -167,6 +179,7 @@ impl<'a> Segmenter<'a> {
         Ok(())
     }
 
+    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(WordWithModifiers::is_valid))]
     fn next_plain_word(&mut self) -> Result<WordWithModifiers, MorphologyError> {
         self.skip_separators();
         let start = self.index;
@@ -374,11 +387,15 @@ impl<'a> Segmenter<'a> {
         Ok(())
     }
 
+    #[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
+    #[expensive_ensures(acc.iter().all(WordWithModifiers::is_valid))]
     fn handle_si(&self, acc: &mut Vec<WordWithModifiers>) {
         let (_prev, rest) = skip_acc_y(acc);
         *acc = rest;
     }
 
+    #[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
+    #[expensive_ensures(ret.as_ref().is_err() || acc.iter().all(WordWithModifiers::is_valid))]
     fn handle_sa(&mut self, acc: &mut Vec<WordWithModifiers>) -> Result<(), MorphologyError> {
         let mut sa_count = 1;
         loop {
@@ -450,10 +467,15 @@ impl<'a> Segmenter<'a> {
         Ok(vec![word])
     }
 
+    #[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
+    #[expensive_ensures(acc.iter().all(WordWithModifiers::is_valid))]
     fn handle_su(&self, acc: &mut Vec<WordWithModifiers>) {
         *acc = erase_back_to_su_boundary(acc);
     }
 
+    #[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
+    #[expensive_requires(zei_word_with_modifiers.is_valid())]
+    #[expensive_ensures(ret.as_ref().is_err() || acc.iter().all(WordWithModifiers::is_valid))]
     fn handle_zei(
         &mut self,
         acc: &mut Vec<WordWithModifiers>,
@@ -486,6 +508,8 @@ impl<'a> Segmenter<'a> {
         Ok(())
     }
 
+    #[expensive_requires(opening_delimiter.is_valid())]
+    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(end, word, start)| *end <= *start && word.is_valid())))]
     fn find_zoi_close(
         &mut self,
         opening_delimiter: &Word,
@@ -523,6 +547,7 @@ impl<'a> Segmenter<'a> {
         Ok(None)
     }
 
+    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(WordWithModifiers::is_valid))]
     fn next_plain_non_y_word(&mut self) -> Result<WordWithModifiers, MorphologyError> {
         loop {
             let word = self.next_plain_word()?;
@@ -532,6 +557,7 @@ impl<'a> Segmenter<'a> {
         }
     }
 
+    #[ensures(self.index <= self.chars.len())]
     fn skip_y_words(&mut self) {
         loop {
             self.skip_separators();
@@ -546,6 +572,7 @@ impl<'a> Segmenter<'a> {
         }
     }
 
+    #[ensures(ret.as_ref().is_err() || self.index <= self.chars.len())]
     fn skip_magic_noise(&mut self, keep_y_before_bu: bool) -> Result<bool, MorphologyError> {
         loop {
             let before = self.index;
@@ -573,12 +600,15 @@ impl<'a> Segmenter<'a> {
         }
     }
 
+    #[ensures(self.index <= self.chars.len())]
     fn skip_separators(&mut self) {
         while self.index < self.chars.len() && self.is_magic_noise_at(self.index) {
             self.index += 1;
         }
     }
 
+    #[requires(start <= self.chars.len())]
+    #[ensures(ret >= start && ret <= self.chars.len())]
     fn candidate_end(&self, start: usize) -> usize {
         let mut end = start;
         while end < self.chars.len() && !self.is_word_separator_at(end) {
@@ -587,6 +617,8 @@ impl<'a> Segmenter<'a> {
         end
     }
 
+    #[requires(start <= end && end <= self.chars.len())]
+    #[ensures(ret >= start && ret <= end)]
     fn trim_trailing_commas(&self, start: usize, end: usize) -> usize {
         let mut trimmed_end = end;
         while start < trimmed_end
@@ -600,6 +632,8 @@ impl<'a> Segmenter<'a> {
         trimmed_end
     }
 
+    #[requires(start <= end && end <= self.chars.len())]
+    #[ensures(ret.as_ref().is_none_or(|prefix| prefix.end > start && prefix.end <= end && !prefix.phonemes.is_empty()))]
     fn cmavo_prefix(&self, start: usize, end: usize) -> Option<CmavoPrefix> {
         let whole_candidate =
             crate::segment::normalize_word_with_options(self.slice(start, end), self.options);
@@ -625,6 +659,7 @@ impl<'a> Segmenter<'a> {
         })
     }
 
+    #[requires(start <= end && end <= self.chars.len())]
     fn has_blocking_cmavo_prefix(&self, start: usize, end: usize) -> bool {
         let whole_candidate =
             crate::segment::normalize_word_with_options(self.slice(start, end), self.options);
@@ -643,6 +678,7 @@ impl<'a> Segmenter<'a> {
         })
     }
 
+    #[requires(prefix_end <= candidate_end && candidate_end <= self.chars.len())]
     fn cmavo_boundary_ok(&self, prefix_end: usize, candidate_end: usize) -> bool {
         if prefix_end == candidate_end {
             return true;
@@ -655,6 +691,7 @@ impl<'a> Segmenter<'a> {
             && self.candidate_starts_with_supported_word(prefix_end, candidate_end)
     }
 
+    #[requires(start <= end && end <= self.chars.len())]
     fn candidate_starts_with_supported_word(&self, start: usize, end: usize) -> bool {
         let raw = self.slice(start, end);
         let normalized = crate::segment::normalize_word_with_options(raw, self.options);
@@ -668,6 +705,9 @@ impl<'a> Segmenter<'a> {
             })
     }
 
+    #[requires(start <= end && end <= self.chars.len())]
+    #[requires(!phonemes.is_empty())]
+    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(WordWithModifiers::is_valid))]
     fn word_with_modifiers(
         &self,
         start: usize,
@@ -686,6 +726,7 @@ impl<'a> Segmenter<'a> {
         }))
     }
 
+    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
     fn digit_sequence(&mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
         let mut words = Vec::new();
         while self.index < self.chars.len() {
@@ -739,6 +780,7 @@ impl<'a> Segmenter<'a> {
         Ok(words)
     }
 
+    #[requires(start <= end && end <= self.chars.len())]
     fn is_digit_sequence_candidate(&self, start: usize, end: usize) -> bool {
         start < end
             && self.chars[start..end].iter().all(|source_char| {
@@ -748,6 +790,7 @@ impl<'a> Segmenter<'a> {
             })
     }
 
+    #[ensures(self.index <= self.chars.len())]
     fn consume_zoi_open_dots(&mut self) {
         if self.peek_char() != Some('.') {
             return;
@@ -760,6 +803,8 @@ impl<'a> Segmenter<'a> {
         }
     }
 
+    #[requires(start <= end && end <= self.chars.len())]
+    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|span| span.byte_start <= span.byte_end && span.char_start <= span.char_end))]
     fn source_span(&self, start: usize, end: usize) -> Result<SourceSpan, MorphologyError> {
         SourceSpan::new(
             self.source_id.clone(),
@@ -771,10 +816,13 @@ impl<'a> Segmenter<'a> {
         .map_err(MorphologyError::SourceSpan)
     }
 
+    #[requires(start <= end && end <= self.chars.len())]
     fn slice(&self, start: usize, end: usize) -> &'a str {
         &self.input[self.byte_offset(start)..self.byte_offset(end)]
     }
 
+    #[requires(index <= self.chars.len())]
+    #[ensures(ret <= self.input.len())]
     fn byte_offset(&self, index: usize) -> usize {
         self.chars
             .get(index)
@@ -787,18 +835,21 @@ impl<'a> Segmenter<'a> {
             .map(|source_char| source_char.value)
     }
 
+    #[requires(index <= self.chars.len())]
     fn is_word_separator_at(&self, index: usize) -> bool {
         self.chars
             .get(index)
             .is_some_and(|source_char| crate::segment::is_separator(source_char.value))
     }
 
+    #[requires(index <= self.chars.len())]
     fn is_magic_noise_at(&self, index: usize) -> bool {
         self.chars.get(index).is_some_and(|source_char| {
             crate::segment::is_separator(source_char.value) || source_char.value == ','
         })
     }
 
+    #[requires(!reason.is_empty(), "morphology invalid errors must have a reason")]
     fn invalid_at(&self, index: usize, word: &str, reason: &str) -> MorphologyError {
         MorphologyError::Invalid {
             char_offset: index,
@@ -807,6 +858,7 @@ impl<'a> Segmenter<'a> {
         }
     }
 
+    #[requires(!reason.is_empty(), "morphology unsupported errors must have a reason")]
     fn unsupported_at(&self, index: usize, word: &str, reason: &str) -> MorphologyError {
         MorphologyError::Unsupported {
             char_offset: index,
@@ -816,6 +868,7 @@ impl<'a> Segmenter<'a> {
     }
 }
 
+#[ensures(matches!(ret, MorphologyError::Invalid { ref reason, .. } if !reason.is_empty()) || !matches!(ret, MorphologyError::Invalid { .. }))]
 fn morphology_error(input: &str, errors: Vec<Rich<'_, char>>) -> MorphologyError {
     let Some(error) = errors.into_iter().next() else {
         return MorphologyError::Invalid {
@@ -835,6 +888,9 @@ fn morphology_error(input: &str, errors: Vec<Rich<'_, char>>) -> MorphologyError
     }
 }
 
+#[requires(byte_offset <= input.len())]
+#[requires(input.is_char_boundary(byte_offset))]
+#[ensures(ret <= input.chars().count())]
 fn char_offset(input: &str, byte_offset: usize) -> usize {
     input[..byte_offset].chars().count()
 }
@@ -852,12 +908,15 @@ enum SAMatchTag<'a> {
     Cmevla,
 }
 
+#[expensive_requires(word_like.is_valid())]
+#[expensive_ensures(ret.is_valid())]
 fn base_word_like(word_like: WordLike) -> WordWithModifiers {
     WordWithModifiers::BaseWord {
         word_like: Box::new(word_like),
     }
 }
 
+#[expensive_ensures(ret.as_ref().is_none_or(Word::is_valid))]
 fn extract_word(word: &WordWithModifiers) -> Option<Word> {
     match word {
         WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {
@@ -894,6 +953,7 @@ fn get_word_like(word: &WordWithModifiers) -> WordLike {
     }
 }
 
+#[requires(!text.is_empty())]
 fn is_simple_cmavo_text(word: &WordWithModifiers, text: &str) -> bool {
     match word {
         WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {
@@ -930,6 +990,7 @@ fn is_y_word_text(text: &str) -> bool {
     !canonical.is_empty() && canonical.chars().all(|value| value == 'y')
 }
 
+#[ensures(!ret.is_empty() || text.is_empty())]
 fn canonicalize_text(text: &str) -> String {
     text.chars()
         .filter(|value| *value != ',')
@@ -951,6 +1012,8 @@ fn strip_diacritic(value: char) -> Option<char> {
     })
 }
 
+#[requires(start <= end && end <= chars.len())]
+#[ensures(ret >= start && ret <= end)]
 fn trim_trailing_separator_indices(chars: &[SourceChar], start: usize, end: usize) -> usize {
     let mut trimmed_end = end;
     while start < trimmed_end
@@ -963,6 +1026,9 @@ fn trim_trailing_separator_indices(chars: &[SourceChar], start: usize, end: usiz
     trimmed_end
 }
 
+#[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
+#[expensive_ensures(ret.0.as_ref().is_none_or(WordWithModifiers::is_valid))]
+#[expensive_ensures(ret.1.iter().all(WordWithModifiers::is_valid))]
 fn skip_acc_y(acc: &[WordWithModifiers]) -> (Option<WordWithModifiers>, Vec<WordWithModifiers>) {
     let mut last_y = None;
     for (index, token) in acc.iter().enumerate().rev() {
@@ -975,6 +1041,8 @@ fn skip_acc_y(acc: &[WordWithModifiers]) -> (Option<WordWithModifiers>, Vec<Word
     (last_y, Vec::new())
 }
 
+#[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
+#[expensive_ensures(ret.iter().all(WordWithModifiers::is_valid))]
 fn erase_back_to_su_boundary(acc: &[WordWithModifiers]) -> Vec<WordWithModifiers> {
     for (index, token) in acc.iter().enumerate().rev() {
         let selmaho = visible_selmaho(&get_word_like(token));
@@ -1102,10 +1170,14 @@ fn selmaho(cmavo: &str) -> Option<&'static str> {
     }
 }
 
+#[expensive_requires(words.iter().all(WordWithModifiers::is_valid))]
+#[expensive_ensures(ret.iter().all(WordWithModifiers::is_valid))]
 fn apply_passes(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     pass_ui(pass_bahe(words))
 }
 
+#[expensive_requires(words.iter().all(WordWithModifiers::is_valid))]
+#[expensive_ensures(ret.iter().all(WordWithModifiers::is_valid))]
 fn pass_bahe(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     let mut reversed: VecDeque<_> = words.into_iter().rev().collect();
     let mut out = Vec::new();
@@ -1127,6 +1199,8 @@ fn pass_bahe(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     out
 }
 
+#[expensive_requires(words.iter().all(WordWithModifiers::is_valid))]
+#[expensive_ensures(ret.iter().all(WordWithModifiers::is_valid))]
 fn pass_ui(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     let mut out: Vec<WordWithModifiers> = Vec::new();
     let mut iter = words.into_iter().peekable();
@@ -1168,6 +1242,7 @@ fn pass_ui(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     out
 }
 
+#[expensive_ensures(ret.as_ref().is_none_or(Word::is_valid))]
 fn get_modifier_word(word: &WordWithModifiers) -> Option<Word> {
     match word {
         WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {
@@ -1208,6 +1283,7 @@ fn text_chars(text: &str) -> Vec<char> {
     text.chars().collect()
 }
 
+#[requires(start <= chars.len())]
 fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
     if start >= chars.len() {
         return false;
@@ -1215,6 +1291,8 @@ fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
     parse_diphthong(chars, start).is_some() || parse_single_vowel(chars, start).is_some()
 }
 
+#[requires(start <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|(_, end)| *end > start && *end <= chars.len()))]
 fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
     let first = *chars.get(start)?;
     let second = *chars.get(start + 1)?;
@@ -1230,6 +1308,8 @@ fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
     Some((format!("{}{}", normalize_vowel(first), semivowel), end))
 }
 
+#[requires(start <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|(_, end)| *end == start + 1))]
 fn parse_single_vowel(chars: &[char], start: usize) -> Option<(String, usize)> {
     let value = *chars.get(start)?;
     if value == 'y' || value == 'ý' {

@@ -4,6 +4,7 @@ members = [
     "apps/jbotci",
     "apps/jbotci-server",
     "crates/jbotci-cll",
+    "crates/jbotci-contracts",
     "crates/jbotci-dialect",
     "crates/jbotci-dictionary",
     "crates/jbotci-jvozba",
@@ -36,6 +37,9 @@ authors.workspace = true
 repository.workspace = true
 publish = false
 
+[features]
+expensive_contracts = []
+
 [workspace.dependencies]
 anyhow = "1"
 chumsky = { version = "0.13", features = ["memoization"] }
@@ -50,6 +54,7 @@ toml = { version = "0.9", features = ["unbounded"] }
 walkdir = "2"
 
 jbotci-cll = { path = "crates/jbotci-cll" }
+jbotci-contracts = { path = "crates/jbotci-contracts" }
 jbotci-dialect = { path = "crates/jbotci-dialect" }
 jbotci-dictionary = { path = "crates/jbotci-dictionary" }
 jbotci-jvozba = { path = "crates/jbotci-jvozba" }
@@ -61,6 +66,7 @@ jbotci-source = { path = "crates/jbotci-source" }
 jbotci-syntax = { path = "crates/jbotci-syntax" }
 
 [dev-dependencies]
+jbotci-contracts.workspace = true
 jbotci-morphology.workspace = true
 jbotci-dialect.workspace = true
 jbotci-source.workspace = true

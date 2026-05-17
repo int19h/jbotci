@@ -1,3 +1,5 @@
+use contracts::{ensures, requires};
+
 use crate::{MorphologyOptions, WordKind};
 
 pub(crate) fn is_separator(value: char) -> bool {
@@ -40,12 +42,15 @@ pub(crate) fn is_separator(value: char) -> bool {
         )
 }
 
+#[requires(options.is_valid())]
 pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions) -> String {
     raw.chars()
         .filter_map(|value| normalize_char(value, options))
         .collect()
 }
 
+#[requires(options.is_valid())]
+#[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
 pub(crate) fn classify_word_with_options(
     raw_word: &str,
     normalized_word: &str,
@@ -91,6 +96,7 @@ pub(crate) fn classify_word_with_options(
     None
 }
 
+#[ensures(!ret.is_empty() || normalized_word.is_empty())]
 pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
     let chars: Vec<char> = normalized_word.chars().collect();
     let mut out = String::new();
@@ -116,6 +122,7 @@ pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
     out
 }
 
+#[ensures(!ret.is_empty() || normalized_word.is_empty())]
 fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
     canonicalize_word_phonemes(normalized_word)
         .chars()
@@ -123,6 +130,7 @@ fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
         .collect()
 }
 
+#[requires(options.is_valid())]
 fn normalize_char(value: char, options: &MorphologyOptions) -> Option<char> {
     let normalized = match value {
         '\'' | 'h' | 'H' | '\u{2019}' | '\u{a78b}' | '\u{a78c}' | '\u{02bb}' | '\u{02bf}'
@@ -215,6 +223,7 @@ pub(crate) fn starts_with_cvcy_lujvo(text: &str) -> bool {
     starts_with_cvcy_lujvo_chars(&chars, 0)
 }
 
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
     if chars.first().is_some_and(|value| *value == '\'') || starts_with_cluster(chars, 0) {
         return None;
@@ -227,6 +236,8 @@ fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
     None
 }
 
+#[requires(start <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 fn parse_cmavo_form_tail(chars: &[char], start: usize) -> Option<String> {
     for (nucleus, after_nucleus) in parse_nuclei(chars, start) {
         if after_nucleus == chars.len() {
@@ -241,6 +252,8 @@ fn parse_cmavo_form_tail(chars: &[char], start: usize) -> Option<String> {
     None
 }
 
+#[requires(start <= chars.len())]
+#[ensures(ret.iter().all(|(_, end)| *end >= start && *end <= chars.len()))]
 fn parse_onsets(chars: &[char], start: usize) -> Vec<(String, usize)> {
     let mut onsets = Vec::new();
     if let Some((glide, end)) = parse_glide(chars, start) {
@@ -254,6 +267,8 @@ fn parse_onsets(chars: &[char], start: usize) -> Vec<(String, usize)> {
     onsets
 }
 
+#[requires(start <= end && end <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|value| value.chars().count() == end - start))]
 fn parse_initial(chars: &[char], start: usize, end: usize) -> Option<String> {
     let initial: String = chars.get(start..end)?.iter().collect();
     let valid_shape = match end - start {
@@ -271,6 +286,8 @@ fn parse_initial(chars: &[char], start: usize, end: usize) -> Option<String> {
     Some(initial)
 }
 
+#[requires(start <= chars.len())]
+#[ensures(ret.iter().all(|(_, end)| *end > start && *end <= chars.len()))]
 fn parse_nuclei(chars: &[char], start: usize) -> Vec<(String, usize)> {
     let mut nuclei = Vec::new();
     if let Some((diphthong, end)) = parse_diphthong(chars, start) {
@@ -282,6 +299,8 @@ fn parse_nuclei(chars: &[char], start: usize) -> Vec<(String, usize)> {
     nuclei
 }
 
+#[requires(start <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|(_, end)| *end > start && *end <= chars.len()))]
 fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
     let first = *chars.get(start)?;
     let second = *chars.get(start + 1)?;
@@ -297,6 +316,8 @@ fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
     Some((format!("{}{}", normalize_vowel(first), semivowel), end))
 }
 
+#[requires(start <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|(_, end)| *end == start + 1))]
 fn parse_single_vowel(chars: &[char], start: usize) -> Option<(String, usize)> {
     let value = *chars.get(start)?;
     if value == 'y' || value == 'ý' {
@@ -316,6 +337,8 @@ fn parse_single_vowel(chars: &[char], start: usize) -> Option<(String, usize)> {
     Some((normalize_vowel(value).to_string(), end))
 }
 
+#[requires(start <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|(_, end)| *end > start && *end <= chars.len()))]
 fn parse_glide(chars: &[char], start: usize) -> Option<(String, usize)> {
     let value = *chars.get(start)?;
     let glide = match value {
@@ -330,6 +353,7 @@ fn parse_glide(chars: &[char], start: usize) -> Option<(String, usize)> {
     }
 }
 
+#[requires(start <= chars.len())]
 fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
     if start >= chars.len() {
         return false;
@@ -337,6 +361,7 @@ fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
     parse_diphthong(chars, start).is_some() || parse_single_vowel(chars, start).is_some()
 }
 
+#[requires(start <= chars.len())]
 fn starts_with_cluster(chars: &[char], start: usize) -> bool {
     chars
         .get(start)
@@ -415,6 +440,7 @@ fn is_u_semivowel(chars: &[char], index: usize) -> bool {
         && (is_diphthong_semivowel(chars, index, 'u') || starts_glide(chars, index))
 }
 
+#[requires(index <= chars.len())]
 fn is_diphthong_semivowel(chars: &[char], index: usize, semivowel: char) -> bool {
     let Some((_, previous)) = previous_non_comma(chars, index) else {
         return false;
@@ -428,6 +454,7 @@ fn is_diphthong_semivowel(chars: &[char], index: usize, semivowel: char) -> bool
     )
 }
 
+#[requires(index <= chars.len())]
 fn starts_glide(chars: &[char], index: usize) -> bool {
     matches!(
         chars.get(index).copied(),
@@ -435,6 +462,7 @@ fn starts_glide(chars: &[char], index: usize) -> bool {
     ) && next_starts_nucleus(chars, index + 1)
 }
 
+#[requires(index <= chars.len())]
 fn next_starts_nucleus(chars: &[char], mut index: usize) -> bool {
     while chars.get(index) == Some(&',') {
         index += 1;
@@ -442,6 +470,8 @@ fn next_starts_nucleus(chars: &[char], mut index: usize) -> bool {
     starts_with_nucleus(chars, index)
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|(found, _)| *found < index))]
 fn previous_non_comma(chars: &[char], index: usize) -> Option<(usize, char)> {
     let mut cursor = index;
     while cursor > 0 {
@@ -493,6 +523,7 @@ fn is_lujvo(word: &str) -> bool {
     lujvo_from(&chars, 0, false)
 }
 
+#[requires(index <= chars.len())]
 fn lujvo_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> bool {
     if index >= chars.len() {
         return false;
@@ -508,6 +539,7 @@ fn lujvo_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> bool {
         .any(|end| end > index && lujvo_from(chars, end, true))
 }
 
+#[requires(index <= chars.len())]
 fn starts_with_cvcy_lujvo_chars(chars: &[char], index: usize) -> bool {
     let Some(base_end) = cvc_rafsi_end(chars, index) else {
         return false;
@@ -522,16 +554,20 @@ fn starts_with_cvcy_lujvo_chars(chars: &[char], index: usize) -> bool {
     lujvo_from(chars, after_hyphen, true)
 }
 
+#[requires(index <= chars.len())]
 fn is_lujvo_core(chars: &[char], index: usize) -> bool {
     is_gismu_slice(chars, index, chars.len())
         || is_short_final_rafsi_slice(chars, index, chars.len())
         || is_cvv_final_rafsi_slice(chars, index, chars.len())
 }
 
+#[requires(index <= chars.len())]
 fn is_lujvo_final_rafsi_alone(chars: &[char], index: usize) -> bool {
     is_cvv_final_rafsi_slice(chars, index, chars.len())
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn initial_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     ends.extend(extended_rafsi_ends(chars, index));
@@ -542,6 +578,8 @@ fn initial_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     ends
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn extended_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     for head_end in brivla_head_ends(chars, index) {
@@ -558,6 +596,8 @@ fn extended_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     ends
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end < chars.len()))]
 fn brivla_head_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     for end in (index + 1)..chars.len() {
@@ -575,14 +615,17 @@ fn brivla_head_ends(chars: &[char], index: usize) -> Vec<usize> {
     ends
 }
 
+#[requires(start <= end && end <= chars.len())]
 fn slinkuhi_slice(chars: &[char], start: usize, end: usize) -> bool {
     start < end && is_consonant(chars[start]) && rafsi_string_slice(chars, start + 1, end)
 }
 
+#[requires(start <= end && end <= chars.len())]
 fn rafsi_string_slice(chars: &[char], start: usize, end: usize) -> bool {
     rafsi_string_from(chars, start, end)
 }
 
+#[requires(start <= end && end <= chars.len())]
 fn rafsi_string_from(chars: &[char], start: usize, end: usize) -> bool {
     if start >= end {
         return false;
@@ -595,6 +638,7 @@ fn rafsi_string_from(chars: &[char], start: usize, end: usize) -> bool {
         .any(|next| next > start && next <= end && rafsi_string_from(chars, next, end))
 }
 
+#[requires(start <= end && end <= chars.len())]
 fn rafsi_string_ending(chars: &[char], start: usize, end: usize) -> bool {
     is_gismu_slice(chars, start, end)
         || is_cvv_final_rafsi_slice(chars, start, end)
@@ -605,6 +649,8 @@ fn rafsi_string_ending(chars: &[char], start: usize, end: usize) -> bool {
         || hy_rafsi_slice(chars, start, end)
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn y_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     for base_end in long_rafsi_ends(chars, index)
@@ -622,6 +668,7 @@ fn y_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     ends
 }
 
+#[requires(start <= end && end <= chars.len())]
 fn y_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
     long_rafsi_ends(chars, start)
         .into_iter()
@@ -629,6 +676,8 @@ fn y_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
         .any(|base_end| rafsi_hyphen_end(chars, base_end) == Some(end))
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn y_less_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     if let Some(end) = cvc_rafsi_end(chars, index) {
@@ -641,6 +690,7 @@ fn y_less_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     ends
 }
 
+#[requires(start <= end && end <= chars.len())]
 fn hy_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
     long_rafsi_ends(chars, start).into_iter().any(|base_end| {
         chars.get(base_end).is_some_and(|value| is_vowel(*value))
@@ -651,6 +701,8 @@ fn hy_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
         .any(|base_end| hy_rafsi_hyphen_end(chars, base_end) == Some(end))
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
 fn rafsi_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
     if chars.get(index).is_some_and(|value| is_y(*value)) {
         let mut end = index + 1;
@@ -663,6 +715,8 @@ fn rafsi_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
     }
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
 fn hy_rafsi_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
     if chars.get(index) == Some(&'\'') && chars.get(index + 1).is_some_and(|value| is_y(*value)) {
         let mut end = index + 2;
@@ -675,6 +729,8 @@ fn hy_rafsi_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
     }
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn long_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     if index + 4 <= chars.len()
@@ -695,6 +751,8 @@ fn long_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     ends
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
 fn cvc_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
     (index + 3 <= chars.len()
         && is_consonant(chars[index])
@@ -703,6 +761,8 @@ fn cvc_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
     .then_some(index + 3)
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
 fn ccv_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
     (index + 3 <= chars.len()
         && is_fast_initial_pair_chars(chars[index], chars[index + 1])
@@ -710,6 +770,8 @@ fn ccv_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
     .then_some(index + 3)
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn cvv_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     if index < chars.len() && is_consonant(chars[index]) {
@@ -725,6 +787,8 @@ fn cvv_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     ends
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn vowel_pair_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     if index + 3 <= chars.len()
@@ -740,10 +804,12 @@ fn vowel_pair_ends(chars: &[char], index: usize) -> Vec<usize> {
     ends
 }
 
+#[requires(start <= end && end <= chars.len())]
 fn is_gismu_slice(chars: &[char], start: usize, end: usize) -> bool {
     end > start && is_gismu(&chars[start..end].iter().collect::<String>())
 }
 
+#[requires(start <= end && end <= chars.len())]
 fn is_short_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
     if start >= end {
         return false;
@@ -767,6 +833,7 @@ fn is_short_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool 
         && is_vowel(chars[start + 3])
 }
 
+#[requires(start <= end && end <= chars.len())]
 fn is_cvv_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
     if start >= end || !is_consonant(chars[start]) {
         return false;
@@ -781,6 +848,7 @@ fn is_fuhivla_shape(word: &str) -> bool {
     is_fuhivla_shape_slice(&chars, 0, chars.len())
 }
 
+#[requires(start <= end && end <= chars.len())]
 fn is_fuhivla_shape_slice(chars: &[char], start: usize, end: usize) -> bool {
     if end <= start
         || end - start < 4
@@ -834,6 +902,8 @@ fn has_vowel_hiatus(chars: &[char]) -> bool {
     false
 }
 
+#[requires(index <= chars.len())]
+#[ensures(ret.is_none_or(|found| found >= index && found < chars.len()))]
 fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<usize> {
     while chars.get(index) == Some(&',') {
         index += 1;
@@ -841,6 +911,7 @@ fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<usize> {
     (index < chars.len()).then_some(index)
 }
 
+#[requires(start <= end && end <= chars.len())]
 fn is_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
     if start >= end {
         return false;
@@ -848,6 +919,7 @@ fn is_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
     parse_cmavo_form(&chars[start..end].iter().collect::<String>()).is_some()
 }
 
+#[requires(index <= chars.len())]
 fn starts_with_onset(chars: &[char], index: usize) -> bool {
     index <= chars.len()
         && (index == chars.len()
@@ -857,6 +929,7 @@ fn starts_with_onset(chars: &[char], index: usize) -> bool {
             || matches!(chars[index], '\'' | 'ĭ' | 'ŭ'))
 }
 
+#[requires(index <= chars.len())]
 fn starts_with_valid_word_onset(chars: &[char], index: usize) -> bool {
     let Some(first) = chars.get(index).copied() else {
         return false;
@@ -886,6 +959,7 @@ fn starts_with_valid_word_onset(chars: &[char], index: usize) -> bool {
     }
 }
 
+#[requires(index <= chars.len())]
 fn valid_three_consonant_initial(chars: &[char], index: usize) -> bool {
     let (Some(first), Some(second), Some(third)) = (
         chars.get(index).copied(),

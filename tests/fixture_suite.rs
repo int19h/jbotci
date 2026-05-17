@@ -364,6 +364,23 @@ fn writer_keeps_tree_and_words_as_values() {
     let _ = fs::remove_dir_all(temp_root);
 }
 
+#[test]
+#[should_panic]
+fn write_fixture_rejects_invalid_metadata_by_contract() {
+    let test_case = TestCase {
+        id: String::new(),
+        lojban: "coi".into(),
+        dialect: None,
+        translation_en: None,
+        gloss_en: None,
+        tags: vec![],
+        provenance: vec![],
+        expectations: Expectations::default(),
+    };
+    let fixture_path = temp_root("jbotci-invalid-fixture-contract").join("invalid.toml");
+    let _ = write_fixture_file(fixture_path, &test_case);
+}
+
 fn loaded_case(path: &str, test_case: TestCase) -> LoadedTestCase {
     LoadedTestCase {
         path: PathBuf::from(path),

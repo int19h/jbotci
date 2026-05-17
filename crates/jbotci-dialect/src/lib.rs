@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use contracts::{ensures, requires};
+use jbotci_contracts::expensive_ensures;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -113,7 +114,7 @@ pub enum CmavoDialectEntry {
 }
 
 impl CmavoDialectEntry {
-    #[ensures(ret -> self.normalized_words().iter().all(|word| is_normalized_cmavo(word)))]
+    #[expensive_ensures(ret -> self.normalized_words().iter().all(|word| is_normalized_cmavo(word)))]
     pub fn is_valid(&self) -> bool {
         match self {
             Self::Swap { left, right } => is_normalized_cmavo(left) && is_normalized_cmavo(right),
@@ -128,6 +129,7 @@ impl CmavoDialectEntry {
         }
     }
 
+    #[cfg_attr(not(feature = "expensive_contracts"), allow(dead_code))]
     fn normalized_words(&self) -> Vec<&str> {
         match self {
             Self::Swap { left, right } => vec![left, right],
@@ -151,6 +153,20 @@ pub struct CmavoDialectTransform {
     pub output_count: usize,
 }
 
+impl CmavoDialectTransform {
+    #[ensures(ret -> !self.source_text.is_empty())]
+    #[ensures(ret -> !self.target_text.is_empty())]
+    #[ensures(ret -> !self.group_key.is_empty())]
+    #[ensures(ret -> self.output_index < self.output_count)]
+    pub fn is_valid(&self) -> bool {
+        !self.source_text.is_empty()
+            && !self.target_text.is_empty()
+            && !self.group_key.is_empty()
+            && self.output_count > 0
+            && self.output_index < self.output_count
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DialectDefinition {
@@ -169,7 +185,7 @@ impl DialectDefinition {
         self.cmavo_entries.is_empty() && self.features.is_empty()
     }
 
-    #[ensures(ret -> self.cmavo_entries.iter().all(CmavoDialectEntry::is_valid))]
+    #[expensive_ensures(ret -> self.cmavo_entries.iter().all(CmavoDialectEntry::is_valid))]
     pub fn is_valid(&self) -> bool {
         self.cmavo_entries.iter().all(CmavoDialectEntry::is_valid)
     }
@@ -201,12 +217,12 @@ enum DialectToken {
     Atom(String),
 }
 
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(DialectDefinition::is_valid))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(DialectDefinition::is_valid))]
 pub fn parse_dialect_definition(source: &str) -> Result<DialectDefinition, DialectError> {
     parse_dialect_definition_with_reference_resolver(source, &lookup_builtin_dialect_reference)
 }
 
-#[ensures(ret.iter().all(|builtin| builtin.dialect.is_valid()))]
+#[expensive_ensures(ret.iter().all(|builtin| builtin.dialect.is_valid()))]
 pub fn builtin_dialects() -> Vec<BuiltinDialect> {
     builtin_dialect_sources()
         .into_iter()
@@ -229,6 +245,7 @@ pub fn builtin_dialect_names() -> Vec<&'static str> {
         .collect()
 }
 
+#[expensive_ensures(ret.as_ref().is_none_or(|builtin| builtin.dialect.is_valid()))]
 pub fn find_builtin_dialect(requested_name: &str) -> Option<BuiltinDialect> {
     let canonical_name = builtin_reference_canonical_name(requested_name);
     builtin_dialects()
@@ -237,7 +254,7 @@ pub fn find_builtin_dialect(requested_name: &str) -> Option<BuiltinDialect> {
 }
 
 #[requires(!source.is_empty(), "builtin dialect definitions must not be empty")]
-#[ensures(ret.is_valid())]
+#[expensive_ensures(ret.is_valid())]
 fn parse_builtin_dialect(name: &str, source: &str) -> DialectDefinition {
     parse_dialect_definition_with_reference_resolver(source, &|reference| {
         lookup_builtin_dialect_reference_in_stack(reference, &[name])
@@ -250,7 +267,7 @@ fn parse_builtin_dialect(name: &str, source: &str) -> DialectDefinition {
     })
 }
 
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(DialectDefinition::is_valid))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(DialectDefinition::is_valid))]
 fn parse_dialect_definition_with_reference_resolver(
     source: &str,
     reference_resolver: &dyn Fn(&str) -> Result<DialectDefinition, DialectError>,
@@ -445,7 +462,7 @@ fn collect_entry_words(tokens: &[DialectToken]) -> (Vec<String>, &[DialectToken]
     (words, &tokens[index..])
 }
 
-#[ensures(ret.iter().all(|entry| match entry { DialectDefinitionEntry::Cmavo(entry) => entry.is_valid(), DialectDefinitionEntry::Feature(_, feature) => DialectFeature::all().contains(feature) }))]
+#[expensive_ensures(ret.iter().all(|entry| match entry { DialectDefinitionEntry::Cmavo(entry) => entry.is_valid(), DialectDefinitionEntry::Feature(_, feature) => DialectFeature::all().contains(feature) }))]
 fn dialect_definition_entries(definition: &DialectDefinition) -> Vec<DialectDefinitionEntry> {
     definition
         .features
@@ -462,7 +479,7 @@ fn dialect_definition_entries(definition: &DialectDefinition) -> Vec<DialectDefi
         .collect()
 }
 
-#[ensures(ret.is_valid())]
+#[expensive_ensures(ret.is_valid())]
 fn definition_from_entries(entries: Vec<DialectDefinitionEntry>) -> DialectDefinition {
     let mut definition = DialectDefinition::baseline();
     for entry in entries {
@@ -481,14 +498,14 @@ fn definition_from_entries(entries: Vec<DialectDefinitionEntry>) -> DialectDefin
     definition
 }
 
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(DialectDefinition::is_valid))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(DialectDefinition::is_valid))]
 fn lookup_builtin_dialect_reference(
     reference_name: &str,
 ) -> Result<DialectDefinition, DialectError> {
     lookup_builtin_dialect_reference_in_stack(reference_name, &[])
 }
 
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(DialectDefinition::is_valid))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(DialectDefinition::is_valid))]
 fn lookup_builtin_dialect_reference_in_stack(
     reference_name: &str,
     stack: &[&str],
@@ -1087,6 +1104,18 @@ mod tests {
     #[should_panic(expected = "dialect errors must have a diagnostic message")]
     fn direct_contract_violation_is_reported() {
         let _ = DialectError::new(String::new());
+    }
+
+    #[test]
+    fn cmavo_transform_validity_checks_output_bounds() {
+        let transform = CmavoDialectTransform {
+            source_text: "mi".into(),
+            target_text: "do".into(),
+            group_key: "mi->do".into(),
+            output_index: 1,
+            output_count: 1,
+        };
+        assert!(!transform.is_valid());
     }
 
     #[contract_trait]

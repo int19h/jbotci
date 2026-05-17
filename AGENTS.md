@@ -46,7 +46,7 @@ If you add debug logging that is broadly useful beyond a one-off investigation, 
 
 # Design by contract
 
-Use design by contract for all code, including private members and types, and methods of traits and `impl`. DbC crate is https://github.com/x52dev/contracts. Capture all preconditions and postconditions, even those that are expensive to validate. For expensive checks, use `test_requires`, `test_ensures`, and `test_invariant`, otherwise use `requires`, `ensures`, and `invariant`. Examples:
+Use design by contract for all code, including private members and types, and methods of traits and `impl`. DbC crate is https://github.com/x52dev/contracts. Capture all preconditions and postconditions, even those that are expensive to validate. Cheap contracts use `requires`, `ensures`, and `invariant`. Expensive contracts use `expensive_requires`, `expensive_ensures`, and `expensive_invariant` from `jbotci-contracts`; these are disabled by default and enabled with the `expensive_contracts` feature for occasional deep validation runs such as `cargo test --workspace --all-targets --features expensive_contracts -j 16 -- --test-threads=16`. Do not use `test_requires`, `test_ensures`, or `test_invariant` for production expensive contracts; reserve them for genuinely test-only APIs. Examples:
 
 Keep contracts in mind whenever writing or touching code: define data-type invariants, function preconditions and postconditions, and function or `impl` invariants wherever they make correctness assumptions explicit.
 

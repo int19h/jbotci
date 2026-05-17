@@ -1,16 +1,17 @@
 use std::ops::Range;
 
+use chumsky::Boxed;
 use chumsky::error::{Rich, RichReason};
 use chumsky::input::MappedInput;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
-use contracts::ensures;
+use jbotci_contracts::{expensive_ensures, expensive_requires};
 use jbotci_morphology::{Word, WordKind, WordLike, WordWithModifiers};
 use jbotci_source::SourceSpan;
 
 use crate::{
     Fragment, LojbanText, Paragraph, ParagraphStatement, ParseOptions, Statement, SyntaxError,
-    SyntaxField, SyntaxParse, SyntaxValue,
+    SyntaxField, SyntaxNode, SyntaxParse, SyntaxValue,
 };
 
 type Span = SimpleSpan;
@@ -18,6 +19,8 @@ type Token = WordWithModifiers;
 type SpannedToken = Spanned<Token, Span>;
 type ParserInput<'tokens> = MappedInput<'tokens, Token, Span, &'tokens [SpannedToken]>;
 type ParseExtra<'tokens> = extra::Err<Rich<'tokens, Token, Span>>;
+type BoxedParser<'tokens, O> =
+    Boxed<'tokens, 'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>>;
 
 const PA_WORDS: &[&str] = &[
     "dau", "fei", "gai", "jau", "rei", "vai", "pi'e", "pi", "fi'u", "za'u", "me'i", "ni'u", "ki'o",
@@ -129,7 +132,7 @@ enum FragmentSyntax {
     BeLink {
         be: WordWithModifiers,
         fa: Option<WordWithModifiers>,
-        first_argument: ArgumentSyntax,
+        first_argument: Box<ArgumentSyntax>,
         beho: Option<WordWithModifiers>,
     },
     RelativeClause {
@@ -288,7 +291,7 @@ enum ConnectiveKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ArgumentTailElementSyntax {
-    Argument(ArgumentSyntax),
+    Argument(Box<ArgumentSyntax>),
     Quantifier(QuantifierSyntax),
 }
 
@@ -1040,9 +1043,9 @@ impl TenseModalSyntax {
     }
 }
 
-fn parse_statement<'source>(
+fn parse_statement(
     words: &[WordWithModifiers],
-    source: Option<&'source str>,
+    source: Option<&str>,
 ) -> Result<TextSyntax, SyntaxError> {
     let tokens = spanned_tokens(words);
     let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
@@ -1057,9 +1060,7 @@ fn parse_statement<'source>(
         .map_err(syntax_error)
 }
 
-fn statement_parser<'tokens>(
-    source: Option<&'tokens str>,
-) -> impl Parser<'tokens, ParserInput<'tokens>, TextSyntax, ParseExtra<'tokens>> {
+fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'tokens, TextSyntax> {
     let mut text = Recursive::declare();
     let mut argument = Recursive::declare();
     let mut relation = Recursive::declare();
@@ -1175,7 +1176,7 @@ fn statement_parser<'tokens>(
             StatementSyntax::Fragment(FragmentSyntax::BeLink {
                 be,
                 fa,
-                first_argument,
+                first_argument: Box::new(first_argument),
                 beho,
             })
         });
@@ -1340,7 +1341,7 @@ fn statement_parser<'tokens>(
         );
 
     text.define(text_body);
-    text.then_ignore(end())
+    text.then_ignore(end()).boxed()
 }
 
 fn empty_text() -> TextSyntax {
@@ -1355,10 +1356,7 @@ fn empty_text() -> TextSyntax {
     }
 }
 
-fn sei_free<'tokens, T, R>(
-    term: T,
-    relation: R,
-) -> impl Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>> + Clone
+fn sei_free<'tokens, T, R>(term: T, relation: R) -> BoxedParser<'tokens, FreeModifierSyntax>
 where
     T: Parser<'tokens, ParserInput<'tokens>, TermSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
@@ -1377,12 +1375,10 @@ where
                 sehu,
             },
         )
+        .boxed()
 }
 
-fn to_free<'tokens, T, F>(
-    text: T,
-    free_modifier: F,
-) -> impl Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>> + Clone
+fn to_free<'tokens, T, F>(text: T, free_modifier: F) -> BoxedParser<'tokens, FreeModifierSyntax>
 where
     T: Parser<'tokens, ParserInput<'tokens>, TextSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
@@ -1424,7 +1420,7 @@ where
             }
         });
 
-    choice((empty_parenthetical, nonempty_parenthetical))
+    choice((empty_parenthetical, nonempty_parenthetical)).boxed()
 }
 
 fn argument_parser_with<'tokens, A, R, T>(
@@ -1432,7 +1428,7 @@ fn argument_parser_with<'tokens, A, R, T>(
     relation: R,
     text: T,
     source: Option<&'tokens str>,
-) -> impl Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone
+) -> BoxedParser<'tokens, ArgumentSyntax>
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
@@ -1489,14 +1485,17 @@ where
         .rewind()
         .not()
         .ignore_then(argument.clone())
-        .map(ArgumentTailElementSyntax::Argument);
+        .map(|argument| ArgumentTailElementSyntax::Argument(Box::new(argument)));
 
     let quantifier_tail = quantifier()
         .map(ArgumentTailElementSyntax::Quantifier)
         .then(choice((
-            argument
-                .clone()
-                .map(|argument| (Some(ArgumentTailElementSyntax::Argument(argument)), None)),
+            argument.clone().map(|argument| {
+                (
+                    Some(ArgumentTailElementSyntax::Argument(Box::new(argument))),
+                    None,
+                )
+            }),
             relation.clone().map(|relation| (None, Some(relation))),
         )))
         .map(|(quantifier, (argument, relation))| {
@@ -1596,6 +1595,7 @@ where
                 }
             }
         })
+        .boxed()
 }
 
 fn implicit_zohe_argument() -> ArgumentSyntax {
@@ -1605,20 +1605,20 @@ fn implicit_zohe_argument() -> ArgumentSyntax {
     }
 }
 
-fn quantifier<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, QuantifierSyntax, ParseExtra<'tokens>> + Clone {
+fn quantifier<'tokens>() -> BoxedParser<'tokens, QuantifierSyntax> {
     pa_word()
         .repeated()
         .at_least(1)
         .collect::<Vec<_>>()
         .then(cmavo("boi").or_not())
         .map(|(number, boi)| QuantifierSyntax { number, boi })
+        .boxed()
 }
 
 fn quote_argument<'tokens, T>(
     source: Option<&'tokens str>,
     text: T,
-) -> impl Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone
+) -> BoxedParser<'tokens, ArgumentSyntax>
 where
     T: Parser<'tokens, ParserInput<'tokens>, TextSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
@@ -1688,7 +1688,7 @@ where
             },
         );
 
-    choice((compound_quote, lu_quote))
+    choice((compound_quote, lu_quote)).boxed()
 }
 
 fn relative_clause<'tokens, R>(
@@ -1696,7 +1696,7 @@ fn relative_clause<'tokens, R>(
     + Clone
     + 'tokens,
     relation: R,
-) -> impl Parser<'tokens, ParserInput<'tokens>, RelativeClauseSyntax, ParseExtra<'tokens>> + Clone
+) -> BoxedParser<'tokens, RelativeClauseSyntax>
 where
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
@@ -1709,12 +1709,10 @@ where
             relation,
             kuho,
         });
-    choice((goi, noi))
+    choice((goi, noi)).boxed()
 }
 
-fn goi_relative_clause<'tokens, A>(
-    argument: A,
-) -> impl Parser<'tokens, ParserInput<'tokens>, GoiRelativeClauseSyntax, ParseExtra<'tokens>> + Clone
+fn goi_relative_clause<'tokens, A>(argument: A) -> BoxedParser<'tokens, GoiRelativeClauseSyntax>
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
@@ -1726,10 +1724,10 @@ where
             argument,
             gehu,
         })
+        .boxed()
 }
 
-fn simple_vocative_free<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>> + Clone {
+fn simple_vocative_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
     let vocative_argument = choice((
         koha_argument().map(|koha| ArgumentSyntax::Koha { koha }),
         cmevla_word()
@@ -1752,12 +1750,13 @@ fn simple_vocative_free<'tokens>()
                 dohu,
             },
         )
+        .boxed()
 }
 
 fn vocative_free<'tokens, A, R>(
     argument: A,
     relation: R,
-) -> impl Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>> + Clone
+) -> BoxedParser<'tokens, FreeModifierSyntax>
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
@@ -1782,10 +1781,10 @@ where
                 dohu,
             },
         )
+        .boxed()
 }
 
-fn vocative_markers<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, Vec<WordWithModifiers>, ParseExtra<'tokens>> + Clone {
+fn vocative_markers<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
     let coi_marker = cmavo_of(
         "COI",
         &[
@@ -1809,10 +1808,10 @@ fn vocative_markers<'tokens>()
             }),
         cmavo("doi").map(|doi| vec![doi]),
     ))
+    .boxed()
 }
 
-fn argument_connective<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, ConnectiveSyntax, ParseExtra<'tokens>> + Clone {
+fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     choice((
         cmavo_of("A", &["a", "e", "o", "u"])
             .then(cmavo("nai").or_not())
@@ -1834,10 +1833,10 @@ fn argument_connective<'tokens>()
             nai,
         }),
     ))
+    .boxed()
 }
 
-fn statement_connective<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, ConnectiveSyntax, ParseExtra<'tokens>> + Clone {
+fn statement_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     choice((
         cmavo_of("JA", &["je'i", "ja", "je", "jo", "ju"])
             .then(cmavo("nai").or_not())
@@ -1866,20 +1865,20 @@ fn statement_connective<'tokens>()
                 nai,
             }),
     ))
+    .boxed()
 }
 
-fn predicate_tail_connective<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, ConnectiveSyntax, ParseExtra<'tokens>> + Clone {
-    cmavo_of("GIhA", &["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"]).map(|cmavo| ConnectiveSyntax {
-        kind: ConnectiveKind::PredicateTail,
-        cmavo: vec![cmavo],
-        nai: None,
-    })
+fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    cmavo_of("GIhA", &["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"])
+        .map(|cmavo| ConnectiveSyntax {
+            kind: ConnectiveKind::PredicateTail,
+            cmavo: vec![cmavo],
+            nai: None,
+        })
+        .boxed()
 }
 
-fn relation_parser_with<'tokens, P>(
-    argument: P,
-) -> impl Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone
+fn relation_parser_with<'tokens, P>(argument: P) -> BoxedParser<'tokens, RelationSyntax>
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
@@ -2073,12 +2072,10 @@ where
             })
         });
 
-    choice((na_relation, co_relation))
+    choice((na_relation, co_relation)).boxed()
 }
 
-fn relation_units_inner<'tokens, P>(
-    argument: P,
-) -> impl Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone
+fn relation_units_inner<'tokens, P>(argument: P) -> BoxedParser<'tokens, RelationSyntax>
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
@@ -2112,6 +2109,7 @@ where
         .at_least(1)
         .collect::<Vec<_>>()
         .map(relation_from_units)
+        .boxed()
 }
 
 fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
@@ -2168,8 +2166,7 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
     }
 }
 
-fn tense_modal<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, TenseModalSyntax, ParseExtra<'tokens>> + Clone {
+fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
     #[derive(Clone)]
     enum PuTail {
         Distance(WordWithModifiers),
@@ -2266,78 +2263,68 @@ fn tense_modal<'tokens>()
                 nai,
             }),
     ))
+    .boxed()
 }
 
-fn cmavo<'tokens>(
-    text: &'static str,
-) -> impl Parser<'tokens, ParserInput<'tokens>, WordWithModifiers, ParseExtra<'tokens>> + Clone {
+fn cmavo<'tokens>(text: &'static str) -> BoxedParser<'tokens, WordWithModifiers> {
     token_matching("cmavo", move |word| cmavo_text_matches(word, text))
 }
 
 fn cmavo_of<'tokens>(
     label: &'static str,
     texts: &'static [&'static str],
-) -> impl Parser<'tokens, ParserInput<'tokens>, WordWithModifiers, ParseExtra<'tokens>> + Clone {
+) -> BoxedParser<'tokens, WordWithModifiers> {
     token_matching(label, move |word| {
         texts.iter().any(|text| cmavo_text_matches(word, text))
     })
 }
 
-fn le_cmavo<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, WordWithModifiers, ParseExtra<'tokens>> + Clone {
+fn le_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     cmavo_of(
         "LE",
         &["lei", "loi", "le'i", "lo'i", "le'e", "lo'e", "lo", "le"],
     )
 }
 
-fn la_cmavo<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, WordWithModifiers, ParseExtra<'tokens>> + Clone {
+fn la_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     cmavo_of("LA", &["lai", "la'i", "la"])
 }
 
-fn lahe_cmavo<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, WordWithModifiers, ParseExtra<'tokens>> + Clone {
+fn lahe_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     cmavo_of(
         "LAhE",
         &["tu'a", "lu'a", "lu'o", "la'e", "vu'i", "lu'i", "lu'e"],
     )
 }
 
-fn leading_indicator<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, WordWithModifiers, ParseExtra<'tokens>> + Clone {
+fn leading_indicator<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     cmavo_of("UI", UI_WORDS)
 }
 
-fn pa_word<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, WordWithModifiers, ParseExtra<'tokens>> + Clone {
+fn pa_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     cmavo_of("PA", PA_WORDS)
 }
 
-fn koha_argument<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, WordWithModifiers, ParseExtra<'tokens>> + Clone {
+fn koha_argument<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     token_matching("KOhA argument", is_koha_argument)
 }
 
-fn relation_word<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, WordWithModifiers, ParseExtra<'tokens>> + Clone {
+fn relation_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     token_matching("relation word", is_relation_word)
 }
 
-fn cmevla_word<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, WordWithModifiers, ParseExtra<'tokens>> + Clone {
+fn cmevla_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     token_matching("CMEVLA", is_cmevla_word)
 }
 
-fn letter_word<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, WordWithModifiers, ParseExtra<'tokens>> + Clone {
+fn letter_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     token_matching("letter word", is_letter_word)
 }
 
 fn token_matching<'tokens>(
     label: &'static str,
     predicate: impl Fn(&WordWithModifiers) -> bool + Clone + 'tokens,
-) -> impl Parser<'tokens, ParserInput<'tokens>, WordWithModifiers, ParseExtra<'tokens>> + Clone {
+) -> BoxedParser<'tokens, WordWithModifiers> {
     custom(move |input| {
         let checkpoint = input.save();
         let cursor = input.cursor();
@@ -2350,6 +2337,7 @@ fn token_matching<'tokens>(
             }
         }
     })
+    .boxed()
 }
 
 fn is_koha_argument(word: &WordWithModifiers) -> bool {
@@ -2495,6 +2483,8 @@ fn bare_word_kind_and_phonemes(word: &WordWithModifiers) -> Option<(WordKind, &s
     Some((word.kind, word.phonemes.as_str()))
 }
 
+#[expensive_requires(word.is_valid())]
+#[expensive_ensures(ret.is_valid())]
 fn base_word_from_record(word: Word) -> WordWithModifiers {
     WordWithModifiers::BaseWord {
         word_like: Box::new(WordLike::Bare {
@@ -2503,6 +2493,7 @@ fn base_word_from_record(word: Word) -> WordWithModifiers {
     }
 }
 
+#[expensive_requires(span.byte_start <= span.byte_end)]
 fn source_text(source: Option<&str>, span: &SourceSpan) -> String {
     source
         .and_then(|source| source.get(span.byte_start..span.byte_end))
@@ -2752,7 +2743,7 @@ fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
                 field("freeModifiers", nil()),
                 field("fa", maybe_word(fa)),
                 field("faFreeModifiers", nil()),
-                field("firstArgument", just(argument_tree(first_argument))),
+                field("firstArgument", just(argument_tree(*first_argument))),
                 field("beiLinks", nil()),
                 field("beho", maybe_word(beho)),
                 field("behoFreeModifiers", nil()),
@@ -3304,7 +3295,7 @@ fn argument_tail_element_tree(element: ArgumentTailElementSyntax) -> SyntaxValue
             "ArgumentTailArgument",
             vec![SyntaxField {
                 name: None,
-                value: argument_tree(argument),
+                value: argument_tree(*argument),
             }],
         ),
         ArgumentTailElementSyntax::Quantifier(quantifier) => node(
@@ -3710,7 +3701,7 @@ fn nonempty_letter_words(words: Vec<WordWithModifiers>) -> SyntaxValue {
 fn letter_word_value(mut word: WordWithModifiers) -> SyntaxValue {
     normalize_syntax_word(&mut word);
     normalize_cmavo_i(&mut word);
-    SyntaxValue::word(word)
+    syntax_word_value(word)
 }
 
 fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
@@ -3810,29 +3801,46 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
     }
 }
 
+#[expensive_ensures(ret.is_valid())]
 fn maybe_word(word: Option<WordWithModifiers>) -> SyntaxValue {
     word.map_or_else(nothing, |word| just(word_value(word)))
 }
 
+#[expensive_requires(word.is_valid())]
+#[expensive_ensures(ret.is_valid())]
 fn word_value(mut word: WordWithModifiers) -> SyntaxValue {
     normalize_syntax_word(&mut word);
-    SyntaxValue::word(word)
+    syntax_word_value(word)
 }
 
+#[expensive_requires(word.is_valid())]
+#[expensive_ensures(ret.is_valid())]
 fn gadri_word_value(mut word: WordWithModifiers) -> SyntaxValue {
     normalize_syntax_word(&mut word);
     normalize_cmavo_i(&mut word);
-    SyntaxValue::word(word)
+    syntax_word_value(word)
 }
 
+#[expensive_requires(word.is_valid())]
+#[expensive_ensures(ret.is_valid())]
 fn vocative_marker_value(mut word: WordWithModifiers) -> SyntaxValue {
     normalize_syntax_word(&mut word);
-    SyntaxValue::word(word)
+    syntax_word_value(word)
 }
 
+#[expensive_requires(word.is_valid())]
+#[expensive_ensures(ret.is_valid())]
 fn name_word_value(mut word: WordWithModifiers) -> SyntaxValue {
     normalize_syntax_word(&mut word);
-    SyntaxValue::word(word)
+    syntax_word_value(word)
+}
+
+#[expensive_requires(word.is_valid())]
+#[expensive_ensures(ret.is_valid())]
+fn syntax_word_value(word: WordWithModifiers) -> SyntaxValue {
+    SyntaxValue::Word {
+        word: Box::new(word),
+    }
 }
 
 fn normalize_cmavo_i(word: &mut WordWithModifiers) {
@@ -3863,9 +3871,8 @@ fn normalize_cmavo_i(word: &mut WordWithModifiers) {
 }
 
 fn normalize_word_like_cmavo_i(word_like: &mut WordLike) {
-    match word_like {
-        WordLike::Bare { word } => normalize_word_record_cmavo_i(word),
-        _ => {}
+    if let WordLike::Bare { word } = word_like {
+        normalize_word_record_cmavo_i(word);
     }
 }
 
@@ -3953,33 +3960,52 @@ fn normalize_syntax_word_record(word: &mut jbotci_morphology::Word) {
     let _ = word;
 }
 
-fn node(constructor: impl Into<String>, fields: Vec<SyntaxField>) -> SyntaxValue {
-    SyntaxValue::node(constructor, fields)
+#[expensive_requires(!constructor.as_ref().is_empty(), "syntax constructors must be named")]
+#[expensive_requires(fields.iter().all(SyntaxField::is_valid))]
+#[expensive_ensures(ret.is_valid())]
+fn node(constructor: impl AsRef<str>, fields: Vec<SyntaxField>) -> SyntaxValue {
+    SyntaxValue::Node {
+        node: Box::new(SyntaxNode {
+            constructor: constructor.as_ref().to_owned(),
+            fields,
+        }),
+    }
 }
 
-fn field(name: impl Into<String>, value: SyntaxValue) -> SyntaxField {
+#[expensive_requires(!name.as_ref().is_empty(), "syntax fields must be named")]
+#[expensive_requires(value.is_valid())]
+#[expensive_ensures(ret.is_valid())]
+fn field(name: impl AsRef<str>, value: SyntaxValue) -> SyntaxField {
     SyntaxField {
-        name: Some(name.into()),
+        name: Some(name.as_ref().to_owned()),
         value,
     }
 }
 
+#[expensive_requires(value.is_valid())]
+#[expensive_ensures(ret.is_valid())]
 fn just(value: SyntaxValue) -> SyntaxValue {
     node("Just", vec![SyntaxField { name: None, value }])
 }
 
+#[expensive_ensures(ret.is_valid())]
 fn nothing() -> SyntaxValue {
     node("Nothing", Vec::new())
 }
 
+#[expensive_ensures(ret.is_valid())]
 fn nil() -> SyntaxValue {
     node("[]", Vec::new())
 }
 
+#[expensive_requires(items.iter().all(SyntaxValue::is_valid))]
+#[expensive_ensures(ret.is_valid())]
 fn plain_list(items: Vec<SyntaxValue>) -> SyntaxValue {
     SyntaxValue::List { items }
 }
 
+#[expensive_requires(items.iter().all(SyntaxValue::is_valid))]
+#[expensive_ensures(ret.is_valid())]
 fn list(items: Vec<SyntaxValue>) -> SyntaxValue {
     items.into_iter().rfold(nil(), |tail, head| {
         node(
@@ -3998,7 +4024,8 @@ fn list(items: Vec<SyntaxValue>) -> SyntaxValue {
     })
 }
 
-#[ensures(ret.iter().all(|token| token.span.start <= token.span.end))]
+#[expensive_requires(words.iter().all(WordWithModifiers::is_valid))]
+#[expensive_ensures(ret.iter().all(|token| token.span.start <= token.span.end))]
 fn spanned_tokens(words: &[WordWithModifiers]) -> Vec<SpannedToken> {
     words
         .iter()
@@ -4013,6 +4040,8 @@ fn spanned_tokens(words: &[WordWithModifiers]) -> Vec<SpannedToken> {
         .collect()
 }
 
+#[expensive_requires(word.is_valid())]
+#[expensive_ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 fn word_byte_range(word: &WordWithModifiers) -> Option<Range<usize>> {
     match word {
         WordWithModifiers::BaseWord { word_like } => word_like_byte_range(word_like.as_ref()),
@@ -4038,6 +4067,8 @@ fn word_byte_range(word: &WordWithModifiers) -> Option<Range<usize>> {
     }
 }
 
+#[expensive_requires(word_like.is_valid())]
+#[expensive_ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
     match word_like {
         WordLike::Bare { word } => Some(word.span.byte_start..word.span.byte_end),
@@ -4061,6 +4092,7 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
     }
 }
 
+#[expensive_ensures(matches!(ret, SyntaxError::Parse { ref reason, .. } if !reason.is_empty()) || !matches!(ret, SyntaxError::Parse { .. }))]
 fn syntax_error(errors: Vec<Rich<'_, WordWithModifiers, Span>>) -> SyntaxError {
     let Some(error) = errors.into_iter().next() else {
         return SyntaxError::Parse {
@@ -4099,8 +4131,8 @@ mod tests {
     }
 
     #[test]
-    fn rejects_missing_relation_word() {
-        let words = segment_words_with_modifiers("mi do").expect("valid morphology");
+    fn rejects_stray_cu() {
+        let words = segment_words_with_modifiers("cu").expect("valid morphology");
 
         let error = parse_syntax_tree(&words, &ParseOptions::default()).expect_err("invalid");
 
