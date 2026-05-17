@@ -66,7 +66,21 @@ struct BasicPredicate {
     relation: RelationSyntax,
     tail_terms: Vec<TermSyntax>,
     vau: Option<WordWithModifiers>,
+    gek_sentence: Option<GekSentenceSyntax>,
     continuations: Vec<PredicateTailContinuationSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+enum GekSentenceSyntax {
+    Pair {
+        gek: ConnectiveSyntax,
+        first: Box<BasicPredicate>,
+        gik: ConnectiveSyntax,
+        second: Box<BasicPredicate>,
+        tail_terms: Vec<TermSyntax>,
+        vau: Option<WordWithModifiers>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -861,15 +875,46 @@ impl BasicPredicate {
             words.extend(term.words());
         }
         words.extend(self.cu);
-        words.extend(self.relation.words());
-        for term in self.tail_terms {
-            words.extend(term.words());
+        if let Some(gek_sentence) = self.gek_sentence {
+            words.extend(gek_sentence.words());
+        } else {
+            words.extend(self.relation.words());
+            for term in self.tail_terms {
+                words.extend(term.words());
+            }
+            words.extend(self.vau);
         }
-        words.extend(self.vau);
         for continuation in self.continuations {
             words.extend(continuation.words());
         }
         words
+    }
+}
+
+impl GekSentenceSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        match self {
+            GekSentenceSyntax::Pair {
+                gek,
+                first,
+                gik,
+                second,
+                tail_terms,
+                vau,
+            } => {
+                let mut words = gek.words();
+                words.extend(first.words());
+                words.extend(gik.words());
+                words.extend(second.words());
+                for term in tail_terms {
+                    words.extend(term.words());
+                }
+                words.extend(vau);
+                words
+            }
+        }
     }
 }
 
@@ -1659,51 +1704,89 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             },
         );
 
-    let predicate_with_leading_terms = term
-        .clone()
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<_>>()
-        .then(cu.or_not())
-        .then(relation.clone())
-        .then(term.clone().repeated().collect::<Vec<_>>())
-        .then(cmavo("vau").or_not())
-        .then(
-            predicate_tail_continuation
-                .clone()
-                .repeated()
-                .collect::<Vec<_>>(),
-        )
-        .map(
-            |(((((leading_terms, cu), relation), tail_terms), vau), continuations)| {
-                BasicPredicate {
-                    leading_terms,
-                    cu,
+    let basic_predicate = recursive(|basic_predicate| {
+        let predicate_with_leading_terms = term
+            .clone()
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .then(cu.clone().or_not())
+            .then(relation.clone())
+            .then(term.clone().repeated().collect::<Vec<_>>())
+            .then(cmavo("vau").or_not())
+            .then(
+                predicate_tail_continuation
+                    .clone()
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(
+                |(((((leading_terms, cu), relation), tail_terms), vau), continuations)| {
+                    BasicPredicate {
+                        leading_terms,
+                        cu,
+                        relation,
+                        tail_terms,
+                        vau,
+                        gek_sentence: None,
+                        continuations,
+                    }
+                },
+            );
+
+        let relation_only = relation
+            .clone()
+            .then(term.clone().repeated().collect::<Vec<_>>())
+            .then(cmavo("vau").or_not())
+            .then(
+                predicate_tail_continuation
+                    .clone()
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(
+                |(((relation, tail_terms), vau), continuations)| BasicPredicate {
+                    leading_terms: Vec::new(),
+                    cu: None,
                     relation,
                     tail_terms,
                     vau,
+                    gek_sentence: None,
                     continuations,
-                }
-            },
-        );
+                },
+            );
+        let forethought_predicate = modal_forethought_connective()
+            .then(basic_predicate.clone())
+            .then(gik_connective())
+            .then(basic_predicate)
+            .then(term.clone().repeated().collect::<Vec<_>>())
+            .then(cmavo("vau").or_not())
+            .map(
+                |(((((gek, first), gik), second), tail_terms), vau)| BasicPredicate {
+                    leading_terms: Vec::new(),
+                    cu: None,
+                    relation: RelationSyntax::Compound { units: Vec::new() },
+                    tail_terms: Vec::new(),
+                    vau: None,
+                    gek_sentence: Some(GekSentenceSyntax::Pair {
+                        gek,
+                        first: Box::new(first),
+                        gik,
+                        second: Box::new(second),
+                        tail_terms,
+                        vau,
+                    }),
+                    continuations: Vec::new(),
+                },
+            );
 
-    let relation_only = relation
-        .clone()
-        .then(term.clone().repeated().collect::<Vec<_>>())
-        .then(cmavo("vau").or_not())
-        .then(predicate_tail_continuation.repeated().collect::<Vec<_>>())
-        .map(
-            |(((relation, tail_terms), vau), continuations)| BasicPredicate {
-                leading_terms: Vec::new(),
-                cu: None,
-                relation,
-                tail_terms,
-                vau,
-                continuations,
-            },
-        );
-
-    let basic_predicate = choice((predicate_with_leading_terms, relation_only));
+        choice((
+            forethought_predicate,
+            predicate_with_leading_terms,
+            relation_only,
+        ))
+        .boxed()
+    });
     let plain_subsentence = basic_predicate.clone().map(SubsentenceSyntax::Plain);
     let prenex_subsentence = term
         .clone()
@@ -2881,6 +2964,26 @@ fn guhek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 
 #[requires(true)]
 #[ensures(true)]
+fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    tense_modal()
+        .then(cmavo("gi"))
+        .map(|(tense_modal, gi)| {
+            let mut cmavo = tense_modal.words();
+            cmavo.push(gi);
+            ConnectiveSyntax {
+                kind: ConnectiveKind::Forethought,
+                se: None,
+                nahe: None,
+                na: None,
+                cmavo,
+                nai: None,
+            }
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn gik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     cmavo("gi")
         .then(cmavo("nai").or_not())
@@ -3582,6 +3685,7 @@ fn relation_to_empty_predicate(relation: RelationSyntax) -> BasicPredicate {
         relation,
         tail_terms: Vec::new(),
         vau: None,
+        gek_sentence: None,
         continuations: Vec::new(),
     }
 }
@@ -4381,6 +4485,28 @@ fn goi_relative_clause_tree(relative_clause: GoiRelativeClauseSyntax) -> SyntaxV
 #[requires(true)]
 #[ensures(true)]
 fn predicate_tree(predicate: BasicPredicate) -> SyntaxValue {
+    let tail3 = predicate.gek_sentence.map_or_else(
+        || {
+            node(
+                "RelationPredicateTail3",
+                vec![
+                    field("relation", relation_tree(predicate.relation)),
+                    field(
+                        "terms",
+                        list(predicate.tail_terms.into_iter().map(term_tree).collect()),
+                    ),
+                    field("vau", maybe_word(predicate.vau)),
+                    field("freeModifiers", nil()),
+                ],
+            )
+        },
+        |gek_sentence| {
+            node(
+                "GekSentencePredicateTail3",
+                vec![field("gekSentence", gek_sentence_tree(gek_sentence))],
+            )
+        },
+    );
     node(
         "Predicate",
         vec![
@@ -4405,30 +4531,7 @@ fn predicate_tree(predicate: BasicPredicate) -> SyntaxValue {
                                         node(
                                             "PredicateTail2",
                                             vec![
-                                                field(
-                                                    "first",
-                                                    node(
-                                                        "RelationPredicateTail3",
-                                                        vec![
-                                                            field(
-                                                                "relation",
-                                                                relation_tree(predicate.relation),
-                                                            ),
-                                                            field(
-                                                                "terms",
-                                                                list(
-                                                                    predicate
-                                                                        .tail_terms
-                                                                        .into_iter()
-                                                                        .map(term_tree)
-                                                                        .collect(),
-                                                                ),
-                                                            ),
-                                                            field("vau", maybe_word(predicate.vau)),
-                                                            field("freeModifiers", nil()),
-                                                        ],
-                                                    ),
-                                                ),
+                                                field("first", tail3),
                                                 field("boContinuation", nothing()),
                                             ],
                                         ),
@@ -4453,6 +4556,38 @@ fn predicate_tree(predicate: BasicPredicate) -> SyntaxValue {
             field("freeModifiers", nil()),
         ],
     )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gek_sentence_tree(gek_sentence: GekSentenceSyntax) -> SyntaxValue {
+    match gek_sentence {
+        GekSentenceSyntax::Pair {
+            gek,
+            first,
+            gik,
+            second,
+            tail_terms,
+            vau,
+        } => node(
+            "GekSentencePair",
+            vec![
+                field("gek", connective_tree(gek)),
+                field("first", subsentence_tree(SubsentenceSyntax::Plain(*first))),
+                field("gik", connective_tree(gik)),
+                field(
+                    "second",
+                    subsentence_tree(SubsentenceSyntax::Plain(*second)),
+                ),
+                field(
+                    "tailTerms",
+                    list(tail_terms.into_iter().map(term_tree).collect()),
+                ),
+                field("vau", maybe_word(vau)),
+                field("freeModifiers", nil()),
+            ],
+        ),
+    }
 }
 
 #[requires(true)]
@@ -5255,6 +5390,7 @@ fn abstraction_tree(abstraction: AbstractionSyntax) -> SyntaxValue {
                         relation: *abstraction.subsentence_relation,
                         tail_terms: abstraction.subsentence_terms,
                         vau: None,
+                        gek_sentence: None,
                         continuations: Vec::new(),
                     }))],
                 ),
