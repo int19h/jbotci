@@ -241,6 +241,11 @@ enum FragmentSyntax {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 enum TermSyntax {
+    NuhiTermset {
+        nuhi: WordWithModifiers,
+        termset: Vec<TermSyntax>,
+        nuhu: Option<WordWithModifiers>,
+    },
     GekNuhiTermset {
         m_nuhi: Option<WordWithModifiers>,
         gek: ConnectiveSyntax,
@@ -1165,6 +1170,18 @@ impl TermSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
+            TermSyntax::NuhiTermset {
+                nuhi,
+                termset,
+                nuhu,
+            } => {
+                let mut words = vec![nuhi];
+                for term in termset {
+                    words.extend(term.words());
+                }
+                words.extend(nuhu);
+                words
+            }
             TermSyntax::GekNuhiTermset {
                 m_nuhi,
                 gek,
@@ -1933,63 +1950,62 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             argument,
         });
     let base_simple_term = choice((fa_term, tagged_term, argument_term)).boxed();
-    let gek_nuhi_termset = cmavo("nu'i")
-        .or_not()
-        .then(modal_forethought_connective())
-        .then(
-            base_simple_term
-                .clone()
-                .repeated()
-                .at_least(1)
-                .collect::<Vec<_>>(),
-        )
-        .then(cmavo("nu'u").or_not())
-        .then(gik_connective())
-        .then(
-            base_simple_term
-                .clone()
-                .repeated()
-                .at_least(1)
-                .collect::<Vec<_>>(),
-        )
-        .then(cmavo("nu'u").or_not())
-        .map(
-            |((((((m_nuhi, gek), terms), nuhu), gik), gik_terms), gik_nuhu)| {
-                TermSyntax::GekNuhiTermset {
-                    m_nuhi,
-                    gek,
-                    terms,
-                    nuhu,
-                    gik,
-                    gik_terms,
-                    gik_nuhu,
-                }
-            },
-        );
-    let simple_term = choice((base_simple_term, gek_nuhi_termset)).boxed();
-    let term = simple_term
-        .clone()
-        .then(
-            cmavo("ce'e")
-                .then(
-                    simple_term
-                        .clone()
-                        .repeated()
-                        .at_least(1)
-                        .collect::<Vec<_>>(),
-                )
-                .or_not(),
-        )
-        .map(|(leading_term, cehe_tail)| {
-            cehe_tail.map_or(leading_term.clone(), |(cehe, trailing_terms)| {
-                TermSyntax::Cehe {
-                    leading_terms: vec![leading_term],
-                    cehe,
-                    trailing_terms,
-                }
+    let term = recursive(|term| {
+        let gek_nuhi_termset = cmavo("nu'i")
+            .or_not()
+            .then(modal_forethought_connective())
+            .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
+            .then(cmavo("nu'u").or_not())
+            .then(gik_connective())
+            .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
+            .then(cmavo("nu'u").or_not())
+            .map(
+                |((((((m_nuhi, gek), terms), nuhu), gik), gik_terms), gik_nuhu)| {
+                    TermSyntax::GekNuhiTermset {
+                        m_nuhi,
+                        gek,
+                        terms,
+                        nuhu,
+                        gik,
+                        gik_terms,
+                        gik_nuhu,
+                    }
+                },
+            );
+        let nuhi_termset = cmavo("nu'i")
+            .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
+            .then(cmavo("nu'u").or_not())
+            .map(|((nuhi, termset), nuhu)| TermSyntax::NuhiTermset {
+                nuhi,
+                termset,
+                nuhu,
+            });
+        let simple_term =
+            choice((base_simple_term.clone(), gek_nuhi_termset, nuhi_termset)).boxed();
+        simple_term
+            .clone()
+            .then(
+                cmavo("ce'e")
+                    .then(
+                        simple_term
+                            .clone()
+                            .repeated()
+                            .at_least(1)
+                            .collect::<Vec<_>>(),
+                    )
+                    .or_not(),
+            )
+            .map(|(leading_term, cehe_tail)| {
+                cehe_tail.map_or(leading_term.clone(), |(cehe, trailing_terms)| {
+                    TermSyntax::Cehe {
+                        leading_terms: vec![leading_term],
+                        cehe,
+                        trailing_terms,
+                    }
+                })
             })
-        })
-        .boxed();
+    })
+    .boxed();
     let implicit_tagged_term = tense_modal()
         .map(|tense_modal| TermSyntax::Tagged {
             tense_modal,
@@ -6006,6 +6022,23 @@ fn predicate_tail_continuation_tree(continuation: PredicateTailContinuationSynta
 #[ensures(true)]
 fn term_tree(term: TermSyntax) -> SyntaxValue {
     match term {
+        TermSyntax::NuhiTermset {
+            nuhi,
+            termset,
+            nuhu,
+        } => node(
+            "NuhiTermset",
+            vec![
+                field("nuhi", word_value(nuhi)),
+                field("nuhiFreeModifiers", nil()),
+                field(
+                    "termset",
+                    list(termset.into_iter().map(term_tree).collect()),
+                ),
+                field("nuhu", maybe_word(nuhu)),
+                field("nuhuFreeModifiers", nil()),
+            ],
+        ),
         TermSyntax::GekNuhiTermset {
             m_nuhi,
             gek,
