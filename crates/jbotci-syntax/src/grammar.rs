@@ -215,6 +215,7 @@ enum ArgumentSyntax {
     },
     RelativeClause {
         base_argument: Box<ArgumentSyntax>,
+        vuho: Option<WordWithModifiers>,
         relative_clauses: Vec<RelativeClauseSyntax>,
     },
     Tagged {
@@ -239,6 +240,7 @@ enum ArgumentSyntax {
     },
     Lahe {
         lahe: WordWithModifiers,
+        relative_clauses: Vec<RelativeClauseSyntax>,
         inner_argument: Box<ArgumentSyntax>,
         luhu: Option<WordWithModifiers>,
     },
@@ -947,9 +949,11 @@ impl ArgumentSyntax {
             }
             ArgumentSyntax::RelativeClause {
                 base_argument,
+                vuho,
                 relative_clauses,
             } => {
                 let mut words = base_argument.words();
+                words.extend(vuho);
                 for relative_clause in relative_clauses {
                     words.extend(relative_clause.words());
                 }
@@ -991,10 +995,14 @@ impl ArgumentSyntax {
             } => [tag_words, maybe_ku.into_iter().collect()].concat(),
             ArgumentSyntax::Lahe {
                 lahe,
+                relative_clauses,
                 inner_argument,
                 luhu,
             } => {
                 let mut words = vec![lahe];
+                for relative_clause in relative_clauses {
+                    words.extend(relative_clause.words());
+                }
                 words.extend(inner_argument.words());
                 words.extend(luhu);
                 words
@@ -1943,13 +1951,21 @@ where
     });
 
     let lahe = lahe_cmavo()
+        .then(
+            relative_clauses(argument.clone(), subsentence.clone())
+                .or_not()
+                .map(Option::unwrap_or_default),
+        )
         .then(argument.clone())
         .then(cmavo("lu'u").or_not())
-        .map(|((lahe, inner_argument), luhu)| ArgumentSyntax::Lahe {
-            lahe,
-            inner_argument: Box::new(inner_argument),
-            luhu,
-        });
+        .map(
+            |(((lahe, relative_clauses), inner_argument), luhu)| ArgumentSyntax::Lahe {
+                lahe,
+                relative_clauses,
+                inner_argument: Box::new(inner_argument),
+                luhu,
+            },
+        );
 
     let name = la_cmavo()
         .then(cmevla_word().repeated().at_least(1).collect::<Vec<_>>())
@@ -1962,6 +1978,7 @@ where
         .map(|argument| match argument {
             ArgumentSyntax::RelativeClause {
                 base_argument,
+                vuho: _,
                 relative_clauses,
             } => vec![
                 ArgumentTailElementSyntax::Argument(base_argument),
@@ -2145,24 +2162,41 @@ where
         .map(|(leading_argument, connected)| {
             connected.map_or(
                 leading_argument.clone(),
-                |(connective, trailing_argument)| ArgumentSyntax::Connected {
-                    leading_argument: Box::new(leading_argument),
-                    connective,
-                    trailing_argument: Box::new(trailing_argument),
+                |(connective, trailing_argument)| match trailing_argument {
+                    ArgumentSyntax::RelativeClause {
+                        base_argument,
+                        vuho: Some(vuho),
+                        relative_clauses,
+                    } => ArgumentSyntax::RelativeClause {
+                        base_argument: Box::new(ArgumentSyntax::Connected {
+                            leading_argument: Box::new(leading_argument),
+                            connective,
+                            trailing_argument: base_argument,
+                        }),
+                        vuho: Some(vuho),
+                        relative_clauses,
+                    },
+                    trailing_argument => ArgumentSyntax::Connected {
+                        leading_argument: Box::new(leading_argument),
+                        connective,
+                        trailing_argument: Box::new(trailing_argument),
+                    },
                 },
             )
         })
+        .then(cmavo("vu'o").or_not())
         .then(
             relative_clauses(argument, subsentence)
                 .or_not()
                 .map(Option::unwrap_or_default),
         )
-        .map(|(base_argument, relative_clauses)| {
+        .map(|((base_argument, vuho), relative_clauses)| {
             if relative_clauses.is_empty() {
                 base_argument
             } else {
                 ArgumentSyntax::RelativeClause {
                     base_argument: Box::new(base_argument),
+                    vuho,
                     relative_clauses,
                 }
             }
@@ -4101,12 +4135,13 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
         ),
         ArgumentSyntax::RelativeClause {
             base_argument,
+            vuho,
             relative_clauses,
         } => node(
             "RelativeClauseArgument",
             vec![
                 field("baseArgument", argument_tree(*base_argument)),
-                field("vuho", nothing()),
+                field("vuho", maybe_word(vuho)),
                 field("vuhoFreeModifiers", nil()),
                 field(
                     "relativeClauses",
@@ -4186,6 +4221,7 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
         ),
         ArgumentSyntax::Lahe {
             lahe,
+            relative_clauses,
             inner_argument,
             luhu,
         } => node(
@@ -4193,7 +4229,15 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
             vec![
                 field("lahe", word_value(lahe)),
                 field("freeModifiers", nil()),
-                field("laheRelativeClauses", nil()),
+                field(
+                    "laheRelativeClauses",
+                    list(
+                        relative_clauses
+                            .into_iter()
+                            .map(relative_clause_tree)
+                            .collect(),
+                    ),
+                ),
                 field("innerArgument", argument_tree(*inner_argument)),
                 field("luhu", maybe_word(luhu)),
                 field("luhuFreeModifiers", nil()),
