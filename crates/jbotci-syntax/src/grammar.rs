@@ -850,6 +850,11 @@ enum RelationUnitSyntax {
         nuha: WordWithModifiers,
         math_operator: MathOperatorSyntax,
     },
+    Xohi {
+        xohi: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        tag: TenseModalSyntax,
+    },
     Cei {
         base: Box<RelationUnitSyntax>,
         assignments: Vec<CeiAssignmentSyntax>,
@@ -2105,6 +2110,18 @@ impl RelationUnitSyntax {
             } => {
                 let mut words = vec![nuha];
                 words.extend(math_operator.words());
+                words
+            }
+            RelationUnitSyntax::Xohi {
+                xohi,
+                free_modifiers,
+                tag,
+            } => {
+                let mut words = vec![xohi];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(tag.words());
                 words
             }
             RelationUnitSyntax::Cei { base, assignments } => {
@@ -4121,7 +4138,7 @@ fn xi_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
             });
     let xi_expression = choice((number_or_letter, math_expression_body()));
 
-    cmavo("xi")
+    cmavo_of("XI", &["xi", "te'ai"])
         .then(xi_expression)
         .map(|(xi, expression)| FreeModifierSyntax::Xi { xi, expression })
         .boxed()
@@ -4720,6 +4737,14 @@ where
             nuha,
             math_operator,
         });
+    let xohi_unit = cmavo("xo'i")
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(tense_modal())
+        .map(|((xohi, free_modifiers), tag)| RelationUnitSyntax::Xohi {
+            xohi,
+            free_modifiers,
+            tag,
+        });
 
     let ke_unit = cmavo("ke")
         .then(relation_units_inner(
@@ -4821,6 +4846,7 @@ where
         nahe_unit.clone(),
         se_unit.clone(),
         ke_unit.clone(),
+        xohi_unit.clone(),
         nuha_unit.clone(),
         moi_unit.clone(),
         word_unit.clone(),
@@ -4836,6 +4862,7 @@ where
         nahe_unit.clone(),
         se_unit.clone(),
         ke_unit.clone(),
+        xohi_unit,
         nuha_unit.clone(),
         moi_unit.clone(),
         goha_unit.clone(),
@@ -5068,6 +5095,14 @@ where
                 nuha,
                 math_operator,
             });
+        let xohi_unit = cmavo("xo'i")
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(tense_modal())
+            .map(|((xohi, free_modifiers), tag)| RelationUnitSyntax::Xohi {
+                xohi,
+                free_modifiers,
+                tag,
+            });
         let nu_cmavo = || cmavo_of("NU", NU_WORDS);
         let additional_nu = statement_connective()
             .then(nu_cmavo())
@@ -5142,6 +5177,7 @@ where
             nahe_unit.clone(),
             se_unit.clone(),
             ke_unit.clone(),
+            xohi_unit.clone(),
             nuha_unit.clone(),
             moi_unit.clone(),
             word_unit.clone(),
@@ -5156,6 +5192,7 @@ where
             nahe_unit.clone(),
             se_unit.clone(),
             ke_unit.clone(),
+            xohi_unit,
             nuha_unit.clone(),
             moi_unit.clone(),
             goha_unit.clone(),
@@ -8934,6 +8971,21 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
                 field("nuha", word_value(nuha)),
                 field("freeModifiers", nil()),
                 field("mathOperator", math_operator_tree(math_operator)),
+            ],
+        ),
+        RelationUnitSyntax::Xohi {
+            xohi,
+            free_modifiers,
+            tag,
+        } => node(
+            "XohiRelationUnit",
+            vec![
+                field("xohi", word_value(xohi)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field("tag", tense_modal_tree(tag)),
             ],
         ),
         RelationUnitSyntax::Cei { base, assignments } => node(
