@@ -345,6 +345,7 @@ enum ConnectiveKind {
 #[invariant(true)]
 enum ArgumentTailElementSyntax {
     Argument(Box<ArgumentSyntax>),
+    RelativeClauses(Vec<RelativeClauseSyntax>),
     Quantifier(QuantifierSyntax),
 }
 
@@ -1103,6 +1104,10 @@ impl ArgumentTailElementSyntax {
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             ArgumentTailElementSyntax::Argument(argument) => argument.words(),
+            ArgumentTailElementSyntax::RelativeClauses(relative_clauses) => relative_clauses
+                .into_iter()
+                .flat_map(RelativeClauseSyntax::words)
+                .collect(),
             ArgumentTailElementSyntax::Quantifier(quantifier) => quantifier.words(),
         }
     }
@@ -1895,7 +1900,16 @@ where
         .rewind()
         .not()
         .ignore_then(argument.clone())
-        .map(|argument| ArgumentTailElementSyntax::Argument(Box::new(argument)));
+        .map(|argument| match argument {
+            ArgumentSyntax::RelativeClause {
+                base_argument,
+                relative_clauses,
+            } => vec![
+                ArgumentTailElementSyntax::Argument(base_argument),
+                ArgumentTailElementSyntax::RelativeClauses(relative_clauses),
+            ],
+            argument => vec![ArgumentTailElementSyntax::Argument(Box::new(argument))],
+        });
     let descriptor_relative_clauses = relative_clauses(argument.clone(), subsentence.clone())
         .or_not()
         .map(Option::unwrap_or_default);
@@ -1925,7 +1939,7 @@ where
         .then(relation.clone())
         .then(descriptor_relative_clauses)
         .map(|((argument, relation), relative_clauses)| {
-            let tail_elements = argument.into_iter().collect::<Vec<_>>();
+            let tail_elements = argument.into_iter().flatten().collect::<Vec<_>>();
             (tail_elements, Some(relation), relative_clauses)
         });
 
@@ -4330,6 +4344,15 @@ fn argument_tail_element_tree(element: ArgumentTailElementSyntax) -> SyntaxValue
         ArgumentTailElementSyntax::Argument(argument) => node(
             "ArgumentTailArgument",
             vec![unnamed_field(argument_tree(*argument))],
+        ),
+        ArgumentTailElementSyntax::RelativeClauses(relative_clauses) => node(
+            "ArgumentTailRelativeClauses",
+            vec![unnamed_field(list(
+                relative_clauses
+                    .into_iter()
+                    .map(relative_clause_tree)
+                    .collect(),
+            ))],
         ),
         ArgumentTailElementSyntax::Quantifier(quantifier) => node(
             "ArgumentTailQuantifier",
