@@ -225,6 +225,9 @@ enum StatementSyntax {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 enum FragmentSyntax {
+    Gihek {
+        connective: ConnectiveSyntax,
+    },
     BeLink {
         be: WordWithModifiers,
         fa: Option<WordWithModifiers>,
@@ -1164,6 +1167,7 @@ impl FragmentSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
+            FragmentSyntax::Gihek { connective } => connective.words(),
             FragmentSyntax::BeLink {
                 be,
                 fa,
@@ -2341,6 +2345,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         .map(|relative_clauses| {
             StatementSyntax::Fragment(FragmentSyntax::RelativeClause { relative_clauses })
         });
+    let gihek_fragment = predicate_tail_connective()
+        .map(|connective| StatementSyntax::Fragment(FragmentSyntax::Gihek { connective }));
 
     let be_link_fragment = cmavo("be")
         .then(cmavo_of("FA", FA_WORDS).or_not())
@@ -2397,6 +2403,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         prenex_statement,
         predicate,
         tuhe_statement,
+        gihek_fragment,
         be_link_fragment,
         relative_clause_fragment,
         term_fragment,
@@ -3542,7 +3549,7 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
         cmavo("na")
             .or_not()
             .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
-            .then(cmavo_of("A", &["a", "e", "o", "u"]))
+            .then(cmavo_of("A", &["a", "e", "o", "u", "ji"]))
             .then(cmavo("nai").or_not())
             .map(|(((na, se), cmavo), nai)| ConnectiveSyntax {
                 kind: ConnectiveKind::Afterthought,
@@ -3687,7 +3694,7 @@ fn guhek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     let ga = cmavo_of("SE", &["se", "te", "ve", "xe"])
         .or_not()
-        .then(cmavo_of("GA", &["ga", "ge", "go", "gu"]))
+        .then(cmavo_of("GA", &["ga", "ge", "ge'i", "go", "gu"]))
         .then(cmavo("nai").or_not())
         .map(|((se, ga), nai)| ConnectiveSyntax {
             kind: ConnectiveKind::Forethought,
@@ -5839,6 +5846,13 @@ fn statement_tree(statement: StatementSyntax) -> SyntaxValue {
 #[ensures(true)]
 fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
     match fragment {
+        FragmentSyntax::Gihek { connective } => node(
+            "GihekFragment",
+            vec![
+                field("connective", connective_tree(connective)),
+                field("freeModifiers", nil()),
+            ],
+        ),
         FragmentSyntax::BeLink {
             be,
             fa,
