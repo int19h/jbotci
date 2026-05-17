@@ -2853,8 +2853,8 @@ where
         ke_unit,
         nuha_unit,
         moi_unit,
-        goha_unit,
         word_unit,
+        goha_unit,
     ));
     let bei_link = bei_link(argument.clone());
     let be_link = cmavo("be")
@@ -3067,7 +3067,7 @@ where
             });
 
         let linked_unit = choice((
-            nahe_unit, se_unit, ke_unit, nuha_unit, moi_unit, goha_unit, word_unit,
+            nahe_unit, se_unit, ke_unit, nuha_unit, moi_unit, word_unit, goha_unit,
         ))
         .then(be_link.or_not())
         .map(|(base, be_link)| {
