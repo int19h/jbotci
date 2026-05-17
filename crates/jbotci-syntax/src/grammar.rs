@@ -581,16 +581,25 @@ struct SpaceTenseSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+struct IntervalTenseSyntax {
+    number: Vec<WordWithModifiers>,
+    roi_or_tahe: WordWithModifiers,
+    nai: Option<WordWithModifiers>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
 enum TenseModalSyntax {
     Composite {
         leaves: Vec<WordWithModifiers>,
         time: Option<TimeTenseSyntax>,
         space: Option<SpaceTenseSyntax>,
-        interval: Option<QuantifierSyntax>,
+        interval: Option<IntervalTenseSyntax>,
         zaho: Vec<WordWithModifiers>,
         caha: Option<WordWithModifiers>,
         ki: Option<WordWithModifiers>,
         cuhe: Option<WordWithModifiers>,
+        connectives: Vec<WordWithModifiers>,
     },
     Pu {
         word: WordWithModifiers,
@@ -4291,6 +4300,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 caha: None,
                 ki: None,
                 cuhe: None,
+                connectives: Vec::new(),
             }
         });
     let zi = cmavo_of("ZI", &["zi", "za", "zu"]).map(|zi| TenseModalSyntax::Composite {
@@ -4307,6 +4317,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         caha: None,
         ki: None,
         cuhe: None,
+        connectives: Vec::new(),
     });
     let zeha = cmavo_of("ZEhA", &["ze'i", "ze'a", "ze'u", "ze'e"]).map(|zeha| {
         TenseModalSyntax::Composite {
@@ -4323,6 +4334,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             caha: None,
             ki: None,
             cuhe: None,
+            connectives: Vec::new(),
         }
     });
     let faha = cmavo_of(
@@ -4354,6 +4366,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             caha: None,
             ki: None,
             cuhe: None,
+            connectives: Vec::new(),
         }
     });
     let va = cmavo_of("VA", &["vi", "va", "vu"]).map(|va| TenseModalSyntax::Composite {
@@ -4372,6 +4385,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         caha: None,
         ki: None,
         cuhe: None,
+        connectives: Vec::new(),
     });
     let veha = cmavo_of("VEhA", &["ve'i", "ve'a", "ve'u", "ve'e"])
         .then(cmavo_of("VIhA", &["vi'i", "vi'a", "vi'u", "vi'e"]).or_not())
@@ -4394,6 +4408,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 caha: None,
                 ki: None,
                 cuhe: None,
+                connectives: Vec::new(),
             }
         });
     let viha = cmavo_of("VIhA", &["vi'i", "vi'a", "vi'u", "vi'e"]).map(|viha| {
@@ -4413,8 +4428,85 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             caha: None,
             ki: None,
             cuhe: None,
+            connectives: Vec::new(),
         }
     });
+    let numbered_interval = pa_word()
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .then(cmavo_of("ROI", &["roi", "re'u"]))
+        .then(cmavo("nai").or_not())
+        .map(|((number, roi_or_tahe), nai)| {
+            let mut leaves = number.clone();
+            leaves.push(roi_or_tahe.clone());
+            leaves.extend(nai.clone());
+            TenseModalSyntax::Composite {
+                leaves,
+                time: None,
+                space: None,
+                interval: Some(IntervalTenseSyntax {
+                    number,
+                    roi_or_tahe,
+                    nai,
+                }),
+                zaho: Vec::new(),
+                caha: None,
+                ki: None,
+                cuhe: None,
+                connectives: Vec::new(),
+            }
+        });
+    let tahe_interval = cmavo_of("TAhE", &["di'i", "na'o", "ru'i", "ta'e"])
+        .then(cmavo("nai").or_not())
+        .map(|(roi_or_tahe, nai)| {
+            let mut leaves = vec![roi_or_tahe.clone()];
+            leaves.extend(nai.clone());
+            TenseModalSyntax::Composite {
+                leaves,
+                time: None,
+                space: None,
+                interval: Some(IntervalTenseSyntax {
+                    number: Vec::new(),
+                    roi_or_tahe,
+                    nai,
+                }),
+                zaho: Vec::new(),
+                caha: None,
+                ki: None,
+                cuhe: None,
+                connectives: Vec::new(),
+            }
+        });
+    let fehe_tahe_interval = cmavo("fe'e")
+        .then(cmavo_of("TAhE", &["di'i", "na'o", "ru'i", "ta'e"]))
+        .then(cmavo("nai").or_not())
+        .map(|((fehe, roi_or_tahe), nai)| {
+            let mut leaves = vec![fehe.clone(), roi_or_tahe.clone()];
+            leaves.extend(nai.clone());
+            TenseModalSyntax::Composite {
+                leaves,
+                time: None,
+                space: Some(SpaceTenseSyntax {
+                    direction: Vec::new(),
+                    distance: Vec::new(),
+                    interval: Vec::new(),
+                    dimensions: Vec::new(),
+                    mohi: None,
+                    fehe: Some(fehe),
+                }),
+                interval: Some(IntervalTenseSyntax {
+                    number: Vec::new(),
+                    roi_or_tahe,
+                    nai,
+                }),
+                zaho: Vec::new(),
+                caha: None,
+                ki: None,
+                cuhe: None,
+                connectives: Vec::new(),
+            }
+        });
     let mohi = cmavo("mo'i")
         .then(cmavo_of(
             "FAhA",
@@ -4446,6 +4538,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 caha: None,
                 ki: None,
                 cuhe: None,
+                connectives: Vec::new(),
             }
         });
     let caha = cmavo_of("CAhA", &["ca'a", "pu'i", "nu'o", "ka'e"]).map(|caha| {
@@ -4458,12 +4551,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             caha: Some(caha),
             ki: None,
             cuhe: None,
+            connectives: Vec::new(),
         }
     });
     let zaho = cmavo_of(
         "ZAhO",
         &[
-            "ba'o", "ca'o", "co'a", "co'u", "de'a", "di'a", "mo'u", "pu'o", "za'o",
+            "ba'o", "ca'o", "co'a", "co'i", "co'u", "de'a", "di'a", "mo'u", "pu'o", "za'o",
         ],
     )
     .then(cmavo("nai").or_not())
@@ -4479,6 +4573,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             caha: None,
             ki: None,
             cuhe: None,
+            connectives: Vec::new(),
         }
     });
     let ki = cmavo("ki").map(|ki| TenseModalSyntax::Composite {
@@ -4490,6 +4585,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         caha: None,
         ki: Some(ki),
         cuhe: None,
+        connectives: Vec::new(),
     });
     let cuhe = cmavo("cu'e").map(|cuhe| TenseModalSyntax::Composite {
         leaves: vec![cuhe.clone()],
@@ -4500,16 +4596,76 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         caha: None,
         ki: None,
         cuhe: Some(cuhe),
+        connectives: Vec::new(),
     });
 
-    choice((
-        mohi, faha, veha, viha, va, pu, zi, zeha, caha, zaho, ki, cuhe,
+    let atom = choice((
+        fehe_tahe_interval,
+        mohi,
+        faha,
+        veha,
+        viha,
+        va,
+        numbered_interval,
+        tahe_interval,
+        pu,
+        zi,
+        zeha,
+        caha,
+        zaho,
+        ki,
+        cuhe,
     ))
-    .repeated()
-    .at_least(1)
-    .collect::<Vec<_>>()
-    .map(combine_composite_tense_modals)
-    .boxed()
+    .boxed();
+
+    atom.clone()
+        .then(
+            choice((
+                cmavo_of("JA", &["je'i", "ja", "je", "jo", "ju"])
+                    .then(atom.clone())
+                    .map(|(connective, atom)| (Some(connective), atom)),
+                atom.map(|atom| (None, atom)),
+            ))
+            .repeated()
+            .collect::<Vec<_>>(),
+        )
+        .map(|(first, continuations)| {
+            let mut leaves = first.clone().words();
+            let mut parts = vec![first];
+            let mut connectives = Vec::new();
+            for (connective, part) in continuations {
+                if let Some(connective) = connective {
+                    leaves.push(connective.clone());
+                    connectives.push(connective);
+                }
+                leaves.extend(part.clone().words());
+                parts.push(part);
+            }
+            match combine_composite_tense_modals(parts) {
+                TenseModalSyntax::Composite {
+                    time,
+                    space,
+                    interval,
+                    zaho,
+                    caha,
+                    ki,
+                    cuhe,
+                    ..
+                } => TenseModalSyntax::Composite {
+                    leaves,
+                    time,
+                    space,
+                    interval,
+                    zaho,
+                    caha,
+                    ki,
+                    cuhe,
+                    connectives,
+                },
+                other => other,
+            }
+        })
+        .boxed()
 }
 
 #[requires(!parts.is_empty())]
@@ -4530,17 +4686,20 @@ fn combine_composite_tense_modals(parts: Vec<TenseModalSyntax>) -> TenseModalSyn
     let mut caha = None;
     let mut ki = None;
     let mut cuhe = None;
+    let mut connectives = Vec::new();
+    let mut interval = None;
 
     for part in parts {
         if let TenseModalSyntax::Composite {
             leaves: part_leaves,
             time,
             space,
-            interval: _,
+            interval: part_interval,
             zaho: part_zaho,
             caha: part_caha,
             ki: part_ki,
             cuhe: part_cuhe,
+            connectives: part_connectives,
         } = part
         {
             leaves.extend(part_leaves);
@@ -4562,6 +4721,8 @@ fn combine_composite_tense_modals(parts: Vec<TenseModalSyntax>) -> TenseModalSyn
             caha = part_caha.or(caha);
             ki = part_ki.or(ki);
             cuhe = part_cuhe.or(cuhe);
+            interval = interval.or(part_interval);
+            connectives.extend(part_connectives);
         }
     }
 
@@ -4591,11 +4752,12 @@ fn combine_composite_tense_modals(parts: Vec<TenseModalSyntax>) -> TenseModalSyn
         leaves,
         time,
         space,
-        interval: None,
+        interval,
         zaho,
         caha,
         ki,
         cuhe,
+        connectives,
     }
 }
 
@@ -4659,7 +4821,7 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         cmavo_of(
             "ZAhO",
             &[
-                "ba'o", "ca'o", "co'a", "co'u", "de'a", "di'a", "mo'u", "pu'o", "za'o",
+                "ba'o", "ca'o", "co'a", "co'i", "co'u", "de'a", "di'a", "mo'u", "pu'o", "za'o",
             ],
         )
         .map(|word| TenseModalSyntax::Zaho { words: vec![word] }),
@@ -6574,6 +6736,9 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
         TenseModalSyntax::Simple { connectives, .. } => {
             list(connectives.iter().cloned().map(word_value).collect())
         }
+        TenseModalSyntax::Composite { connectives, .. } => {
+            list(connectives.iter().cloned().map(word_value).collect())
+        }
         _ => nil(),
     };
     let (time, space, simple, interval, zaho, caha, fiho) = match tense_modal {
@@ -6584,6 +6749,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             interval,
             zaho,
             caha,
+            connectives: _,
             ..
         } => (
             time.map_or_else(nothing, |time| just(time_tense_tree(time))),
@@ -6593,9 +6759,16 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
                 just(node(
                     "Interval",
                     vec![
-                        field("number", just(nonempty_number_words(interval.number))),
-                        field("roiOrTahe", maybe_word(interval.boi)),
-                        field("nai", nothing()),
+                        field(
+                            "number",
+                            if interval.number.is_empty() {
+                                nothing()
+                            } else {
+                                just(nonempty_number_words(interval.number))
+                            },
+                        ),
+                        field("roiOrTahe", word_value(interval.roi_or_tahe)),
+                        field("nai", maybe_word(interval.nai)),
                     ],
                 ))
             }),
