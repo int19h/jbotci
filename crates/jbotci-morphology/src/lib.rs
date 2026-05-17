@@ -28,6 +28,8 @@ pub struct MorphologyOptions {
 }
 
 impl Default for MorphologyOptions {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn default() -> Self {
         new!(MorphologyOptions {
             accept_latin: true,
@@ -46,6 +48,7 @@ impl MorphologyOptions {
     #[ensures(definition.features.contains(&DialectFeature::Cbm) -> ret.cmevla_as_relation_words)]
     #[ensures(definition.features.contains(&DialectFeature::AllowCgv) -> !ret.enforce_cgv_ban)]
     #[ensures(definition.features.contains(&DialectFeature::CaseInsensitive) -> !ret.uppercase_marks_stress)]
+    #[bityzba::requires(true)]
     pub fn with_dialect_definition(self, definition: &DialectDefinition) -> Self {
         let cmevla_as_relation_words = self.cmevla_as_relation_words;
         let enforce_cgv_ban = self.enforce_cgv_ban;
@@ -63,6 +66,7 @@ impl MorphologyOptions {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[bityzba::invariant(true)]
 pub enum WordKind {
     #[serde(rename = "cmavo")]
     Cmavo,
@@ -78,6 +82,7 @@ pub enum WordKind {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
+#[bityzba::invariant(true)]
 pub enum LujvoSegment {
     Rafsi { text: String },
     Hyphen { text: String },
@@ -85,6 +90,7 @@ pub enum LujvoSegment {
 
 impl LujvoSegment {
     #[ensures(!ret.is_empty())]
+    #[bityzba::requires(true)]
     pub fn text(&self) -> &str {
         match self {
             Self::Rafsi { text } | Self::Hyphen { text } => text,
@@ -93,6 +99,8 @@ impl LujvoSegment {
 }
 
 impl fmt::Display for WordKind {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let text = match self {
             Self::Cmavo => "cmavo",
@@ -116,6 +124,8 @@ pub struct Word {
 }
 
 impl fmt::Display for Word {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.kind, self.phonemes)
     }
@@ -159,12 +169,16 @@ pub enum WordLike {
 }
 
 impl WordLike {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn bare(word: Word) -> Self {
         new!(WordLike::Bare {
             word: Box::new(word),
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn zo_quote(zo: Word, word: Word) -> Self {
         new!(WordLike::ZoQuote {
             zo: Box::new(zo),
@@ -172,6 +186,8 @@ impl WordLike {
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn zoi_quote(
         zoi: Word,
         opening_delimiter: Word,
@@ -186,6 +202,8 @@ impl WordLike {
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn lohu_quote(lohu: Word, quoted_words: Vec<Word>, lehu: Word) -> Self {
         new!(WordLike::LohuQuote {
             lohu: Box::new(lohu),
@@ -194,6 +212,8 @@ impl WordLike {
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn single_word_quote(marker: Word, quoted_text: SourceSpan) -> Self {
         new!(WordLike::SingleWordQuote {
             marker: Box::new(marker),
@@ -201,6 +221,8 @@ impl WordLike {
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn letter(base: WordLike, bu: Word) -> Self {
         new!(WordLike::Letter {
             base: Box::new(base),
@@ -208,6 +230,8 @@ impl WordLike {
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn zei_lujvo(left: WordLike, zei: Word, right: Word) -> Self {
         new!(WordLike::ZeiLujvo {
             left: Box::new(left),
@@ -218,6 +242,8 @@ impl WordLike {
 }
 
 impl fmt::Display for WordLike {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.as_data() {
             data!(WordLike::Bare { word }) => write!(f, "{word}"),
@@ -282,12 +308,16 @@ pub enum WordWithModifiers {
 }
 
 impl WordWithModifiers {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn base_word(word_like: WordLike) -> Self {
         new!(WordWithModifiers::BaseWord {
             word_like: Box::new(word_like),
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn standalone_indicator(indicator: Word, nai: Option<Word>) -> Self {
         new!(WordWithModifiers::StandaloneIndicator {
             indicator: Box::new(indicator),
@@ -295,6 +325,8 @@ impl WordWithModifiers {
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn emphasized(bahe: Word, word_like: WordLike) -> Self {
         new!(WordWithModifiers::Emphasized {
             bahe: Box::new(bahe),
@@ -302,6 +334,8 @@ impl WordWithModifiers {
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn with_indicator(base: WordWithModifiers, indicator: Word, nai: Option<Word>) -> Self {
         new!(WordWithModifiers::WithIndicator {
             base: Box::new(base),
@@ -310,12 +344,16 @@ impl WordWithModifiers {
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn not_eof() -> Self {
         new!(WordWithModifiers::NotEof)
     }
 }
 
 impl fmt::Display for WordWithModifiers {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.as_data() {
             data!(WordWithModifiers::BaseWord { word_like }) => write!(f, "{word_like}"),
@@ -345,6 +383,8 @@ impl fmt::Display for WordWithModifiers {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn word_with_modifiers_syntax_eq(left: &WordWithModifiers, right: &WordWithModifiers) -> bool {
     match (left.as_data(), right.as_data()) {
         (
@@ -398,6 +438,8 @@ pub fn word_with_modifiers_syntax_eq(left: &WordWithModifiers, right: &WordWithM
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
     match (left.as_data(), right.as_data()) {
         (data!(WordLike::Bare { word: left }), data!(WordLike::Bare { word: right })) => {
@@ -492,16 +534,20 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn word_syntax_eq(left: &Word, right: &Word) -> bool {
     left.kind == right.kind && strip_diacritics(&left.phonemes) == strip_diacritics(&right.phonemes)
 }
 
 #[ensures(!ret.is_empty() || text.is_empty())]
+#[bityzba::requires(true)]
 pub fn strip_diacritics(text: &str) -> String {
     text.chars().filter_map(strip_diacritic).collect()
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 pub enum MorphologyError {
     #[error("unsupported morphology at character {char_offset}: `{word}` ({reason})")]
     Unsupported {
@@ -519,6 +565,8 @@ pub enum MorphologyError {
     SourceSpan(#[from] SourceLocationError),
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn segment_words_with_modifiers(
     input: &str,
 ) -> Result<Vec<WordWithModifiers>, MorphologyError> {
@@ -529,6 +577,8 @@ pub fn segment_words_with_modifiers(
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn segment_words_with_modifiers_with_options(
     input: &str,
     options: &MorphologyOptions,
@@ -536,6 +586,8 @@ pub fn segment_words_with_modifiers_with_options(
     segment_words_with_modifiers_with_options_and_source_id(input, options, None)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn segment_words_with_modifiers_with_source_id(
     input: &str,
     source_id: SourceId,
@@ -547,6 +599,8 @@ pub fn segment_words_with_modifiers_with_source_id(
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn segment_words_with_modifiers_with_options_and_source_id(
     input: &str,
     options: &MorphologyOptions,
@@ -555,6 +609,8 @@ pub fn segment_words_with_modifiers_with_options_and_source_id(
     grammar::segment_words_with_modifiers(input, options, source_id)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn segment_words_with_modifiers_raw(
     input: &str,
 ) -> Result<Vec<WordWithModifiers>, MorphologyError> {
@@ -565,6 +621,8 @@ pub fn segment_words_with_modifiers_raw(
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn segment_words_with_modifiers_raw_with_source_id(
     input: &str,
     source_id: SourceId,
@@ -576,6 +634,8 @@ pub fn segment_words_with_modifiers_raw_with_source_id(
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn segment_words_with_modifiers_raw_with_options(
     input: &str,
     options: &MorphologyOptions,
@@ -583,6 +643,8 @@ pub fn segment_words_with_modifiers_raw_with_options(
     segment_words_with_modifiers_raw_with_options_and_source_id(input, options, None)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
     input: &str,
     options: &MorphologyOptions,
@@ -592,6 +654,8 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn word_with_modifiers_data_is_valid(word: &WordWithModifiersData) -> bool {
     match word {
         data!(WordWithModifiers::BaseWord { word_like }) => {
@@ -611,6 +675,8 @@ fn word_with_modifiers_data_is_valid(word: &WordWithModifiersData) -> bool {
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn word_like_data_is_valid(word_like: &WordLikeData) -> bool {
     match word_like {
         data!(WordLike::Bare { .. }) | data!(WordLike::ZoQuote { .. }) => true,
@@ -623,10 +689,14 @@ fn word_like_data_is_valid(word_like: &WordLikeData) -> bool {
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn source_span_is_valid(_span: &SourceSpan) -> bool {
     true
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn optional_word_syntax_eq(left: Option<&Word>, right: Option<&Word>) -> bool {
     match (left, right) {
         (None, None) => true,
@@ -635,6 +705,8 @@ fn optional_word_syntax_eq(left: Option<&Word>, right: Option<&Word>) -> bool {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn strip_diacritic(value: char) -> Option<char> {
     Some(match value {
         'á' | 'à' | 'Á' | 'À' => 'a',
@@ -653,11 +725,15 @@ mod tests {
     use super::*;
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn default_options_enforce_cgv_ban() {
         assert!(MorphologyOptions::default().enforce_cgv_ban);
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn segments_simple_cmavo_and_gismu() {
         let words = segment_words_with_modifiers("mi klama do").expect("valid morphology");
         assert_eq!(words.len(), 3);
@@ -692,6 +768,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn splits_adjacent_cmavo() {
         let words = segment_words_with_modifiers("mimi").expect("valid morphology");
         let phonemes: Vec<_> = words
@@ -702,6 +780,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn marks_cmavo_glides() {
         let words = segment_words_with_modifiers_raw("coi .ui").expect("valid morphology");
         let phonemes: Vec<_> = words
@@ -712,6 +792,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn applies_cbm_dialect_to_morphology_options() {
         let dialect = jbotci_dialect::parse_dialect_definition("(cbm)").expect("dialect");
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
@@ -725,6 +807,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn applies_allow_cgv_dialect_to_morphology_options() {
         let dialect = jbotci_dialect::parse_dialect_definition("(allow-cgv)").expect("dialect");
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
@@ -737,6 +821,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn applies_case_insensitive_dialect_to_morphology_options() {
         let dialect =
             jbotci_dialect::parse_dialect_definition("(case-insensitive)").expect("dialect");
@@ -750,6 +836,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn applies_combined_dialect_formula_to_morphology_options() {
         let dialect = jbotci_dialect::parse_dialect_definition("(allow-cgv case-insensitive)")
             .expect("dialect");
@@ -763,6 +851,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn syntax_equivalence_ignores_spans_and_diacritics_on_words() {
         let mut left = segment_words_with_modifiers("coi").expect("valid morphology");
         let mut right = segment_words_with_modifiers("coi").expect("valid morphology");
@@ -785,6 +875,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn invalid_morphology_options_are_rejected() {
         let panic = std::panic::catch_unwind(|| {
             let _ = MorphologyOptions::default().with_data(data! {
@@ -798,6 +890,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn word_deserialization_rejects_invalid_words() {
         let error = serde_json::from_str::<Word>(
             r#"{
@@ -825,6 +919,8 @@ mod tests {
         );
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn base_word(word: &WordWithModifiers) -> Option<&Word> {
         match word.as_data() {
             data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {

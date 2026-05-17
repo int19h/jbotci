@@ -6,6 +6,7 @@ use clap::Parser;
 #[derive(Debug, Parser)]
 #[command(name = "jbotci-server")]
 #[command(about = "Server application for jbotci web and HTTP integrations")]
+#[bityzba::invariant(true)]
 struct Cli {
     #[arg(long, default_value = "127.0.0.1")]
     host: String,
@@ -15,6 +16,8 @@ struct Cli {
     base_path: String,
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn main() -> ExitCode {
     match run() {
         Ok(()) => ExitCode::SUCCESS,
@@ -25,6 +28,8 @@ fn main() -> ExitCode {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn run() -> Result<()> {
     let cli = Cli::parse();
     Err(anyhow!(

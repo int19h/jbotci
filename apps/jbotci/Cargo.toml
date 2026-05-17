@@ -17,11 +17,15 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
+bityzba.workspace = true
 clap.workspace = true
 jbotci-morphology.workspace = true
 jbotci-output.workspace = true
 jbotci-syntax.workspace = true
 serde_json.workspace = true
+
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
 
 [lints]
 workspace = true

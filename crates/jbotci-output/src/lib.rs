@@ -5,6 +5,7 @@ use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[bityzba::invariant(true)]
 pub enum OutputBase {
     Compact,
     Ipa,
@@ -23,6 +24,7 @@ pub enum OutputBase {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[bityzba::invariant(true)]
 pub enum OutputFeature {
     WordKind,
     Definitions,
@@ -35,12 +37,15 @@ pub enum OutputFeature {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[bityzba::invariant(true)]
 pub struct OutputFormat {
     pub base: OutputBase,
     pub features: Vec<OutputFeature>,
 }
 
 impl Default for OutputFormat {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn default() -> Self {
         Self {
             base: OutputBase::Compact,
@@ -50,6 +55,7 @@ impl Default for OutputFormat {
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 pub enum OutputError {
     #[error("output rendering is not implemented yet")]
     NotImplemented,

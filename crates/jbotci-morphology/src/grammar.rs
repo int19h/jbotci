@@ -14,6 +14,8 @@ use crate::{
 
 type MorphExtra<'src> = extra::Err<Rich<'src, char>>;
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub(crate) fn segment_words_with_modifiers(
     input: &str,
     options: &MorphologyOptions,
@@ -24,6 +26,8 @@ pub(crate) fn segment_words_with_modifiers(
     )?))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub(crate) fn segment_words_with_modifiers_raw(
     input: &str,
     options: &MorphologyOptions,
@@ -35,6 +39,8 @@ pub(crate) fn segment_words_with_modifiers_raw(
         .map_err(|errors| morphology_error(input, errors))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn parser<'src>(
     input: &'src str,
     options: MorphologyOptions,
@@ -56,12 +62,14 @@ fn parser<'src>(
 }
 
 #[derive(Debug, Clone, Copy)]
+#[bityzba::invariant(true)]
 struct SourceChar {
     byte_offset: usize,
     value: char,
 }
 
 #[derive(Debug)]
+#[bityzba::invariant(true)]
 struct Segmenter<'a> {
     input: &'a str,
     options: &'a MorphologyOptions,
@@ -73,6 +81,7 @@ struct Segmenter<'a> {
 impl<'a> Segmenter<'a> {
     #[ensures(ret.index == 0)]
     #[ensures(ret.chars.len() == input.chars().count())]
+    #[bityzba::requires(true)]
     fn new(input: &'a str, options: &'a MorphologyOptions, source_id: Option<SourceId>) -> Self {
         Self {
             input,
@@ -86,6 +95,8 @@ impl<'a> Segmenter<'a> {
         }
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn segment_raw(mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
         let mut acc = Vec::new();
         while self.skip_magic_noise(true)? {
@@ -98,6 +109,8 @@ impl<'a> Segmenter<'a> {
         Ok(acc)
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn next_segment(&mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
         self.skip_separators();
         if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
@@ -138,6 +151,8 @@ impl<'a> Segmenter<'a> {
         Ok(vec![word])
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn process_segment(
         &mut self,
         acc: &mut Vec<WordWithModifiers>,
@@ -174,6 +189,8 @@ impl<'a> Segmenter<'a> {
         Ok(())
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn next_plain_word(&mut self) -> Result<WordWithModifiers, MorphologyError> {
         self.skip_separators();
         let start = self.index;
@@ -231,6 +248,8 @@ impl<'a> Segmenter<'a> {
         ))
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn zo_quote(
         &mut self,
         zo_word_with_modifiers: WordWithModifiers,
@@ -251,6 +270,8 @@ impl<'a> Segmenter<'a> {
         Ok(vec![base_word_like(WordLike::zo_quote(zo, word))])
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn zoi_quote(
         &mut self,
         zoi_word_with_modifiers: WordWithModifiers,
@@ -302,6 +323,8 @@ impl<'a> Segmenter<'a> {
         ))])
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn single_word_quote(
         &mut self,
         marker_word_with_modifiers: WordWithModifiers,
@@ -324,6 +347,8 @@ impl<'a> Segmenter<'a> {
         ))])
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn lohu_quote(
         &mut self,
         lohu_word_with_modifiers: WordWithModifiers,
@@ -359,6 +384,8 @@ impl<'a> Segmenter<'a> {
         }
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn handle_bu(
         &self,
         acc: &mut Vec<WordWithModifiers>,
@@ -373,11 +400,15 @@ impl<'a> Segmenter<'a> {
         Ok(())
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn handle_si(&self, acc: &mut Vec<WordWithModifiers>) {
         let (_prev, rest) = skip_acc_y(acc);
         *acc = rest;
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn handle_sa(&mut self, acc: &mut Vec<WordWithModifiers>) -> Result<(), MorphologyError> {
         let mut sa_count = 1;
         loop {
@@ -417,6 +448,8 @@ impl<'a> Segmenter<'a> {
         }
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn next_sa_base_segment(&mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
         self.skip_separators();
         if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
@@ -449,10 +482,14 @@ impl<'a> Segmenter<'a> {
         Ok(vec![word])
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn handle_su(&self, acc: &mut Vec<WordWithModifiers>) {
         *acc = erase_back_to_su_boundary(acc);
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn handle_zei(
         &mut self,
         acc: &mut Vec<WordWithModifiers>,
@@ -486,6 +523,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(end, _, start)| *end <= *start)))]
+    #[bityzba::requires(true)]
     fn find_zoi_close(
         &mut self,
         opening_delimiter: &Word,
@@ -523,6 +561,8 @@ impl<'a> Segmenter<'a> {
         Ok(None)
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn next_plain_non_y_word(&mut self) -> Result<WordWithModifiers, MorphologyError> {
         loop {
             let word = self.next_plain_word()?;
@@ -533,6 +573,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[ensures(self.index <= self.chars.len())]
+    #[bityzba::requires(true)]
     fn skip_y_words(&mut self) {
         loop {
             self.skip_separators();
@@ -548,6 +589,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[ensures(ret.as_ref().is_err() || self.index <= self.chars.len())]
+    #[bityzba::requires(true)]
     fn skip_magic_noise(&mut self, keep_y_before_bu: bool) -> Result<bool, MorphologyError> {
         loop {
             let before = self.index;
@@ -576,6 +618,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[ensures(self.index <= self.chars.len())]
+    #[bityzba::requires(true)]
     fn skip_separators(&mut self) {
         while self.index < self.chars.len() && self.is_magic_noise_at(self.index) {
             self.index += 1;
@@ -635,6 +678,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(start <= end && end <= self.chars.len())]
+    #[bityzba::ensures(true)]
     fn has_blocking_cmavo_prefix(&self, start: usize, end: usize) -> bool {
         let whole_candidate =
             crate::segment::normalize_word_with_options(self.slice(start, end), self.options);
@@ -654,6 +698,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(prefix_end <= candidate_end && candidate_end <= self.chars.len())]
+    #[bityzba::ensures(true)]
     fn cmavo_boundary_ok(&self, prefix_end: usize, candidate_end: usize) -> bool {
         if prefix_end == candidate_end {
             return true;
@@ -667,6 +712,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(start <= end && end <= self.chars.len())]
+    #[bityzba::ensures(true)]
     fn candidate_starts_with_supported_word(&self, start: usize, end: usize) -> bool {
         let raw = self.slice(start, end);
         let normalized = crate::segment::normalize_word_with_options(raw, self.options);
@@ -682,6 +728,7 @@ impl<'a> Segmenter<'a> {
 
     #[requires(start <= end && end <= self.chars.len())]
     #[requires(!phonemes.is_empty())]
+    #[bityzba::ensures(true)]
     fn word_with_modifiers(
         &self,
         start: usize,
@@ -699,6 +746,8 @@ impl<'a> Segmenter<'a> {
         }))))
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn digit_sequence(&mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
         let mut words = Vec::new();
         while self.index < self.chars.len() {
@@ -753,6 +802,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(start <= end && end <= self.chars.len())]
+    #[bityzba::ensures(true)]
     fn is_digit_sequence_candidate(&self, start: usize, end: usize) -> bool {
         start < end
             && self.chars[start..end].iter().all(|source_char| {
@@ -763,6 +813,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[ensures(self.index <= self.chars.len())]
+    #[bityzba::requires(true)]
     fn consume_zoi_open_dots(&mut self) {
         if self.peek_char() != Some('.') {
             return;
@@ -789,6 +840,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(start <= end && end <= self.chars.len())]
+    #[bityzba::ensures(true)]
     fn slice(&self, start: usize, end: usize) -> &'a str {
         &self.input[self.byte_offset(start)..self.byte_offset(end)]
     }
@@ -801,6 +853,8 @@ impl<'a> Segmenter<'a> {
             .map_or(self.input.len(), |source_char| source_char.byte_offset)
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn peek_char(&self) -> Option<char> {
         self.chars
             .get(self.index)
@@ -808,6 +862,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(index <= self.chars.len())]
+    #[bityzba::ensures(true)]
     fn is_word_separator_at(&self, index: usize) -> bool {
         self.chars
             .get(index)
@@ -815,6 +870,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(index <= self.chars.len())]
+    #[bityzba::ensures(true)]
     fn is_magic_noise_at(&self, index: usize) -> bool {
         self.chars.get(index).is_some_and(|source_char| {
             crate::segment::is_separator(source_char.value) || source_char.value == ','
@@ -822,6 +878,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(!reason.is_empty(), "morphology invalid errors must have a reason")]
+    #[bityzba::ensures(true)]
     fn invalid_at(&self, index: usize, word: &str, reason: &str) -> MorphologyError {
         MorphologyError::Invalid {
             char_offset: index,
@@ -831,6 +888,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(!reason.is_empty(), "morphology unsupported errors must have a reason")]
+    #[bityzba::ensures(true)]
     fn unsupported_at(&self, index: usize, word: &str, reason: &str) -> MorphologyError {
         MorphologyError::Unsupported {
             char_offset: index,
@@ -841,6 +899,7 @@ impl<'a> Segmenter<'a> {
 }
 
 #[ensures(matches!(ret, MorphologyError::Invalid { ref reason, .. } if !reason.is_empty()) || !matches!(ret, MorphologyError::Invalid { .. }))]
+#[bityzba::requires(true)]
 fn morphology_error(input: &str, errors: Vec<Rich<'_, char>>) -> MorphologyError {
     let Some(error) = errors.into_iter().next() else {
         return MorphologyError::Invalid {
@@ -868,22 +927,28 @@ fn char_offset(input: &str, byte_offset: usize) -> usize {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 struct CmavoPrefix {
     end: usize,
     phonemes: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum SAMatchTag<'a> {
     Selmaho(&'a str),
     Brivla,
     Cmevla,
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn base_word_like(word_like: WordLike) -> WordWithModifiers {
     WordWithModifiers::base_word(word_like)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn extract_word(word: &WordWithModifiers) -> Option<Word> {
     match word.as_data() {
         data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
@@ -902,6 +967,8 @@ fn extract_word(word: &WordWithModifiers) -> Option<Word> {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn get_word_like(word: &WordWithModifiers) -> WordLike {
     match word.as_data() {
         data!(WordWithModifiers::BaseWord { word_like }) => (**word_like).clone(),
@@ -921,6 +988,7 @@ fn get_word_like(word: &WordWithModifiers) -> WordLike {
 }
 
 #[requires(!text.is_empty())]
+#[bityzba::ensures(true)]
 fn is_simple_cmavo_text(word: &WordWithModifiers, text: &str) -> bool {
     match word.as_data() {
         data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
@@ -940,6 +1008,8 @@ fn is_simple_cmavo_text(word: &WordWithModifiers, text: &str) -> bool {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_y_word(word: &WordWithModifiers) -> bool {
     match word.as_data() {
         data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
@@ -952,12 +1022,15 @@ fn is_y_word(word: &WordWithModifiers) -> bool {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_y_word_text(text: &str) -> bool {
     let canonical = canonicalize_text(text);
     !canonical.is_empty() && canonical.chars().all(|value| value == 'y')
 }
 
 #[ensures(!ret.is_empty() || text.is_empty())]
+#[bityzba::requires(true)]
 fn canonicalize_text(text: &str) -> String {
     text.chars()
         .filter(|value| *value != ',')
@@ -966,6 +1039,8 @@ fn canonicalize_text(text: &str) -> String {
         .collect()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn strip_diacritic(value: char) -> Option<char> {
     Some(match value {
         'á' | 'à' | 'Á' | 'À' => 'a',
@@ -993,6 +1068,8 @@ fn trim_trailing_separator_indices(chars: &[SourceChar], start: usize, end: usiz
     trimmed_end
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn skip_acc_y(acc: &[WordWithModifiers]) -> (Option<WordWithModifiers>, Vec<WordWithModifiers>) {
     let mut last_y = None;
     for (index, token) in acc.iter().enumerate().rev() {
@@ -1005,6 +1082,8 @@ fn skip_acc_y(acc: &[WordWithModifiers]) -> (Option<WordWithModifiers>, Vec<Word
     (last_y, Vec::new())
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn erase_back_to_su_boundary(acc: &[WordWithModifiers]) -> Vec<WordWithModifiers> {
     for (index, token) in acc.iter().enumerate().rev() {
         let selmaho = visible_selmaho(&get_word_like(token));
@@ -1015,6 +1094,8 @@ fn erase_back_to_su_boundary(acc: &[WordWithModifiers]) -> Vec<WordWithModifiers
     Vec::new()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn sa_match_tag<'a>(
     options: &MorphologyOptions,
     word: &'a WordWithModifiers,
@@ -1032,6 +1113,8 @@ fn sa_match_tag<'a>(
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn find_nth_matching_word(
     options: &MorphologyOptions,
     count: usize,
@@ -1050,6 +1133,8 @@ fn find_nth_matching_word(
     None
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn visible_selmaho(word_like: &WordLike) -> Option<&'static str> {
     match word_like.as_data() {
         data!(WordLike::Bare { word }) if word.kind == WordKind::Cmavo => selmaho(&word.phonemes),
@@ -1063,6 +1148,8 @@ fn visible_selmaho(word_like: &WordLike) -> Option<&'static str> {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn selmaho(cmavo: &str) -> Option<&'static str> {
     match canonicalize_text(cmavo).as_str() {
         "a" | "e" | "ji" | "o" | "u" => Some("A"),
@@ -1134,10 +1221,14 @@ fn selmaho(cmavo: &str) -> Option<&'static str> {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn apply_passes(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     pass_ui(pass_bahe(words))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn pass_bahe(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     let mut reversed: VecDeque<_> = words.into_iter().rev().collect();
     let mut out = Vec::new();
@@ -1156,6 +1247,8 @@ fn pass_bahe(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     out
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn pass_ui(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     let mut out: Vec<WordWithModifiers> = Vec::new();
     let mut iter = words.into_iter().peekable();
@@ -1188,6 +1281,8 @@ fn pass_ui(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     out
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn get_modifier_word(word: &WordWithModifiers) -> Option<Word> {
     match word.as_data() {
         data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
@@ -1203,6 +1298,8 @@ fn get_modifier_word(word: &WordWithModifiers) -> Option<Word> {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_indicator(word: &WordWithModifiers) -> bool {
     match extract_word(word) {
         Some(word) if word.kind == WordKind::Cmavo => {
@@ -1226,11 +1323,14 @@ const INDICATORS: &[&str] = &[
     "fu'o", "cai", "pei", "cu'i", "sai", "ru'e", "y", "da'o",
 ];
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn text_chars(text: &str) -> Vec<char> {
     text.chars().collect()
 }
 
 #[requires(start <= chars.len())]
+#[bityzba::ensures(true)]
 fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
     if start >= chars.len() {
         return false;
@@ -1276,10 +1376,14 @@ fn parse_single_vowel(chars: &[char], start: usize) -> Option<(String, usize)> {
     Some((normalize_vowel(value).to_string(), end))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_vowel(value: char) -> bool {
     base_vowel(value).is_some()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn base_vowel(value: char) -> Option<char> {
     match value {
         'a' | 'á' => Some('a'),
@@ -1291,6 +1395,8 @@ fn base_vowel(value: char) -> Option<char> {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn normalize_vowel(value: char) -> char {
     match value {
         'á' => 'á',
@@ -1302,6 +1408,8 @@ fn normalize_vowel(value: char) -> char {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn digit_to_cmavo(value: char) -> Option<&'static str> {
     Some(match value {
         '0' => "no",
@@ -1323,6 +1431,8 @@ mod tests {
     use super::*;
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn segments_ordinary_sentence() {
         let words =
             segment_words_with_modifiers("mi klama do", &MorphologyOptions::default(), None)
@@ -1334,6 +1444,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn parses_zo_quote_as_one_wordlike() {
         let words = segment_words_with_modifiers("zo si", &MorphologyOptions::default(), None)
             .expect("valid morphology");
@@ -1350,6 +1462,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn parses_zoi_quote_as_one_wordlike() {
         let words =
             segment_words_with_modifiers("zoi gy broda gy", &MorphologyOptions::default(), None)
@@ -1380,6 +1494,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn reports_unclosed_zoi_quote() {
         let error =
             segment_words_with_modifiers("zoi gy broda", &MorphologyOptions::default(), None)
@@ -1388,6 +1504,8 @@ mod tests {
         assert!(error.to_string().contains("expected closing delimiter"));
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn bare_phonemes(words: &[WordWithModifiers]) -> Vec<&str> {
         words
             .iter()
@@ -1395,10 +1513,14 @@ mod tests {
             .collect()
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn bare_span(word: &WordWithModifiers) -> Option<&SourceSpan> {
         bare_word(word).map(|word| &word.span)
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn bare_word(word: &WordWithModifiers) -> Option<&Word> {
         match word.as_data() {
             data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {

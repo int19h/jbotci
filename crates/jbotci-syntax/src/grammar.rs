@@ -54,6 +54,7 @@ const UI_WORDS: &[&str] = &[
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 struct BasicPredicate {
     leading_terms: Vec<TermSyntax>,
     cu: Option<WordWithModifiers>,
@@ -64,6 +65,7 @@ struct BasicPredicate {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 struct PredicateTailContinuationSyntax {
     connective: ConnectiveSyntax,
     relation: RelationSyntax,
@@ -72,6 +74,7 @@ struct PredicateTailContinuationSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 struct TextSyntax {
     leading_nai: Vec<WordWithModifiers>,
     leading_cmevla: Vec<WordWithModifiers>,
@@ -83,6 +86,7 @@ struct TextSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 struct ParagraphStatementSyntax {
     i: Option<WordWithModifiers>,
     connective: Option<ConnectiveSyntax>,
@@ -91,6 +95,7 @@ struct ParagraphStatementSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum FreeModifierSyntax {
     Sei {
         sei: WordWithModifiers,
@@ -114,6 +119,7 @@ enum FreeModifierSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum StatementSyntax {
     Prenex {
         prenex_terms: Vec<TermSyntax>,
@@ -131,6 +137,7 @@ enum StatementSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum FragmentSyntax {
     BeLink {
         be: WordWithModifiers,
@@ -155,6 +162,7 @@ enum FragmentSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum TermSyntax {
     Argument(ArgumentSyntax),
     Fa {
@@ -168,6 +176,7 @@ enum TermSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum ArgumentSyntax {
     Quote {
         quote: QuoteSyntax,
@@ -222,6 +231,7 @@ enum ArgumentSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum RelativeClauseSyntax {
     Goi(GoiRelativeClauseSyntax),
     Noi {
@@ -232,6 +242,7 @@ enum RelativeClauseSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 struct GoiRelativeClauseSyntax {
     goi: WordWithModifiers,
     argument: ArgumentSyntax,
@@ -239,6 +250,7 @@ struct GoiRelativeClauseSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum QuoteSyntax {
     Lu {
         lu: WordWithModifiers,
@@ -268,6 +280,7 @@ enum QuoteSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 struct DescriptorSyntax {
     descriptor: Option<WordWithModifiers>,
     tail_elements: Vec<ArgumentTailElementSyntax>,
@@ -277,6 +290,7 @@ struct DescriptorSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 struct ConnectiveSyntax {
     kind: ConnectiveKind,
     cmavo: Vec<WordWithModifiers>,
@@ -284,6 +298,7 @@ struct ConnectiveSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum ConnectiveKind {
     Afterthought,
     Relation,
@@ -293,18 +308,21 @@ enum ConnectiveKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum ArgumentTailElementSyntax {
     Argument(Box<ArgumentSyntax>),
     Quantifier(QuantifierSyntax),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 struct QuantifierSyntax {
     number: Vec<WordWithModifiers>,
     boi: Option<WordWithModifiers>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum MathExpressionSyntax {
     Number(QuantifierSyntax),
     Letter {
@@ -314,6 +332,7 @@ enum MathExpressionSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum RelationSyntax {
     Connected {
         connective: ConnectiveSyntax,
@@ -362,6 +381,7 @@ enum RelationSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum TenseModalSyntax {
     Pu {
         word: WordWithModifiers,
@@ -407,6 +427,7 @@ enum TenseModalSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 struct AbstractionSyntax {
     nu: WordWithModifiers,
     subsentence_leading_terms: Vec<TermSyntax>,
@@ -417,6 +438,7 @@ struct AbstractionSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum RelationUnitSyntax {
     Word {
         word: WordWithModifiers,
@@ -475,6 +497,8 @@ enum RelationUnitSyntax {
     },
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub(crate) fn parse_syntax_tree(
     words: &[WordWithModifiers],
     options: &ParseOptions,
@@ -482,6 +506,8 @@ pub(crate) fn parse_syntax_tree(
     parse_syntax_tree_with_source(words, None, options)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub(crate) fn parse_syntax_tree_with_source(
     words: &[WordWithModifiers],
     source: Option<&str>,
@@ -494,6 +520,8 @@ pub(crate) fn parse_syntax_tree_with_source(
     }))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub(crate) fn parse_text(
     words: &[WordWithModifiers],
     options: &ParseOptions,
@@ -528,6 +556,8 @@ pub(crate) fn parse_text(
 }
 
 impl StatementSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             StatementSyntax::Prenex {
@@ -562,6 +592,8 @@ impl StatementSyntax {
 }
 
 impl TextSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.leading_nai;
         words.extend(self.leading_cmevla);
@@ -581,6 +613,8 @@ impl TextSyntax {
 }
 
 impl ParagraphStatementSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.i.into_iter().collect::<Vec<_>>();
         if let Some(connective) = self.connective {
@@ -597,6 +631,8 @@ impl ParagraphStatementSyntax {
 }
 
 impl FreeModifierSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             FreeModifierSyntax::Sei {
@@ -650,6 +686,8 @@ impl FreeModifierSyntax {
 }
 
 impl BasicPredicate {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         let mut words = Vec::new();
         for term in self.leading_terms {
@@ -669,6 +707,8 @@ impl BasicPredicate {
 }
 
 impl PredicateTailContinuationSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.connective.words();
         words.extend(self.relation.words());
@@ -681,6 +721,8 @@ impl PredicateTailContinuationSyntax {
 }
 
 impl FragmentSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             FragmentSyntax::BeLink {
@@ -716,6 +758,8 @@ impl FragmentSyntax {
 }
 
 impl TermSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             TermSyntax::Argument(argument) => argument.words(),
@@ -737,6 +781,8 @@ impl TermSyntax {
 }
 
 impl MathExpressionSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             MathExpressionSyntax::Number(quantifier) => quantifier.words(),
@@ -748,6 +794,8 @@ impl MathExpressionSyntax {
 }
 
 impl ArgumentSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             ArgumentSyntax::Quote { quote } => quote.words(),
@@ -809,6 +857,8 @@ impl ArgumentSyntax {
 }
 
 impl GoiRelativeClauseSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         let mut words = vec![self.goi];
         words.extend(self.argument.words());
@@ -818,6 +868,8 @@ impl GoiRelativeClauseSyntax {
 }
 
 impl RelativeClauseSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             RelativeClauseSyntax::Goi(relative_clause) => relative_clause.words(),
@@ -836,6 +888,8 @@ impl RelativeClauseSyntax {
 }
 
 impl QuoteSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             QuoteSyntax::Lu {
@@ -870,6 +924,8 @@ impl QuoteSyntax {
 }
 
 impl DescriptorSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.descriptor.into_iter().collect::<Vec<_>>();
         for element in self.tail_elements {
@@ -887,12 +943,16 @@ impl DescriptorSyntax {
 }
 
 impl ConnectiveSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         [self.cmavo, self.nai.into_iter().collect()].concat()
     }
 }
 
 impl ArgumentTailElementSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             ArgumentTailElementSyntax::Argument(argument) => argument.words(),
@@ -902,12 +962,16 @@ impl ArgumentTailElementSyntax {
 }
 
 impl QuantifierSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         [self.number, self.boi.into_iter().collect()].concat()
     }
 }
 
 impl RelationSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             RelationSyntax::Connected {
@@ -985,6 +1049,8 @@ impl RelationSyntax {
 }
 
 impl RelationUnitSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             RelationUnitSyntax::Word { word } => vec![word],
@@ -1071,6 +1137,8 @@ impl RelationUnitSyntax {
 }
 
 impl AbstractionSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         let mut words = vec![self.nu];
         for term in self.subsentence_leading_terms {
@@ -1087,6 +1155,8 @@ impl AbstractionSyntax {
 }
 
 impl TenseModalSyntax {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             TenseModalSyntax::Pu { word } | TenseModalSyntax::Caha { word } => vec![word],
@@ -1116,6 +1186,8 @@ impl TenseModalSyntax {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn parse_statement(
     words: &[WordWithModifiers],
     source: Option<&str>,
@@ -1133,6 +1205,8 @@ fn parse_statement(
         .map_err(syntax_error)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'tokens, TextSyntax> {
     let mut text = Recursive::declare();
     let mut argument = Recursive::declare();
@@ -1417,6 +1491,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     text.then_ignore(end()).boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn empty_text() -> TextSyntax {
     TextSyntax {
         leading_nai: Vec::new(),
@@ -1429,6 +1505,8 @@ fn empty_text() -> TextSyntax {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn sei_free<'tokens, T, R>(term: T, relation: R) -> BoxedParser<'tokens, FreeModifierSyntax>
 where
     T: Parser<'tokens, ParserInput<'tokens>, TermSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
@@ -1451,6 +1529,8 @@ where
         .boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn to_free<'tokens, T, F>(text: T, free_modifier: F) -> BoxedParser<'tokens, FreeModifierSyntax>
 where
     T: Parser<'tokens, ParserInput<'tokens>, TextSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
@@ -1496,6 +1576,8 @@ where
     choice((empty_parenthetical, nonempty_parenthetical)).boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn argument_parser_with<'tokens, A, R, T>(
     argument: A,
     relation: R,
@@ -1671,6 +1753,8 @@ where
         .boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn implicit_zohe_argument() -> ArgumentSyntax {
     ArgumentSyntax::Zohe {
         tag_words: Vec::new(),
@@ -1678,6 +1762,8 @@ fn implicit_zohe_argument() -> ArgumentSyntax {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn quantifier<'tokens>() -> BoxedParser<'tokens, QuantifierSyntax> {
     pa_word()
         .repeated()
@@ -1688,6 +1774,8 @@ fn quantifier<'tokens>() -> BoxedParser<'tokens, QuantifierSyntax> {
         .boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn quote_argument<'tokens, T>(
     source: Option<&'tokens str>,
     text: T,
@@ -1766,6 +1854,8 @@ where
     choice((compound_quote, lu_quote)).boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn relative_clause<'tokens, R>(
     argument: impl Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>>
     + Clone
@@ -1787,6 +1877,8 @@ where
     choice((goi, noi)).boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn goi_relative_clause<'tokens, A>(argument: A) -> BoxedParser<'tokens, GoiRelativeClauseSyntax>
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
@@ -1802,6 +1894,8 @@ where
         .boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn simple_vocative_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
     let vocative_argument = choice((
         koha_argument().map(|koha| ArgumentSyntax::Koha { koha }),
@@ -1828,6 +1922,8 @@ fn simple_vocative_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
         .boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn vocative_free<'tokens, A, R>(
     argument: A,
     relation: R,
@@ -1859,6 +1955,8 @@ where
         .boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn vocative_markers<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
     let coi_marker = cmavo_of(
         "COI",
@@ -1886,6 +1984,8 @@ fn vocative_markers<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
     .boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     choice((
         cmavo_of("A", &["a", "e", "o", "u"])
@@ -1911,6 +2011,8 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     .boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn statement_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     choice((
         cmavo_of("JA", &["je'i", "ja", "je", "jo", "ju"])
@@ -1943,6 +2045,8 @@ fn statement_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     .boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     cmavo_of("GIhA", &["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"])
         .map(|cmavo| ConnectiveSyntax {
@@ -1953,6 +2057,8 @@ fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax
         .boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn relation_parser_with<'tokens, P, R>(
     argument: P,
     relation: R,
@@ -2203,6 +2309,8 @@ where
     choice((na_relation, co_relation)).boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn relation_units_inner<'tokens, P>(argument: P) -> BoxedParser<'tokens, RelationSyntax>
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
@@ -2310,6 +2418,7 @@ where
 }
 
 #[expensive_requires(!units.is_empty(), "relation unit sequences must be non-empty")]
+#[bityzba::ensures(true)]
 fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
     match units.as_slice() {
         [RelationUnitSyntax::Word { word }] => RelationSyntax::Base { word: word.clone() },
@@ -2363,6 +2472,8 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
     match unit {
         RelationUnitSyntax::Word { word } => RelationSyntax::Base { word: word.clone() },
@@ -2412,8 +2523,11 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
     #[derive(Clone)]
+    #[bityzba::invariant(true)]
     enum PuTail {
         Distance(WordWithModifiers),
         Caha(WordWithModifiers),
@@ -2512,10 +2626,14 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
     .boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn cmavo<'tokens>(text: &'static str) -> BoxedParser<'tokens, WordWithModifiers> {
     token_matching("cmavo", move |word| cmavo_text_matches(word, text))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn cmavo_of<'tokens>(
     label: &'static str,
     texts: &'static [&'static str],
@@ -2525,6 +2643,8 @@ fn cmavo_of<'tokens>(
     })
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn le_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     cmavo_of(
         "LE",
@@ -2532,10 +2652,14 @@ fn le_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn la_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     cmavo_of("LA", &["lai", "la'i", "la"])
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn lahe_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     cmavo_of(
         "LAhE",
@@ -2543,30 +2667,44 @@ fn lahe_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn leading_indicator<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     cmavo_of("UI", UI_WORDS)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn pa_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     cmavo_of("PA", PA_WORDS)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn koha_argument<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     token_matching("KOhA argument", is_koha_argument)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn relation_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     token_matching("relation word", is_relation_word)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn cmevla_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     token_matching("CMEVLA", is_cmevla_word)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn letter_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
     token_matching("letter word", is_letter_word)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn token_matching<'tokens>(
     label: &'static str,
     predicate: impl Fn(&WordWithModifiers) -> bool + Clone + 'tokens,
@@ -2586,10 +2724,14 @@ fn token_matching<'tokens>(
     .boxed()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_koha_argument(word: &WordWithModifiers) -> bool {
     KOHA_WORDS.iter().any(|text| cmavo_text_matches(word, text))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_relation_word(word: &WordWithModifiers) -> bool {
     match word.as_data() {
         data!(WordWithModifiers::WithIndicator { base, .. }) => return is_relation_word(base),
@@ -2613,6 +2755,8 @@ fn is_relation_word(word: &WordWithModifiers) -> bool {
     })
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_cmevla_word(word: &WordWithModifiers) -> bool {
     match word.as_data() {
         data!(WordWithModifiers::BaseWord { word_like })
@@ -2626,6 +2770,8 @@ fn is_cmevla_word(word: &WordWithModifiers) -> bool {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_letter_word(word: &WordWithModifiers) -> bool {
     match word.as_data() {
         data!(WordWithModifiers::BaseWord { word_like })
@@ -2681,6 +2827,8 @@ fn is_letter_word(word: &WordWithModifiers) -> bool {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn word_like_kind(word_like: &WordLike) -> Option<WordKind> {
     let data!(WordLike::Bare { word }) = word_like.as_data() else {
         return None;
@@ -2688,6 +2836,8 @@ fn word_like_kind(word_like: &WordLike) -> Option<WordKind> {
     Some(word.kind)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn cmavo_text_matches(word: &WordWithModifiers, expected: &str) -> bool {
     match word.as_data() {
         data!(WordWithModifiers::BaseWord { word_like })
@@ -2702,6 +2852,8 @@ fn cmavo_text_matches(word: &WordWithModifiers, expected: &str) -> bool {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn word_like_cmavo_text_matches(word_like: &WordLike, expected: &str) -> bool {
     match word_like.as_data() {
         data!(WordLike::Bare { word }) => word_record_text_matches(word, expected),
@@ -2709,10 +2861,14 @@ fn word_like_cmavo_text_matches(word_like: &WordLike, expected: &str) -> bool {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn word_record_text_matches(word: &jbotci_morphology::Word, expected: &str) -> bool {
     word.kind == WordKind::Cmavo && phonemes_match_syntax_text(&word.phonemes, expected)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn phonemes_match_syntax_text(actual: &str, expected: &str) -> bool {
     actual == expected
         || actual
@@ -2725,6 +2881,8 @@ fn phonemes_match_syntax_text(actual: &str, expected: &str) -> bool {
             .eq(expected.chars())
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn bare_word_kind_and_phonemes(word: &WordWithModifiers) -> Option<(WordKind, &str)> {
     let data!(WordWithModifiers::BaseWord { word_like }) = word.as_data() else {
         return None;
@@ -2735,10 +2893,14 @@ fn bare_word_kind_and_phonemes(word: &WordWithModifiers) -> Option<(WordKind, &s
     Some((word.kind, word.phonemes.as_str()))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn base_word_from_record(word: Word) -> WordWithModifiers {
     WordWithModifiers::base_word(WordLike::bare(word))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn source_text(source: Option<&str>, span: &SourceSpan) -> String {
     source
         .and_then(|source| source.get(span.byte_start..span.byte_end))
@@ -2746,6 +2908,8 @@ fn source_text(source: Option<&str>, span: &SourceSpan) -> String {
         .to_owned()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn lojban_text_tree(text: TextSyntax) -> SyntaxValue {
     node(
         "LojbanText",
@@ -2817,6 +2981,8 @@ fn lojban_text_tree(text: TextSyntax) -> SyntaxValue {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn paragraph_statement_tree(statement: ParagraphStatementSyntax) -> SyntaxValue {
     node(
         "ParagraphStatement",
@@ -2848,6 +3014,8 @@ fn paragraph_statement_tree(statement: ParagraphStatementSyntax) -> SyntaxValue 
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn free_modifier_tree(free_modifier: FreeModifierSyntax) -> SyntaxValue {
     match free_modifier {
         FreeModifierSyntax::Sei {
@@ -2931,6 +3099,8 @@ fn free_modifier_tree(free_modifier: FreeModifierSyntax) -> SyntaxValue {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn statement_tree(statement: StatementSyntax) -> SyntaxValue {
     match statement {
         StatementSyntax::Prenex {
@@ -2974,6 +3144,8 @@ fn statement_tree(statement: StatementSyntax) -> SyntaxValue {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
     match fragment {
         FragmentSyntax::BeLink {
@@ -3038,6 +3210,8 @@ fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn goi_relative_clause_tree(relative_clause: GoiRelativeClauseSyntax) -> SyntaxValue {
     node(
         "GoiRelativeClause",
@@ -3051,6 +3225,8 @@ fn goi_relative_clause_tree(relative_clause: GoiRelativeClauseSyntax) -> SyntaxV
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn predicate_tree(predicate: BasicPredicate) -> SyntaxValue {
     node(
         "Predicate",
@@ -3126,6 +3302,8 @@ fn predicate_tree(predicate: BasicPredicate) -> SyntaxValue {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn predicate_tail_continuation_tree(continuation: PredicateTailContinuationSyntax) -> SyntaxValue {
     node(
         "PredicateTailContinuation",
@@ -3167,6 +3345,8 @@ fn predicate_tail_continuation_tree(continuation: PredicateTailContinuationSynta
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn term_tree(term: TermSyntax) -> SyntaxValue {
     match term {
         TermSyntax::Argument(argument) => node(
@@ -3197,6 +3377,8 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
     match argument {
         ArgumentSyntax::Quote { quote } => node(
@@ -3343,6 +3525,8 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn relative_clause_tree(relative_clause: RelativeClauseSyntax) -> SyntaxValue {
     match relative_clause {
         RelativeClauseSyntax::Goi(relative_clause) => goi_relative_clause_tree(relative_clause),
@@ -3391,6 +3575,8 @@ fn relative_clause_tree(relative_clause: RelativeClauseSyntax) -> SyntaxValue {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn quote_tree(quote: QuoteSyntax) -> SyntaxValue {
     match quote {
         QuoteSyntax::Lu {
@@ -3461,6 +3647,8 @@ fn quote_tree(quote: QuoteSyntax) -> SyntaxValue {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn descriptor_tree(descriptor: DescriptorSyntax) -> SyntaxValue {
     node(
         "Descriptor",
@@ -3505,6 +3693,8 @@ fn descriptor_tree(descriptor: DescriptorSyntax) -> SyntaxValue {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn connective_tree(connective: ConnectiveSyntax) -> SyntaxValue {
     let kind = match connective.kind {
         ConnectiveKind::Afterthought => "AfterthoughtConnective",
@@ -3531,6 +3721,8 @@ fn connective_tree(connective: ConnectiveSyntax) -> SyntaxValue {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn argument_tail_element_tree(element: ArgumentTailElementSyntax) -> SyntaxValue {
     match element {
         ArgumentTailElementSyntax::Argument(argument) => node(
@@ -3544,6 +3736,8 @@ fn argument_tail_element_tree(element: ArgumentTailElementSyntax) -> SyntaxValue
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn quantifier_tree(quantifier: QuantifierSyntax) -> SyntaxValue {
     node(
         "NumberQuantifier",
@@ -3558,6 +3752,8 @@ fn quantifier_tree(quantifier: QuantifierSyntax) -> SyntaxValue {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn quantifier_expression_tree(quantifier: QuantifierSyntax) -> SyntaxValue {
     node(
         "NumberExpression",
@@ -3572,6 +3768,8 @@ fn quantifier_expression_tree(quantifier: QuantifierSyntax) -> SyntaxValue {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
     match expression {
         MathExpressionSyntax::Number(quantifier) => quantifier_expression_tree(quantifier),
@@ -3586,6 +3784,8 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn relation_tree(relation: RelationSyntax) -> SyntaxValue {
     match relation {
         RelationSyntax::Connected {
@@ -3698,6 +3898,8 @@ fn relation_tree(relation: RelationSyntax) -> SyntaxValue {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn abstraction_tree(abstraction: AbstractionSyntax) -> SyntaxValue {
     node(
         "Abstraction",
@@ -3726,6 +3928,8 @@ fn abstraction_tree(abstraction: AbstractionSyntax) -> SyntaxValue {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
     let leaves = tense_modal.clone().words();
     let (time, space, simple, interval, zaho, caha) = match tense_modal {
@@ -3933,6 +4137,8 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn nonempty_relation_units(units: Vec<RelationUnitSyntax>) -> SyntaxValue {
     let mut rendered = units
         .into_iter()
@@ -3946,6 +4152,8 @@ fn nonempty_relation_units(units: Vec<RelationUnitSyntax>) -> SyntaxValue {
     plain_list(vec![rendered.remove(0), list(tail)])
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn nonempty_letter_words(words: Vec<WordWithModifiers>) -> SyntaxValue {
     let mut rendered = words.into_iter().map(letter_word_value).collect::<Vec<_>>();
     if rendered.len() <= 1 {
@@ -3956,10 +4164,14 @@ fn nonempty_letter_words(words: Vec<WordWithModifiers>) -> SyntaxValue {
     plain_list(vec![rendered.remove(0), list(tail)])
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn letter_word_value(word: WordWithModifiers) -> SyntaxValue {
     syntax_word_value(normalize_cmavo_i(normalize_syntax_word(word)))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
     match unit {
         RelationUnitSyntax::Word { word } => node(
@@ -4105,30 +4317,44 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn maybe_word(word: Option<WordWithModifiers>) -> SyntaxValue {
     word.map_or_else(nothing, |word| just(word_value(word)))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn word_value(word: WordWithModifiers) -> SyntaxValue {
     syntax_word_value(normalize_syntax_word(word))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn gadri_word_value(word: WordWithModifiers) -> SyntaxValue {
     syntax_word_value(normalize_cmavo_i(normalize_syntax_word(word)))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn vocative_marker_value(word: WordWithModifiers) -> SyntaxValue {
     syntax_word_value(normalize_syntax_word(word))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn name_word_value(word: WordWithModifiers) -> SyntaxValue {
     syntax_word_value(normalize_syntax_word(word))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn syntax_word_value(word: WordWithModifiers) -> SyntaxValue {
     SyntaxValue::word(word)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn normalize_cmavo_i(word: WordWithModifiers) -> WordWithModifiers {
     match word.into_data() {
         data!(WordWithModifiers::BaseWord { word_like }) => {
@@ -4156,6 +4382,8 @@ fn normalize_cmavo_i(word: WordWithModifiers) -> WordWithModifiers {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn normalize_word_like_cmavo_i(word_like: WordLike) -> WordLike {
     match word_like.into_data() {
         data!(WordLike::Bare { word }) => WordLike::bare(normalize_word_record_cmavo_i(*word)),
@@ -4163,6 +4391,8 @@ fn normalize_word_like_cmavo_i(word_like: WordLike) -> WordLike {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn normalize_word_record_cmavo_i(word: jbotci_morphology::Word) -> jbotci_morphology::Word {
     if word.kind == WordKind::Cmavo {
         let phonemes = word
@@ -4182,6 +4412,8 @@ fn normalize_word_record_cmavo_i(word: jbotci_morphology::Word) -> jbotci_morpho
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn normalize_syntax_word(word: WordWithModifiers) -> WordWithModifiers {
     match word.into_data() {
         data!(WordWithModifiers::BaseWord { word_like }) => {
@@ -4207,6 +4439,8 @@ fn normalize_syntax_word(word: WordWithModifiers) -> WordWithModifiers {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn normalize_syntax_word_like(word_like: WordLike) -> WordLike {
     match word_like.into_data() {
         data!(WordLike::Bare { word }) => WordLike::bare(normalize_syntax_word_record(*word)),
@@ -4253,14 +4487,20 @@ fn normalize_syntax_word_like(word_like: WordLike) -> WordLike {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn normalize_syntax_word_record(word: jbotci_morphology::Word) -> jbotci_morphology::Word {
     word
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn node(constructor: impl AsRef<str>, fields: Vec<SyntaxField>) -> SyntaxValue {
     SyntaxValue::node(constructor.as_ref().to_owned(), fields)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn field(name: impl AsRef<str>, value: SyntaxValue) -> SyntaxField {
     new!(SyntaxField {
         name: Some(name.as_ref().to_owned()),
@@ -4268,6 +4508,8 @@ fn field(name: impl AsRef<str>, value: SyntaxValue) -> SyntaxField {
     })
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn unnamed_field(value: SyntaxValue) -> SyntaxField {
     new!(SyntaxField {
         name: None,
@@ -4275,22 +4517,32 @@ fn unnamed_field(value: SyntaxValue) -> SyntaxField {
     })
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn just(value: SyntaxValue) -> SyntaxValue {
     node("Just", vec![unnamed_field(value)])
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn nothing() -> SyntaxValue {
     node("Nothing", Vec::new())
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn nil() -> SyntaxValue {
     node("[]", Vec::new())
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn plain_list(items: Vec<SyntaxValue>) -> SyntaxValue {
     SyntaxValue::list(items)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn list(items: Vec<SyntaxValue>) -> SyntaxValue {
     items.into_iter().rfold(nil(), |tail, head| {
         node("(:)", vec![unnamed_field(head), unnamed_field(tail)])
@@ -4298,6 +4550,7 @@ fn list(items: Vec<SyntaxValue>) -> SyntaxValue {
 }
 
 #[expensive_ensures(ret.iter().all(|token| token.span.start <= token.span.end))]
+#[bityzba::requires(true)]
 fn spanned_tokens(words: &[WordWithModifiers]) -> Vec<SpannedToken> {
     words
         .iter()
@@ -4313,6 +4566,7 @@ fn spanned_tokens(words: &[WordWithModifiers]) -> Vec<SpannedToken> {
 }
 
 #[expensive_ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
+#[bityzba::requires(true)]
 fn word_byte_range(word: &WordWithModifiers) -> Option<Range<usize>> {
     match word.as_data() {
         data!(WordWithModifiers::BaseWord { word_like }) => word_like_byte_range(word_like),
@@ -4339,6 +4593,7 @@ fn word_byte_range(word: &WordWithModifiers) -> Option<Range<usize>> {
 }
 
 #[expensive_ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
+#[bityzba::requires(true)]
 fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
     match word_like.as_data() {
         data!(WordLike::Bare { word }) => Some(word.span.byte_start..word.span.byte_end),
@@ -4365,6 +4620,7 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
 }
 
 #[expensive_ensures(matches!(ret, SyntaxError::Parse { ref reason, .. } if !reason.is_empty()) || !matches!(ret, SyntaxError::Parse { .. }))]
+#[bityzba::requires(true)]
 fn syntax_error(errors: Vec<Rich<'_, WordWithModifiers, Span>>) -> SyntaxError {
     let Some(error) = errors.into_iter().next() else {
         return SyntaxError::Parse {
@@ -4393,6 +4649,8 @@ mod tests {
     use super::*;
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn parses_basic_predicate_with_leading_and_tail_terms() {
         let words = segment_words_with_modifiers("do mamta mi").expect("valid morphology");
 
@@ -4405,6 +4663,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn rejects_stray_cu() {
         let words = segment_words_with_modifiers("cu").expect("valid morphology");
 

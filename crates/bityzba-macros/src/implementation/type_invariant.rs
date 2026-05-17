@@ -5,7 +5,8 @@
 use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
-    Attribute, Fields, FieldsNamed, GenericParam, Generics, Ident, ItemEnum, ItemStruct, Visibility,
+    Attribute, Expr, ExprLit, Fields, FieldsNamed, GenericParam, Generics, Ident, ItemEnum,
+    ItemStruct, Lit, Visibility,
 };
 
 use crate::implementation::{Contract, ContractMode, ContractType};
@@ -13,10 +14,21 @@ use crate::implementation::{Contract, ContractMode, ContractType};
 pub(crate) fn invariant_struct(
     mode: ContractMode,
     attr: TokenStream,
-    item: ItemStruct,
+    mut item: ItemStruct,
 ) -> TokenStream {
+    let contracts = collect_type_invariants(mode, attr, &mut item.attrs);
+    let option_errors = collect_type_option_errors(&mut item.attrs);
+    if contracts_are_true_marker(&contracts) {
+        return quote! {
+            #(#option_errors)*
+            #item
+        };
+    }
+
     match &item.fields {
-        Fields::Named(fields) => generate_struct(mode, attr, item.clone(), fields.clone()),
+        Fields::Named(fields) => {
+            generate_struct(contracts, option_errors, item.clone(), fields.clone())
+        }
         _ => syn::Error::new_spanned(
             item.ident,
             "type-level #[invariant] currently requires a struct with named fields",
@@ -25,18 +37,29 @@ pub(crate) fn invariant_struct(
     }
 }
 
-pub(crate) fn invariant_enum(mode: ContractMode, attr: TokenStream, item: ItemEnum) -> TokenStream {
-    generate_enum(mode, attr, item)
-}
-
-fn generate_struct(
+pub(crate) fn invariant_enum(
     mode: ContractMode,
     attr: TokenStream,
-    mut item: ItemStruct,
-    fields: FieldsNamed,
+    mut item: ItemEnum,
 ) -> TokenStream {
     let contracts = collect_type_invariants(mode, attr, &mut item.attrs);
     let option_errors = collect_type_option_errors(&mut item.attrs);
+    if contracts_are_true_marker(&contracts) {
+        return quote! {
+            #(#option_errors)*
+            #item
+        };
+    }
+
+    generate_enum(contracts, option_errors, item)
+}
+
+fn generate_struct(
+    contracts: Vec<Contract>,
+    option_errors: Vec<TokenStream>,
+    item: ItemStruct,
+    fields: FieldsNamed,
+) -> TokenStream {
     let shape = TypeShape::new(&item.ident, &item.vis, &item.generics, &item.attrs);
     let generics = &item.generics;
     let data_attrs = item.attrs.clone();
@@ -341,9 +364,11 @@ fn generate_struct(
     }
 }
 
-fn generate_enum(mode: ContractMode, attr: TokenStream, mut item: ItemEnum) -> TokenStream {
-    let contracts = collect_type_invariants(mode, attr, &mut item.attrs);
-    let option_errors = collect_type_option_errors(&mut item.attrs);
+fn generate_enum(
+    contracts: Vec<Contract>,
+    option_errors: Vec<TokenStream>,
+    item: ItemEnum,
+) -> TokenStream {
     let shape = TypeShape::new(&item.ident, &item.vis, &item.generics, &item.attrs);
     let data_attrs = item.attrs.clone();
     let data_ident = shape.data_ident.clone();
@@ -539,6 +564,22 @@ fn invariant_docs(contracts: &[Contract]) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+fn contracts_are_true_marker(contracts: &[Contract]) -> bool {
+    contracts.iter().all(|contract| {
+        !contract.assertions.is_empty() && contract.assertions.iter().all(is_true_literal)
+    })
+}
+
+fn is_true_literal(expr: &Expr) -> bool {
+    matches!(
+        expr,
+        Expr::Lit(ExprLit {
+            lit: Lit::Bool(value),
+            ..
+        }) if value.value
+    )
 }
 
 fn generic_arguments(generics: &Generics) -> Vec<TokenStream> {

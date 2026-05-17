@@ -12,9 +12,13 @@ repository.workspace = true
 expensive_contracts = []
 
 [dependencies]
+bityzba.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 jbotci-morphology.workspace = true
+
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
 
 [lints]
 workspace = true

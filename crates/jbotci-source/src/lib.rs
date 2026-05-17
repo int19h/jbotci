@@ -7,6 +7,7 @@ use thiserror::Error;
 /// Stable identifier for an input source.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
+#[bityzba::invariant(true)]
 pub struct SourceId(pub String);
 
 /// One-indexed line and column in source text.
@@ -19,6 +20,8 @@ pub struct LineColumn {
 }
 
 impl LineColumn {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn new(line: usize, column: usize) -> Result<Self, SourceLocationError> {
         if line == 0 {
             return Err(SourceLocationError::ZeroLine);
@@ -53,6 +56,8 @@ pub struct SourceSpan {
 }
 
 impl SourceSpan {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn new(
         source_id: Option<SourceId>,
         byte_start: usize,
@@ -83,14 +88,20 @@ impl SourceSpan {
         })))
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn byte_len(&self) -> usize {
         self.byte_end - self.byte_start
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn char_len(&self) -> usize {
         self.char_end - self.char_start
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn is_empty(&self) -> bool {
         self.byte_start == self.byte_end && self.char_start == self.char_end
     }
@@ -98,12 +109,14 @@ impl SourceSpan {
 
 /// A value with source provenance attached.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[bityzba::invariant(true)]
 pub struct Spanned<T> {
     pub span: SourceSpan,
     pub value: T,
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 pub enum SourceLocationError {
     #[error("line numbers are one-indexed and cannot be zero")]
     ZeroLine,
@@ -120,6 +133,8 @@ mod tests {
     use super::*;
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn span_rejects_inverted_ranges() {
         assert!(matches!(
             SourceSpan::new(None, 4, 3, 0, 0),
@@ -132,6 +147,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn deserialization_rejects_invalid_spans() {
         let error = serde_json::from_str::<SourceSpan>(
             r#"{

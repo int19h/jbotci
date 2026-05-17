@@ -5,6 +5,7 @@ members = [
     "apps/jbotci-server",
     "crates/jbotci-cll",
     "crates/bityzba",
+    "crates/bityzba-macros",
     "crates/jbotci-dialect",
     "crates/jbotci-dictionary",
     "crates/jbotci-jvozba",
@@ -40,6 +41,9 @@ publish = false
 [features]
 expensive_contracts = []
 
+[dependencies]
+bityzba.workspace = true
+
 [workspace.dependencies]
 anyhow = "1"
 chumsky = { version = "0.13", features = ["memoization"] }
@@ -54,6 +58,7 @@ walkdir = "2"
 
 jbotci-cll = { path = "crates/jbotci-cll" }
 bityzba = { path = "crates/bityzba" }
+bityzba-macros = { path = "crates/bityzba-macros" }
 jbotci-dialect = { path = "crates/jbotci-dialect" }
 jbotci-dictionary = { path = "crates/jbotci-dictionary" }
 jbotci-jvozba = { path = "crates/jbotci-jvozba" }
@@ -77,6 +82,9 @@ rayon.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 walkdir.workspace = true
+
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
 
 [lints]
 workspace = true

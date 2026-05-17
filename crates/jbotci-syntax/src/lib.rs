@@ -8,12 +8,14 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[bityzba::invariant(true)]
 pub struct TraceOptions {
     pub level: u8,
     pub filter: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[bityzba::invariant(true)]
 pub struct ParseOptions {
     pub trace: TraceOptions,
 }
@@ -56,10 +58,14 @@ pub enum Statement {
 }
 
 impl Statement {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn fragment(fragment: Fragment) -> Self {
         new!(Statement::Fragment { fragment: fragment })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn placeholder() -> Self {
         new!(Statement::Placeholder)
     }
@@ -73,6 +79,8 @@ pub enum Fragment {
 }
 
 impl Fragment {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn other(words: Vec<WordWithModifiers>) -> Self {
         new!(Fragment::Other { words: words })
     }
@@ -86,6 +94,8 @@ pub enum FreeModifier {
 }
 
 impl FreeModifier {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn words(words: Vec<WordWithModifiers>) -> Self {
         new!(FreeModifier::Words { words: words })
     }
@@ -99,12 +109,15 @@ pub enum Connective {
 }
 
 impl Connective {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn words(words: Vec<WordWithModifiers>) -> Self {
         new!(Connective::Words { words: words })
     }
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 pub enum SyntaxError {
     #[error("syntax parsing is not implemented yet")]
     NotImplemented,
@@ -112,6 +125,8 @@ pub enum SyntaxError {
     Parse { byte_offset: usize, reason: String },
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn parse_text(
     words: &[WordWithModifiers],
     options: &ParseOptions,
@@ -139,6 +154,8 @@ pub enum SyntaxWarning {
 }
 
 impl SyntaxWarning {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn experimental_construct(
         construct: impl Into<String>,
         anchor_index: usize,
@@ -152,10 +169,14 @@ impl SyntaxWarning {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn parse_syntax_tree(words: &[WordWithModifiers]) -> Result<SyntaxParse, SyntaxError> {
     parse_syntax_tree_with_options(words, &ParseOptions::default())
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn parse_syntax_tree_with_options(
     words: &[WordWithModifiers],
     options: &ParseOptions,
@@ -163,6 +184,8 @@ pub fn parse_syntax_tree_with_options(
     grammar::parse_syntax_tree(words, options)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn parse_syntax_tree_with_source_and_options(
     words: &[WordWithModifiers],
     source: &str,
@@ -216,28 +239,40 @@ pub enum SyntaxValue {
 }
 
 impl SyntaxValue {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn null() -> Self {
         new!(SyntaxValue::Null)
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn r#bool(value: bool) -> Self {
         new!(SyntaxValue::Bool { value: value })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn integer(value: i64) -> Self {
         new!(SyntaxValue::Integer { value: value })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn text(value: impl Into<String>) -> Self {
         new!(SyntaxValue::Text {
             value: value.into(),
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn list(items: Vec<SyntaxValue>) -> Self {
         new!(SyntaxValue::List { items: items })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn node(constructor: impl Into<String>, fields: Vec<SyntaxField>) -> Self {
         new!(SyntaxValue::Node {
             node: Box::new(new!(SyntaxNode {
@@ -247,17 +282,23 @@ impl SyntaxValue {
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn word(word: WordWithModifiers) -> Self {
         new!(SyntaxValue::Word {
             word: Box::new(word),
         })
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub fn json(value: serde_json::Value) -> Self {
         new!(SyntaxValue::Json { value: value })
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn syntax_values_equivalent(left: &SyntaxValue, right: &SyntaxValue) -> bool {
     match (left.as_data(), right.as_data()) {
         (data!(SyntaxValue::Null), data!(SyntaxValue::Null)) => true,
@@ -300,6 +341,8 @@ pub fn syntax_values_equivalent(left: &SyntaxValue, right: &SyntaxValue) -> bool
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn lojban_text_data_is_valid(data: &LojbanTextData) -> bool {
     data.leading_free_modifiers
         .iter()
@@ -314,6 +357,8 @@ fn lojban_text_data_is_valid(data: &LojbanTextData) -> bool {
             .all(|paragraph| paragraph_data_is_valid(paragraph.as_data()))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn paragraph_data_is_valid(data: &ParagraphData) -> bool {
     data.free_modifiers
         .iter()
@@ -324,6 +369,8 @@ fn paragraph_data_is_valid(data: &ParagraphData) -> bool {
             .all(|statement| paragraph_statement_data_is_valid(statement.as_data()))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn paragraph_statement_data_is_valid(data: &ParagraphStatementData) -> bool {
     data.connective
         .as_ref()
@@ -338,6 +385,8 @@ fn paragraph_statement_data_is_valid(data: &ParagraphStatementData) -> bool {
             .is_none_or(|statement| statement_data_is_valid(statement.as_data()))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn statement_data_is_valid(data: &StatementData) -> bool {
     match data {
         data!(Statement::Fragment { fragment }) => fragment_data_is_valid(fragment.as_data()),
@@ -345,24 +394,32 @@ fn statement_data_is_valid(data: &StatementData) -> bool {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn fragment_data_is_valid(data: &FragmentData) -> bool {
     match data {
         data!(Fragment::Other { words: _ }) => true,
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn free_modifier_data_is_valid(data: &FreeModifierData) -> bool {
     match data {
         data!(FreeModifier::Words { words: _ }) => true,
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn connective_data_is_valid(data: &ConnectiveData) -> bool {
     match data {
         data!(Connective::Words { words: _ }) => true,
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn syntax_parse_data_is_valid(data: &SyntaxParseData) -> bool {
     syntax_value_data_is_valid(data.parse_tree.as_data())
         && data
@@ -371,26 +428,36 @@ fn syntax_parse_data_is_valid(data: &SyntaxParseData) -> bool {
             .all(|warning| syntax_warning_data_is_valid(warning.as_data()))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn syntax_warning_data_is_valid(data: &SyntaxWarningData) -> bool {
     match data {
         data!(SyntaxWarning::ExperimentalConstruct { construct, .. }) => !construct.is_empty(),
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn syntax_tree_data_is_valid(data: &SyntaxTreeData) -> bool {
     syntax_value_data_is_valid(data.root.as_data())
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn syntax_node_data_is_valid(data: &SyntaxNodeData) -> bool {
     data.fields
         .iter()
         .all(|field| syntax_field_data_is_valid(field.as_data()))
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn syntax_field_data_is_valid(data: &SyntaxFieldData) -> bool {
     syntax_value_data_is_valid(data.value.as_data())
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn syntax_value_data_is_valid(data: &SyntaxValueData) -> bool {
     match data {
         data!(SyntaxValue::Null)
@@ -411,6 +478,8 @@ mod tests {
     use super::*;
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn syntax_value_validity_rejects_empty_constructor() {
         let error = bityzba::try_new!(SyntaxNode {
             constructor: String::new(),
@@ -426,6 +495,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn syntax_field_rejects_empty_name() {
         let error = bityzba::try_new!(SyntaxField {
             name: Some(String::new()),
@@ -442,6 +513,8 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn syntax_node_constructor_contract_is_reported() {
         let _ = SyntaxValue::node("", Vec::new());
     }

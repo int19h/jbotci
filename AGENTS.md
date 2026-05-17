@@ -46,11 +46,13 @@ If you add debug logging that is broadly useful beyond a one-off investigation, 
 
 # Design by contract
 
-Use `bityzba` for design by contract throughout the workspace, including private functions, trait methods, `impl` methods, and public model types. Import the macros you need from `bityzba::{requires, ensures, invariant, contract_trait, expensive_requires, expensive_ensures, expensive_invariant, data, new, try_new}`.
+Use `bityzba` for design by contract throughout the workspace, including private functions, trait methods, `impl` methods, and public model types. `bityzba` is the public facade crate; `bityzba-macros` is an implementation detail and should not be imported directly. Import the macros you need from `bityzba::{requires, ensures, invariant, contract_trait, expensive_requires, expensive_ensures, expensive_invariant, data, new, try_new}`.
 
 Cheap contracts use `requires`, `ensures`, and `invariant`; they run in normal builds and should be cheap enough for routine execution. Expensive contracts use `expensive_requires`, `expensive_ensures`, and `expensive_invariant`; they are disabled by default and enabled by `cargo test --workspace --all-targets --features expensive_contracts -j 16 -- --test-threads=16`. Do not use `test_requires`, `test_ensures`, or `test_invariant` for production expensive contracts; reserve them for genuinely test-only APIs.
 
-Keep contracts in mind whenever writing or touching code. Capture preconditions, postconditions, type invariants, and function or `impl` invariants where they make correctness assumptions explicit. Prefer correctness by construction over downstream validity checks: if a public model type has an invariant, put `#[invariant]` on the type and construct it through generated validation APIs instead of exposing public `is_valid()`.
+Keep contracts in mind whenever writing or touching code. Capture preconditions, postconditions, type invariants, and function or `impl` invariants where they make correctness assumptions explicit. The build-time contract scanner requires every function and method to have both a precondition marker and a postcondition marker, and every struct or enum to have an invariant marker. Reason about the real contract first. Use `#[requires(true)]`, `#[ensures(true)]`, or `#[invariant(true)]` only when there is genuinely no stronger useful contract beyond what the types already express.
+
+Prefer correctness by construction over downstream validity checks: if a public model type has an invariant, put `#[invariant]` on the type and construct it through generated validation APIs instead of exposing public `is_valid()`. On data types, `#[invariant(true)]` and `#[expensive_invariant(true)]` are explicit audited no-op markers and do not generate wrapper/data APIs.
 
 ```rust
 use bityzba::{
@@ -66,6 +68,7 @@ trait RandomSource {
     fn gen(&self, min: f64, max: f64) -> f64;
 
     #[expensive_requires(weights.iter().all(|weight| *weight > 0.0))]
+    #[ensures(true)]
     fn choose(&self, weights: &[f64]) -> usize;
 }
 
@@ -80,11 +83,13 @@ impl RandomSource for AlwaysMax {
     }
 }
 
+#[requires(true)]
 #[ensures(*x == old(*x) + 1, "after the call `x` was incremented")]
 fn incr(x: &mut usize) {
     *x += 1;
 }
 
+#[requires(true)]
 #[ensures(person_name.is_some() -> ret.contains(person_name.unwrap()))]
 fn greeting(person_name: Option<&str>) -> String {
     let mut s = String::from("Hello");
@@ -110,6 +115,7 @@ pub struct SourceSpan {
 }
 
 impl SourceSpan {
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|span| span.byte_start == byte_start))]
     pub fn new(
         source_id: Option<SourceId>,
@@ -198,6 +204,8 @@ match value.as_data() {
 `data!(Type { ... })` and `TypeData` are unchecked escape hatches for serde internals, low-level tests, fixtures, and rare advanced code. They obey normal Rust privacy; use `new!` for public construction of structs with private fields.
 
 Use cheap contracts for local scalar checks, shape checks already needed by callers, and invariants that are constant-time or close to it. Use expensive contracts for corpus-wide validation, deep tree walks, normalization cross-checks, semantic equivalence checks, and any contract that allocates, traverses large collections, calls parsers, or performs work that would be inappropriate in normal builds.
+
+All non-bityzba workspace crates run `bityzba::require_contracts().unwrap()` from `build.rs` with the `contract_scanner` feature enabled. The scanner is syntactic: it checks explicit source attributes under `src`, `tests`, `benches`, `examples`, and `build.rs`; it does not inspect macro expansions and does not count contracts hidden inside `cfg_attr`.
 
 
 # CLL Errata: Commas and Glides

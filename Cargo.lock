@@ -86,12 +86,22 @@ dependencies = [
 name = "bityzba"
 version = "0.1.0"
 dependencies = [
+ "bityzba-macros",
  "proc-macro2",
- "quote",
  "serde",
  "serde_json",
  "syn",
  "trybuild",
+ "walkdir",
+]
+
+[[package]]
+name = "bityzba-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -275,6 +285,7 @@ name = "jbotci"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bityzba",
  "clap",
  "jbotci-morphology",
  "jbotci-output",
@@ -286,6 +297,7 @@ dependencies = [
 name = "jbotci-cll"
 version = "0.1.0"
 dependencies = [
+ "bityzba",
  "serde",
  "thiserror",
 ]
@@ -303,6 +315,7 @@ dependencies = [
 name = "jbotci-dictionary"
 version = "0.1.0"
 dependencies = [
+ "bityzba",
  "jbotci-morphology",
  "serde",
  "thiserror",
@@ -312,6 +325,7 @@ dependencies = [
 name = "jbotci-jvozba"
 version = "0.1.0"
 dependencies = [
+ "bityzba",
  "jbotci-morphology",
  "serde",
  "thiserror",
@@ -334,6 +348,7 @@ dependencies = [
 name = "jbotci-output"
 version = "0.1.0"
 dependencies = [
+ "bityzba",
  "jbotci-semantics",
  "jbotci-syntax",
  "serde",
@@ -344,6 +359,7 @@ dependencies = [
 name = "jbotci-search"
 version = "0.1.0"
 dependencies = [
+ "bityzba",
  "serde",
  "thiserror",
 ]
@@ -352,6 +368,7 @@ dependencies = [
 name = "jbotci-semantics"
 version = "0.1.0"
 dependencies = [
+ "bityzba",
  "jbotci-source",
  "jbotci-syntax",
  "serde",
@@ -363,6 +380,7 @@ name = "jbotci-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bityzba",
  "clap",
 ]
 

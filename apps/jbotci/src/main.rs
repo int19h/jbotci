@@ -11,12 +11,14 @@ use jbotci_syntax::parse_syntax_tree;
 #[derive(Debug, Parser)]
 #[command(name = "jbotci")]
 #[command(about = "Command-line Lojban toolkit")]
+#[bityzba::invariant(true)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
 }
 
 #[derive(Debug, Subcommand)]
+#[bityzba::invariant(true)]
 enum Command {
     #[command(name = "vlasei", visible_alias = "lex")]
     Vlasei(TextInput),
@@ -37,6 +39,7 @@ enum Command {
 }
 
 #[derive(Debug, Args)]
+#[bityzba::invariant(true)]
 struct TextInput {
     #[arg(long = "file", alias = "sfaile")]
     file: Option<PathBuf>,
@@ -53,6 +56,8 @@ struct TextInput {
 }
 
 impl TextInput {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn read_text(&self) -> Result<String> {
         match (&self.file, self.text.is_empty()) {
             (Some(path), _) => fs::read_to_string(path)
@@ -71,6 +76,7 @@ impl TextInput {
 }
 
 #[derive(Debug, Args)]
+#[bityzba::invariant(true)]
 struct SearchInput {
     #[arg(short = 'n', long = "count")]
     count: Option<usize>,
@@ -85,6 +91,7 @@ struct SearchInput {
 }
 
 #[derive(Debug, Args)]
+#[bityzba::invariant(true)]
 struct JvozbaInput {
     #[arg(long = "cmevla")]
     cmevla: bool,
@@ -92,6 +99,8 @@ struct JvozbaInput {
     parts: Vec<String>,
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn main() -> ExitCode {
     match run() {
         Ok(()) => ExitCode::SUCCESS,
@@ -102,6 +111,8 @@ fn main() -> ExitCode {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
@@ -138,6 +149,8 @@ fn run() -> Result<()> {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn command_not_implemented(command: &str) -> Result<()> {
     Err(anyhow!(
         "`{command}` is scaffolded but its implementation has not been ported yet"
@@ -149,6 +162,8 @@ mod tests {
     use super::*;
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn parses_canonical_and_english_aliases() {
         assert!(matches!(
             Cli::try_parse_from(["jbotci", "vlasei", "coi"])
@@ -167,6 +182,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn joins_positional_text() {
         let input = TextInput {
             file: None,

@@ -1,7 +1,9 @@
 # bityzba
 
-`bityzba` is the project-local design-by-contract proc-macro crate. It is an
-MPL-2.0 fork of `contracts 0.6.7` with first-class expensive contracts and
+`bityzba` is the project-local design-by-contract crate. It re-exports the
+proc macros implemented by the internal `bityzba-macros` crate and owns
+ordinary support APIs such as the optional source scanner. It is an MPL-2.0
+fork of `contracts 0.6.7` with first-class expensive contracts and
 valid-by-construction type invariants.
 
 ## Function And Trait Contracts
@@ -82,6 +84,9 @@ impl Buffer {
 `#[invariant]` on a named-field struct or enum creates a wrapper type and an
 unchecked data type named `TypeData`. Values of the wrapper type are valid by
 construction. Public `is_valid()` is not the model for invariant-bearing types.
+On structs and enums, `#[invariant(true)]` and `#[expensive_invariant(true)]`
+are explicit "audited no data invariant" markers and leave the type unchanged:
+no wrapper, no `TypeData`, no `new!`, and no `data!` machinery are generated.
 
 ```rust
 use bityzba::{data, invariant, new, try_new};
@@ -221,3 +226,34 @@ rare advanced code that must represent unchecked data. Normal construction and
 updates should use `new!`, `try_new!`, `with_data`, and the generated
 validation APIs. Enum helper constructors should use `new!(Type::Variant {
 ... })` rather than spelling `TypeData`.
+
+## Contract Scanner
+
+Enable the `contract_scanner` feature from a build script to require explicit
+contract decisions during normal development builds:
+
+```toml
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
+```
+
+```rust
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
+fn main() {
+    bityzba::require_contracts().unwrap();
+}
+```
+
+The scanner checks Rust source files under `src`, `tests`, `benches`, and
+`examples`, plus `build.rs` when present. It requires every free function,
+inherent method, and trait method to have both a precondition marker
+(`requires` or `expensive_requires`) and a postcondition marker (`ensures` or
+`expensive_ensures`). It requires every struct and enum to have `invariant` or
+`expensive_invariant`, and every trait to use `contract_trait`.
+
+Diagnostics are intentionally worded for coding agents: they ask for the real
+contract to be reasoned through and describe `true` markers as a last resort,
+not as the default response. The scanner is syntactic and stable-Rust
+compatible; it does not inspect macro expansions and does not treat `cfg_attr`
+as a visible contract in v1.

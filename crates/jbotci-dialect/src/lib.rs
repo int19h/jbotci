@@ -12,6 +12,7 @@ const DIALECT_SWAP_OPERATOR: &str = "\u{1f8d0}";
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[error("{message}")]
+#[bityzba::invariant(true)]
 pub struct DialectError {
     message: String,
 }
@@ -24,6 +25,7 @@ impl DialectError {
     }
 
     #[ensures(!ret.is_empty())]
+    #[bityzba::requires(true)]
     pub fn message(&self) -> &str {
         &self.message
     }
@@ -31,6 +33,7 @@ impl DialectError {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[bityzba::invariant(true)]
 pub enum DialectFeature {
     Cbm,
     Gadganzu,
@@ -49,6 +52,8 @@ pub enum DialectFeature {
 }
 
 impl DialectFeature {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     pub const fn all() -> &'static [Self] {
         &[
             Self::Cbm,
@@ -69,6 +74,7 @@ impl DialectFeature {
     }
 
     #[ensures(!ret.is_empty())]
+    #[bityzba::requires(true)]
     pub const fn name(self) -> &'static str {
         match self {
             Self::Cbm => "cbm",
@@ -89,12 +95,15 @@ impl DialectFeature {
     }
 
     #[ensures(!ret.is_empty())]
+    #[bityzba::requires(true)]
     fn atom_name(self) -> String {
         self.name().to_ascii_uppercase()
     }
 }
 
 impl fmt::Display for DialectFeature {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.name())
     }
@@ -102,6 +111,7 @@ impl fmt::Display for DialectFeature {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
+#[bityzba::invariant(true)]
 pub enum CmavoDialectEntry {
     Swap {
         left: String,
@@ -115,6 +125,7 @@ pub enum CmavoDialectEntry {
 
 impl CmavoDialectEntry {
     #[expensive_ensures(ret -> self.normalized_words().iter().all(|word| is_normalized_cmavo(word)))]
+    #[bityzba::requires(true)]
     pub fn is_valid(&self) -> bool {
         match self {
             Self::Swap { left, right } => is_normalized_cmavo(left) && is_normalized_cmavo(right),
@@ -130,6 +141,8 @@ impl CmavoDialectEntry {
     }
 
     #[cfg_attr(not(feature = "expensive_contracts"), allow(dead_code))]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn normalized_words(&self) -> Vec<&str> {
         match self {
             Self::Swap { left, right } => vec![left, right],
@@ -168,17 +181,20 @@ pub struct DialectDefinition {
 
 impl DialectDefinition {
     #[ensures(ret.is_baseline())]
+    #[bityzba::requires(true)]
     pub fn baseline() -> Self {
         Self::default()
     }
 
     #[ensures(ret == self.cmavo_entries.is_empty() && self.features.is_empty())]
+    #[bityzba::requires(true)]
     pub fn is_baseline(&self) -> bool {
         self.cmavo_entries.is_empty() && self.features.is_empty()
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 pub struct BuiltinDialect {
     pub name: &'static str,
     pub definition: &'static str,
@@ -186,28 +202,35 @@ pub struct BuiltinDialect {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum DialectDefinitionEntry {
     Cmavo(CmavoDialectEntry),
     Feature(DialectFeatureToggle, DialectFeature),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum DialectFeatureToggle {
     Enable,
     Disable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[bityzba::invariant(true)]
 enum DialectToken {
     OpenParen,
     CloseParen,
     Atom(String),
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn parse_dialect_definition(source: &str) -> Result<DialectDefinition, DialectError> {
     parse_dialect_definition_with_reference_resolver(source, &lookup_builtin_dialect_reference)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn builtin_dialects() -> Vec<BuiltinDialect> {
     builtin_dialect_sources()
         .into_iter()
@@ -223,6 +246,7 @@ pub fn builtin_dialects() -> Vec<BuiltinDialect> {
 }
 
 #[ensures(!ret.is_empty())]
+#[bityzba::requires(true)]
 pub fn builtin_dialect_names() -> Vec<&'static str> {
     builtin_dialect_sources()
         .into_iter()
@@ -230,6 +254,8 @@ pub fn builtin_dialect_names() -> Vec<&'static str> {
         .collect()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 pub fn find_builtin_dialect(requested_name: &str) -> Option<BuiltinDialect> {
     let canonical_name = builtin_reference_canonical_name(requested_name);
     builtin_dialects()
@@ -238,6 +264,7 @@ pub fn find_builtin_dialect(requested_name: &str) -> Option<BuiltinDialect> {
 }
 
 #[requires(!source.is_empty(), "builtin dialect definitions must not be empty")]
+#[bityzba::ensures(true)]
 fn parse_builtin_dialect(name: &str, source: &str) -> DialectDefinition {
     parse_dialect_definition_with_reference_resolver(source, &|reference| {
         lookup_builtin_dialect_reference_in_stack(reference, &[name])
@@ -250,6 +277,8 @@ fn parse_builtin_dialect(name: &str, source: &str) -> DialectDefinition {
     })
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn parse_dialect_definition_with_reference_resolver(
     source: &str,
     reference_resolver: &dyn Fn(&str) -> Result<DialectDefinition, DialectError>,
@@ -266,6 +295,7 @@ fn parse_dialect_definition_with_reference_resolver(
 }
 
 #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|(entries, rest)| !entries.is_empty() || rest.is_empty()))]
+#[bityzba::requires(true)]
 fn parse_dialect_token_entries<'a>(
     reference_resolver: &dyn Fn(&str) -> Result<DialectDefinition, DialectError>,
     tokens: &'a [DialectToken],
@@ -284,6 +314,7 @@ fn parse_dialect_token_entries<'a>(
 }
 
 #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|(_, rest)| rest.len() <= tokens.len()))]
+#[bityzba::requires(true)]
 fn parse_entries<'a>(
     reference_resolver: &dyn Fn(&str) -> Result<DialectDefinition, DialectError>,
     mut acc: Vec<DialectDefinitionEntry>,
@@ -303,6 +334,7 @@ fn parse_entries<'a>(
 }
 
 #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|(_, rest)| rest.len() < tokens.len()))]
+#[bityzba::requires(true)]
 fn parse_entry<'a>(
     reference_resolver: &dyn Fn(&str) -> Result<DialectDefinition, DialectError>,
     tokens: &'a [DialectToken],
@@ -406,6 +438,7 @@ fn parse_entry<'a>(
 }
 
 #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|value| value.is_none_or(|(_, feature)| DialectFeature::all().contains(&feature))))]
+#[bityzba::requires(true)]
 fn parse_feature_toggle_atom(
     atom_text: &str,
 ) -> Result<Option<(DialectFeatureToggle, DialectFeature)>, DialectError> {
@@ -434,6 +467,7 @@ fn parse_dialect_feature(raw_feature: &str) -> Result<DialectFeature, DialectErr
 }
 
 #[ensures(ret.1.len() <= tokens.len())]
+#[bityzba::requires(true)]
 fn collect_entry_words(tokens: &[DialectToken]) -> (Vec<String>, &[DialectToken]) {
     let mut words = Vec::new();
     let mut index = 0;
@@ -445,6 +479,7 @@ fn collect_entry_words(tokens: &[DialectToken]) -> (Vec<String>, &[DialectToken]
 }
 
 #[expensive_ensures(ret.iter().all(|entry| match entry { DialectDefinitionEntry::Cmavo(entry) => entry.is_valid(), DialectDefinitionEntry::Feature(_, feature) => DialectFeature::all().contains(feature) }))]
+#[bityzba::requires(true)]
 fn dialect_definition_entries(definition: &DialectDefinition) -> Vec<DialectDefinitionEntry> {
     definition
         .features
@@ -461,6 +496,8 @@ fn dialect_definition_entries(definition: &DialectDefinition) -> Vec<DialectDefi
         .collect()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn definition_from_entries(entries: Vec<DialectDefinitionEntry>) -> DialectDefinition {
     let mut cmavo_entries = Vec::new();
     let mut features = BTreeSet::new();
@@ -483,12 +520,16 @@ fn definition_from_entries(entries: Vec<DialectDefinitionEntry>) -> DialectDefin
     })
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn lookup_builtin_dialect_reference(
     reference_name: &str,
 ) -> Result<DialectDefinition, DialectError> {
     lookup_builtin_dialect_reference_in_stack(reference_name, &[])
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn lookup_builtin_dialect_reference_in_stack(
     reference_name: &str,
     stack: &[&str],
@@ -516,6 +557,7 @@ fn lookup_builtin_dialect_reference_in_stack(
 }
 
 #[ensures(!ret.is_empty())]
+#[bityzba::requires(true)]
 fn builtin_reference_canonical_name(reference_name: &str) -> &str {
     match reference_name {
         "zantufa-cmavo" => "zantufa/cmavo",
@@ -531,6 +573,7 @@ fn builtin_reference_canonical_name(reference_name: &str) -> &str {
 }
 
 #[ensures(!ret.is_empty())]
+#[bityzba::requires(true)]
 fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
     vec![
         ("cbm", "(+CBM)"),
@@ -563,11 +606,13 @@ fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
 }
 
 #[ensures(!ret.is_empty())]
+#[bityzba::requires(true)]
 fn builtin_dialect_source_map() -> BTreeMap<&'static str, &'static str> {
     builtin_dialect_sources().into_iter().collect()
 }
 
 #[ensures(!ret.is_empty() || source.trim().is_empty())]
+#[bityzba::requires(true)]
 fn tokenize(source: &str) -> Vec<DialectToken> {
     let chars: Vec<char> = source.chars().collect();
     let mut tokens = Vec::new();
@@ -603,14 +648,20 @@ fn tokenize(source: &str) -> Vec<DialectToken> {
     tokens
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_atom_boundary(value: char) -> bool {
     value.is_whitespace() || matches!(value, '(' | ')')
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_swap_operator(op: &str) -> bool {
     matches!(op, "<->" | "↔") || op == DIALECT_SWAP_OPERATOR
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_expansion_operator(op: &str) -> bool {
     matches!(op, "->" | "↦")
 }
@@ -630,10 +681,13 @@ fn normalize_dialect_word(raw_word: &str) -> Result<String, DialectError> {
 }
 
 #[ensures(ret -> !word.is_empty())]
+#[bityzba::requires(true)]
 fn is_normalized_cmavo(word: &str) -> bool {
     parse_cmavo_form(word).as_deref() == Some(word)
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn normalize_dialect_char(value: char) -> Option<char> {
     let normalized = match value {
         '\'' | 'h' | 'H' | '\u{2019}' | '\u{a78b}' | '\u{a78c}' | '\u{02bb}' | '\u{02bf}'
@@ -655,6 +709,8 @@ fn normalize_dialect_char(value: char) -> Option<char> {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn strip_diacritics(text: &str) -> String {
     text.chars()
         .filter_map(|value| {
@@ -672,10 +728,14 @@ fn strip_diacritics(text: &str) -> String {
         .collect()
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_valid_normalized_char(value: char) -> bool {
     is_vowel(value) || is_consonant(value) || matches!(value, 'y' | 'ý' | '\'' | 'ĭ' | 'ŭ')
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn parse_cmavo_form(text: &str) -> Option<String> {
     let chars: Vec<char> = text.chars().collect();
     if chars.is_empty() || chars.first().is_some_and(|value| *value == '\'') {
@@ -688,6 +748,7 @@ fn parse_cmavo_form(text: &str) -> Option<String> {
 }
 
 #[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
+#[bityzba::requires(true)]
 fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
     if starts_with_cluster(chars, 0) {
         return None;
@@ -806,6 +867,7 @@ fn parse_glide(chars: &[char], start: usize) -> Option<(String, usize)> {
 }
 
 #[requires(index <= chars.len())]
+#[bityzba::ensures(true)]
 fn starts_with_cluster(chars: &[char], index: usize) -> bool {
     chars
         .get(index..index + 2)
@@ -813,6 +875,7 @@ fn starts_with_cluster(chars: &[char], index: usize) -> bool {
 }
 
 #[requires(index <= chars.len())]
+#[bityzba::ensures(true)]
 fn starts_with_initial_pair(chars: &[char], index: usize) -> bool {
     chars
         .get(index..index + 2)
@@ -820,6 +883,7 @@ fn starts_with_initial_pair(chars: &[char], index: usize) -> bool {
 }
 
 #[requires(index <= chars.len())]
+#[bityzba::ensures(true)]
 fn valid_three_consonant_initial(chars: &[char], index: usize) -> bool {
     chars.get(index..index + 3).is_some_and(|triple| {
         is_consonant(triple[0])
@@ -831,6 +895,8 @@ fn valid_three_consonant_initial(chars: &[char], index: usize) -> bool {
     })
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_vowel(value: char) -> bool {
     matches!(
         value,
@@ -853,6 +919,8 @@ fn is_vowel(value: char) -> bool {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn normalize_vowel(value: char) -> char {
     match value {
         'á' | 'à' => 'a',
@@ -867,6 +935,8 @@ fn normalize_vowel(value: char) -> char {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_consonant(value: char) -> bool {
     matches!(
         value,
@@ -889,10 +959,14 @@ fn is_consonant(value: char) -> bool {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_sibilant(value: char) -> bool {
     matches!(value, 'c' | 'j' | 's' | 'z')
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_other_consonant(value: char) -> bool {
     matches!(
         value,
@@ -900,10 +974,14 @@ fn is_other_consonant(value: char) -> bool {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_liquid(value: char) -> bool {
     matches!(value, 'l' | 'r')
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_initial_pair(first: char, second: char) -> bool {
     matches!(
         (first, second),
@@ -957,6 +1035,8 @@ fn is_initial_pair(first: char, second: char) -> bool {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn is_diphthong_pair(first: char, second: char) -> bool {
     matches!(
         (first, second),
@@ -964,6 +1044,8 @@ fn is_diphthong_pair(first: char, second: char) -> bool {
     )
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn base_semivowel(value: char) -> Option<char> {
     match value {
         'i' | 'í' | 'ì' | 'ĭ' => Some('i'),
@@ -974,6 +1056,7 @@ fn base_semivowel(value: char) -> Option<char> {
 
 impl DialectToken {
     #[ensures(!ret.is_empty())]
+    #[bityzba::requires(true)]
     fn text(&self) -> String {
         match self {
             Self::OpenParen => "(".to_owned(),
@@ -989,6 +1072,8 @@ mod tests {
     use bityzba::{contract_trait, requires};
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn parses_feature_only_definitions() {
         assert_eq!(
             parse_dialect_definition("(cbm)").expect("dialect").features,
@@ -1003,6 +1088,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn parses_case_insensitive_builtin() {
         assert_eq!(
             parse_dialect_definition("(case-insensitive)")
@@ -1013,11 +1100,15 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn rejects_legacy_no_cgv_alias() {
         assert!(parse_dialect_definition("(no-cgv)").is_err());
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn parses_swaps_and_expansions() {
         let dialect =
             parse_dialect_definition("((ce'u <-> ce) (la'u -> la'e di'u))").expect("dialect");
@@ -1037,6 +1128,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn expands_builtin_references_before_explicit_entries() {
         let dialect = parse_dialect_definition("(ce-ki-tau (jo'u ↔ jau))").expect("dialect");
         assert_eq!(
@@ -1067,6 +1160,8 @@ mod tests {
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn parses_zantufa_and_legacy_slash_aliases() {
         let zantufa = parse_dialect_definition("(zantufa)").expect("dialect");
         assert!(zantufa.features.contains(&DialectFeature::Cbm));
@@ -1085,11 +1180,15 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "dialect errors must have a diagnostic message")]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn direct_contract_violation_is_reported() {
         let _ = DialectError::new(String::new());
     }
 
     #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn cmavo_transform_validity_checks_output_bounds() {
         assert!(
             CmavoDialectTransform::try_from_data(bityzba::data!(CmavoDialectTransform {
@@ -1110,10 +1209,13 @@ mod tests {
         fn map_positive(&self, value: i32) -> i32;
     }
 
+    #[bityzba::invariant(true)]
     struct BadMapper;
 
     #[contract_trait]
     impl PositiveMapper for BadMapper {
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(true)]
         fn map_positive(&self, _value: i32) -> i32 {
             -1
         }
@@ -1121,6 +1223,8 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "trait precondition requires positive input")]
+    #[bityzba::ensures(true)]
+    #[bityzba::requires(true)]
     fn trait_contract_precondition_is_reported_on_concrete_call() {
         let mapper = BadMapper;
         let _ = mapper.map_positive(0);
@@ -1128,6 +1232,8 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "trait postcondition requires positive output")]
+    #[bityzba::ensures(true)]
+    #[bityzba::requires(true)]
     fn trait_contract_postcondition_is_reported_on_dyn_call() {
         let mapper: &dyn PositiveMapper = &BadMapper;
         let _ = mapper.map_positive(1);

@@ -1,6 +1,6 @@
 [package]
 name = "bityzba"
-description = "Design-by-contract attributes and invariant-bearing type helpers."
+description = "Design-by-contract attributes, invariant-bearing type helpers, and contract scanner."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,20 +8,20 @@ license = "MPL-2.0"
 authors.workspace = true
 repository.workspace = true
 
-[lib]
-proc-macro = true
-
 [features]
-disable_contracts = []
-expensive_contracts = []
-mirai_assertions = []
-override_debug = []
-override_log = []
+default = []
+contract_scanner = ["dep:proc-macro2", "dep:syn", "dep:walkdir"]
+disable_contracts = ["bityzba-macros/disable_contracts"]
+expensive_contracts = ["bityzba-macros/expensive_contracts"]
+mirai_assertions = ["bityzba-macros/mirai_assertions"]
+override_debug = ["bityzba-macros/override_debug"]
+override_log = ["bityzba-macros/override_log"]
 
 [dependencies]
-proc-macro2 = "1"
-quote = "1"
-syn = { version = "2", features = ["extra-traits", "full", "visit", "visit-mut"] }
+bityzba-macros.workspace = true
+proc-macro2 = { version = "1", optional = true, features = ["span-locations"] }
+syn = { version = "2", optional = true, features = ["full", "visit"] }
+walkdir = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde.workspace = true

@@ -42,6 +42,19 @@ struct CustomSpan {
     end: usize,
 }
 
+#[invariant(true)]
+#[derive(Debug, PartialEq, Eq)]
+struct PlainMarker {
+    pub value: usize,
+}
+
+#[invariant(true, "variant data already expresses all invariants")]
+#[derive(Debug, PartialEq, Eq)]
+enum PlainChoice {
+    Empty,
+    Named { name: String },
+}
+
 impl CustomSpan {
     fn new(start: usize, end: usize) -> Result<Self, &'static str> {
         if start > end {
@@ -198,4 +211,18 @@ fn type_invariant_allows_user_defined_new_constructor() {
     assert_eq!(span.start, 1);
     assert_eq!(span.end, 3);
     assert_eq!(CustomSpan::new(3, 1), Err("inverted span"));
+}
+
+#[test]
+fn true_type_invariant_is_only_a_marker() {
+    let mut marker = PlainMarker { value: 1 };
+    marker.value = 2;
+    let PlainMarker { value } = marker;
+    assert_eq!(value, 2);
+
+    let choice = PlainChoice::Named {
+        name: String::from("cmavo"),
+    };
+    assert!(matches!(choice, PlainChoice::Named { .. }));
+    assert!(matches!(PlainChoice::Empty, PlainChoice::Empty));
 }

@@ -1,6 +1,6 @@
 use bityzba::invariant;
 
-#[invariant(true)]
+#[invariant(matches!(self.as_data(), ChoiceData::Named { name } if !name.is_empty()))]
 enum Choice {
     Named { name: String },
 }
