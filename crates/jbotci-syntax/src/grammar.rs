@@ -299,6 +299,14 @@ struct ConnectiveSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+struct BeiLinkSyntax {
+    bei: WordWithModifiers,
+    fa: Option<WordWithModifiers>,
+    argument: Option<ArgumentSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
 enum ConnectiveKind {
     Afterthought,
     Relation,
@@ -480,7 +488,8 @@ enum RelationUnitSyntax {
         base: Box<RelationUnitSyntax>,
         be: WordWithModifiers,
         fa: Option<WordWithModifiers>,
-        first_argument: ArgumentSyntax,
+        first_argument: Option<ArgumentSyntax>,
+        bei_links: Vec<BeiLinkSyntax>,
         beho: Option<WordWithModifiers>,
     },
     Abstraction {
@@ -950,6 +959,19 @@ impl ConnectiveSyntax {
     }
 }
 
+impl BeiLinkSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = vec![self.bei];
+        words.extend(self.fa);
+        if let Some(argument) = self.argument {
+            words.extend(argument.words());
+        }
+        words
+    }
+}
+
 impl ArgumentTailElementSyntax {
     #[requires(true)]
     #[ensures(true)]
@@ -1111,12 +1133,16 @@ impl RelationUnitSyntax {
                 be,
                 fa,
                 first_argument,
+                bei_links,
                 beho,
             } => {
                 let mut words = base.words();
                 words.push(be);
                 words.extend(fa);
-                words.extend(first_argument.words());
+                if let Some(first_argument) = first_argument {
+                    words.extend(first_argument.words());
+                }
+                words.extend(bei_links.into_iter().flat_map(BeiLinkSyntax::words));
                 words.extend(beho);
                 words
             }
@@ -2197,19 +2223,24 @@ where
         moi_unit,
         word_unit,
     ));
+    let bei_link = bei_link(argument.clone());
     let be_link = cmavo("be")
         .then(cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"]).or_not())
-        .then(argument)
+        .then(argument.clone().or_not())
+        .then(bei_link.repeated().collect::<Vec<_>>())
         .then(cmavo("be'o").or_not())
-        .map(|(((be, fa), first_argument), beho)| (be, fa, first_argument, beho));
+        .map(|((((be, fa), first_argument), bei_links), beho)| {
+            (be, fa, first_argument, bei_links, beho)
+        });
 
     let linked_unit = base_unit.then(be_link.or_not()).map(|(base, be_link)| {
-        be_link.map_or(base.clone(), |(be, fa, first_argument, beho)| {
+        be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
             RelationUnitSyntax::Be {
                 base: Box::new(base),
                 be,
                 fa,
                 first_argument,
+                bei_links,
                 beho,
             }
         })
@@ -2352,21 +2383,26 @@ where
                 nahe,
                 inner_unit: Box::new(inner_unit),
             });
+        let bei_link = bei_link(argument.clone());
         let be_link = cmavo("be")
             .then(cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"]).or_not())
-            .then(argument.clone())
+            .then(argument.clone().or_not())
+            .then(bei_link.repeated().collect::<Vec<_>>())
             .then(cmavo("be'o").or_not())
-            .map(|(((be, fa), first_argument), beho)| (be, fa, first_argument, beho));
+            .map(|((((be, fa), first_argument), bei_links), beho)| {
+                (be, fa, first_argument, bei_links, beho)
+            });
 
         let linked_unit = choice((nahe_unit, se_unit, ke_unit, moi_unit, word_unit))
             .then(be_link.or_not())
             .map(|(base, be_link)| {
-                be_link.map_or(base.clone(), |(be, fa, first_argument, beho)| {
+                be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
                     RelationUnitSyntax::Be {
                         base: Box::new(base),
                         be,
                         fa,
                         first_argument,
+                        bei_links,
                         beho,
                     }
                 })
@@ -4272,6 +4308,7 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
             be,
             fa,
             first_argument,
+            bei_links,
             beho,
         } => node(
             "BeRelationUnit",
@@ -4281,8 +4318,11 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
                 field("freeModifiers", nil()),
                 field("fa", maybe_word(fa)),
                 field("faFreeModifiers", nil()),
-                field("firstArgument", just(argument_tree(first_argument))),
-                field("beiLinks", nil()),
+                field("firstArgument", maybe_argument(first_argument)),
+                field(
+                    "beiLinks",
+                    list(bei_links.into_iter().map(bei_link_tree).collect()),
+                ),
                 field("beho", maybe_word(beho)),
                 field("behoFreeModifiers", nil()),
             ],
@@ -4319,8 +4359,42 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
 
 #[requires(true)]
 #[ensures(true)]
+fn bei_link<'tokens, A>(argument: A) -> BoxedParser<'tokens, BeiLinkSyntax>
+where
+    A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    cmavo("bei")
+        .then(cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"]).or_not())
+        .then(argument.or_not())
+        .map(|((bei, fa), argument)| BeiLinkSyntax { bei, fa, argument })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn maybe_word(word: Option<WordWithModifiers>) -> SyntaxValue {
     word.map_or_else(nothing, |word| just(word_value(word)))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn maybe_argument(argument: Option<ArgumentSyntax>) -> SyntaxValue {
+    argument.map_or_else(nothing, |argument| just(argument_tree(argument)))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bei_link_tree(link: BeiLinkSyntax) -> SyntaxValue {
+    node(
+        "BeiLink",
+        vec![
+            field("bei", word_value(link.bei)),
+            field("beiFreeModifiers", nil()),
+            field("fa", maybe_word(link.fa)),
+            field("faFreeModifiers", nil()),
+            field("argument", maybe_argument(link.argument)),
+        ],
+    )
 }
 
 #[requires(true)]
