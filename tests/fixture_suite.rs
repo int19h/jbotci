@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use bityzba::{data, new};
+use bityzba::{contract_trait, data, invariant, new, requires};
 use jbotci_morphology::{
     WordKind, WordLike, WordLikeData, WordWithModifiers, WordWithModifiersData,
 };
@@ -19,8 +19,8 @@ use support::fixtures::{
 };
 
 #[test]
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn loads_smoke_fixture() {
     let fixture_path =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/adhoc/smoke/coi.toml");
@@ -40,8 +40,8 @@ fn loads_smoke_fixture() {
 }
 
 #[test]
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn profile_filters_cll_chapter_and_muplis_form() {
     let root = Path::new("tests/fixtures");
     let cll = loaded_case(
@@ -105,15 +105,15 @@ fn profile_filters_cll_chapter_and_muplis_form() {
 }
 
 #[test]
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn fake_runner_counts_failures() {
-    #[bityzba::invariant(true)]
+    #[invariant(true)]
     struct FakeBackend;
-    #[bityzba::contract_trait]
+    #[contract_trait]
     impl FixtureBackend for FakeBackend {
-        #[bityzba::requires(true)]
-        #[bityzba::ensures(true)]
+        #[requires(true)]
+        #[ensures(true)]
         fn run(&self, _fixture: &LoadedTestCase, facet: Facet) -> FacetResult {
             match facet {
                 Facet::Morphology => FacetResult::passed(),
@@ -143,15 +143,15 @@ fn fake_runner_counts_failures() {
 }
 
 #[test]
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn fake_runner_counts_xfails() {
-    #[bityzba::invariant(true)]
+    #[invariant(true)]
     struct FakeBackend;
-    #[bityzba::contract_trait]
+    #[contract_trait]
     impl FixtureBackend for FakeBackend {
-        #[bityzba::requires(true)]
-        #[bityzba::ensures(true)]
+        #[requires(true)]
+        #[ensures(true)]
         fn run(&self, _fixture: &LoadedTestCase, facet: Facet) -> FacetResult {
             match facet {
                 Facet::Syntax => FacetResult::xfailed("known v0 xfail"),
@@ -180,15 +180,15 @@ fn fake_runner_counts_xfails() {
 }
 
 #[test]
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn parallel_runner_matches_serial_summary() {
-    #[bityzba::invariant(true)]
+    #[invariant(true)]
     struct FakeBackend;
-    #[bityzba::contract_trait]
+    #[contract_trait]
     impl FixtureBackend for FakeBackend {
-        #[bityzba::requires(true)]
-        #[bityzba::ensures(true)]
+        #[requires(true)]
+        #[ensures(true)]
         fn run(&self, fixture: &LoadedTestCase, facet: Facet) -> FacetResult {
             match (&fixture.test_case.id[..], facet) {
                 ("adhoc.first", Facet::Morphology) => FacetResult::passed(),
@@ -233,8 +233,8 @@ fn parallel_runner_matches_serial_summary() {
 }
 
 #[test]
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn morphology_matches_simple_cll_fixture() {
     let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/cll/chapter-05/section-5.1/c5e1d1.toml");
@@ -253,8 +253,8 @@ fn morphology_matches_simple_cll_fixture() {
 }
 
 #[test]
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn import_writes_toml_fixture() {
     let temp_root = temp_root("jbotci-fixtures-import-test");
     fs::create_dir_all(&temp_root).expect("temp root");
@@ -288,8 +288,8 @@ fn import_writes_toml_fixture() {
 }
 
 #[test]
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn fixture_check_rejects_invalid_dialect_formula() {
     let temp_root = temp_root("jbotci-fixtures-invalid-dialect-test");
     let fixture_root = temp_root.join("fixtures");
@@ -306,8 +306,8 @@ fn fixture_check_rejects_invalid_dialect_formula() {
 }
 
 #[test]
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn fixture_check_rejects_invalid_xfail_metadata() {
     let temp_root = temp_root("jbotci-fixtures-invalid-xfail-test");
     let fixture_root = temp_root.join("fixtures");
@@ -323,8 +323,8 @@ fn fixture_check_rejects_invalid_xfail_metadata() {
 }
 
 #[test]
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn writer_keeps_tree_and_words_as_values() {
     let temp_root = temp_root("jbotci-fixtures-writer-test");
     fs::create_dir_all(&temp_root).expect("temp root");
@@ -397,8 +397,8 @@ fn writer_keeps_tree_and_words_as_values() {
 
 #[test]
 #[should_panic]
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn write_fixture_rejects_invalid_metadata_by_contract() {
     let test_case = TestCase {
         id: String::new(),
@@ -414,8 +414,8 @@ fn write_fixture_rejects_invalid_metadata_by_contract() {
     let _ = write_fixture_file(fixture_path, &test_case);
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn loaded_case(path: &str, test_case: TestCase) -> LoadedTestCase {
     LoadedTestCase {
         path: PathBuf::from(path),
@@ -423,8 +423,8 @@ fn loaded_case(path: &str, test_case: TestCase) -> LoadedTestCase {
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn temp_root(prefix: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
         "{}-{}",
@@ -436,23 +436,23 @@ fn temp_root(prefix: &str) -> PathBuf {
     ))
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn jbotci_source_span() -> jbotci_source::SourceSpan {
     jbotci_source::SourceSpan::new(None, 0, 3, 0, 3).expect("valid span")
 }
 
-#[bityzba::contract_trait]
+#[contract_trait]
 trait WordWithModifiersExpectationExt {
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     fn base_word_kind(&self) -> Option<WordKind>;
 }
 
-#[bityzba::contract_trait]
+#[contract_trait]
 impl WordWithModifiersExpectationExt for WordWithModifiers {
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     fn base_word_kind(&self) -> Option<WordKind> {
         match self.as_data() {
             data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {

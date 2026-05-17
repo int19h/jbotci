@@ -2,8 +2,8 @@ use bityzba::{ensures, requires};
 
 use crate::{MorphologyOptions, WordKind};
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn is_separator(value: char) -> bool {
     value.is_whitespace()
         || matches!(
@@ -44,8 +44,8 @@ pub(crate) fn is_separator(value: char) -> bool {
         )
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions) -> String {
     raw.chars()
         .filter_map(|value| normalize_char(value, options))
@@ -53,7 +53,7 @@ pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions
 }
 
 #[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
-#[bityzba::requires(true)]
+#[requires(true)]
 pub(crate) fn classify_word_with_options(
     raw_word: &str,
     normalized_word: &str,
@@ -100,7 +100,7 @@ pub(crate) fn classify_word_with_options(
 }
 
 #[ensures(!ret.is_empty() || normalized_word.is_empty())]
-#[bityzba::requires(true)]
+#[requires(true)]
 pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
     let chars: Vec<char> = normalized_word.chars().collect();
     let mut out = String::new();
@@ -127,7 +127,7 @@ pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
 }
 
 #[ensures(!ret.is_empty() || normalized_word.is_empty())]
-#[bityzba::requires(true)]
+#[requires(true)]
 fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
     canonicalize_word_phonemes(normalized_word)
         .chars()
@@ -135,8 +135,8 @@ fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
         .collect()
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn normalize_char(value: char, options: &MorphologyOptions) -> Option<char> {
     let normalized = match value {
         '\'' | 'h' | 'H' | '\u{2019}' | '\u{a78b}' | '\u{a78c}' | '\u{02bb}' | '\u{02bf}'
@@ -200,22 +200,22 @@ fn normalize_char(value: char, options: &MorphologyOptions) -> Option<char> {
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_valid_normalized_char(value: char) -> bool {
     is_vowel(value)
         || is_consonant(value)
         || matches!(value, 'y' | 'ý' | '\'' | ',' | 'ĭ' | 'ŭ' | '0'..='9')
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn text_chars(text: &str) -> Vec<char> {
     text.chars().collect()
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn parse_cmavo_form(text: &str) -> Option<String> {
     let chars = text_chars(text);
     if chars.is_empty() {
@@ -230,15 +230,15 @@ pub(crate) fn parse_cmavo_form(text: &str) -> Option<String> {
     parse_cmavo_form_main(&chars)
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn starts_with_cvcy_lujvo(text: &str) -> bool {
     let chars = text_chars(text);
     starts_with_cvcy_lujvo_chars(&chars, 0)
 }
 
 #[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
-#[bityzba::requires(true)]
+#[requires(true)]
 fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
     if chars.first().is_some_and(|value| *value == '\'') || starts_with_cluster(chars, 0) {
         return None;
@@ -369,7 +369,7 @@ fn parse_glide(chars: &[char], start: usize) -> Option<(String, usize)> {
 }
 
 #[requires(start <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
     if start >= chars.len() {
         return false;
@@ -378,7 +378,7 @@ fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
 }
 
 #[requires(start <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn starts_with_cluster(chars: &[char], start: usize) -> bool {
     chars
         .get(start)
@@ -386,8 +386,8 @@ fn starts_with_cluster(chars: &[char], start: usize) -> bool {
         .is_some_and(|(first, second)| is_consonant(*first) && is_consonant(*second))
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn is_cmevla_with_options(normalized: &str, options: &MorphologyOptions) -> bool {
     let chars = text_chars(normalized);
     chars.last().is_some_and(|last| is_consonant(*last))
@@ -401,14 +401,14 @@ pub(crate) fn is_cmevla_with_options(normalized: &str, options: &MorphologyOptio
         })
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_vowel(value: char) -> bool {
     base_vowel(value).is_some()
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn base_vowel(value: char) -> Option<char> {
     match value {
         'a' | 'á' => Some('a'),
@@ -420,8 +420,8 @@ fn base_vowel(value: char) -> Option<char> {
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn normalize_vowel(value: char) -> char {
     match value {
         'á' => 'á',
@@ -433,8 +433,8 @@ fn normalize_vowel(value: char) -> char {
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_consonant(value: char) -> bool {
     matches!(
         value,
@@ -457,22 +457,22 @@ fn is_consonant(value: char) -> bool {
     )
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_i_semivowel(chars: &[char], index: usize) -> bool {
     matches!(chars.get(index).copied(), Some('i' | 'í' | 'ĭ'))
         && (is_diphthong_semivowel(chars, index, 'i') || starts_glide(chars, index))
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_u_semivowel(chars: &[char], index: usize) -> bool {
     matches!(chars.get(index).copied(), Some('u' | 'ú' | 'ŭ'))
         && (is_diphthong_semivowel(chars, index, 'u') || starts_glide(chars, index))
 }
 
 #[requires(index <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn is_diphthong_semivowel(chars: &[char], index: usize, semivowel: char) -> bool {
     let Some((_, previous)) = previous_non_comma(chars, index) else {
         return false;
@@ -487,7 +487,7 @@ fn is_diphthong_semivowel(chars: &[char], index: usize, semivowel: char) -> bool
 }
 
 #[requires(index <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn starts_glide(chars: &[char], index: usize) -> bool {
     matches!(
         chars.get(index).copied(),
@@ -496,7 +496,7 @@ fn starts_glide(chars: &[char], index: usize) -> bool {
 }
 
 #[requires(index <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn next_starts_nucleus(chars: &[char], mut index: usize) -> bool {
     while chars.get(index) == Some(&',') {
         index += 1;
@@ -518,8 +518,8 @@ fn previous_non_comma(chars: &[char], index: usize) -> Option<(usize, char)> {
     None
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn contains_cgv(chars: &[char]) -> bool {
     for (index, value) in chars.iter().copied().enumerate() {
         if !matches!(value, 'i' | 'í' | 'ĭ' | 'u' | 'ú' | 'ŭ') || !starts_glide(chars, index) {
@@ -532,8 +532,8 @@ fn contains_cgv(chars: &[char]) -> bool {
     false
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_gismu(word: &str) -> bool {
     let chars = text_chars(word);
     match &chars[..] {
@@ -553,8 +553,8 @@ fn is_gismu(word: &str) -> bool {
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_lujvo(word: &str) -> bool {
     let chars = text_chars(word);
     if chars.len() <= 3 || !chars.iter().all(|value| is_lujvo_char(*value)) {
@@ -564,7 +564,7 @@ fn is_lujvo(word: &str) -> bool {
 }
 
 #[requires(index <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn lujvo_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> bool {
     if index >= chars.len() {
         return false;
@@ -581,7 +581,7 @@ fn lujvo_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> bool {
 }
 
 #[requires(index <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn starts_with_cvcy_lujvo_chars(chars: &[char], index: usize) -> bool {
     let Some(base_end) = cvc_rafsi_end(chars, index) else {
         return false;
@@ -597,7 +597,7 @@ fn starts_with_cvcy_lujvo_chars(chars: &[char], index: usize) -> bool {
 }
 
 #[requires(index <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn is_lujvo_core(chars: &[char], index: usize) -> bool {
     is_gismu_slice(chars, index, chars.len())
         || is_short_final_rafsi_slice(chars, index, chars.len())
@@ -605,7 +605,7 @@ fn is_lujvo_core(chars: &[char], index: usize) -> bool {
 }
 
 #[requires(index <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn is_lujvo_final_rafsi_alone(chars: &[char], index: usize) -> bool {
     is_cvv_final_rafsi_slice(chars, index, chars.len())
 }
@@ -660,19 +660,19 @@ fn brivla_head_ends(chars: &[char], index: usize) -> Vec<usize> {
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn slinkuhi_slice(chars: &[char], start: usize, end: usize) -> bool {
     start < end && is_consonant(chars[start]) && rafsi_string_slice(chars, start + 1, end)
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn rafsi_string_slice(chars: &[char], start: usize, end: usize) -> bool {
     rafsi_string_from(chars, start, end)
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn rafsi_string_from(chars: &[char], start: usize, end: usize) -> bool {
     if start >= end {
         return false;
@@ -686,7 +686,7 @@ fn rafsi_string_from(chars: &[char], start: usize, end: usize) -> bool {
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn rafsi_string_ending(chars: &[char], start: usize, end: usize) -> bool {
     is_gismu_slice(chars, start, end)
         || is_cvv_final_rafsi_slice(chars, start, end)
@@ -717,7 +717,7 @@ fn y_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn y_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
     long_rafsi_ends(chars, start)
         .into_iter()
@@ -740,7 +740,7 @@ fn y_less_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn hy_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
     long_rafsi_ends(chars, start).into_iter().any(|base_end| {
         chars.get(base_end).is_some_and(|value| is_vowel(*value))
@@ -855,13 +855,13 @@ fn vowel_pair_ends(chars: &[char], index: usize) -> Vec<usize> {
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn is_gismu_slice(chars: &[char], start: usize, end: usize) -> bool {
     end > start && is_gismu(&chars[start..end].iter().collect::<String>())
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn is_short_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
     if start >= end {
         return false;
@@ -886,7 +886,7 @@ fn is_short_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool 
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn is_cvv_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
     if start >= end || !is_consonant(chars[start]) {
         return false;
@@ -896,15 +896,15 @@ fn is_cvv_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
         .any(|vowel_end| vowel_end == end)
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_fuhivla_shape(word: &str) -> bool {
     let chars = text_chars(word);
     is_fuhivla_shape_slice(&chars, 0, chars.len())
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn is_fuhivla_shape_slice(chars: &[char], start: usize, end: usize) -> bool {
     if end <= start
         || end - start < 4
@@ -931,16 +931,16 @@ fn is_fuhivla_shape_slice(chars: &[char], start: usize, end: usize) -> bool {
         && !is_cmavo_slice(chars, start, end)
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn has_consonant_cluster(chars: &[char]) -> bool {
     chars
         .windows(2)
         .any(|pair| is_consonant(pair[0]) && is_consonant(pair[1]))
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn has_vowel_hiatus(chars: &[char]) -> bool {
     for index in 0..chars.len() {
         if !is_vowel(chars[index]) {
@@ -972,7 +972,7 @@ fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<usize> {
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn is_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
     if start >= end {
         return false;
@@ -981,7 +981,7 @@ fn is_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
 }
 
 #[requires(index <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn starts_with_onset(chars: &[char], index: usize) -> bool {
     index <= chars.len()
         && (index == chars.len()
@@ -992,7 +992,7 @@ fn starts_with_onset(chars: &[char], index: usize) -> bool {
 }
 
 #[requires(index <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn starts_with_valid_word_onset(chars: &[char], index: usize) -> bool {
     let Some(first) = chars.get(index).copied() else {
         return false;
@@ -1023,7 +1023,7 @@ fn starts_with_valid_word_onset(chars: &[char], index: usize) -> bool {
 }
 
 #[requires(index <= chars.len())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn valid_three_consonant_initial(chars: &[char], index: usize) -> bool {
     let (Some(first), Some(second), Some(third)) = (
         chars.get(index).copied(),
@@ -1035,14 +1035,14 @@ fn valid_three_consonant_initial(chars: &[char], index: usize) -> bool {
     is_sibilant(first) && is_other_consonant(second) && is_liquid(third)
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_sibilant(value: char) -> bool {
     matches!(value, 'c' | 's' | 'j' | 'z')
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_other_consonant(value: char) -> bool {
     matches!(
         value,
@@ -1050,20 +1050,20 @@ fn is_other_consonant(value: char) -> bool {
     )
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_liquid(value: char) -> bool {
     matches!(value, 'l' | 'r')
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_lujvo_char(value: char) -> bool {
     is_consonant(value) || is_vowel(value) || is_y(value) || matches!(value, '\'' | 'ĭ' | 'ŭ')
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_diphthong_pair(first: char, second: char) -> bool {
     matches!(
         (base_vowel(first), base_semivowel(second)),
@@ -1074,8 +1074,8 @@ fn is_diphthong_pair(first: char, second: char) -> bool {
     )
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn base_semivowel(value: char) -> Option<char> {
     match value {
         'i' | 'í' | 'ĭ' => Some('i'),
@@ -1084,14 +1084,14 @@ fn base_semivowel(value: char) -> Option<char> {
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_y(value: char) -> bool {
     matches!(value, 'y' | 'ý')
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn digit_to_cmavo(value: char) -> &'static str {
     match value {
         '0' => "no",
@@ -1108,8 +1108,8 @@ fn digit_to_cmavo(value: char) -> &'static str {
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn classify_fast_simple_word(raw_word: &str, normalized_word: &str) -> Option<WordKind> {
     if raw_word.is_empty() || normalized_word.is_empty() {
         return None;
@@ -1126,8 +1126,8 @@ pub(crate) fn classify_fast_simple_word(raw_word: &str, normalized_word: &str) -
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_fast_raw_word_char(value: char) -> bool {
     matches!(
         value,
@@ -1157,8 +1157,8 @@ fn is_fast_raw_word_char(value: char) -> bool {
     )
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_fast_simple_gismu(word: &str) -> bool {
     let chars = text_chars(word);
     match &chars[..] {
@@ -1178,8 +1178,8 @@ fn is_fast_simple_gismu(word: &str) -> bool {
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_fast_simple_lujvo(word: &str) -> bool {
     if word.chars().count() <= 5 || !word.chars().all(is_fast_plain_lujvo_char) {
         return false;
@@ -1202,14 +1202,14 @@ fn is_fast_simple_lujvo(word: &str) -> bool {
         && !is_fast_tosmabru_failure(&chunks[..chunks.len() - 1], chunks.last().expect("suffix"))
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_fast_plain_lujvo_char(value: char) -> bool {
     is_fast_vowel(value) || is_fast_consonant(value) || value == 'y'
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn fast_simple_rafsi_chunks(word: &str) -> Option<Vec<String>> {
     if word.is_empty() {
         return Some(Vec::new());
@@ -1228,8 +1228,8 @@ fn fast_simple_rafsi_chunks(word: &str) -> Option<Vec<String>> {
     Some(chunks)
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_fast_short_rafsi(rafsi: &str) -> bool {
     let chars = text_chars(rafsi);
     match &chars[..] {
@@ -1241,8 +1241,8 @@ fn is_fast_short_rafsi(rafsi: &str) -> bool {
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn fast_rafsi_boundaries_are_valid(parts: &[String]) -> bool {
     parts.windows(2).all(|window| {
         let left = &window[0];
@@ -1266,8 +1266,8 @@ fn fast_rafsi_boundaries_are_valid(parts: &[String]) -> bool {
     })
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_fast_tosmabru_failure(prefix_chunks: &[String], suffix: &str) -> bool {
     if !prefix_chunks
         .iter()
@@ -1294,8 +1294,8 @@ fn is_fast_tosmabru_failure(prefix_chunks: &[String], suffix: &str) -> bool {
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn fast_syllables_pattern(text: &str) -> Option<String> {
     text.chars()
         .map(|value| {
@@ -1314,14 +1314,14 @@ fn fast_syllables_pattern(text: &str) -> Option<String> {
         .collect()
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_fast_vowel(value: char) -> bool {
     matches!(value, 'a' | 'e' | 'i' | 'o' | 'u')
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_fast_consonant(value: char) -> bool {
     matches!(
         value,
@@ -1344,8 +1344,8 @@ fn is_fast_consonant(value: char) -> bool {
     )
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_fast_initial_pair_chars(first: char, second: char) -> bool {
     INITIAL_PAIRS.contains(&format!("{first}{second}").as_str())
 }
@@ -1356,14 +1356,14 @@ const INITIAL_PAIRS: &[&str] = &[
     "sn", "sp", "sr", "st", "tc", "tr", "ts", "vl", "vr", "xl", "xr", "zb", "zd", "zg", "zm", "zv",
 ];
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn is_fast_permissible_consonant_pair(first: char, second: char) -> bool {
     matches!(fast_consonant_pair_class(first, second), Some(1 | 2))
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn fast_consonant_pair_class(first: char, second: char) -> Option<u8> {
     let first_index = FAST_CONSONANT_ORDER.find(first)?;
     let second_index = FAST_CONSONANT_ORDER.find(second)?;

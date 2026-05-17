@@ -3,8 +3,9 @@ use std::process::{Command as ProcessCommand, ExitStatus};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
-use bityzba::{data, ensures, requires};
-use bityzba::{expensive_ensures, expensive_requires};
+use bityzba::{
+    contract_trait, data, ensures, expensive_ensures, expensive_requires, invariant, requires,
+};
 use clap::{Args, Parser, Subcommand};
 use jbotci_morphology::{
     MorphologyOptions, WordWithModifiers, segment_words_with_modifiers_with_options_and_source_id,
@@ -28,14 +29,14 @@ use fixtures::{
 #[derive(Debug, Parser)]
 #[command(name = "xtask")]
 #[command(about = "Workspace automation for jbotci")]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
 }
 
 #[derive(Debug, Subcommand)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 enum Command {
     Check,
     Test,
@@ -54,7 +55,7 @@ enum Command {
 }
 
 #[derive(Debug, Args)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 struct FixtureImportArgs {
     #[arg(long, default_value = ".jbotci-build/v0-fixtures/export.json")]
     input: PathBuf,
@@ -67,7 +68,7 @@ struct FixtureImportArgs {
 }
 
 #[derive(Debug, Args)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 struct FixtureRunArgs {
     #[arg(long, default_value = "tests/fixtures")]
     root: PathBuf,
@@ -101,8 +102,8 @@ struct FixtureRunArgs {
     failure_samples: usize,
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
@@ -155,8 +156,8 @@ fn main() -> Result<()> {
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn fixture_import(args: FixtureImportArgs) -> Result<()> {
     let input = absolute_path(&args.input)?;
     if args.run_v0 {
@@ -173,8 +174,8 @@ fn fixture_import(args: FixtureImportArgs) -> Result<()> {
     Ok(())
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn fixture_list(args: FixtureRunArgs) -> Result<()> {
     let profile = merged_profile(&args)?;
     visit_fixture_tree(&args.root, |fixture| {
@@ -198,8 +199,8 @@ fn fixture_list(args: FixtureRunArgs) -> Result<()> {
     Ok(())
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn fixture_test(args: FixtureRunArgs) -> Result<()> {
     let profile = merged_profile(&args)?;
     let backend = NotImplementedBackend;
@@ -282,7 +283,7 @@ fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
 }
 
 #[ensures(ret > 0)]
-#[bityzba::requires(true)]
+#[requires(true)]
 fn default_fixture_jobs() -> usize {
     DEFAULT_TEST_JOBS
 }
@@ -294,7 +295,7 @@ const DEFAULT_TEST_JOBS: usize = 16;
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 
 #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
-#[bityzba::requires(true)]
+#[requires(true)]
 fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
     let mut profile = match &args.profile {
         Some(name) => load_profile(&args.root, name)
@@ -349,7 +350,7 @@ fn merge_cli_selector(selector: &mut FixtureSelector, args: &FixtureRunArgs) {
 }
 
 #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|path| path.is_absolute()))]
-#[bityzba::requires(true)]
+#[requires(true)]
 fn absolute_path(path: &Path) -> Result<PathBuf> {
     if path.is_absolute() {
         Ok(path.to_path_buf())
@@ -362,7 +363,7 @@ fn absolute_path(path: &Path) -> Result<PathBuf> {
 
 #[requires(v0_root.is_absolute() || v0_root.components().next().is_some())]
 #[requires(output.is_absolute() || output.components().next().is_some())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn run_v0_exporter(v0_root: &Path, output: &Path) -> Result<()> {
     if let Some(parent) = output.parent() {
         std::fs::create_dir_all(parent)
@@ -384,7 +385,7 @@ fn run_v0_exporter(v0_root: &Path, output: &Path) -> Result<()> {
 }
 
 #[requires(!args.is_empty(), "cargo subcommand arguments must not be empty")]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn cargo(args: &[&str]) -> Result<()> {
     let status = ProcessCommand::new("cargo")
         .args(args)
@@ -394,7 +395,7 @@ fn cargo(args: &[&str]) -> Result<()> {
 }
 
 #[requires(!command.is_empty(), "checked command name must not be empty")]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 fn check_status(status: ExitStatus, command: &str) -> Result<()> {
     if status.success() {
         Ok(())
@@ -403,13 +404,13 @@ fn check_status(status: ExitStatus, command: &str) -> Result<()> {
     }
 }
 
-#[bityzba::invariant(true)]
+#[invariant(true)]
 struct NotImplementedBackend;
 
-#[bityzba::contract_trait]
+#[contract_trait]
 impl FixtureBackend for NotImplementedBackend {
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     fn run(&self, fixture: &LoadedTestCase, facet: Facet) -> FacetResult {
         let Some(status) = expectation_status(fixture, facet) else {
             return FacetResult::skipped(format!("fixture has no {facet} expectation"));
@@ -551,7 +552,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
 }
 
 #[ensures(!ret.is_empty())]
-#[bityzba::requires(true)]
+#[requires(true)]
 fn format_syntax_mismatch(expected: &SyntaxValue, actual: &SyntaxValue) -> String {
     let mut path = Vec::new();
     let detail = syntax_difference(expected, actual, &mut path)
@@ -562,8 +563,8 @@ fn format_syntax_mismatch(expected: &SyntaxValue, actual: &SyntaxValue) -> Strin
     )
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn syntax_difference(
     expected: &SyntaxValue,
     actual: &SyntaxValue,
@@ -646,8 +647,8 @@ fn syntax_difference(
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn compare_syntax_slices(
     expected: &[SyntaxValue],
     actual: &[SyntaxValue],
@@ -672,7 +673,7 @@ fn compare_syntax_slices(
 }
 
 #[ensures(!ret.is_empty())]
-#[bityzba::requires(true)]
+#[requires(true)]
 fn syntax_value_kind(value: &SyntaxValue) -> &'static str {
     match value.as_data() {
         data!(SyntaxValue::Null) => "null",
@@ -687,7 +688,7 @@ fn syntax_value_kind(value: &SyntaxValue) -> &'static str {
 }
 
 #[ensures(!ret.is_empty())]
-#[bityzba::requires(true)]
+#[requires(true)]
 fn path_text(path: &[String]) -> String {
     if path.is_empty() {
         "<root>".to_owned()
@@ -697,7 +698,7 @@ fn path_text(path: &[String]) -> String {
 }
 
 #[ensures(ret.as_ref().is_none_or(FacetResult::is_valid))]
-#[bityzba::requires(true)]
+#[requires(true)]
 fn syntax_xfail_result(
     expectation: &fixtures::SyntaxExpectation,
     actual_status: ExpectationStatus,
@@ -770,7 +771,7 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
 }
 
 #[ensures(!ret.is_empty())]
-#[bityzba::requires(true)]
+#[requires(true)]
 fn format_morphology_mismatch(
     expected: &[WordWithModifiers],
     actual: &[WordWithModifiers],
@@ -808,7 +809,7 @@ fn format_morphology_mismatch(
 }
 
 #[ensures(ret.as_ref().is_none_or(|status| matches!(status, ExpectationStatus::Success | ExpectationStatus::Failure | ExpectationStatus::Pending | ExpectationStatus::NotApplicable)))]
-#[bityzba::requires(true)]
+#[requires(true)]
 fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<ExpectationStatus> {
     let expectations = &fixture.test_case.expectations;
     match facet {
@@ -827,11 +828,12 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bityzba::requires;
 
     #[test]
     #[should_panic(expected = "cargo subcommand arguments must not be empty")]
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     fn empty_cargo_command_contract_is_reported() {
         let _ = cargo(&[]);
     }

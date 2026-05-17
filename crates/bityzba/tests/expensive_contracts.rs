@@ -2,21 +2,22 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#[bityzba::contract_trait]
+use bityzba::*;
+#[contract_trait]
 trait ExpensiveMapper {
-    #[bityzba::expensive_requires(value > 0, "expensive trait precondition")]
-    #[bityzba::expensive_ensures(ret > 0, "expensive trait postcondition")]
+    #[expensive_requires(value > 0, "expensive trait precondition")]
+    #[expensive_ensures(ret > 0, "expensive trait postcondition")]
     fn map(&self, value: i32) -> i32;
 }
 
-#[bityzba::expensive_invariant(self.value % 2 == 0, "expensive type invariant")]
+#[expensive_invariant(self.value % 2 == 0, "expensive type invariant")]
 struct ExpensiveEven {
     value: usize,
 }
 
 struct BadMapper;
 
-#[bityzba::contract_trait]
+#[contract_trait]
 impl ExpensiveMapper for BadMapper {
     fn map(&self, value: i32) -> i32 {
         -value
@@ -30,7 +31,7 @@ fn expensive_trait_contracts_are_disabled_without_feature() {
     assert_eq!(mapper.map(1), -1);
     assert_eq!(mapper.map(0), 0);
 
-    let _ = bityzba::new!(ExpensiveEven { value: 3 });
+    let _ = new!(ExpensiveEven { value: 3 });
 }
 
 #[cfg(feature = "expensive_contracts")]
@@ -52,5 +53,5 @@ fn expensive_trait_postcondition_is_checked_with_feature() {
 #[cfg(feature = "expensive_contracts")]
 #[test]
 fn expensive_type_invariant_is_checked_with_feature() {
-    assert!(bityzba::try_new!(ExpensiveEven { value: 3 }).is_err());
+    assert!(try_new!(ExpensiveEven { value: 3 }).is_err());
 }

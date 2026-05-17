@@ -7,7 +7,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use bityzba::{data, ensures, requires};
+use bityzba::{contract_trait, data, ensures, invariant, requires};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::WordWithModifiers;
 use jbotci_syntax::{SyntaxValue, SyntaxValueData};
@@ -18,7 +18,7 @@ use walkdir::WalkDir;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct TestCase {
     pub id: String,
     pub lojban: String,
@@ -38,9 +38,9 @@ pub struct TestCase {
 
 impl TestCase {
     #[ensures(ret -> !self.id.is_empty())]
-    #[bityzba::expensive_ensures(ret -> self.dialect_definition().is_ok())]
-    #[bityzba::expensive_ensures(ret -> self.validate_xfail_metadata().is_ok())]
-    #[bityzba::requires(true)]
+    #[expensive_ensures(ret -> self.dialect_definition().is_ok())]
+    #[expensive_ensures(ret -> self.validate_xfail_metadata().is_ok())]
+    #[requires(true)]
     pub fn is_valid_fixture_metadata(&self) -> bool {
         !self.id.is_empty()
             && self
@@ -50,8 +50,8 @@ impl TestCase {
             && self.validate_xfail_metadata().is_ok()
     }
 
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     pub fn dialect_definition(&self) -> Result<DialectDefinition, FixtureError> {
         match &self.dialect {
             Some(formula) => {
@@ -66,7 +66,7 @@ impl TestCase {
     }
 
     #[ensures(ret.iter().all(|facet| self.expectation_status(*facet).is_some()))]
-    #[bityzba::requires(true)]
+    #[requires(true)]
     pub fn available_facets(&self) -> BTreeSet<Facet> {
         let mut facets = BTreeSet::new();
         if self
@@ -93,7 +93,7 @@ impl TestCase {
     }
 
     #[ensures(ret.is_ok() || self.expectations.syntax.as_ref().and_then(|syntax| syntax.xfail.as_ref()).is_some())]
-    #[bityzba::requires(true)]
+    #[requires(true)]
     pub fn validate_xfail_metadata(&self) -> Result<(), FixtureError> {
         let Some(syntax) = &self.expectations.syntax else {
             return Ok(());
@@ -110,8 +110,8 @@ impl TestCase {
         Ok(())
     }
 
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     fn expectation_status(&self, facet: Facet) -> Option<ExpectationStatus> {
         match facet {
             Facet::Morphology => self
@@ -142,7 +142,7 @@ impl TestCase {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub enum Provenance {
     Cll {
         chapter: u16,
@@ -188,8 +188,8 @@ pub enum Provenance {
 }
 
 impl Provenance {
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     pub fn kind_name(&self) -> &'static str {
         match self {
             Self::Cll { .. } => "cll",
@@ -203,15 +203,15 @@ impl Provenance {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub enum MuplisForm {
     Front,
     Canonical,
 }
 
 impl fmt::Display for MuplisForm {
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Front => f.write_str("front"),
@@ -223,8 +223,8 @@ impl fmt::Display for MuplisForm {
 impl std::str::FromStr for MuplisForm {
     type Err = String;
 
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         match text {
             "front" => Ok(Self::Front),
@@ -236,7 +236,7 @@ impl std::str::FromStr for MuplisForm {
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct Expectations {
     #[serde(default)]
     pub output: Option<OutputExpectation>,
@@ -252,7 +252,7 @@ pub struct Expectations {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct OutputExpectation {
     #[serde(default)]
     pub brackets: Option<TextExpectation>,
@@ -260,7 +260,7 @@ pub struct OutputExpectation {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct MorphologyExpectation {
     pub status: ExpectationStatus,
     #[serde(default)]
@@ -271,7 +271,7 @@ pub struct MorphologyExpectation {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct SyntaxExpectation {
     pub status: ExpectationStatus,
     #[serde(default, rename = "parse-tree")]
@@ -284,7 +284,7 @@ pub struct SyntaxExpectation {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct XfailExpectation {
     pub source: String,
     pub reason: String,
@@ -293,14 +293,14 @@ pub struct XfailExpectation {
 }
 
 impl XfailExpectation {
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     pub fn is_valid_for_status(&self, expected_status: ExpectationStatus) -> bool {
         self.invalid_reason_for_status(expected_status).is_empty()
     }
 
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     fn invalid_reason_for_status(&self, expected_status: ExpectationStatus) -> String {
         if self.source.is_empty() {
             return "xfail source must not be empty".to_owned();
@@ -332,7 +332,7 @@ impl XfailExpectation {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct ParseErrorExpectation {
     pub position: usize,
     #[serde(default, rename = "allowed-next")]
@@ -343,7 +343,7 @@ pub struct ParseErrorExpectation {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub enum AllowedNextExpectation {
     Cmavo {
         text: String,
@@ -376,7 +376,7 @@ pub enum AllowedNextExpectation {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct StructuredExpectation {
     pub status: ExpectationStatus,
     #[serde(default)]
@@ -385,14 +385,14 @@ pub struct StructuredExpectation {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct TextExpectation {
     pub text: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub enum ExpectationStatus {
     Success,
     Failure,
@@ -402,7 +402,7 @@ pub enum ExpectationStatus {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub enum Facet {
     Morphology,
     Syntax,
@@ -412,8 +412,8 @@ pub enum Facet {
 }
 
 impl Facet {
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     pub const fn all() -> &'static [Self] {
         &[
             Self::Morphology,
@@ -426,8 +426,8 @@ impl Facet {
 }
 
 impl fmt::Display for Facet {
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let text = match self {
             Self::Morphology => "morphology",
@@ -443,8 +443,8 @@ impl fmt::Display for Facet {
 impl std::str::FromStr for Facet {
     type Err = String;
 
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         match text {
             "morphology" => Ok(Self::Morphology),
@@ -459,7 +459,7 @@ impl std::str::FromStr for Facet {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct FixtureProfile {
     #[serde(default)]
     pub facets: Vec<Facet>,
@@ -469,7 +469,7 @@ pub struct FixtureProfile {
 
 impl FixtureProfile {
     #[ensures(ret -> self.selector.is_valid())]
-    #[bityzba::requires(true)]
+    #[requires(true)]
     pub fn is_valid(&self) -> bool {
         self.selector.is_valid()
     }
@@ -477,7 +477,7 @@ impl FixtureProfile {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct FixtureSelector {
     #[serde(default)]
     pub provenance: Vec<String>,
@@ -498,7 +498,7 @@ impl FixtureSelector {
     #[ensures(ret -> self.tags.iter().all(|value| !value.is_empty()))]
     #[ensures(ret -> self.ids.iter().all(|value| !value.is_empty()))]
     #[ensures(ret -> self.path_prefixes.iter().all(|value| !value.is_empty()))]
-    #[bityzba::requires(true)]
+    #[requires(true)]
     pub fn is_valid(&self) -> bool {
         self.provenance.iter().all(|value| !value.is_empty())
             && self.tags.iter().all(|value| !value.is_empty())
@@ -509,7 +509,7 @@ impl FixtureSelector {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct CllSelector {
     #[serde(default)]
     pub chapter: Option<u16>,
@@ -525,7 +525,7 @@ pub struct CllSelector {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct MuplisSelector {
     #[serde(default, rename = "collection-id")]
     pub collection_id: Option<String>,
@@ -536,14 +536,14 @@ pub struct MuplisSelector {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct LoadedTestCase {
     pub path: PathBuf,
     pub test_case: TestCase,
 }
 
 #[derive(Debug, Error)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub enum FixtureError {
     #[error("failed to read `{path}`: {source}")]
     Read {
@@ -595,21 +595,21 @@ pub enum FixtureError {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct FixtureExport {
     #[serde(default = "default_schema_version", rename = "schema-version")]
     pub schema_version: u16,
     pub cases: Vec<TestCase>,
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn default_schema_version() -> u16 {
     1
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 pub fn load_fixture_file(path: impl AsRef<Path>) -> Result<TestCase, FixtureError> {
     let path = path.as_ref();
     let text = read_text(path)?;
@@ -620,7 +620,7 @@ pub fn load_fixture_file(path: impl AsRef<Path>) -> Result<TestCase, FixtureErro
 }
 
 #[requires(test_case.is_valid_fixture_metadata())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 pub fn write_fixture_file(
     path: impl AsRef<Path>,
     test_case: &TestCase,
@@ -664,8 +664,8 @@ fn format_test_case_toml(test_case: &TestCase) -> Result<String, toml::ser::Erro
     Ok(output)
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn push_provenance_toml(
     output: &mut String,
     provenance: &Provenance,
@@ -724,8 +724,8 @@ fn push_provenance_toml(
     Ok(())
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn push_expectations_toml(
     output: &mut String,
     expectations: &Expectations,
@@ -776,8 +776,8 @@ fn push_expectations_toml(
     Ok(())
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn push_field<T: Serialize + ?Sized>(
     output: &mut String,
     key: &str,
@@ -790,8 +790,8 @@ fn push_field<T: Serialize + ?Sized>(
     Ok(())
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn push_optional_field<T: Serialize>(
     output: &mut String,
     key: &str,
@@ -803,8 +803,8 @@ fn push_optional_field<T: Serialize>(
     Ok(())
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn format_syntax_value_toml(
     value: &SyntaxValue,
     indent: usize,
@@ -857,8 +857,8 @@ fn format_syntax_value_toml(
     }
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn format_syntax_list_toml(
     items: &[SyntaxValue],
     indent: usize,
@@ -890,8 +890,8 @@ fn format_syntax_list_toml(
     Ok(output)
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn format_syntax_fields_toml(
     fields: &[jbotci_syntax::SyntaxField],
     indent: usize,
@@ -927,22 +927,22 @@ fn format_syntax_fields_toml(
     Ok(output)
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn format_toml_value<T: Serialize + ?Sized>(value: &T) -> Result<String, toml::ser::Error> {
     let mut output = String::new();
     value.serialize(toml::ser::ValueSerializer::new(&mut output))?;
     Ok(output)
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn spaces(count: usize) -> String {
     " ".repeat(count)
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 pub fn load_fixture_tree(root: impl AsRef<Path>) -> Result<Vec<LoadedTestCase>, FixtureError> {
     let root = root.as_ref();
     let mut loaded = Vec::new();
@@ -953,7 +953,7 @@ pub fn load_fixture_tree(root: impl AsRef<Path>) -> Result<Vec<LoadedTestCase>, 
 }
 
 #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|paths| paths.iter().all(|path| path.extension().is_some_and(|ext| ext == "toml"))))]
-#[bityzba::requires(true)]
+#[requires(true)]
 pub fn fixture_paths(root: impl AsRef<Path>) -> Result<Vec<PathBuf>, FixtureError> {
     let root = root.as_ref();
     let mut paths = Vec::new();
@@ -976,8 +976,8 @@ pub fn fixture_paths(root: impl AsRef<Path>) -> Result<Vec<PathBuf>, FixtureErro
     Ok(paths)
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 pub fn load_fixture_path(path: impl AsRef<Path>) -> Result<LoadedTestCase, FixtureError> {
     let path = path.as_ref();
     let test_case = load_fixture_file(path)?;
@@ -987,8 +987,8 @@ pub fn load_fixture_path(path: impl AsRef<Path>) -> Result<LoadedTestCase, Fixtu
     })
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 pub fn visit_fixture_tree<F>(root: impl AsRef<Path>, mut visitor: F) -> Result<usize, FixtureError>
 where
     F: FnMut(LoadedTestCase) -> Result<(), FixtureError>,
@@ -1002,7 +1002,7 @@ where
 }
 
 #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.fixture_count > 0))]
-#[bityzba::requires(true)]
+#[requires(true)]
 pub fn validate_fixture_tree(root: impl AsRef<Path>) -> Result<FixtureSummary, FixtureError> {
     let root = root.as_ref();
     let mut seen = BTreeMap::new();
@@ -1027,8 +1027,8 @@ pub fn validate_fixture_tree(root: impl AsRef<Path>) -> Result<FixtureSummary, F
     })
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 pub fn load_profiles(
     root: impl AsRef<Path>,
 ) -> Result<BTreeMap<String, FixtureProfile>, FixtureError> {
@@ -1064,7 +1064,7 @@ pub fn load_profiles(
 }
 
 #[requires(!name.is_empty(), "fixture profile names must not be empty")]
-#[bityzba::expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
+#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
 pub fn load_profile(
     fixtures_root: impl AsRef<Path>,
     name: &str,
@@ -1078,7 +1078,7 @@ pub fn load_profile(
 }
 
 #[requires(selector.is_valid())]
-#[bityzba::expensive_ensures(ret.iter().all(|fixture| fixture.test_case.is_valid_fixture_metadata()))]
+#[expensive_ensures(ret.iter().all(|fixture| fixture.test_case.is_valid_fixture_metadata()))]
 pub fn filter_fixtures<'a>(
     root: &Path,
     fixtures: &'a [LoadedTestCase],
@@ -1091,7 +1091,7 @@ pub fn filter_fixtures<'a>(
 }
 
 #[requires(selector.is_valid())]
-#[bityzba::ensures(true)]
+#[ensures(true)]
 pub fn fixture_matches_selector(
     root: &Path,
     fixture: &LoadedTestCase,
@@ -1101,7 +1101,7 @@ pub fn fixture_matches_selector(
 }
 
 #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.written > 0))]
-#[bityzba::requires(true)]
+#[requires(true)]
 pub fn import_export_file(
     input_path: impl AsRef<Path>,
     output_root: impl AsRef<Path>,
@@ -1177,15 +1177,15 @@ pub fn path_for_case(case: &TestCase) -> PathBuf {
     }
 }
 
-#[bityzba::contract_trait]
+#[contract_trait]
 pub trait FixtureBackend {
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     fn run(&self, fixture: &LoadedTestCase, facet: Facet) -> FacetResult;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct FacetResult {
     pub status: FacetStatus,
     pub message: Option<String>,
@@ -1193,7 +1193,7 @@ pub struct FacetResult {
 
 impl FacetResult {
     #[ensures(ret.is_valid())]
-    #[bityzba::requires(true)]
+    #[requires(true)]
     pub fn passed() -> Self {
         Self {
             status: FacetStatus::Passed,
@@ -1202,7 +1202,7 @@ impl FacetResult {
     }
 
     #[ensures(ret.is_valid())]
-    #[bityzba::requires(true)]
+    #[requires(true)]
     pub fn failed(message: impl Into<String>) -> Self {
         Self {
             status: FacetStatus::Failed,
@@ -1211,7 +1211,7 @@ impl FacetResult {
     }
 
     #[ensures(ret.is_valid())]
-    #[bityzba::requires(true)]
+    #[requires(true)]
     pub fn skipped(message: impl Into<String>) -> Self {
         Self {
             status: FacetStatus::Skipped,
@@ -1220,7 +1220,7 @@ impl FacetResult {
     }
 
     #[ensures(ret.is_valid())]
-    #[bityzba::requires(true)]
+    #[requires(true)]
     pub fn xfailed(message: impl Into<String>) -> Self {
         Self {
             status: FacetStatus::Xfailed,
@@ -1230,7 +1230,7 @@ impl FacetResult {
 
     #[ensures(ret -> (self.status == FacetStatus::Passed) == self.message.is_none())]
     #[ensures(ret -> self.message.as_ref().is_none_or(|message| !message.is_empty()))]
-    #[bityzba::requires(true)]
+    #[requires(true)]
     pub fn is_valid(&self) -> bool {
         match self.status {
             FacetStatus::Passed => self.message.is_none(),
@@ -1243,7 +1243,7 @@ impl FacetResult {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub enum FacetStatus {
     Passed,
     Failed,
@@ -1252,7 +1252,7 @@ pub enum FacetStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct RunSummary {
     pub selected_fixtures: usize,
     pub selected_facets: usize,
@@ -1264,13 +1264,13 @@ pub struct RunSummary {
 
 impl RunSummary {
     #[ensures(ret == self.passed + self.failed + self.skipped + self.xfailed)]
-    #[bityzba::requires(true)]
+    #[requires(true)]
     pub fn total_results(&self) -> usize {
         self.passed + self.failed + self.skipped + self.xfailed
     }
 
     #[requires(result.is_valid())]
-    #[bityzba::ensures(true)]
+    #[ensures(true)]
     pub fn record_result(&mut self, result: &FacetResult) {
         match result.status {
             FacetStatus::Passed => self.passed += 1,
@@ -1280,8 +1280,8 @@ impl RunSummary {
         }
     }
 
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
+    #[requires(true)]
+    #[ensures(true)]
     pub fn merge(&mut self, other: Self) {
         self.selected_fixtures += other.selected_fixtures;
         self.passed += other.passed;
@@ -1294,7 +1294,7 @@ impl RunSummary {
 #[ensures(ret.selected_fixtures == fixtures.len())]
 #[ensures(ret.selected_facets == facets.len())]
 #[ensures(ret.total_results() == fixtures.len() * facets.len())]
-#[bityzba::requires(true)]
+#[requires(true)]
 pub fn run_fixture_facets<B: FixtureBackend>(
     backend: &B,
     fixtures: &[&LoadedTestCase],
@@ -1316,7 +1316,7 @@ pub fn run_fixture_facets<B: FixtureBackend>(
 #[ensures(ret.selected_fixtures == fixtures.len())]
 #[ensures(ret.selected_facets == facets.len())]
 #[ensures(ret.total_results() == fixtures.len() * facets.len())]
-#[bityzba::requires(true)]
+#[requires(true)]
 pub fn run_fixture_facets_parallel<B: FixtureBackend + Sync>(
     backend: &B,
     fixtures: &[&LoadedTestCase],
@@ -1343,20 +1343,20 @@ pub fn run_fixture_facets_parallel<B: FixtureBackend + Sync>(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct FixtureSummary {
     pub fixture_count: usize,
     pub profile_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct ImportSummary {
     pub written: usize,
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn matches_selector(root: &Path, fixture: &LoadedTestCase, selector: &FixtureSelector) -> bool {
     if !selector.ids.is_empty() && !selector.ids.iter().any(|id| id == &fixture.test_case.id) {
         return false;
@@ -1414,8 +1414,8 @@ fn matches_selector(root: &Path, fixture: &LoadedTestCase, selector: &FixtureSel
     true
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn matches_cll_selector(provenance: &Provenance, selector: &CllSelector) -> bool {
     let Provenance::Cll {
         chapter,
@@ -1447,8 +1447,8 @@ fn matches_cll_selector(provenance: &Provenance, selector: &CllSelector) -> bool
             .is_none_or(|value| example_id.as_ref() == Some(value))
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn matches_muplis_selector(provenance: &Provenance, selector: &MuplisSelector) -> bool {
     let Provenance::Muplis {
         collection_id,
@@ -1470,8 +1470,8 @@ fn matches_muplis_selector(provenance: &Provenance, selector: &MuplisSelector) -
         && selector.form.is_none_or(|value| form == &Some(value))
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 fn read_text(path: &Path) -> Result<String, FixtureError> {
     fs::read_to_string(path).map_err(|source| FixtureError::Read {
         path: path.to_path_buf(),

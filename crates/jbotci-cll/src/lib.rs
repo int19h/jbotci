@@ -1,10 +1,11 @@
 //! The Complete Lojban Language reference model.
 
+use bityzba::invariant;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct CllReference {
     pub chapter: u16,
     pub section_number: String,
@@ -15,7 +16,7 @@ pub struct CllReference {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct CllExample {
     pub reference: CllReference,
     pub lojban: String,
@@ -24,7 +25,7 @@ pub struct CllExample {
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub enum CllError {
     #[error("CLL loading is not implemented yet")]
     NotImplemented,

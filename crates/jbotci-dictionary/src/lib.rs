@@ -1,17 +1,18 @@
 //! Dictionary model.
 
+use bityzba::invariant;
 use jbotci_morphology::WordKind;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct Dictionary {
     pub entries: Vec<WordEntry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct WordEntry {
     pub word: String,
     pub kind: WordKind,
@@ -20,7 +21,7 @@ pub struct WordEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct Definition {
     pub language: String,
     pub text: String,
@@ -28,7 +29,7 @@ pub struct Definition {
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub enum DictionaryError {
     #[error("dictionary loading is not implemented yet")]
     NotImplemented,

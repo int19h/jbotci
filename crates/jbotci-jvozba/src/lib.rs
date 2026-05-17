@@ -1,11 +1,12 @@
 //! Lujvo composition and decomposition.
 
+use bityzba::{invariant, requires};
 use jbotci_morphology::LujvoSegment;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct LujvoPlan {
     pub sources: Vec<LujvoSource>,
     pub segments: Vec<LujvoSegment>,
@@ -13,21 +14,21 @@ pub struct LujvoPlan {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub struct LujvoSource {
     pub word: String,
     pub fixed_rafsi: Option<String>,
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-#[bityzba::invariant(true)]
+#[invariant(true)]
 pub enum JvozbaError {
     #[error("jvozba is not implemented yet")]
     NotImplemented,
 }
 
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
+#[requires(true)]
+#[ensures(true)]
 pub fn compose_lujvo(_sources: &[LujvoSource]) -> Result<LujvoPlan, JvozbaError> {
     Err(JvozbaError::NotImplemented)
 }
