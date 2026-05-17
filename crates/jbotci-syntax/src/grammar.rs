@@ -1973,36 +1973,54 @@ where
         .or_not()
         .map(Option::unwrap_or_default);
 
-    let quantifier_tail = quantifier()
-        .map(ArgumentTailElementSyntax::Quantifier)
-        .then(choice((
-            argument.clone().map(|argument| {
-                (
-                    Some(ArgumentTailElementSyntax::Argument(Box::new(argument))),
-                    None,
-                    Vec::new(),
-                )
-            }),
-            relation
-                .clone()
-                .then(descriptor_relative_clauses.clone())
-                .map(|(relation, relative_clauses)| (None, Some(relation), relative_clauses)),
-        )))
-        .map(|(quantifier, (argument, relation, relative_clauses))| {
-            let tail_elements = std::iter::once(quantifier).chain(argument).collect();
-            (tail_elements, relation, relative_clauses)
-        });
-
-    let unquantified_tail = tail_argument
+    let leading_tail_elements = tail_argument
         .or_not()
-        .then(relation.clone())
-        .then(descriptor_relative_clauses)
-        .map(|((argument, relation), relative_clauses)| {
-            let tail_elements = argument.into_iter().flatten().collect::<Vec<_>>();
-            (tail_elements, Some(relation), relative_clauses)
+        .then(descriptor_relative_clauses.clone())
+        .map(|(argument, relative_clauses)| {
+            let mut tail_elements = argument.into_iter().flatten().collect::<Vec<_>>();
+            if !relative_clauses.is_empty() {
+                tail_elements.push(ArgumentTailElementSyntax::RelativeClauses(relative_clauses));
+            }
+            tail_elements
         });
 
-    let descriptor_tail = choice((quantifier_tail, unquantified_tail));
+    let relation_tail = relation
+        .clone()
+        .then(descriptor_relative_clauses.clone())
+        .map(|(relation, relative_clauses)| (Vec::new(), Some(relation), relative_clauses));
+    let quantifier_relation_tail = quantifier()
+        .map(ArgumentTailElementSyntax::Quantifier)
+        .then(relation.clone())
+        .then(descriptor_relative_clauses.clone())
+        .map(|((quantifier, relation), relative_clauses)| {
+            (vec![quantifier], Some(relation), relative_clauses)
+        });
+    let quantifier_argument_tail = quantifier()
+        .map(ArgumentTailElementSyntax::Quantifier)
+        .then(argument.clone())
+        .map(|(quantifier, argument)| {
+            (
+                vec![
+                    quantifier,
+                    ArgumentTailElementSyntax::Argument(Box::new(argument)),
+                ],
+                None,
+                Vec::new(),
+            )
+        });
+
+    let descriptor_tail = leading_tail_elements
+        .then(choice((
+            quantifier_relation_tail,
+            quantifier_argument_tail,
+            relation_tail,
+        )))
+        .map(
+            |(mut leading_tail_elements, (tail_elements, relation, relative_clauses))| {
+                leading_tail_elements.extend(tail_elements);
+                (leading_tail_elements, relation, relative_clauses)
+            },
+        );
 
     let descriptor_with_gadri = le_cmavo()
         .or(la_cmavo())
