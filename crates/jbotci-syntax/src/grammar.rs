@@ -27,19 +27,20 @@ type BoxedParser<'tokens, O> =
 const PA_WORDS: &[&str] = &[
     "dau", "fei", "gai", "jau", "rei", "vai", "pi'e", "pi", "fi'u", "za'u", "me'i", "ni'u", "ki'o",
     "ce'i", "ma'u", "ra'e", "da'a", "so'a", "ji'i", "su'o", "su'e", "ro", "rau", "so'u", "so'i",
-    "so'e", "so'o", "mo'a", "du'e", "te'o", "ka'o", "ci'i", "tu'o", "xo", "pai", "no'o", "no",
-    "pa", "re", "ci", "vo", "mu", "xa", "ze", "bi", "so", "0", "1", "2", "3", "4", "5", "6", "7",
-    "8", "9",
+    "so'e", "so'o", "mo'a", "du'e", "te'o", "ka'o", "ci'i", "tu'o", "xo", "pai", "ro'oi", "su'oi",
+    "xo'e", "no'o", "no", "pa", "re", "ci", "vo", "mu", "xa", "ze", "bi", "so", "0", "1", "2", "3",
+    "4", "5", "6", "7", "8", "9",
 ];
-const MOI_WORDS: &[&str] = &["moi", "mei", "si'e", "cu'o", "va'e"];
+const MOI_WORDS: &[&str] = &["moi", "mei", "si'e", "cu'o", "va'e", "cei'a"];
 const MAI_WORDS: &[&str] = &["mo'o", "mai"];
 const LAU_WORDS: &[&str] = &["lau", "tau", "zai", "ce'a"];
 const CAI_WORDS: &[&str] = &["pei", "cai", "cu'i", "sai", "ru'e"];
+const CAHA_WORDS: &[&str] = &["ca'a", "pu'i", "nu'o", "ka'e", "bi'ai"];
 const KOHA_WORDS: &[&str] = &[
     "da'u", "da'e", "di'u", "di'e", "de'u", "de'e", "dei", "do'i", "mi'o", "ma'a", "mi'a", "do'o",
     "ko'a", "fo'u", "ko'e", "ko'i", "ko'o", "ko'u", "fo'a", "fo'e", "fo'i", "fo'o", "vo'a", "vo'e",
     "vo'i", "vo'o", "vo'u", "ru", "ri", "ra", "ta", "tu", "ti", "zi'o", "ke'a", "ma", "zu'i",
-    "zo'e", "ce'u", "da", "de", "di", "ko", "mi", "do",
+    "zo'e", "ce'u", "mi'ai", "nau'o", "nau'u", "xai", "zu'ai", "da", "de", "di", "ko", "mi", "do",
 ];
 const GOHA_WORDS: &[&str] = &[
     "mo", "nei", "go'u", "go'o", "go'i", "no'a", "go'e", "go'a", "du", "bu'a", "bu'e", "bu'i",
@@ -55,10 +56,19 @@ const UI_WORDS: &[&str] = &[
     "je'u", "sa'a", "kau", "ta'u", "na'i", "jo'a", "bi'u", "li'o", "pau", "mi'u", "ku'i", "ji'a",
     "si'a", "po'o", "pe'a", "ro'i", "ro'e", "ro'o", "ro'u", "ro'a", "re'e", "le'o", "ju'o", "fu'i",
     "dai", "ga'i", "zo'o", "be'u", "ri'e", "se'i", "se'a", "vu'e", "ki'a", "xu", "ge'e", "bu'o",
+    "ai'i", "e'ei", "fu'au", "ju'oi", "ko'oi", "oi'a", "si'au", "ue'i", "xo'o", "li'oi",
 ];
 const VUHU_WORDS: &[&str] = &[
     "ge'a", "fu'u", "pi'i", "fe'i", "vu'u", "su'i", "ju'u", "gei", "pa'i", "fa'i", "te'a", "cu'a",
-    "va'a", "ne'o", "de'o", "fe'a", "sa'o", "ri'o", "sa'i", "pi'a", "si'i",
+    "va'a", "ne'o", "de'o", "fe'a", "sa'o", "ri'o", "sa'i", "pi'a", "si'i", "joi'i",
+];
+const NU_WORDS: &[&str] = &[
+    "nu", "ni", "du'u", "si'o", "li'i", "ka", "jei", "su'u", "zu'o", "mu'e", "pu'u", "za'i",
+    "kai'u", "poi'i", "xe'ei",
+];
+const COI_WORDS: &[&str] = &[
+    "ju'i", "coi", "fi'i", "ta'a", "mu'o", "fe'o", "co'o", "pe'u", "ke'o", "nu'e", "re'i", "be'e",
+    "je'e", "mi'e", "ki'e", "vi'o", "co'oi", "di'ai", "ki'ai", "sa'ei", "a'oi", "o'ai",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -4142,15 +4152,9 @@ where
 #[requires(true)]
 #[ensures(true)]
 fn vocative_markers<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
-    let coi_marker = cmavo_of(
-        "COI",
-        &[
-            "ju'i", "coi", "fi'i", "ta'a", "mu'o", "fe'o", "co'o", "pe'u", "ke'o", "nu'e", "re'i",
-            "be'e", "je'e", "mi'e", "ki'e", "vi'o",
-        ],
-    )
-    .then(cmavo("nai").or_not())
-    .map(|(coi, nai)| [vec![coi], nai.into_iter().collect()].concat());
+    let coi_marker = cmavo_of("COI", COI_WORDS)
+        .then(cmavo("nai").or_not())
+        .map(|(coi, nai)| [vec![coi], nai.into_iter().collect()].concat());
 
     choice((
         coi_marker
@@ -4677,15 +4681,7 @@ where
             inner_unit: Box::new(inner_unit),
         });
 
-    let nu_cmavo = || {
-        cmavo_of(
-            "NU",
-            &[
-                "nu", "ni", "du'u", "si'o", "li'i", "ka", "jei", "su'u", "zu'o", "mu'e", "pu'u",
-                "za'i",
-            ],
-        )
-    };
+    let nu_cmavo = || cmavo_of("NU", NU_WORDS);
     let additional_nu = statement_connective()
         .then(nu_cmavo())
         .map(|(connective, nu)| AdditionalNuSyntax { connective, nu });
@@ -5635,19 +5631,17 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 connectives: Vec::new(),
             }
         });
-    let caha = cmavo_of("CAhA", &["ca'a", "pu'i", "nu'o", "ka'e"]).map(|caha| {
-        TenseModalSyntax::Composite {
-            leaves: vec![caha.clone()],
-            time: None,
-            space: None,
-            nahe: None,
-            interval: None,
-            zaho: Vec::new(),
-            caha: Some(caha),
-            ki: None,
-            cuhe: None,
-            connectives: Vec::new(),
-        }
+    let caha = cmavo_of("CAhA", CAHA_WORDS).map(|caha| TenseModalSyntax::Composite {
+        leaves: vec![caha.clone()],
+        time: None,
+        space: None,
+        nahe: None,
+        interval: None,
+        zaho: Vec::new(),
+        caha: Some(caha),
+        ki: None,
+        cuhe: None,
+        connectives: Vec::new(),
     });
     let zaho = cmavo_of(
         "ZAhO",
@@ -5923,7 +5917,7 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             .then(
                 choice((
                     cmavo_of("ZI", &["zi", "za", "zu"]).map(PuTail::Distance),
-                    cmavo_of("CAhA", &["ca'a", "pu'i", "nu'o", "ka'e"]).map(PuTail::Caha),
+                    cmavo_of("CAhA", CAHA_WORDS).map(PuTail::Caha),
                 ))
                 .or_not(),
             )
@@ -5961,8 +5955,7 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                     distance,
                 },
             ),
-        cmavo_of("CAhA", &["ca'a", "pu'i", "nu'o", "ka'e"])
-            .map(|word| TenseModalSyntax::Caha { word }),
+        cmavo_of("CAhA", CAHA_WORDS).map(|word| TenseModalSyntax::Caha { word }),
         fiho_tense_modal(),
         cmavo_of(
             "ZAhO",
