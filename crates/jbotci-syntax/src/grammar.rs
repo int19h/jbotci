@@ -3457,7 +3457,7 @@ fn joik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
             .then(cmavo_of(
                 "JOI",
                 &[
-                    "ce", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
+                    "ce", "ce'e", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
                 ],
             ))
             .then(cmavo("nai").or_not())
@@ -3483,6 +3483,18 @@ fn joik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
             }),
     ))
     .boxed()
+}
+
+#[requires(!connective.cmavo.is_empty())]
+#[ensures(ret.len() >= old(connective.cmavo.len()))]
+fn connective_tense_modal_leaves(connective: ConnectiveSyntax) -> Vec<WordWithModifiers> {
+    let mut leaves = Vec::new();
+    leaves.extend(connective.se);
+    leaves.extend(connective.nahe);
+    leaves.extend(connective.na);
+    leaves.extend(connective.cmavo);
+    leaves.extend(connective.nai);
+    leaves
 }
 
 #[requires(true)]
@@ -4735,10 +4747,14 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
     atom.clone()
         .then(
             choice((
-                cmavo_of("JA", &["je'i", "ja", "je", "jo", "ju"])
+                choice((joik_connective(), jek_connective()))
                     .then(atom.clone())
-                    .map(|(connective, atom)| (Some(connective), atom)),
-                atom.map(|atom| (None, atom)),
+                    .map(|(connective, atom)| {
+                        let connective_cmavo = connective.cmavo.clone();
+                        let connective_leaves = connective_tense_modal_leaves(connective);
+                        (connective_leaves, connective_cmavo, atom)
+                    }),
+                atom.map(|atom| (Vec::new(), Vec::new(), atom)),
             ))
             .repeated()
             .collect::<Vec<_>>(),
@@ -4747,11 +4763,9 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             let mut leaves = first.clone().words();
             let mut parts = vec![first];
             let mut connectives = Vec::new();
-            for (connective, part) in continuations {
-                if let Some(connective) = connective {
-                    leaves.push(connective.clone());
-                    connectives.push(connective);
-                }
+            for (connective_leaves, connective_cmavo, part) in continuations {
+                leaves.extend(connective_leaves);
+                connectives.extend(connective_cmavo);
                 leaves.extend(part.clone().words());
                 parts.push(part);
             }
@@ -4856,23 +4870,23 @@ fn combine_composite_tense_modals(parts: Vec<TenseModalSyntax>) -> TenseModalSyn
             leaves.extend(part_leaves);
             if let Some(time) = time {
                 time_direction.extend(time.direction);
-                time_distance = time.distance.or(time_distance);
-                time_interval = time.interval.or(time_interval);
-                time_nai = time.nai.or(time_nai);
+                time_distance = time_distance.or(time.distance);
+                time_interval = time_interval.or(time.interval);
+                time_nai = time_nai.or(time.nai);
             }
             if let Some(space) = space {
                 space_direction.extend(space.direction);
                 space_distance.extend(space.distance);
                 space_interval.extend(space.interval);
                 space_dimensions.extend(space.dimensions);
-                space_mohi = space.mohi.or(space_mohi);
-                space_fehe = space.fehe.or(space_fehe);
+                space_mohi = space_mohi.or(space.mohi);
+                space_fehe = space_fehe.or(space.fehe);
             }
             nahe = nahe.or(part_nahe);
             zaho.extend(part_zaho);
-            caha = part_caha.or(caha);
-            ki = part_ki.or(ki);
-            cuhe = part_cuhe.or(cuhe);
+            caha = caha.or(part_caha);
+            ki = ki.or(part_ki);
+            cuhe = cuhe.or(part_cuhe);
             interval = interval.or(part_interval);
             connectives.extend(part_connectives);
         }
