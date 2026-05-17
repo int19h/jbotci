@@ -1911,7 +1911,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         let forethought_predicate = modal_forethought_connective()
             .then(basic_predicate.clone())
             .then(gik_connective())
-            .then(basic_predicate)
+            .then(basic_predicate.clone())
             .then(term.clone().repeated().collect::<Vec<_>>())
             .then(cmavo("vau").or_not())
             .map(
@@ -1934,8 +1934,43 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     continuations: Vec::new(),
                 },
             );
+        let forethought_predicate_with_leading_terms = term
+            .clone()
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .then(cu.clone().or_not())
+            .then(modal_forethought_connective())
+            .then(basic_predicate.clone())
+            .then(gik_connective())
+            .then(basic_predicate.clone())
+            .then(term.clone().repeated().collect::<Vec<_>>())
+            .then(cmavo("vau").or_not())
+            .map(
+                |(((((((leading_terms, cu), gek), first), gik), second), tail_terms), vau)| {
+                    BasicPredicate {
+                        leading_terms,
+                        cu,
+                        relation: RelationSyntax::Compound { units: Vec::new() },
+                        tail_terms: Vec::new(),
+                        vau: None,
+                        gek_sentence: Some(GekSentenceSyntax::Pair {
+                            gek,
+                            first: Box::new(first),
+                            gik,
+                            second: Box::new(second),
+                            tail_terms,
+                            vau,
+                        }),
+                        bo_continuation: None,
+                        ke_continuation: None,
+                        continuations: Vec::new(),
+                    }
+                },
+            );
 
         choice((
+            forethought_predicate_with_leading_terms,
             forethought_predicate,
             predicate_with_leading_terms,
             relation_only,
