@@ -34,6 +34,7 @@ const PA_WORDS: &[&str] = &[
 const MOI_WORDS: &[&str] = &["moi", "mei", "si'e", "cu'o", "va'e"];
 const MAI_WORDS: &[&str] = &["mo'o", "mai"];
 const LAU_WORDS: &[&str] = &["lau", "tau", "zai", "ce'a"];
+const CAI_WORDS: &[&str] = &["pei", "cai", "cu'i", "sai", "ru'e"];
 const KOHA_WORDS: &[&str] = &[
     "da'u", "da'e", "di'u", "di'e", "de'u", "de'e", "dei", "do'i", "mi'o", "ma'a", "mi'a", "do'o",
     "ko'a", "fo'u", "ko'e", "ko'i", "ko'o", "ko'u", "fo'a", "fo'e", "fo'i", "fo'o", "vo'a", "vo'e",
@@ -753,8 +754,16 @@ enum TenseModalSyntax {
 #[invariant(true)]
 struct AbstractionSyntax {
     nu: WordWithModifiers,
+    additional_nu: Vec<AdditionalNuSyntax>,
     subsentence: Box<SubsentenceSyntax>,
     kei: Option<WordWithModifiers>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct AdditionalNuSyntax {
+    connective: ConnectiveSyntax,
+    nu: WordWithModifiers,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2079,8 +2088,21 @@ impl AbstractionSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         let mut words = vec![self.nu];
+        for additional_nu in self.additional_nu {
+            words.extend(additional_nu.words());
+        }
         words.extend((*self.subsentence).words());
         words.extend(self.kei);
+        words
+    }
+}
+
+impl AdditionalNuSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = self.connective.words();
+        words.push(self.nu);
         words
     }
 }
@@ -4655,22 +4677,33 @@ where
             inner_unit: Box::new(inner_unit),
         });
 
-    let abstraction_subsentence_unit = cmavo_of(
-        "NU",
-        &[
-            "nu", "ni", "du'u", "si'o", "li'i", "ka", "jei", "su'u", "zu'o", "mu'e", "pu'u", "za'i",
-        ],
-    )
-    .then(subsentence)
-    .then(cmavo("kei").or_not())
-    .map(|((nu, subsentence), kei)| RelationUnitSyntax::Abstraction {
-        abstraction: AbstractionSyntax {
-            nu,
-            subsentence: Box::new(subsentence),
-            kei,
-        },
-    })
-    .boxed();
+    let nu_cmavo = || {
+        cmavo_of(
+            "NU",
+            &[
+                "nu", "ni", "du'u", "si'o", "li'i", "ka", "jei", "su'u", "zu'o", "mu'e", "pu'u",
+                "za'i",
+            ],
+        )
+    };
+    let additional_nu = statement_connective()
+        .then(nu_cmavo())
+        .map(|(connective, nu)| AdditionalNuSyntax { connective, nu });
+    let abstraction_subsentence_unit = nu_cmavo()
+        .then(additional_nu.repeated().collect::<Vec<_>>())
+        .then(subsentence)
+        .then(cmavo("kei").or_not())
+        .map(
+            |(((nu, additional_nu), subsentence), kei)| RelationUnitSyntax::Abstraction {
+                abstraction: AbstractionSyntax {
+                    nu,
+                    additional_nu,
+                    subsentence: Box::new(subsentence),
+                    kei,
+                },
+            },
+        )
+        .boxed();
 
     let se_abstraction_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
         .then(abstraction_subsentence_unit.clone())
@@ -6057,7 +6090,7 @@ fn lahe_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
 #[requires(true)]
 #[ensures(true)]
 fn leading_indicator<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
-    cmavo_of("UI", UI_WORDS)
+    choice((cmavo_of("UI", UI_WORDS), cmavo_of("CAI", CAI_WORDS))).boxed()
 }
 
 #[requires(true)]
@@ -8040,10 +8073,33 @@ fn abstraction_tree(abstraction: AbstractionSyntax) -> SyntaxValue {
             field("nu", word_value(abstraction.nu)),
             field("nai", nothing()),
             field("freeModifiers", nil()),
-            field("additionalNu", nil()),
+            field(
+                "additionalNu",
+                list(
+                    abstraction
+                        .additional_nu
+                        .into_iter()
+                        .map(additional_nu_tree)
+                        .collect(),
+                ),
+            ),
             field("subsentence", subsentence_tree(*abstraction.subsentence)),
             field("kei", maybe_word(abstraction.kei)),
             field("keiFreeModifiers", nil()),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn additional_nu_tree(additional_nu: AdditionalNuSyntax) -> SyntaxValue {
+    node(
+        "AdditionalNu",
+        vec![
+            field("connective", connective_tree(additional_nu.connective)),
+            field("nu", word_value(additional_nu.nu)),
+            field("nai", nothing()),
+            field("freeModifiers", nil()),
         ],
     )
 }
