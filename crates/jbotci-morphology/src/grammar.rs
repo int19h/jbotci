@@ -1,13 +1,16 @@
 use std::collections::VecDeque;
 
+use bityzba::expensive_ensures;
 use bityzba::{ensures, fields, requires};
-use bityzba::{expensive_ensures, expensive_invariant, expensive_requires};
 use chumsky::error::Rich;
 use chumsky::prelude::*;
 use chumsky::span::SimpleSpan;
 use jbotci_source::{SourceId, SourceSpan};
 
-use crate::{MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordWithModifiers};
+use crate::{
+    MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordLikeRaw, WordWithModifiers,
+    WordWithModifiersRaw,
+};
 
 type MorphExtra<'src> = extra::Err<Rich<'src, char>>;
 
@@ -21,7 +24,6 @@ pub(crate) fn segment_words_with_modifiers(
     )?))
 }
 
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub(crate) fn segment_words_with_modifiers_raw(
     input: &str,
     options: &MorphologyOptions,
@@ -84,7 +86,6 @@ impl<'a> Segmenter<'a> {
         }
     }
 
-    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
     fn segment_raw(mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
         let mut acc = Vec::new();
         while self.skip_magic_noise(true)? {
@@ -97,7 +98,6 @@ impl<'a> Segmenter<'a> {
         Ok(acc)
     }
 
-    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
     fn next_segment(&mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
         self.skip_separators();
         if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
@@ -138,8 +138,6 @@ impl<'a> Segmenter<'a> {
         Ok(vec![word])
     }
 
-    #[expensive_requires(segment.iter().all(WordWithModifiers::is_valid))]
-    #[expensive_invariant(acc.iter().all(WordWithModifiers::is_valid))]
     fn process_segment(
         &mut self,
         acc: &mut Vec<WordWithModifiers>,
@@ -176,7 +174,6 @@ impl<'a> Segmenter<'a> {
         Ok(())
     }
 
-    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(WordWithModifiers::is_valid))]
     fn next_plain_word(&mut self) -> Result<WordWithModifiers, MorphologyError> {
         self.skip_separators();
         let start = self.index;
@@ -251,10 +248,7 @@ impl<'a> Segmenter<'a> {
             .ok_or_else(|| self.invalid_at(self.index, "zo", "zo must be a single word"))?;
         let word = extract_word(&quoted)
             .ok_or_else(|| self.invalid_at(self.index, "", "zo requires a word to quote"))?;
-        Ok(vec![base_word_like(WordLike::ZoQuote {
-            zo: Box::new(zo),
-            word: Box::new(word),
-        })])
+        Ok(vec![base_word_like(WordLike::zo_quote(zo, word))])
     }
 
     fn zoi_quote(
@@ -300,12 +294,12 @@ impl<'a> Segmenter<'a> {
         self.index = close_start;
         let closing = self.next_plain_word()?;
         let closing_delimiter = extract_word(&closing).unwrap_or(closing_delimiter);
-        Ok(vec![base_word_like(WordLike::ZoiQuote {
-            zoi: Box::new(zoi),
-            opening_delimiter: Box::new(opening_delimiter),
-            quoted_text: self.source_span(quoted_start, quoted_end)?,
-            closing_delimiter: Box::new(closing_delimiter),
-        })])
+        Ok(vec![base_word_like(WordLike::zoi_quote(
+            zoi,
+            opening_delimiter,
+            self.source_span(quoted_start, quoted_end)?,
+            closing_delimiter,
+        ))])
     }
 
     fn single_word_quote(
@@ -324,10 +318,10 @@ impl<'a> Segmenter<'a> {
         let marker = extract_word(&marker_word_with_modifiers).ok_or_else(|| {
             self.invalid_at(start, "", "single-word quote marker must be a single word")
         })?;
-        Ok(vec![base_word_like(WordLike::SingleWordQuote {
-            marker: Box::new(marker),
-            quoted_text: self.source_span(start, end)?,
-        })])
+        Ok(vec![base_word_like(WordLike::single_word_quote(
+            marker,
+            self.source_span(start, end)?,
+        ))])
     }
 
     fn lohu_quote(
@@ -340,14 +334,12 @@ impl<'a> Segmenter<'a> {
         loop {
             self.skip_separators();
             if self.index == self.chars.len() {
-                let mut words = vec![base_word_like(WordLike::Bare {
-                    word: Box::new(lohu),
-                })];
-                words.extend(quoted_words.into_iter().map(|word| {
-                    base_word_like(WordLike::Bare {
-                        word: Box::new(word),
-                    })
-                }));
+                let mut words = vec![base_word_like(WordLike::bare(lohu))];
+                words.extend(
+                    quoted_words
+                        .into_iter()
+                        .map(|word| base_word_like(WordLike::bare(word))),
+                );
                 return Ok(words);
             }
             let word = self.next_plain_word()?;
@@ -355,11 +347,11 @@ impl<'a> Segmenter<'a> {
                 let lehu = extract_word(&word).ok_or_else(|| {
                     self.invalid_at(self.index, "le'u", "LEhU must be a single word")
                 })?;
-                return Ok(vec![base_word_like(WordLike::LohuQuote {
-                    lohu: Box::new(lohu),
+                return Ok(vec![base_word_like(WordLike::lohu_quote(
+                    lohu,
                     quoted_words,
-                    lehu: Box::new(lehu),
-                })]);
+                    lehu,
+                ))]);
             }
             if let Some(inner) = extract_word(&word) {
                 quoted_words.push(inner);
@@ -377,20 +369,15 @@ impl<'a> Segmenter<'a> {
         };
         let bu = extract_word(&bu_word_with_modifiers)
             .ok_or_else(|| self.invalid_at(self.index, "bu", "bu must be a single word"))?;
-        acc.push(base_word_like(WordLike::Letter {
-            base: Box::new(get_word_like(&prev)),
-            bu: Box::new(bu),
-        }));
+        acc.push(base_word_like(WordLike::letter(get_word_like(&prev), bu)));
         Ok(())
     }
 
-    #[expensive_invariant(acc.iter().all(WordWithModifiers::is_valid))]
     fn handle_si(&self, acc: &mut Vec<WordWithModifiers>) {
         let (_prev, rest) = skip_acc_y(acc);
         *acc = rest;
     }
 
-    #[expensive_invariant(acc.iter().all(WordWithModifiers::is_valid))]
     fn handle_sa(&mut self, acc: &mut Vec<WordWithModifiers>) -> Result<(), MorphologyError> {
         let mut sa_count = 1;
         loop {
@@ -462,13 +449,10 @@ impl<'a> Segmenter<'a> {
         Ok(vec![word])
     }
 
-    #[expensive_invariant(acc.iter().all(WordWithModifiers::is_valid))]
     fn handle_su(&self, acc: &mut Vec<WordWithModifiers>) {
         *acc = erase_back_to_su_boundary(acc);
     }
 
-    #[expensive_requires(zei_word_with_modifiers.is_valid())]
-    #[expensive_invariant(acc.iter().all(WordWithModifiers::is_valid))]
     fn handle_zei(
         &mut self,
         acc: &mut Vec<WordWithModifiers>,
@@ -486,11 +470,11 @@ impl<'a> Segmenter<'a> {
                     return Err(self.invalid_at(self.index, "", "ZEI requires a following word"));
                 };
                 *acc = rest;
-                acc.push(base_word_like(WordLike::ZeiLujvo {
-                    left: Box::new(get_word_like(&prev)),
-                    zei: Box::new(zei),
-                    right: Box::new(right),
-                }));
+                acc.push(base_word_like(WordLike::zei_lujvo(
+                    get_word_like(&prev),
+                    zei,
+                    right,
+                )));
             }
             (None, Some(next)) => {
                 acc.push(zei_word_with_modifiers);
@@ -539,7 +523,6 @@ impl<'a> Segmenter<'a> {
         Ok(None)
     }
 
-    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(WordWithModifiers::is_valid))]
     fn next_plain_non_y_word(&mut self) -> Result<WordWithModifiers, MorphologyError> {
         loop {
             let word = self.next_plain_word()?;
@@ -699,7 +682,6 @@ impl<'a> Segmenter<'a> {
 
     #[requires(start <= end && end <= self.chars.len())]
     #[requires(!phonemes.is_empty())]
-    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(WordWithModifiers::is_valid))]
     fn word_with_modifiers(
         &self,
         start: usize,
@@ -708,21 +690,15 @@ impl<'a> Segmenter<'a> {
         phonemes: String,
     ) -> Result<WordWithModifiers, MorphologyError> {
         let span = self.source_span(start, end)?;
-        Ok(base_word_like(WordLike::Bare {
-            word: Box::new(
-                Word::try_from_fields(fields! {
-                    kind: kind,
-                    phonemes: phonemes,
-                    span: span,
-                    surface_override: None,
-                    dialect_transform: None,
-                })
-                .expect("segmenter only constructs words with non-empty phoneme text"),
-            ),
-        }))
+        Ok(base_word_like(WordLike::bare(Word::new(fields! {
+            kind: kind,
+            phonemes: phonemes,
+            span: span,
+            surface_override: None,
+            dialect_transform: None,
+        }))))
     }
 
-    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
     fn digit_sequence(&mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
         let mut words = Vec::new();
         while self.index < self.chars.len() {
@@ -904,77 +880,70 @@ enum SAMatchTag<'a> {
     Cmevla,
 }
 
-#[expensive_requires(word_like.is_valid())]
-#[expensive_ensures(ret.is_valid())]
 fn base_word_like(word_like: WordLike) -> WordWithModifiers {
-    WordWithModifiers::BaseWord {
-        word_like: Box::new(word_like),
-    }
+    WordWithModifiers::base_word(word_like)
 }
 
 fn extract_word(word: &WordWithModifiers) -> Option<Word> {
-    match word {
-        WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {
-            WordLike::Bare { word } => Some((**word).clone()),
+    match word.as_raw() {
+        fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
+            fields!(WordLike::Bare { word }) => Some((**word).clone()),
             _ => None,
         },
-        WordWithModifiers::Emphasized { word_like, .. } => match word_like.as_ref() {
-            WordLike::Bare { word } => Some((**word).clone()),
+        fields!(WordWithModifiers::Emphasized { word_like, .. }) => match word_like.as_raw() {
+            fields!(WordLike::Bare { word }) => Some((**word).clone()),
             _ => None,
         },
-        WordWithModifiers::WithIndicator { base, .. } => extract_word(base),
-        WordWithModifiers::StandaloneIndicator { indicator, .. } => Some((**indicator).clone()),
-        WordWithModifiers::NotEof => None,
+        fields!(WordWithModifiers::WithIndicator { base, .. }) => extract_word(base),
+        fields!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
+            Some((**indicator).clone())
+        }
+        fields!(WordWithModifiers::NotEof) => None,
     }
 }
 
 fn get_word_like(word: &WordWithModifiers) -> WordLike {
-    match word {
-        WordWithModifiers::BaseWord { word_like } => (**word_like).clone(),
-        WordWithModifiers::Emphasized { word_like, .. } => (**word_like).clone(),
-        WordWithModifiers::WithIndicator { base, .. } => get_word_like(base),
-        WordWithModifiers::StandaloneIndicator { indicator, .. } => WordLike::Bare {
-            word: indicator.clone(),
-        },
-        WordWithModifiers::NotEof => WordLike::Bare {
-            word: Box::new(
-                Word::try_from_fields(fields! {
-                    kind: WordKind::Cmavo,
-                    phonemes: String::from("<not-eof>"),
-                    span: SourceSpan::new(None, 0, 0, 0, 0).expect("valid empty span"),
-                    surface_override: None,
-                    dialect_transform: None,
-                })
-                .expect("not-eof sentinel word has non-empty phoneme text"),
-            ),
-        },
+    match word.as_raw() {
+        fields!(WordWithModifiers::BaseWord { word_like }) => (**word_like).clone(),
+        fields!(WordWithModifiers::Emphasized { word_like, .. }) => (**word_like).clone(),
+        fields!(WordWithModifiers::WithIndicator { base, .. }) => get_word_like(base),
+        fields!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
+            WordLike::bare((**indicator).clone())
+        }
+        fields!(WordWithModifiers::NotEof) => WordLike::bare(Word::new(fields! {
+            kind: WordKind::Cmavo,
+            phonemes: String::from("<not-eof>"),
+            span: SourceSpan::new(None, 0, 0, 0, 0).expect("valid empty span"),
+            surface_override: None,
+            dialect_transform: None,
+        })),
     }
 }
 
 #[requires(!text.is_empty())]
 fn is_simple_cmavo_text(word: &WordWithModifiers, text: &str) -> bool {
-    match word {
-        WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {
-            WordLike::Bare { word } => {
+    match word.as_raw() {
+        fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
+            fields!(WordLike::Bare { word }) => {
                 word.kind == WordKind::Cmavo && canonicalize_text(&word.phonemes) == text
             }
             _ => false,
         },
-        WordWithModifiers::Emphasized { word_like, .. } => match word_like.as_ref() {
-            WordLike::Bare { word } => {
+        fields!(WordWithModifiers::Emphasized { word_like, .. }) => match word_like.as_raw() {
+            fields!(WordLike::Bare { word }) => {
                 word.kind == WordKind::Cmavo && canonicalize_text(&word.phonemes) == text
             }
             _ => false,
         },
-        WordWithModifiers::WithIndicator { base, .. } => is_simple_cmavo_text(base, text),
+        fields!(WordWithModifiers::WithIndicator { base, .. }) => is_simple_cmavo_text(base, text),
         _ => false,
     }
 }
 
 fn is_y_word(word: &WordWithModifiers) -> bool {
-    match word {
-        WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {
-            WordLike::Bare { word } => {
+    match word.as_raw() {
+        fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
+            fields!(WordLike::Bare { word }) => {
                 word.kind == WordKind::Cmavo && is_y_word_text(&word.phonemes)
             }
             _ => false,
@@ -1024,9 +993,6 @@ fn trim_trailing_separator_indices(chars: &[SourceChar], start: usize, end: usiz
     trimmed_end
 }
 
-#[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
-#[expensive_ensures(ret.0.as_ref().is_none_or(WordWithModifiers::is_valid))]
-#[expensive_ensures(ret.1.iter().all(WordWithModifiers::is_valid))]
 fn skip_acc_y(acc: &[WordWithModifiers]) -> (Option<WordWithModifiers>, Vec<WordWithModifiers>) {
     let mut last_y = None;
     for (index, token) in acc.iter().enumerate().rev() {
@@ -1039,8 +1005,6 @@ fn skip_acc_y(acc: &[WordWithModifiers]) -> (Option<WordWithModifiers>, Vec<Word
     (last_y, Vec::new())
 }
 
-#[expensive_requires(acc.iter().all(WordWithModifiers::is_valid))]
-#[expensive_ensures(ret.iter().all(WordWithModifiers::is_valid))]
 fn erase_back_to_su_boundary(acc: &[WordWithModifiers]) -> Vec<WordWithModifiers> {
     for (index, token) in acc.iter().enumerate().rev() {
         let selmaho = visible_selmaho(&get_word_like(token));
@@ -1055,14 +1019,16 @@ fn sa_match_tag<'a>(
     options: &MorphologyOptions,
     word: &'a WordWithModifiers,
 ) -> Option<SAMatchTag<'a>> {
-    match get_word_like(word) {
-        WordLike::Bare { word } => match word.kind {
-            WordKind::Cmavo => visible_selmaho(&WordLike::Bare { word }).map(SAMatchTag::Selmaho),
+    match get_word_like(word).into_raw() {
+        fields!(WordLike::Bare { word }) => match word.kind {
+            WordKind::Cmavo => {
+                visible_selmaho(&WordLike::bare((*word).clone())).map(SAMatchTag::Selmaho)
+            }
             WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => Some(SAMatchTag::Brivla),
             WordKind::Cmevla if options.cmevla_as_relation_words => Some(SAMatchTag::Brivla),
             WordKind::Cmevla => Some(SAMatchTag::Cmevla),
         },
-        other => visible_selmaho(&other).map(SAMatchTag::Selmaho),
+        other => visible_selmaho(&WordLike::from_raw(other)).map(SAMatchTag::Selmaho),
     }
 }
 
@@ -1085,14 +1051,14 @@ fn find_nth_matching_word(
 }
 
 fn visible_selmaho(word_like: &WordLike) -> Option<&'static str> {
-    match word_like {
-        WordLike::Bare { word } if word.kind == WordKind::Cmavo => selmaho(&word.phonemes),
-        WordLike::ZoQuote { .. } => Some("ZO"),
-        WordLike::ZoiQuote { zoi, .. } => selmaho(&zoi.phonemes),
-        WordLike::LohuQuote { .. } => Some("LOhU"),
-        WordLike::SingleWordQuote { marker, .. } => selmaho(&marker.phonemes),
-        WordLike::Letter { .. } => Some("BU"),
-        WordLike::ZeiLujvo { .. } => Some("ZEI"),
+    match word_like.as_raw() {
+        fields!(WordLike::Bare { word }) if word.kind == WordKind::Cmavo => selmaho(&word.phonemes),
+        fields!(WordLike::ZoQuote { .. }) => Some("ZO"),
+        fields!(WordLike::ZoiQuote { zoi, .. }) => selmaho(&zoi.phonemes),
+        fields!(WordLike::LohuQuote { .. }) => Some("LOhU"),
+        fields!(WordLike::SingleWordQuote { marker, .. }) => selmaho(&marker.phonemes),
+        fields!(WordLike::Letter { .. }) => Some("BU"),
+        fields!(WordLike::ZeiLujvo { .. }) => Some("ZEI"),
         _ => None,
     }
 }
@@ -1168,14 +1134,10 @@ fn selmaho(cmavo: &str) -> Option<&'static str> {
     }
 }
 
-#[expensive_requires(words.iter().all(WordWithModifiers::is_valid))]
-#[expensive_ensures(ret.iter().all(WordWithModifiers::is_valid))]
 fn apply_passes(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     pass_ui(pass_bahe(words))
 }
 
-#[expensive_requires(words.iter().all(WordWithModifiers::is_valid))]
-#[expensive_ensures(ret.iter().all(WordWithModifiers::is_valid))]
 fn pass_bahe(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     let mut reversed: VecDeque<_> = words.into_iter().rev().collect();
     let mut out = Vec::new();
@@ -1185,10 +1147,7 @@ fn pass_bahe(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
         }) && let Some(bahe_token) = reversed.pop_front()
             && let Some(bahe) = get_modifier_word(&bahe_token)
         {
-            reversed.push_front(WordWithModifiers::Emphasized {
-                bahe: Box::new(bahe),
-                word_like: Box::new(get_word_like(&word)),
-            });
+            reversed.push_front(WordWithModifiers::emphasized(bahe, get_word_like(&word)));
         } else {
             out.push(word);
         }
@@ -1197,8 +1156,6 @@ fn pass_bahe(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     out
 }
 
-#[expensive_requires(words.iter().all(WordWithModifiers::is_valid))]
-#[expensive_ensures(ret.iter().all(WordWithModifiers::is_valid))]
 fn pass_ui(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
     let mut out: Vec<WordWithModifiers> = Vec::new();
     let mut iter = words.into_iter().peekable();
@@ -1209,24 +1166,15 @@ fn pass_ui(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
                 .peek()
                 .is_some_and(|next| is_simple_cmavo_text(next, "nai"))
             {
-                iter.next()
-                    .and_then(|next| get_modifier_word(&next))
-                    .map(Box::new)
+                iter.next().and_then(|next| get_modifier_word(&next))
             } else {
                 None
             };
             if let Some(indicator) = indicator {
                 if let Some(prev) = out.pop() {
-                    out.push(WordWithModifiers::WithIndicator {
-                        base: Box::new(prev),
-                        indicator: Box::new(indicator),
-                        nai,
-                    });
+                    out.push(WordWithModifiers::with_indicator(prev, indicator, nai));
                 } else if nai.is_some() {
-                    out.push(WordWithModifiers::StandaloneIndicator {
-                        indicator: Box::new(indicator),
-                        nai,
-                    });
+                    out.push(WordWithModifiers::standalone_indicator(indicator, nai));
                 } else {
                     out.push(word);
                 }
@@ -1241,15 +1189,17 @@ fn pass_ui(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
 }
 
 fn get_modifier_word(word: &WordWithModifiers) -> Option<Word> {
-    match word {
-        WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {
-            WordLike::Bare { word } => Some((**word).clone()),
+    match word.as_raw() {
+        fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
+            fields!(WordLike::Bare { word }) => Some((**word).clone()),
             _ => None,
         },
-        WordWithModifiers::StandaloneIndicator { indicator, .. } => Some((**indicator).clone()),
-        WordWithModifiers::Emphasized { bahe, .. } => Some((**bahe).clone()),
-        WordWithModifiers::WithIndicator { indicator, .. } => Some((**indicator).clone()),
-        WordWithModifiers::NotEof => None,
+        fields!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
+            Some((**indicator).clone())
+        }
+        fields!(WordWithModifiers::Emphasized { bahe, .. }) => Some((**bahe).clone()),
+        fields!(WordWithModifiers::WithIndicator { indicator, .. }) => Some((**indicator).clone()),
+        fields!(WordWithModifiers::NotEof) => None,
     }
 }
 
@@ -1389,10 +1339,10 @@ mod tests {
             .expect("valid morphology");
 
         assert_eq!(words.len(), 1);
-        let WordWithModifiers::BaseWord { word_like } = &words[0] else {
+        let fields!(WordWithModifiers::BaseWord { word_like }) = words[0].as_raw() else {
             panic!("expected base word");
         };
-        let WordLike::ZoQuote { zo, word } = word_like.as_ref() else {
+        let fields!(WordLike::ZoQuote { zo, word }) = word_like.as_raw() else {
             panic!("expected ZO quote");
         };
         assert_eq!(zo.phonemes, "zo");
@@ -1406,15 +1356,15 @@ mod tests {
                 .expect("valid morphology");
 
         assert_eq!(words.len(), 1);
-        let WordWithModifiers::BaseWord { word_like } = &words[0] else {
+        let fields!(WordWithModifiers::BaseWord { word_like }) = words[0].as_raw() else {
             panic!("expected base word");
         };
-        let WordLike::ZoiQuote {
+        let fields!(WordLike::ZoiQuote {
             zoi,
             opening_delimiter,
             quoted_text,
             closing_delimiter,
-        } = word_like.as_ref()
+        }) = word_like.as_raw()
         else {
             panic!("expected ZOI quote");
         };
@@ -1450,9 +1400,9 @@ mod tests {
     }
 
     fn bare_word(word: &WordWithModifiers) -> Option<&Word> {
-        match word {
-            WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {
-                WordLike::Bare { word } => Some(word),
+        match word.as_raw() {
+            fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
+                fields!(WordLike::Bare { word }) => Some(word),
                 _ => None,
             },
             _ => None,

@@ -12,6 +12,7 @@ pub struct SourceId(pub String);
 /// One-indexed line and column in source text.
 #[invariant(self.line > 0, "line numbers are one-indexed and cannot be zero")]
 #[invariant(self.column > 0, "column numbers are one-indexed and cannot be zero")]
+#[bityzba(no_new)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct LineColumn {
     pub line: usize,
@@ -26,8 +27,10 @@ impl LineColumn {
         if column == 0 {
             return Err(SourceLocationError::ZeroColumn);
         }
-        Self::try_from_fields(fields! { line: line, column: column })
-            .map_err(|_| SourceLocationError::InvalidLineColumn)
+        Ok(Self::from_raw(fields!(LineColumn {
+            line: line,
+            column: column,
+        })))
     }
 }
 
@@ -39,6 +42,7 @@ impl LineColumn {
 /// responsible for deriving offsets from the same source text.
 #[invariant(self.byte_start <= self.byte_end, "byte range start must not exceed end")]
 #[invariant(self.char_start <= self.char_end, "character range start must not exceed end")]
+#[bityzba(no_new)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SourceSpan {
     pub source_id: Option<SourceId>,
@@ -70,7 +74,7 @@ impl SourceSpan {
                 end: char_end,
             });
         }
-        Self::try_from_fields(fields! {
+        Ok(Self::from_raw(fields!(SourceSpan {
             source_id: source_id,
             byte_start: byte_start,
             byte_end: byte_end,
@@ -78,8 +82,7 @@ impl SourceSpan {
             char_end: char_end,
             start: None,
             end: None,
-        })
-        .map_err(|_| SourceLocationError::InvalidSourceSpan)
+        })))
     }
 
     pub fn byte_len(&self) -> usize {
@@ -108,14 +111,10 @@ pub enum SourceLocationError {
     ZeroLine,
     #[error("column numbers are one-indexed and cannot be zero")]
     ZeroColumn,
-    #[error("invalid line-column location")]
-    InvalidLineColumn,
     #[error("byte range end {end} precedes start {start}")]
     ByteRangeInverted { start: usize, end: usize },
     #[error("character range end {end} precedes start {start}")]
     CharRangeInverted { start: usize, end: usize },
-    #[error("invalid source span")]
-    InvalidSourceSpan,
 }
 
 #[cfg(test)]

@@ -7,7 +7,7 @@ struct Span {
 }
 
 fn main() {
-    let _ = Span::try_from_fields(fields! {
+    let _ = Span::new(fields! {
         start: "zero",
         end: 2,
     });

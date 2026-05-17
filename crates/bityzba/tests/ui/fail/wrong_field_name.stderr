@@ -4,8 +4,8 @@ error[E0599]: no method named `finish` found for struct `SpanFields<BityzbaStart
  3 |   #[invariant(self.start <= self.end)]
    |   ------------------------------------ method `finish` not found for this struct
 ...
-10 |       let _ = Span::try_from_fields(fields! {
-   |  ___________________________________-
+10 |       let _ = Span::new(fields! {
+   |  _______________________-
 11 | |         start: 0,
 12 | |         finish: 2,
    | |        -^^^^^^ method not found in `SpanFields<SpanFieldsSet, SpanFieldsUnset>`

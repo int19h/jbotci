@@ -6,12 +6,14 @@ use chumsky::error::{Rich, RichReason};
 use chumsky::input::MappedInput;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
-use jbotci_morphology::{Word, WordKind, WordLike, WordWithModifiers};
+use jbotci_morphology::{
+    Word, WordKind, WordLike, WordLikeRaw, WordWithModifiers, WordWithModifiersRaw,
+};
 use jbotci_source::SourceSpan;
 
 use crate::{
     Fragment, LojbanText, Paragraph, ParagraphStatement, ParseOptions, Statement, SyntaxError,
-    SyntaxField, SyntaxNode, SyntaxParse, SyntaxValue,
+    SyntaxField, SyntaxParse, SyntaxValue,
 };
 
 type Span = SimpleSpan;
@@ -486,10 +488,10 @@ pub(crate) fn parse_syntax_tree_with_source(
     _options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
     let text = parse_statement(words, source)?;
-    Ok(SyntaxParse {
+    Ok(SyntaxParse::new(fields! {
         parse_tree: lojban_text_tree(text),
         warnings: Vec::new(),
-    })
+    }))
 }
 
 pub(crate) fn parse_text(
@@ -503,30 +505,26 @@ pub(crate) fn parse_text(
         .flat_map(ParagraphStatementSyntax::words)
         .collect::<Vec<_>>();
     let has_statement = !statement_words.is_empty();
-    let statement = Statement::Fragment {
-        fragment: Fragment::Other {
-            words: statement_words,
-        },
-    };
+    let statement = Statement::fragment(Fragment::other(statement_words));
     let _ = options;
-    Ok(LojbanText {
+    Ok(LojbanText::new(fields! {
         leading_nai: text.leading_nai,
         leading_cmevla: text.leading_cmevla,
         leading_indicators: text.leading_indicators,
         leading_free_modifiers: Vec::new(),
         leading_connective: None,
-        paragraphs: vec![Paragraph {
+        paragraphs: vec![Paragraph::new(fields! {
             i: None,
             niho: Vec::new(),
             free_modifiers: Vec::new(),
-            statements: vec![ParagraphStatement {
+            statements: vec![ParagraphStatement::new(fields! {
                 i: None,
                 connective: None,
                 free_modifiers: Vec::new(),
                 statement: has_statement.then_some(statement),
-            }],
-        }],
-    })
+            })],
+        })],
+    }))
 }
 
 impl StatementSyntax {
@@ -1698,23 +1696,23 @@ where
     T: Parser<'tokens, ParserInput<'tokens>, TextSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
     let compound_quote = any().try_map(move |word: WordWithModifiers, span| {
-        let WordWithModifiers::BaseWord { word_like } = &word else {
+        let fields!(WordWithModifiers::BaseWord { word_like }) = word.as_raw() else {
             return Err(Rich::custom(span, "expected quote"));
         };
 
-        match word_like.as_ref() {
-            WordLike::ZoQuote { word: quoted, .. } => Ok(ArgumentSyntax::Quote {
+        match word_like.as_raw() {
+            fields!(WordLike::ZoQuote { word: quoted, .. }) => Ok(ArgumentSyntax::Quote {
                 quote: QuoteSyntax::Zo {
                     zo: word.clone(),
                     word: base_word_from_record((**quoted).clone()),
                 },
             }),
-            WordLike::ZoiQuote {
+            fields!(WordLike::ZoiQuote {
                 opening_delimiter,
                 quoted_text,
                 closing_delimiter,
                 ..
-            } => Ok(ArgumentSyntax::Quote {
+            }) => Ok(ArgumentSyntax::Quote {
                 quote: QuoteSyntax::Zoi {
                     zoi: word.clone(),
                     opening_delimiter: base_word_from_record((**opening_delimiter).clone()),
@@ -1722,9 +1720,11 @@ where
                     quoted_text: source_text(source, quoted_text),
                 },
             }),
-            WordLike::LohuQuote {
-                quoted_words, lehu, ..
-            } => Ok(ArgumentSyntax::Quote {
+            fields!(WordLike::LohuQuote {
+                quoted_words,
+                lehu,
+                ..
+            }) => Ok(ArgumentSyntax::Quote {
                 quote: QuoteSyntax::Lohu {
                     lohu: word.clone(),
                     quoted_words: quoted_words
@@ -1735,10 +1735,10 @@ where
                     lehu: base_word_from_record((**lehu).clone()),
                 },
             }),
-            WordLike::SingleWordQuote {
+            fields!(WordLike::SingleWordQuote {
                 marker: _,
                 quoted_text,
-            } => Ok(ArgumentSyntax::Quote {
+            }) => Ok(ArgumentSyntax::Quote {
                 quote: QuoteSyntax::ZohOi {
                     zohoi: word.clone(),
                     quoted_text: source_text(source, quoted_text),
@@ -2591,15 +2591,16 @@ fn is_koha_argument(word: &WordWithModifiers) -> bool {
 }
 
 fn is_relation_word(word: &WordWithModifiers) -> bool {
-    match word {
-        WordWithModifiers::WithIndicator { base, .. } => return is_relation_word(base),
-        WordWithModifiers::Emphasized { word_like, .. } => {
+    match word.as_raw() {
+        fields!(WordWithModifiers::WithIndicator { base, .. }) => return is_relation_word(base),
+        fields!(WordWithModifiers::Emphasized { word_like, .. }) => {
             return word_like_kind(word_like).is_some_and(|kind| {
                 matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
             });
         }
-        WordWithModifiers::StandaloneIndicator { .. } | WordWithModifiers::NotEof => return false,
-        WordWithModifiers::BaseWord { .. } => {}
+        fields!(WordWithModifiers::StandaloneIndicator { .. })
+        | fields!(WordWithModifiers::NotEof) => return false,
+        fields!(WordWithModifiers::BaseWord { .. }) => {}
     }
 
     if GOHA_WORDS.iter().any(|text| cmavo_text_matches(word, text)) {
@@ -2612,22 +2613,23 @@ fn is_relation_word(word: &WordWithModifiers) -> bool {
 }
 
 fn is_cmevla_word(word: &WordWithModifiers) -> bool {
-    match word {
-        WordWithModifiers::BaseWord { word_like }
-        | WordWithModifiers::Emphasized { word_like, .. } => {
+    match word.as_raw() {
+        fields!(WordWithModifiers::BaseWord { word_like })
+        | fields!(WordWithModifiers::Emphasized { word_like, .. }) => {
             word_like_kind(word_like).is_some_and(|kind| kind == WordKind::Cmevla)
         }
-        WordWithModifiers::WithIndicator { base, .. } => is_cmevla_word(base),
-        WordWithModifiers::StandaloneIndicator { .. } | WordWithModifiers::NotEof => false,
+        fields!(WordWithModifiers::WithIndicator { base, .. }) => is_cmevla_word(base),
+        fields!(WordWithModifiers::StandaloneIndicator { .. })
+        | fields!(WordWithModifiers::NotEof) => false,
     }
 }
 
 fn is_letter_word(word: &WordWithModifiers) -> bool {
-    match word {
-        WordWithModifiers::BaseWord { word_like }
-        | WordWithModifiers::Emphasized { word_like, .. } => match word_like.as_ref() {
-            WordLike::Letter { .. } => true,
-            WordLike::Bare { word } => {
+    match word.as_raw() {
+        fields!(WordWithModifiers::BaseWord { word_like })
+        | fields!(WordWithModifiers::Emphasized { word_like, .. }) => match word_like.as_raw() {
+            fields!(WordLike::Letter { .. }) => true,
+            fields!(WordLike::Bare { word }) => {
                 word.kind == WordKind::Cmavo
                     && matches!(
                         word.phonemes.as_str(),
@@ -2670,35 +2672,38 @@ fn is_letter_word(word: &WordWithModifiers) -> bool {
             }
             _ => false,
         },
-        WordWithModifiers::WithIndicator { base, .. } => is_letter_word(base),
-        WordWithModifiers::StandaloneIndicator { .. } | WordWithModifiers::NotEof => false,
+        fields!(WordWithModifiers::WithIndicator { base, .. }) => is_letter_word(base),
+        fields!(WordWithModifiers::StandaloneIndicator { .. })
+        | fields!(WordWithModifiers::NotEof) => false,
     }
 }
 
 fn word_like_kind(word_like: &WordLike) -> Option<WordKind> {
-    let WordLike::Bare { word } = word_like else {
+    let fields!(WordLike::Bare { word }) = word_like.as_raw() else {
         return None;
     };
     Some(word.kind)
 }
 
 fn cmavo_text_matches(word: &WordWithModifiers, expected: &str) -> bool {
-    match word {
-        WordWithModifiers::BaseWord { word_like }
-        | WordWithModifiers::Emphasized { word_like, .. } => {
+    match word.as_raw() {
+        fields!(WordWithModifiers::BaseWord { word_like })
+        | fields!(WordWithModifiers::Emphasized { word_like, .. }) => {
             word_like_cmavo_text_matches(word_like, expected)
         }
-        WordWithModifiers::StandaloneIndicator { indicator, .. } => {
+        fields!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
             word_record_text_matches(indicator, expected)
         }
-        WordWithModifiers::WithIndicator { base, .. } => cmavo_text_matches(base, expected),
-        WordWithModifiers::NotEof => false,
+        fields!(WordWithModifiers::WithIndicator { base, .. }) => {
+            cmavo_text_matches(base, expected)
+        }
+        fields!(WordWithModifiers::NotEof) => false,
     }
 }
 
 fn word_like_cmavo_text_matches(word_like: &WordLike, expected: &str) -> bool {
-    match word_like {
-        WordLike::Bare { word } => word_record_text_matches(word, expected),
+    match word_like.as_raw() {
+        fields!(WordLike::Bare { word }) => word_record_text_matches(word, expected),
         _ => false,
     }
 }
@@ -2720,25 +2725,19 @@ fn phonemes_match_syntax_text(actual: &str, expected: &str) -> bool {
 }
 
 fn bare_word_kind_and_phonemes(word: &WordWithModifiers) -> Option<(WordKind, &str)> {
-    let WordWithModifiers::BaseWord { word_like } = word else {
+    let fields!(WordWithModifiers::BaseWord { word_like }) = word.as_raw() else {
         return None;
     };
-    let WordLike::Bare { word } = word_like.as_ref() else {
+    let fields!(WordLike::Bare { word }) = word_like.as_raw() else {
         return None;
     };
     Some((word.kind, word.phonemes.as_str()))
 }
 
-#[expensive_ensures(ret.is_valid())]
 fn base_word_from_record(word: Word) -> WordWithModifiers {
-    WordWithModifiers::BaseWord {
-        word_like: Box::new(WordLike::Bare {
-            word: Box::new(word),
-        }),
-    }
+    WordWithModifiers::base_word(WordLike::bare(word))
 }
 
-#[expensive_requires(span.byte_start <= span.byte_end)]
 fn source_text(source: Option<&str>, span: &SourceSpan) -> String {
     source
         .and_then(|source| source.get(span.byte_start..span.byte_end))
@@ -3373,17 +3372,14 @@ fn relative_clause_tree(relative_clause: RelativeClauseSyntax) -> SyntaxValue {
                         "subsentence",
                         node(
                             "PlainSubsentence",
-                            vec![SyntaxField {
-                                name: None,
-                                value: predicate_tree(BasicPredicate {
-                                    leading_terms: Vec::new(),
-                                    cu: None,
-                                    relation,
-                                    tail_terms: Vec::new(),
-                                    vau: None,
-                                    continuations: Vec::new(),
-                                }),
-                            }],
+                            vec![unnamed_field(predicate_tree(BasicPredicate {
+                                leading_terms: Vec::new(),
+                                cu: None,
+                                relation,
+                                tail_terms: Vec::new(),
+                                vau: None,
+                                continuations: Vec::new(),
+                            }))],
                         ),
                     ),
                     field("kuho", maybe_word(kuho)),
@@ -3426,7 +3422,7 @@ fn quote_tree(quote: QuoteSyntax) -> SyntaxValue {
             "ZohOiQuote",
             vec![
                 field("zohoi", word_value(zohoi)),
-                field("quotedText", SyntaxValue::Text { value: quoted_text }),
+                field("quotedText", SyntaxValue::text(quoted_text)),
                 field("freeModifiers", nil()),
             ],
         ),
@@ -3441,7 +3437,7 @@ fn quote_tree(quote: QuoteSyntax) -> SyntaxValue {
                 field("zoi", word_value(zoi)),
                 field("openingDelimiter", word_value(opening_delimiter)),
                 field("closingDelimiter", word_value(closing_delimiter)),
-                field("quotedText", SyntaxValue::Text { value: quoted_text }),
+                field("quotedText", SyntaxValue::text(quoted_text)),
                 field("freeModifiers", nil()),
             ],
         ),
@@ -3538,17 +3534,11 @@ fn argument_tail_element_tree(element: ArgumentTailElementSyntax) -> SyntaxValue
     match element {
         ArgumentTailElementSyntax::Argument(argument) => node(
             "ArgumentTailArgument",
-            vec![SyntaxField {
-                name: None,
-                value: argument_tree(*argument),
-            }],
+            vec![unnamed_field(argument_tree(*argument))],
         ),
         ArgumentTailElementSyntax::Quantifier(quantifier) => node(
             "ArgumentTailQuantifier",
-            vec![SyntaxField {
-                name: None,
-                value: quantifier_tree(quantifier),
-            }],
+            vec![unnamed_field(quantifier_tree(quantifier))],
         ),
     }
 }
@@ -3719,17 +3709,14 @@ fn abstraction_tree(abstraction: AbstractionSyntax) -> SyntaxValue {
                 "subsentence",
                 node(
                     "PlainSubsentence",
-                    vec![SyntaxField {
-                        name: None,
-                        value: predicate_tree(BasicPredicate {
-                            leading_terms: abstraction.subsentence_leading_terms,
-                            cu: abstraction.subsentence_cu,
-                            relation: *abstraction.subsentence_relation,
-                            tail_terms: abstraction.subsentence_terms,
-                            vau: None,
-                            continuations: Vec::new(),
-                        }),
-                    }],
+                    vec![unnamed_field(predicate_tree(BasicPredicate {
+                        leading_terms: abstraction.subsentence_leading_terms,
+                        cu: abstraction.subsentence_cu,
+                        relation: *abstraction.subsentence_relation,
+                        tail_terms: abstraction.subsentence_terms,
+                        vau: None,
+                        continuations: Vec::new(),
+                    }))],
                 ),
             ),
             field("kei", maybe_word(abstraction.kei)),
@@ -3968,10 +3955,8 @@ fn nonempty_letter_words(words: Vec<WordWithModifiers>) -> SyntaxValue {
     plain_list(vec![rendered.remove(0), list(tail)])
 }
 
-fn letter_word_value(mut word: WordWithModifiers) -> SyntaxValue {
-    normalize_syntax_word(&mut word);
-    normalize_cmavo_i(&mut word);
-    syntax_word_value(word)
+fn letter_word_value(word: WordWithModifiers) -> SyntaxValue {
+    syntax_word_value(normalize_cmavo_i(normalize_syntax_word(word)))
 }
 
 fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
@@ -4119,82 +4104,65 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
     }
 }
 
-#[expensive_ensures(ret.is_valid())]
 fn maybe_word(word: Option<WordWithModifiers>) -> SyntaxValue {
     word.map_or_else(nothing, |word| just(word_value(word)))
 }
 
-#[expensive_requires(word.is_valid())]
-#[expensive_ensures(ret.is_valid())]
-fn word_value(mut word: WordWithModifiers) -> SyntaxValue {
-    normalize_syntax_word(&mut word);
-    syntax_word_value(word)
+fn word_value(word: WordWithModifiers) -> SyntaxValue {
+    syntax_word_value(normalize_syntax_word(word))
 }
 
-#[expensive_requires(word.is_valid())]
-#[expensive_ensures(ret.is_valid())]
-fn gadri_word_value(mut word: WordWithModifiers) -> SyntaxValue {
-    normalize_syntax_word(&mut word);
-    normalize_cmavo_i(&mut word);
-    syntax_word_value(word)
+fn gadri_word_value(word: WordWithModifiers) -> SyntaxValue {
+    syntax_word_value(normalize_cmavo_i(normalize_syntax_word(word)))
 }
 
-#[expensive_requires(word.is_valid())]
-#[expensive_ensures(ret.is_valid())]
-fn vocative_marker_value(mut word: WordWithModifiers) -> SyntaxValue {
-    normalize_syntax_word(&mut word);
-    syntax_word_value(word)
+fn vocative_marker_value(word: WordWithModifiers) -> SyntaxValue {
+    syntax_word_value(normalize_syntax_word(word))
 }
 
-#[expensive_requires(word.is_valid())]
-#[expensive_ensures(ret.is_valid())]
-fn name_word_value(mut word: WordWithModifiers) -> SyntaxValue {
-    normalize_syntax_word(&mut word);
-    syntax_word_value(word)
+fn name_word_value(word: WordWithModifiers) -> SyntaxValue {
+    syntax_word_value(normalize_syntax_word(word))
 }
 
-#[expensive_requires(word.is_valid())]
-#[expensive_ensures(ret.is_valid())]
 fn syntax_word_value(word: WordWithModifiers) -> SyntaxValue {
-    SyntaxValue::Word {
-        word: Box::new(word),
-    }
+    SyntaxValue::word(word)
 }
 
-fn normalize_cmavo_i(word: &mut WordWithModifiers) {
-    match word {
-        WordWithModifiers::BaseWord { word_like }
-        | WordWithModifiers::Emphasized { word_like, .. } => {
-            normalize_word_like_cmavo_i(word_like);
+fn normalize_cmavo_i(word: WordWithModifiers) -> WordWithModifiers {
+    match word.into_raw() {
+        fields!(WordWithModifiers::BaseWord { word_like }) => {
+            WordWithModifiers::base_word(normalize_word_like_cmavo_i(*word_like))
         }
-        WordWithModifiers::StandaloneIndicator { indicator, nai } => {
-            normalize_word_record_cmavo_i(indicator);
-            if let Some(nai) = nai {
-                normalize_word_record_cmavo_i(nai);
-            }
+        fields!(WordWithModifiers::Emphasized { bahe, word_like }) => {
+            WordWithModifiers::emphasized(*bahe, normalize_word_like_cmavo_i(*word_like))
         }
-        WordWithModifiers::WithIndicator {
+        fields!(WordWithModifiers::StandaloneIndicator { indicator, nai }) => {
+            WordWithModifiers::standalone_indicator(
+                normalize_word_record_cmavo_i(*indicator),
+                nai.map(|nai| normalize_word_record_cmavo_i(*nai)),
+            )
+        }
+        fields!(WordWithModifiers::WithIndicator {
             base,
             indicator,
             nai,
-        } => {
-            normalize_cmavo_i(base);
-            normalize_word_record_cmavo_i(indicator);
-            if let Some(nai) = nai {
-                normalize_word_record_cmavo_i(nai);
-            }
-        }
-        WordWithModifiers::NotEof => {}
+        }) => WordWithModifiers::with_indicator(
+            normalize_cmavo_i(*base),
+            normalize_word_record_cmavo_i(*indicator),
+            nai.map(|nai| normalize_word_record_cmavo_i(*nai)),
+        ),
+        fields!(WordWithModifiers::NotEof) => WordWithModifiers::not_eof(),
     }
 }
 
-fn normalize_word_like_cmavo_i(word_like: &mut WordLike) {
-    if let WordLike::Bare { word } = word_like {
-        normalize_word_record_cmavo_i(word);
+fn normalize_word_like_cmavo_i(word_like: WordLike) -> WordLike {
+    match word_like.into_raw() {
+        fields!(WordLike::Bare { word }) => WordLike::bare(normalize_word_record_cmavo_i(*word)),
+        other => WordLike::from_raw(other),
     }
 }
 
-fn normalize_word_record_cmavo_i(word: &mut jbotci_morphology::Word) {
+fn normalize_word_record_cmavo_i(word: jbotci_morphology::Word) -> jbotci_morphology::Word {
     if word.kind == WordKind::Cmavo {
         let phonemes = word
             .phonemes
@@ -4205,150 +4173,131 @@ fn normalize_word_record_cmavo_i(word: &mut jbotci_morphology::Word) {
                 ch => ch,
             })
             .collect();
-        *word = word
-            .clone()
-            .try_with_fields(fields! {
-                phonemes: phonemes,
-            })
-            .expect("cmavo normalization preserves non-empty phoneme text");
+        word.with_fields(fields! {
+            phonemes: phonemes,
+        })
+    } else {
+        word
     }
 }
 
-fn normalize_syntax_word(word: &mut WordWithModifiers) {
-    match word {
-        WordWithModifiers::BaseWord { word_like } => normalize_syntax_word_like(word_like),
-        WordWithModifiers::StandaloneIndicator { indicator, nai } => {
-            let _ = (indicator, nai);
+fn normalize_syntax_word(word: WordWithModifiers) -> WordWithModifiers {
+    match word.into_raw() {
+        fields!(WordWithModifiers::BaseWord { word_like }) => {
+            WordWithModifiers::base_word(normalize_syntax_word_like(*word_like))
         }
-        WordWithModifiers::Emphasized { bahe, word_like } => {
-            normalize_syntax_word_record(bahe);
-            normalize_syntax_word_like(word_like);
+        fields!(WordWithModifiers::StandaloneIndicator { indicator, nai }) => {
+            WordWithModifiers::standalone_indicator(*indicator, nai.map(|nai| *nai))
         }
-        WordWithModifiers::WithIndicator {
+        fields!(WordWithModifiers::Emphasized { bahe, word_like }) => {
+            WordWithModifiers::emphasized(
+                normalize_syntax_word_record(*bahe),
+                normalize_syntax_word_like(*word_like),
+            )
+        }
+        fields!(WordWithModifiers::WithIndicator {
             base,
             indicator,
             nai,
-        } => {
-            normalize_syntax_word(base);
-            let _ = (indicator, nai);
-        }
-        WordWithModifiers::NotEof => {}
+        }) => WordWithModifiers::with_indicator(
+            normalize_syntax_word(*base),
+            *indicator,
+            nai.map(|nai| *nai),
+        ),
+        fields!(WordWithModifiers::NotEof) => WordWithModifiers::not_eof(),
     }
 }
 
-fn normalize_syntax_word_like(word_like: &mut WordLike) {
-    match word_like {
-        WordLike::Bare { word } => normalize_syntax_word_record(word),
-        WordLike::ZoQuote { zo, word } => {
-            normalize_syntax_word_record(zo);
-            normalize_syntax_word_record(word);
-        }
-        WordLike::ZoiQuote {
+fn normalize_syntax_word_like(word_like: WordLike) -> WordLike {
+    match word_like.into_raw() {
+        fields!(WordLike::Bare { word }) => WordLike::bare(normalize_syntax_word_record(*word)),
+        fields!(WordLike::ZoQuote { zo, word }) => WordLike::zo_quote(
+            normalize_syntax_word_record(*zo),
+            normalize_syntax_word_record(*word),
+        ),
+        fields!(WordLike::ZoiQuote {
             zoi,
             opening_delimiter,
+            quoted_text,
             closing_delimiter,
-            ..
-        } => {
-            normalize_syntax_word_record(zoi);
-            normalize_syntax_word_record(opening_delimiter);
-            normalize_syntax_word_record(closing_delimiter);
-        }
-        WordLike::LohuQuote {
+        }) => WordLike::zoi_quote(
+            normalize_syntax_word_record(*zoi),
+            normalize_syntax_word_record(*opening_delimiter),
+            quoted_text,
+            normalize_syntax_word_record(*closing_delimiter),
+        ),
+        fields!(WordLike::LohuQuote {
             lohu,
             quoted_words,
             lehu,
-        } => {
-            normalize_syntax_word_record(lohu);
-            for word in quoted_words {
-                normalize_syntax_word_record(word);
-            }
-            normalize_syntax_word_record(lehu);
-        }
-        WordLike::SingleWordQuote {
+        }) => WordLike::lohu_quote(
+            normalize_syntax_word_record(*lohu),
+            quoted_words
+                .into_iter()
+                .map(normalize_syntax_word_record)
+                .collect(),
+            normalize_syntax_word_record(*lehu),
+        ),
+        fields!(WordLike::SingleWordQuote {
             marker,
-            quoted_text: _,
-        } => normalize_syntax_word_record(marker),
-        WordLike::Letter { base, bu } => {
-            normalize_syntax_word_like(base);
-            normalize_syntax_word_record(bu);
-        }
-        WordLike::ZeiLujvo { left, zei, right } => {
-            normalize_syntax_word_like(left);
-            normalize_syntax_word_record(zei);
-            normalize_syntax_word_record(right);
-        }
+            quoted_text,
+        }) => WordLike::single_word_quote(normalize_syntax_word_record(*marker), quoted_text),
+        fields!(WordLike::Letter { base, bu }) => WordLike::letter(
+            normalize_syntax_word_like(*base),
+            normalize_syntax_word_record(*bu),
+        ),
+        fields!(WordLike::ZeiLujvo { left, zei, right }) => WordLike::zei_lujvo(
+            normalize_syntax_word_like(*left),
+            normalize_syntax_word_record(*zei),
+            normalize_syntax_word_record(*right),
+        ),
     }
 }
 
-fn normalize_syntax_word_record(word: &mut jbotci_morphology::Word) {
-    let _ = word;
+fn normalize_syntax_word_record(word: jbotci_morphology::Word) -> jbotci_morphology::Word {
+    word
 }
 
-#[expensive_requires(!constructor.as_ref().is_empty(), "syntax constructors must be named")]
-#[expensive_requires(fields.iter().all(SyntaxField::is_valid))]
-#[expensive_ensures(ret.is_valid())]
 fn node(constructor: impl AsRef<str>, fields: Vec<SyntaxField>) -> SyntaxValue {
-    SyntaxValue::Node {
-        node: Box::new(SyntaxNode {
-            constructor: constructor.as_ref().to_owned(),
-            fields,
-        }),
-    }
+    SyntaxValue::node(constructor.as_ref().to_owned(), fields)
 }
 
-#[expensive_requires(!name.as_ref().is_empty(), "syntax fields must be named")]
-#[expensive_requires(value.is_valid())]
-#[expensive_ensures(ret.is_valid())]
 fn field(name: impl AsRef<str>, value: SyntaxValue) -> SyntaxField {
-    SyntaxField {
+    SyntaxField::new(fields! {
         name: Some(name.as_ref().to_owned()),
-        value,
-    }
+        value: value,
+    })
 }
 
-#[expensive_requires(value.is_valid())]
-#[expensive_ensures(ret.is_valid())]
+fn unnamed_field(value: SyntaxValue) -> SyntaxField {
+    SyntaxField::new(fields! {
+        name: None,
+        value: value,
+    })
+}
+
 fn just(value: SyntaxValue) -> SyntaxValue {
-    node("Just", vec![SyntaxField { name: None, value }])
+    node("Just", vec![unnamed_field(value)])
 }
 
-#[expensive_ensures(ret.is_valid())]
 fn nothing() -> SyntaxValue {
     node("Nothing", Vec::new())
 }
 
-#[expensive_ensures(ret.is_valid())]
 fn nil() -> SyntaxValue {
     node("[]", Vec::new())
 }
 
-#[expensive_requires(items.iter().all(SyntaxValue::is_valid))]
-#[expensive_ensures(ret.is_valid())]
 fn plain_list(items: Vec<SyntaxValue>) -> SyntaxValue {
-    SyntaxValue::List { items }
+    SyntaxValue::list(items)
 }
 
-#[expensive_requires(items.iter().all(SyntaxValue::is_valid))]
-#[expensive_ensures(ret.is_valid())]
 fn list(items: Vec<SyntaxValue>) -> SyntaxValue {
     items.into_iter().rfold(nil(), |tail, head| {
-        node(
-            "(:)",
-            vec![
-                SyntaxField {
-                    name: None,
-                    value: head,
-                },
-                SyntaxField {
-                    name: None,
-                    value: tail,
-                },
-            ],
-        )
+        node("(:)", vec![unnamed_field(head), unnamed_field(tail)])
     })
 }
 
-#[expensive_requires(words.iter().all(WordWithModifiers::is_valid))]
 #[expensive_ensures(ret.iter().all(|token| token.span.start <= token.span.end))]
 fn spanned_tokens(words: &[WordWithModifiers]) -> Vec<SpannedToken> {
     words
@@ -4364,21 +4313,23 @@ fn spanned_tokens(words: &[WordWithModifiers]) -> Vec<SpannedToken> {
         .collect()
 }
 
-#[expensive_requires(word.is_valid())]
 #[expensive_ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 fn word_byte_range(word: &WordWithModifiers) -> Option<Range<usize>> {
-    match word {
-        WordWithModifiers::BaseWord { word_like } => word_like_byte_range(word_like.as_ref()),
-        WordWithModifiers::StandaloneIndicator { indicator, nai } => {
+    match word.as_raw() {
+        fields!(WordWithModifiers::BaseWord { word_like }) => word_like_byte_range(word_like),
+        fields!(WordWithModifiers::StandaloneIndicator { indicator, nai }) => {
             Some(indicator.span.byte_start..nai.as_ref().unwrap_or(indicator).span.byte_end)
         }
-        WordWithModifiers::Emphasized { bahe, word_like } => word_like_byte_range(word_like)
-            .map(|range| bahe.span.byte_start.min(range.start)..bahe.span.byte_end.max(range.end)),
-        WordWithModifiers::WithIndicator {
+        fields!(WordWithModifiers::Emphasized { bahe, word_like }) => {
+            word_like_byte_range(word_like).map(|range| {
+                bahe.span.byte_start.min(range.start)..bahe.span.byte_end.max(range.end)
+            })
+        }
+        fields!(WordWithModifiers::WithIndicator {
             base,
             indicator,
             nai,
-        } => word_byte_range(base).map(|range| {
+        }) => word_byte_range(base).map(|range| {
             range.start
                 ..nai
                     .as_ref()
@@ -4387,30 +4338,31 @@ fn word_byte_range(word: &WordWithModifiers) -> Option<Range<usize>> {
                     .byte_end
                     .max(range.end)
         }),
-        WordWithModifiers::NotEof => None,
+        fields!(WordWithModifiers::NotEof) => None,
     }
 }
 
-#[expensive_requires(word_like.is_valid())]
 #[expensive_ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
-    match word_like {
-        WordLike::Bare { word } => Some(word.span.byte_start..word.span.byte_end),
-        WordLike::ZoQuote { zo, word } => Some(zo.span.byte_start..word.span.byte_end),
-        WordLike::ZoiQuote {
+    match word_like.as_raw() {
+        fields!(WordLike::Bare { word }) => Some(word.span.byte_start..word.span.byte_end),
+        fields!(WordLike::ZoQuote { zo, word }) => Some(zo.span.byte_start..word.span.byte_end),
+        fields!(WordLike::ZoiQuote {
             zoi,
             closing_delimiter,
             ..
-        } => Some(zoi.span.byte_start..closing_delimiter.span.byte_end),
-        WordLike::LohuQuote { lohu, lehu, .. } => Some(lohu.span.byte_start..lehu.span.byte_end),
-        WordLike::SingleWordQuote {
+        }) => Some(zoi.span.byte_start..closing_delimiter.span.byte_end),
+        fields!(WordLike::LohuQuote { lohu, lehu, .. }) => {
+            Some(lohu.span.byte_start..lehu.span.byte_end)
+        }
+        fields!(WordLike::SingleWordQuote {
             marker,
             quoted_text,
-        } => Some(marker.span.byte_start..quoted_text.byte_end),
-        WordLike::Letter { base, bu } => {
+        }) => Some(marker.span.byte_start..quoted_text.byte_end),
+        fields!(WordLike::Letter { base, bu }) => {
             word_like_byte_range(base).map(|range| range.start..bu.span.byte_end.max(range.end))
         }
-        WordLike::ZeiLujvo { left, right, .. } => {
+        fields!(WordLike::ZeiLujvo { left, right, .. }) => {
             word_like_byte_range(left).map(|range| range.start..right.span.byte_end.max(range.end))
         }
     }
@@ -4440,6 +4392,8 @@ fn syntax_error(errors: Vec<Rich<'_, WordWithModifiers, Span>>) -> SyntaxError {
 mod tests {
     use jbotci_morphology::segment_words_with_modifiers;
 
+    use crate::SyntaxValueRaw;
+
     use super::*;
 
     #[test]
@@ -4448,7 +4402,7 @@ mod tests {
 
         let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
 
-        let SyntaxValue::Node { node } = parsed.parse_tree else {
+        let fields!(SyntaxValue::Node { node }) = parsed.parse_tree.as_raw() else {
             panic!("expected node");
         };
         assert_eq!(node.constructor, "LojbanText");

@@ -8,9 +8,19 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream, Parser};
 use syn::punctuated::Punctuated;
-use syn::{Expr, FieldPat, Pat, PatStruct, Path, Result, Token};
+use syn::{Expr, ExprPath, ExprStruct, FieldPat, Pat, PatStruct, Path, Result, Token};
 
 pub(crate) fn fields(input: TokenStream) -> TokenStream {
+    if let Ok(mut expression) = syn::parse2::<ExprStruct>(input.clone()) {
+        rewrite_path_to_raw_type(&mut expression.path);
+        return expression.into_token_stream();
+    }
+
+    if let Ok(mut expression) = syn::parse2::<ExprPath>(input.clone()) {
+        rewrite_path_to_raw_type(&mut expression.path);
+        return expression.into_token_stream();
+    }
+
     if let Ok(pattern) = Pat::parse_single.parse2(input.clone()) {
         return match pattern {
             Pat::Struct(pattern) => fields_struct_pattern(pattern),

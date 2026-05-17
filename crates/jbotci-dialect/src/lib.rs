@@ -477,11 +477,10 @@ fn definition_from_entries(entries: Vec<DialectDefinitionEntry>) -> DialectDefin
             }
         }
     }
-    DialectDefinition::try_from_fields(fields! {
+    DialectDefinition::new(fields! {
         cmavo_entries: cmavo_entries,
         features: features,
     })
-    .expect("parser constructs dialect definitions from validated entries")
 }
 
 fn lookup_builtin_dialect_reference(
@@ -1093,13 +1092,13 @@ mod tests {
     #[test]
     fn cmavo_transform_validity_checks_output_bounds() {
         assert!(
-            CmavoDialectTransform::try_from_fields(fields! {
+            CmavoDialectTransform::try_from_raw(fields!(CmavoDialectTransform {
                 source_text: String::from("mi"),
                 target_text: String::from("do"),
                 group_key: String::from("mi->do"),
                 output_index: 1,
                 output_count: 1,
-            })
+            }))
             .is_err()
         );
     }

@@ -36,6 +36,7 @@ fn generate_struct(
     fields: FieldsNamed,
 ) -> TokenStream {
     let contracts = collect_type_invariants(mode, attr, &mut item.attrs);
+    let (options, option_errors) = collect_type_options(&mut item.attrs);
     let shape = TypeShape::new(&item.ident, &item.vis, &item.generics, &item.attrs);
     let generics = &item.generics;
     let raw_attrs = item.attrs.clone();
@@ -173,8 +174,20 @@ fn generate_struct(
     let invariant_docs = invariant_docs(&contracts);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let turbofish = ty_generics.as_turbofish();
+    let new_impl = options.generate_new.then(|| {
+        quote! {
+            pub fn new<F>(fields: F) -> Self
+            where
+                F: ::std::ops::FnOnce(#all_unset_builder_ty) -> #all_set_builder_ty,
+            {
+                Self::from_raw(fields(#builder_ident::new()).build())
+            }
+        }
+    });
 
     quote! {
+        #(#option_errors)*
+
         #(#raw_attrs)*
         #raw_vis struct #raw_ident #generics #where_clause {
             #(#raw_fields,)*
@@ -266,6 +279,8 @@ fn generate_struct(
         }
 
         impl #impl_generics #wrapper_ident #ty_generics #where_clause {
+            #new_impl
+
             pub fn try_from_raw(raw: #raw_ident #ty_generics) -> ::std::result::Result<Self, #error_ident #ty_generics> {
                 let value = Self(raw);
                 if value.__bityzba_invariant() {
@@ -275,18 +290,16 @@ fn generate_struct(
                 }
             }
 
-            pub fn try_from_fields<F>(fields: F) -> ::std::result::Result<Self, #error_ident #ty_generics>
-            where
-                F: ::std::ops::FnOnce(#all_unset_builder_ty) -> #all_set_builder_ty,
-            {
-                Self::try_from_raw(fields(#builder_ident::new()).build())
+            pub fn from_raw(raw: #raw_ident #ty_generics) -> Self {
+                Self::try_from_raw(raw)
+                    .expect("raw value must satisfy type invariant")
             }
 
-            pub fn try_with_fields<F>(self, fields: F) -> ::std::result::Result<Self, #error_ident #ty_generics>
+            pub fn with_fields<F>(self, fields: F) -> Self
             where
                 F: ::std::ops::FnOnce(#update_builder_ident #ty_generics) -> #update_builder_ident #ty_generics,
             {
-                Self::try_from_raw(fields(#update_builder_ident::from_raw(self.0)).build())
+                Self::from_raw(fields(#update_builder_ident::from_raw(self.0)).build())
             }
 
             pub fn as_raw(&self) -> &#raw_ident #ty_generics {
@@ -326,6 +339,7 @@ fn generate_struct(
 
 fn generate_enum(mode: ContractMode, attr: TokenStream, mut item: ItemEnum) -> TokenStream {
     let contracts = collect_type_invariants(mode, attr, &mut item.attrs);
+    let (_options, option_errors) = collect_type_options(&mut item.attrs);
     let shape = TypeShape::new(&item.ident, &item.vis, &item.generics, &item.attrs);
     let raw_attrs = item.attrs.clone();
     let raw_ident = shape.raw_ident.clone();
@@ -345,6 +359,8 @@ fn generate_enum(mode: ContractMode, attr: TokenStream, mut item: ItemEnum) -> T
     let turbofish = ty_generics.as_turbofish();
 
     quote! {
+        #(#option_errors)*
+
         #(#raw_attrs)*
         #raw_vis enum #raw_ident #generics #where_clause {
             #variants
@@ -384,6 +400,11 @@ fn generate_enum(mode: ContractMode, attr: TokenStream, mut item: ItemEnum) -> T
                 }
             }
 
+            pub fn from_raw(raw: #raw_ident #ty_generics) -> Self {
+                Self::try_from_raw(raw)
+                    .expect("raw value must satisfy type invariant")
+            }
+
             pub fn as_raw(&self) -> &#raw_ident #ty_generics {
                 &self.0
             }
@@ -417,6 +438,43 @@ fn generate_enum(mode: ContractMode, attr: TokenStream, mut item: ItemEnum) -> T
         #deserialize_impl
         #default_impl
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct TypeOptions {
+    generate_new: bool,
+}
+
+impl Default for TypeOptions {
+    fn default() -> Self {
+        Self { generate_new: true }
+    }
+}
+
+fn collect_type_options(attrs: &mut Vec<Attribute>) -> (TypeOptions, Vec<TokenStream>) {
+    let mut options = TypeOptions::default();
+    let mut errors = Vec::new();
+    let mut retained = Vec::new();
+
+    for attr in std::mem::take(attrs) {
+        if attr.path().is_ident("bityzba") {
+            if let Err(error) = attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("no_new") {
+                    options.generate_new = false;
+                    Ok(())
+                } else {
+                    Err(meta.error("unsupported bityzba type option"))
+                }
+            }) {
+                errors.push(error.to_compile_error());
+            }
+        } else {
+            retained.push(attr);
+        }
+    }
+
+    *attrs = retained;
+    (options, errors)
 }
 
 fn collect_type_invariants(

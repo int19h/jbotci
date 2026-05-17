@@ -97,6 +97,7 @@ fn greeting(person_name: Option<&str>) -> String {
 
 #[invariant(self.byte_start <= self.byte_end, "byte range must be ordered")]
 #[invariant(self.char_start <= self.char_end, "character range must be ordered")]
+#[bityzba(no_new)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceSpan {
     pub source_id: Option<SourceId>,
@@ -104,6 +105,8 @@ pub struct SourceSpan {
     pub byte_end: usize,
     pub char_start: usize,
     pub char_end: usize,
+    pub start: Option<LineColumn>,
+    pub end: Option<LineColumn>,
 }
 
 impl SourceSpan {
@@ -115,40 +118,53 @@ impl SourceSpan {
         char_start: usize,
         char_end: usize,
     ) -> Result<Self, SourceLocationError> {
-        Self::try_from_fields(fields! {
+        if byte_end < byte_start {
+            return Err(SourceLocationError::ByteRangeInverted {
+                start: byte_start,
+                end: byte_end,
+            });
+        }
+        if char_end < char_start {
+            return Err(SourceLocationError::CharRangeInverted {
+                start: char_start,
+                end: char_end,
+            });
+        }
+        Ok(Self::from_raw(fields!(SourceSpan {
             source_id: source_id,
             byte_start: byte_start,
             byte_end: byte_end,
             char_start: char_start,
             char_end: char_end,
-        })
-        .map_err(|_| SourceLocationError::InvalidSourceSpan)
+            start: None,
+            end: None,
+        }))
     }
 }
 ```
 
 For type invariants, `#[invariant]` on a named-field struct or enum creates a validated wrapper plus a raw unchecked `TypeRaw`. Values of the wrapper are valid by construction. Do not add public `is_valid()` to invariant-bearing model types. Keep private helper predicates only for smaller sub-concepts that are not themselves represented by validated types.
 
-Use `Type::try_from_fields(fields! { ... })` for full construction. Every field must be present exactly once; missing fields fail at compile time through builder typestate and duplicate fields are a macro error. Use `value.try_with_fields(fields! { ... })` for whole-value updates; it consumes the old value, applies the partial field set, and revalidates. Clone first if the old value must be retained.
+By default, use `Type::new(fields! { ... })` for full construction. Every field must be present exactly once; missing fields fail at compile time through builder typestate and duplicate fields are a macro error. Use `value.with_fields(fields! { ... })` for whole-value updates; it consumes the old value, applies the partial field set, and revalidates. Clone first if the old value must be retained. If a type needs a hand-written `new` that does real work beyond invariant validation, add `#[bityzba(no_new)]` after the invariant attributes and implement that constructor in terms of `from_raw` or `try_from_raw`.
 
 ```rust
-let span = SourceSpan::try_from_fields(fields! {
+let span = CheckedSpan::new(fields! {
     source_id: None,
     byte_start: 0,
     byte_end: 12,
     char_start: 0,
     char_end: 12,
-})?;
+});
 
-let span = span.try_with_fields(fields! {
+let span = span.with_fields(fields! {
     byte_end: 16,
     char_end: 16,
-})?;
+});
 
 assert_eq!(span.byte_end, 16); // read-only field access through Deref
 ```
 
-There is no generated `DerefMut`. Do not mutate fields directly. If low-level code must work with unchecked data, use `value.as_raw()`, `value.into_raw()`, `Type::try_from_raw(raw)`, or `TryFrom<TypeRaw>` explicitly and keep that escape hatch local.
+There is no generated `DerefMut`. Do not mutate fields directly. If low-level code must work with unchecked data, use `value.as_raw()`, `value.into_raw()`, `Type::try_from_raw(raw)`, `Type::from_raw(raw)`, or `TryFrom<TypeRaw>` explicitly and keep that escape hatch local.
 
 Use `fields!` pattern aliases when destructuring raw views so normal code does not mention raw type names:
 

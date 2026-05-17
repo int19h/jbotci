@@ -2,7 +2,7 @@
 
 mod grammar;
 
-use bityzba::{expensive_ensures, expensive_requires};
+use bityzba::{expensive_invariant, fields, invariant};
 use jbotci_morphology::{WordWithModifiers, word_with_modifiers_syntax_eq};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -18,6 +18,7 @@ pub struct ParseOptions {
     pub trace: TraceOptions,
 }
 
+#[expensive_invariant(lojban_text_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LojbanText {
     pub leading_nai: Vec<WordWithModifiers>,
@@ -28,26 +29,7 @@ pub struct LojbanText {
     pub paragraphs: Vec<Paragraph>,
 }
 
-impl LojbanText {
-    pub fn is_valid(&self) -> bool {
-        self.leading_nai.iter().all(WordWithModifiers::is_valid)
-            && self.leading_cmevla.iter().all(WordWithModifiers::is_valid)
-            && self
-                .leading_indicators
-                .iter()
-                .all(WordWithModifiers::is_valid)
-            && self
-                .leading_free_modifiers
-                .iter()
-                .all(FreeModifier::is_valid)
-            && self
-                .leading_connective
-                .as_ref()
-                .is_none_or(Connective::is_valid)
-            && self.paragraphs.iter().all(Paragraph::is_valid)
-    }
-}
-
+#[expensive_invariant(paragraph_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Paragraph {
     pub i: Option<WordWithModifiers>,
@@ -56,15 +38,7 @@ pub struct Paragraph {
     pub statements: Vec<ParagraphStatement>,
 }
 
-impl Paragraph {
-    pub fn is_valid(&self) -> bool {
-        self.i.as_ref().is_none_or(WordWithModifiers::is_valid)
-            && self.niho.iter().all(WordWithModifiers::is_valid)
-            && self.free_modifiers.iter().all(FreeModifier::is_valid)
-            && self.statements.iter().all(ParagraphStatement::is_valid)
-    }
-}
-
+#[expensive_invariant(paragraph_statement_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParagraphStatement {
     pub i: Option<WordWithModifiers>,
@@ -73,15 +47,7 @@ pub struct ParagraphStatement {
     pub statement: Option<Statement>,
 }
 
-impl ParagraphStatement {
-    pub fn is_valid(&self) -> bool {
-        self.i.as_ref().is_none_or(WordWithModifiers::is_valid)
-            && self.connective.as_ref().is_none_or(Connective::is_valid)
-            && self.free_modifiers.iter().all(FreeModifier::is_valid)
-            && self.statement.as_ref().is_none_or(Statement::is_valid)
-    }
-}
-
+#[expensive_invariant(statement_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum Statement {
@@ -90,14 +56,16 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn is_valid(&self) -> bool {
-        match self {
-            Self::Fragment { fragment } => fragment.is_valid(),
-            Self::Placeholder => true,
-        }
+    pub fn fragment(fragment: Fragment) -> Self {
+        Self::from_raw(fields!(Statement::Fragment { fragment: fragment }))
+    }
+
+    pub fn placeholder() -> Self {
+        Self::from_raw(fields!(Statement::Placeholder))
     }
 }
 
+#[expensive_invariant(fragment_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum Fragment {
@@ -105,13 +73,12 @@ pub enum Fragment {
 }
 
 impl Fragment {
-    pub fn is_valid(&self) -> bool {
-        match self {
-            Self::Other { words } => words.iter().all(WordWithModifiers::is_valid),
-        }
+    pub fn other(words: Vec<WordWithModifiers>) -> Self {
+        Self::from_raw(fields!(Fragment::Other { words: words }))
     }
 }
 
+#[expensive_invariant(free_modifier_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum FreeModifier {
@@ -119,13 +86,12 @@ pub enum FreeModifier {
 }
 
 impl FreeModifier {
-    pub fn is_valid(&self) -> bool {
-        match self {
-            Self::Words { words } => words.iter().all(WordWithModifiers::is_valid),
-        }
+    pub fn words(words: Vec<WordWithModifiers>) -> Self {
+        Self::from_raw(fields!(FreeModifier::Words { words: words }))
     }
 }
 
+#[expensive_invariant(connective_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum Connective {
@@ -133,10 +99,8 @@ pub enum Connective {
 }
 
 impl Connective {
-    pub fn is_valid(&self) -> bool {
-        match self {
-            Self::Words { words } => words.iter().all(WordWithModifiers::is_valid),
-        }
+    pub fn words(words: Vec<WordWithModifiers>) -> Self {
+        Self::from_raw(fields!(Connective::Words { words: words }))
     }
 }
 
@@ -148,8 +112,6 @@ pub enum SyntaxError {
     Parse { byte_offset: usize, reason: String },
 }
 
-#[expensive_requires(words.iter().all(WordWithModifiers::is_valid))]
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(LojbanText::is_valid))]
 pub fn parse_text(
     words: &[WordWithModifiers],
     options: &ParseOptions,
@@ -157,6 +119,7 @@ pub fn parse_text(
     grammar::parse_text(words, options)
 }
 
+#[expensive_invariant(syntax_parse_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SyntaxParse {
     pub parse_tree: SyntaxValue,
@@ -164,12 +127,7 @@ pub struct SyntaxParse {
     pub warnings: Vec<SyntaxWarning>,
 }
 
-impl SyntaxParse {
-    pub fn is_valid(&self) -> bool {
-        self.parse_tree.is_valid() && self.warnings.iter().all(SyntaxWarning::is_valid)
-    }
-}
-
+#[invariant(syntax_warning_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum SyntaxWarning {
@@ -181,23 +139,23 @@ pub enum SyntaxWarning {
 }
 
 impl SyntaxWarning {
-    pub fn is_valid(&self) -> bool {
-        match self {
-            Self::ExperimentalConstruct {
-                construct, anchor, ..
-            } => !construct.is_empty() && anchor.is_valid(),
-        }
+    pub fn experimental_construct(
+        construct: impl Into<String>,
+        anchor_index: usize,
+        anchor: WordWithModifiers,
+    ) -> Self {
+        Self::from_raw(fields!(SyntaxWarning::ExperimentalConstruct {
+            construct: construct.into(),
+            anchor_index: anchor_index,
+            anchor: anchor,
+        }))
     }
 }
 
-#[expensive_requires(words.iter().all(WordWithModifiers::is_valid))]
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(SyntaxParse::is_valid))]
 pub fn parse_syntax_tree(words: &[WordWithModifiers]) -> Result<SyntaxParse, SyntaxError> {
     parse_syntax_tree_with_options(words, &ParseOptions::default())
 }
 
-#[expensive_requires(words.iter().all(WordWithModifiers::is_valid))]
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(SyntaxParse::is_valid))]
 pub fn parse_syntax_tree_with_options(
     words: &[WordWithModifiers],
     options: &ParseOptions,
@@ -205,8 +163,6 @@ pub fn parse_syntax_tree_with_options(
     grammar::parse_syntax_tree(words, options)
 }
 
-#[expensive_requires(words.iter().all(WordWithModifiers::is_valid))]
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(SyntaxParse::is_valid))]
 pub fn parse_syntax_tree_with_source_and_options(
     words: &[WordWithModifiers],
     source: &str,
@@ -221,17 +177,14 @@ pub fn parse_syntax_tree_with_source_and_options(
 /// directly. Until then, v0 exports syntax expectations as constructor records:
 /// every node has a constructor name and an ordered field list. This preserves
 /// record field order and avoids treating the raw tree as an opaque string.
+#[expensive_invariant(syntax_tree_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SyntaxTree {
     pub root: SyntaxValue,
 }
 
-impl SyntaxTree {
-    pub fn is_valid(&self) -> bool {
-        self.root.is_valid()
-    }
-}
-
+#[invariant(!self.constructor.is_empty(), "syntax constructor must not be empty")]
+#[expensive_invariant(syntax_node_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SyntaxNode {
     pub constructor: String,
@@ -239,12 +192,8 @@ pub struct SyntaxNode {
     pub fields: Vec<SyntaxField>,
 }
 
-impl SyntaxNode {
-    pub fn is_valid(&self) -> bool {
-        !self.constructor.is_empty() && self.fields.iter().all(SyntaxField::is_valid)
-    }
-}
-
+#[invariant(self.name.as_ref().is_none_or(|name| !name.is_empty()), "syntax field name must not be empty")]
+#[expensive_invariant(syntax_field_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SyntaxField {
     #[serde(default)]
@@ -252,12 +201,7 @@ pub struct SyntaxField {
     pub value: SyntaxValue,
 }
 
-impl SyntaxField {
-    pub fn is_valid(&self) -> bool {
-        self.name.as_ref().is_none_or(|name| !name.is_empty()) && self.value.is_valid()
-    }
-}
-
+#[expensive_invariant(syntax_value_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum SyntaxValue {
@@ -272,53 +216,74 @@ pub enum SyntaxValue {
 }
 
 impl SyntaxValue {
-    #[expensive_ensures(ret.is_valid())]
+    pub fn null() -> Self {
+        Self::from_raw(fields!(SyntaxValue::Null))
+    }
+
+    pub fn r#bool(value: bool) -> Self {
+        Self::from_raw(fields!(SyntaxValue::Bool { value: value }))
+    }
+
+    pub fn integer(value: i64) -> Self {
+        Self::from_raw(fields!(SyntaxValue::Integer { value: value }))
+    }
+
+    pub fn text(value: impl Into<String>) -> Self {
+        Self::from_raw(fields!(SyntaxValue::Text {
+            value: value.into(),
+        }))
+    }
+
+    pub fn list(items: Vec<SyntaxValue>) -> Self {
+        Self::from_raw(fields!(SyntaxValue::List { items: items }))
+    }
+
     pub fn node(constructor: impl Into<String>, fields: Vec<SyntaxField>) -> Self {
-        Self::Node {
-            node: Box::new(SyntaxNode {
+        Self::from_raw(fields!(SyntaxValue::Node {
+            node: Box::new(SyntaxNode::new(fields! {
                 constructor: constructor.into(),
-                fields,
-            }),
-        }
+                fields: fields,
+            })),
+        }))
     }
 
-    #[expensive_requires(word.is_valid())]
-    #[expensive_ensures(ret.is_valid())]
     pub fn word(word: WordWithModifiers) -> Self {
-        Self::Word {
+        Self::from_raw(fields!(SyntaxValue::Word {
             word: Box::new(word),
-        }
+        }))
     }
 
-    pub fn is_valid(&self) -> bool {
-        match self {
-            Self::Null | Self::Bool { .. } | Self::Integer { .. } | Self::Text { .. } => true,
-            Self::List { items } => items.iter().all(Self::is_valid),
-            Self::Node { node } => node.is_valid(),
-            Self::Word { word } => word.is_valid(),
-            Self::Json { .. } => true,
-        }
+    pub fn json(value: serde_json::Value) -> Self {
+        Self::from_raw(fields!(SyntaxValue::Json { value: value }))
     }
 }
 
-#[expensive_requires(left.is_valid())]
-#[expensive_requires(right.is_valid())]
 pub fn syntax_values_equivalent(left: &SyntaxValue, right: &SyntaxValue) -> bool {
-    match (left, right) {
-        (SyntaxValue::Null, SyntaxValue::Null) => true,
-        (SyntaxValue::Bool { value: left }, SyntaxValue::Bool { value: right }) => left == right,
-        (SyntaxValue::Integer { value: left }, SyntaxValue::Integer { value: right }) => {
-            left == right
-        }
-        (SyntaxValue::Text { value: left }, SyntaxValue::Text { value: right }) => left == right,
-        (SyntaxValue::List { items: left }, SyntaxValue::List { items: right }) => {
+    match (left.as_raw(), right.as_raw()) {
+        (fields!(SyntaxValue::Null), fields!(SyntaxValue::Null)) => true,
+        (
+            fields!(SyntaxValue::Bool { value: left }),
+            fields!(SyntaxValue::Bool { value: right }),
+        ) => left == right,
+        (
+            fields!(SyntaxValue::Integer { value: left }),
+            fields!(SyntaxValue::Integer { value: right }),
+        ) => left == right,
+        (
+            fields!(SyntaxValue::Text { value: left }),
+            fields!(SyntaxValue::Text { value: right }),
+        ) => left == right,
+        (
+            fields!(SyntaxValue::List { items: left }),
+            fields!(SyntaxValue::List { items: right }),
+        ) => {
             left.len() == right.len()
                 && left
                     .iter()
                     .zip(right.iter())
                     .all(|(left, right)| syntax_values_equivalent(left, right))
         }
-        (SyntaxValue::Node { node: left }, SyntaxValue::Node { node: right }) => {
+        (fields!(SyntaxValue::Node { node: left }), fields!(SyntaxValue::Node { node: right })) => {
             left.constructor == right.constructor
                 && left.fields.len() == right.fields.len()
                 && left
@@ -330,11 +295,120 @@ pub fn syntax_values_equivalent(left: &SyntaxValue, right: &SyntaxValue) -> bool
                             && syntax_values_equivalent(&left.value, &right.value)
                     })
         }
-        (SyntaxValue::Word { word: left }, SyntaxValue::Word { word: right }) => {
+        (fields!(SyntaxValue::Word { word: left }), fields!(SyntaxValue::Word { word: right })) => {
             word_with_modifiers_syntax_eq(left, right)
         }
-        (SyntaxValue::Json { value: left }, SyntaxValue::Json { value: right }) => left == right,
+        (
+            fields!(SyntaxValue::Json { value: left }),
+            fields!(SyntaxValue::Json { value: right }),
+        ) => left == right,
         _ => false,
+    }
+}
+
+fn lojban_text_raw_is_valid(raw: &LojbanTextRaw) -> bool {
+    raw.leading_free_modifiers
+        .iter()
+        .all(|modifier| free_modifier_raw_is_valid(modifier.as_raw()))
+        && raw
+            .leading_connective
+            .as_ref()
+            .is_none_or(|connective| connective_raw_is_valid(connective.as_raw()))
+        && raw
+            .paragraphs
+            .iter()
+            .all(|paragraph| paragraph_raw_is_valid(paragraph.as_raw()))
+}
+
+fn paragraph_raw_is_valid(raw: &ParagraphRaw) -> bool {
+    raw.free_modifiers
+        .iter()
+        .all(|modifier| free_modifier_raw_is_valid(modifier.as_raw()))
+        && raw
+            .statements
+            .iter()
+            .all(|statement| paragraph_statement_raw_is_valid(statement.as_raw()))
+}
+
+fn paragraph_statement_raw_is_valid(raw: &ParagraphStatementRaw) -> bool {
+    raw.connective
+        .as_ref()
+        .is_none_or(|connective| connective_raw_is_valid(connective.as_raw()))
+        && raw
+            .free_modifiers
+            .iter()
+            .all(|modifier| free_modifier_raw_is_valid(modifier.as_raw()))
+        && raw
+            .statement
+            .as_ref()
+            .is_none_or(|statement| statement_raw_is_valid(statement.as_raw()))
+}
+
+fn statement_raw_is_valid(raw: &StatementRaw) -> bool {
+    match raw {
+        fields!(Statement::Fragment { fragment }) => fragment_raw_is_valid(fragment.as_raw()),
+        fields!(Statement::Placeholder) => true,
+    }
+}
+
+fn fragment_raw_is_valid(raw: &FragmentRaw) -> bool {
+    match raw {
+        fields!(Fragment::Other { words: _ }) => true,
+    }
+}
+
+fn free_modifier_raw_is_valid(raw: &FreeModifierRaw) -> bool {
+    match raw {
+        fields!(FreeModifier::Words { words: _ }) => true,
+    }
+}
+
+fn connective_raw_is_valid(raw: &ConnectiveRaw) -> bool {
+    match raw {
+        fields!(Connective::Words { words: _ }) => true,
+    }
+}
+
+fn syntax_parse_raw_is_valid(raw: &SyntaxParseRaw) -> bool {
+    syntax_value_raw_is_valid(raw.parse_tree.as_raw())
+        && raw
+            .warnings
+            .iter()
+            .all(|warning| syntax_warning_raw_is_valid(warning.as_raw()))
+}
+
+fn syntax_warning_raw_is_valid(raw: &SyntaxWarningRaw) -> bool {
+    match raw {
+        fields!(SyntaxWarning::ExperimentalConstruct { construct, .. }) => !construct.is_empty(),
+    }
+}
+
+fn syntax_tree_raw_is_valid(raw: &SyntaxTreeRaw) -> bool {
+    syntax_value_raw_is_valid(raw.root.as_raw())
+}
+
+fn syntax_node_raw_is_valid(raw: &SyntaxNodeRaw) -> bool {
+    raw.fields
+        .iter()
+        .all(|field| syntax_field_raw_is_valid(field.as_raw()))
+}
+
+fn syntax_field_raw_is_valid(raw: &SyntaxFieldRaw) -> bool {
+    syntax_value_raw_is_valid(raw.value.as_raw())
+}
+
+fn syntax_value_raw_is_valid(raw: &SyntaxValueRaw) -> bool {
+    match raw {
+        fields!(SyntaxValue::Null)
+        | fields!(SyntaxValue::Bool { .. })
+        | fields!(SyntaxValue::Integer { .. })
+        | fields!(SyntaxValue::Text { .. })
+        | fields!(SyntaxValue::Word { .. })
+        | fields!(SyntaxValue::Json { .. }) => true,
+        fields!(SyntaxValue::List { items }) => items
+            .iter()
+            .all(|item| syntax_value_raw_is_valid(item.as_raw())),
+        fields!(SyntaxValue::Node { node }) => syntax_node_raw_is_valid(node.as_raw()),
     }
 }
 
@@ -344,17 +418,35 @@ mod tests {
 
     #[test]
     fn syntax_value_validity_rejects_empty_constructor() {
-        let value = SyntaxValue::Node {
-            node: Box::new(SyntaxNode {
-                constructor: String::new(),
-                fields: Vec::new(),
-            }),
-        };
-        assert!(!value.is_valid());
+        let error = SyntaxNode::try_from_raw(fields!(SyntaxNode {
+            constructor: String::new(),
+            fields: Vec::new(),
+        }))
+        .expect_err("empty constructor should violate syntax node invariant");
+
+        assert!(
+            error
+                .to_string()
+                .contains("syntax constructor must not be empty")
+        );
     }
 
     #[test]
-    #[cfg(feature = "expensive_contracts")]
+    fn syntax_field_rejects_empty_name() {
+        let error = SyntaxField::try_from_raw(fields!(SyntaxField {
+            name: Some(String::new()),
+            value: SyntaxValue::null(),
+        }))
+        .expect_err("empty field name should violate syntax field invariant");
+
+        assert!(
+            error
+                .to_string()
+                .contains("syntax field name must not be empty")
+        );
+    }
+
+    #[test]
     #[should_panic]
     fn syntax_node_constructor_contract_is_reported() {
         let _ = SyntaxValue::node("", Vec::new());

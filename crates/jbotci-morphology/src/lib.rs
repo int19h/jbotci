@@ -5,8 +5,8 @@ mod segment;
 
 use std::fmt;
 
+use bityzba::expensive_invariant;
 use bityzba::{ensures, fields, invariant};
-use bityzba::{expensive_ensures, expensive_requires};
 pub use jbotci_dialect::{
     CmavoDialectEntry, CmavoDialectTransform, DialectDefinition, DialectFeature,
 };
@@ -29,7 +29,7 @@ pub struct MorphologyOptions {
 
 impl Default for MorphologyOptions {
     fn default() -> Self {
-        Self::try_from_fields(fields! {
+        Self::new(fields! {
             accept_latin: true,
             accept_cyrillic: true,
             accept_zbalermorna: true,
@@ -38,7 +38,6 @@ impl Default for MorphologyOptions {
             uppercase_marks_stress: true,
             enforce_cgv_ban: true,
         })
-        .expect("default morphology options satisfy their invariant")
     }
 }
 
@@ -48,21 +47,18 @@ impl MorphologyOptions {
     #[ensures(definition.features.contains(&DialectFeature::AllowCgv) -> !ret.enforce_cgv_ban)]
     #[ensures(definition.features.contains(&DialectFeature::CaseInsensitive) -> !ret.uppercase_marks_stress)]
     pub fn with_dialect_definition(self, definition: &DialectDefinition) -> Self {
-        let mut raw = self.into_raw();
-        raw.cmavo_dialect_entries = definition.cmavo_entries.clone();
-        if definition.features.contains(&DialectFeature::Cbm) {
-            raw.cmevla_as_relation_words = true;
-        }
-        if definition.features.contains(&DialectFeature::AllowCgv) {
-            raw.enforce_cgv_ban = false;
-        }
-        if definition
-            .features
-            .contains(&DialectFeature::CaseInsensitive)
-        {
-            raw.uppercase_marks_stress = false;
-        }
-        Self::try_from_raw(raw).expect("dialect definition options preserve morphology invariants")
+        let cmevla_as_relation_words = self.cmevla_as_relation_words;
+        let enforce_cgv_ban = self.enforce_cgv_ban;
+        let uppercase_marks_stress = self.uppercase_marks_stress;
+        self.with_fields(fields! {
+            cmavo_dialect_entries: definition.cmavo_entries.clone(),
+            cmevla_as_relation_words: cmevla_as_relation_words
+                || definition.features.contains(&DialectFeature::Cbm),
+            enforce_cgv_ban: enforce_cgv_ban
+                && !definition.features.contains(&DialectFeature::AllowCgv),
+            uppercase_marks_stress: uppercase_marks_stress
+                && !definition.features.contains(&DialectFeature::CaseInsensitive),
+        })
     }
 }
 
@@ -125,6 +121,7 @@ impl fmt::Display for Word {
     }
 }
 
+#[expensive_invariant(word_like_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum WordLike {
@@ -162,32 +159,84 @@ pub enum WordLike {
 }
 
 impl WordLike {
-    #[expensive_ensures(ret -> word_like_is_valid(self))]
-    pub fn is_valid(&self) -> bool {
-        word_like_is_valid(self)
+    pub fn bare(word: Word) -> Self {
+        Self::from_raw(fields!(WordLike::Bare {
+            word: Box::new(word),
+        }))
+    }
+
+    pub fn zo_quote(zo: Word, word: Word) -> Self {
+        Self::from_raw(fields!(WordLike::ZoQuote {
+            zo: Box::new(zo),
+            word: Box::new(word),
+        }))
+    }
+
+    pub fn zoi_quote(
+        zoi: Word,
+        opening_delimiter: Word,
+        quoted_text: SourceSpan,
+        closing_delimiter: Word,
+    ) -> Self {
+        Self::from_raw(fields!(WordLike::ZoiQuote {
+            zoi: Box::new(zoi),
+            opening_delimiter: Box::new(opening_delimiter),
+            quoted_text: quoted_text,
+            closing_delimiter: Box::new(closing_delimiter),
+        }))
+    }
+
+    pub fn lohu_quote(lohu: Word, quoted_words: Vec<Word>, lehu: Word) -> Self {
+        Self::from_raw(fields!(WordLike::LohuQuote {
+            lohu: Box::new(lohu),
+            quoted_words: quoted_words,
+            lehu: Box::new(lehu),
+        }))
+    }
+
+    pub fn single_word_quote(marker: Word, quoted_text: SourceSpan) -> Self {
+        Self::from_raw(fields!(WordLike::SingleWordQuote {
+            marker: Box::new(marker),
+            quoted_text: quoted_text,
+        }))
+    }
+
+    pub fn letter(base: WordLike, bu: Word) -> Self {
+        Self::from_raw(fields!(WordLike::Letter {
+            base: Box::new(base),
+            bu: Box::new(bu),
+        }))
+    }
+
+    pub fn zei_lujvo(left: WordLike, zei: Word, right: Word) -> Self {
+        Self::from_raw(fields!(WordLike::ZeiLujvo {
+            left: Box::new(left),
+            zei: Box::new(zei),
+            right: Box::new(right),
+        }))
     }
 }
 
 impl fmt::Display for WordLike {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Bare { word } => write!(f, "{word}"),
-            Self::ZoQuote { zo, word } => write!(f, "{zo}-<<{word}>>"),
-            Self::ZoiQuote {
+        match self.as_raw() {
+            fields!(WordLike::Bare { word }) => write!(f, "{word}"),
+            fields!(WordLike::ZoQuote { zo, word }) => write!(f, "{zo}-<<{word}>>"),
+            fields!(WordLike::ZoiQuote {
                 zoi,
                 opening_delimiter,
                 quoted_text,
                 closing_delimiter,
-            } => write!(
+            }) => write!(
                 f,
                 "{zoi}-{opening_delimiter}-<{} chars>-{closing_delimiter}",
                 quoted_text.char_len()
             ),
-            Self::LohuQuote {
+            fields!(WordLike::LohuQuote {
                 lohu,
                 quoted_words,
                 lehu,
-            } => {
+            }) => {
                 write!(f, "{lohu}-<<")?;
                 for (index, word) in quoted_words.iter().enumerate() {
                     if index > 0 {
@@ -197,16 +246,19 @@ impl fmt::Display for WordLike {
                 }
                 write!(f, ">>-{lehu}")
             }
-            Self::SingleWordQuote {
+            fields!(WordLike::SingleWordQuote {
                 marker,
                 quoted_text,
-            } => write!(f, "{marker}-<{} chars>", quoted_text.char_len()),
-            Self::Letter { base, bu } => write!(f, "{base}-{bu}"),
-            Self::ZeiLujvo { left, zei, right } => write!(f, "{left}-{zei}-{right}"),
+            }) => write!(f, "{marker}-<{} chars>", quoted_text.char_len()),
+            fields!(WordLike::Letter { base, bu }) => write!(f, "{base}-{bu}"),
+            fields!(WordLike::ZeiLujvo { left, zei, right }) => {
+                write!(f, "{left}-{zei}-{right}")
+            }
         }
     }
 }
 
+#[expensive_invariant(word_with_modifiers_raw_is_valid(self.as_raw()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum WordWithModifiers {
@@ -230,125 +282,150 @@ pub enum WordWithModifiers {
 }
 
 impl WordWithModifiers {
-    #[expensive_ensures(ret -> word_with_modifiers_is_valid(self))]
-    pub fn is_valid(&self) -> bool {
-        word_with_modifiers_is_valid(self)
+    pub fn base_word(word_like: WordLike) -> Self {
+        Self::from_raw(fields!(WordWithModifiers::BaseWord {
+            word_like: Box::new(word_like),
+        }))
+    }
+
+    pub fn standalone_indicator(indicator: Word, nai: Option<Word>) -> Self {
+        Self::from_raw(fields!(WordWithModifiers::StandaloneIndicator {
+            indicator: Box::new(indicator),
+            nai: nai.map(Box::new),
+        }))
+    }
+
+    pub fn emphasized(bahe: Word, word_like: WordLike) -> Self {
+        Self::from_raw(fields!(WordWithModifiers::Emphasized {
+            bahe: Box::new(bahe),
+            word_like: Box::new(word_like),
+        }))
+    }
+
+    pub fn with_indicator(base: WordWithModifiers, indicator: Word, nai: Option<Word>) -> Self {
+        Self::from_raw(fields!(WordWithModifiers::WithIndicator {
+            base: Box::new(base),
+            indicator: Box::new(indicator),
+            nai: nai.map(Box::new),
+        }))
+    }
+
+    pub fn not_eof() -> Self {
+        Self::from_raw(fields!(WordWithModifiers::NotEof))
     }
 }
 
 impl fmt::Display for WordWithModifiers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::BaseWord { word_like } => write!(f, "{word_like}"),
-            Self::StandaloneIndicator { indicator, nai } => {
+        match self.as_raw() {
+            fields!(WordWithModifiers::BaseWord { word_like }) => write!(f, "{word_like}"),
+            fields!(WordWithModifiers::StandaloneIndicator { indicator, nai }) => {
                 write!(f, "{indicator}")?;
                 if let Some(nai) = nai {
                     write!(f, "-{nai}")?;
                 }
                 Ok(())
             }
-            Self::Emphasized { bahe, word_like } => write!(f, "{bahe}-{word_like}"),
-            Self::WithIndicator {
+            fields!(WordWithModifiers::Emphasized { bahe, word_like }) => {
+                write!(f, "{bahe}-{word_like}")
+            }
+            fields!(WordWithModifiers::WithIndicator {
                 base,
                 indicator,
                 nai,
-            } => {
+            }) => {
                 write!(f, "{base}-{indicator}")?;
                 if let Some(nai) = nai {
                     write!(f, "-{nai}")?;
                 }
                 Ok(())
             }
-            Self::NotEof => f.write_str("<not-eof>"),
+            fields!(WordWithModifiers::NotEof) => f.write_str("<not-eof>"),
         }
     }
 }
 
-#[expensive_requires(left.is_valid())]
-#[expensive_requires(right.is_valid())]
 pub fn word_with_modifiers_syntax_eq(left: &WordWithModifiers, right: &WordWithModifiers) -> bool {
-    match (left, right) {
+    match (left.as_raw(), right.as_raw()) {
         (
-            WordWithModifiers::BaseWord { word_like: left },
-            WordWithModifiers::BaseWord { word_like: right },
+            fields!(WordWithModifiers::BaseWord { word_like: left }),
+            fields!(WordWithModifiers::BaseWord { word_like: right }),
         ) => word_like_syntax_eq(left, right),
         (
-            WordWithModifiers::StandaloneIndicator {
+            fields!(WordWithModifiers::StandaloneIndicator {
                 indicator: left_indicator,
                 nai: left_nai,
-            },
-            WordWithModifiers::StandaloneIndicator {
+            }),
+            fields!(WordWithModifiers::StandaloneIndicator {
                 indicator: right_indicator,
                 nai: right_nai,
-            },
+            }),
         ) => {
             word_syntax_eq(left_indicator, right_indicator)
                 && optional_word_syntax_eq(left_nai.as_deref(), right_nai.as_deref())
         }
         (
-            WordWithModifiers::Emphasized {
+            fields!(WordWithModifiers::Emphasized {
                 bahe: left_bahe,
                 word_like: left_word_like,
-            },
-            WordWithModifiers::Emphasized {
+            }),
+            fields!(WordWithModifiers::Emphasized {
                 bahe: right_bahe,
                 word_like: right_word_like,
-            },
+            }),
         ) => {
             word_syntax_eq(left_bahe, right_bahe)
                 && word_like_syntax_eq(left_word_like, right_word_like)
         }
         (
-            WordWithModifiers::WithIndicator {
+            fields!(WordWithModifiers::WithIndicator {
                 base: left_base,
                 indicator: left_indicator,
                 nai: left_nai,
-            },
-            WordWithModifiers::WithIndicator {
+            }),
+            fields!(WordWithModifiers::WithIndicator {
                 base: right_base,
                 indicator: right_indicator,
                 nai: right_nai,
-            },
+            }),
         ) => {
             word_with_modifiers_syntax_eq(left_base, right_base)
                 && word_syntax_eq(left_indicator, right_indicator)
                 && optional_word_syntax_eq(left_nai.as_deref(), right_nai.as_deref())
         }
-        (WordWithModifiers::NotEof, WordWithModifiers::NotEof) => true,
+        (fields!(WordWithModifiers::NotEof), fields!(WordWithModifiers::NotEof)) => true,
         _ => false,
     }
 }
 
-#[expensive_requires(left.is_valid())]
-#[expensive_requires(right.is_valid())]
 pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
-    match (left, right) {
-        (WordLike::Bare { word: left }, WordLike::Bare { word: right }) => {
+    match (left.as_raw(), right.as_raw()) {
+        (fields!(WordLike::Bare { word: left }), fields!(WordLike::Bare { word: right })) => {
             word_syntax_eq(left, right)
         }
         (
-            WordLike::ZoQuote {
+            fields!(WordLike::ZoQuote {
                 zo: left_zo,
                 word: left_word,
-            },
-            WordLike::ZoQuote {
+            }),
+            fields!(WordLike::ZoQuote {
                 zo: right_zo,
                 word: right_word,
-            },
+            }),
         ) => word_syntax_eq(left_zo, right_zo) && word_syntax_eq(left_word, right_word),
         (
-            WordLike::ZoiQuote {
+            fields!(WordLike::ZoiQuote {
                 zoi: left_zoi,
                 opening_delimiter: left_opening,
                 quoted_text: left_quoted,
                 closing_delimiter: left_closing,
-            },
-            WordLike::ZoiQuote {
+            }),
+            fields!(WordLike::ZoiQuote {
                 zoi: right_zoi,
                 opening_delimiter: right_opening,
                 quoted_text: right_quoted,
                 closing_delimiter: right_closing,
-            },
+            }),
         ) => {
             word_syntax_eq(left_zoi, right_zoi)
                 && word_syntax_eq(left_opening, right_opening)
@@ -356,16 +433,16 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
                 && word_syntax_eq(left_closing, right_closing)
         }
         (
-            WordLike::LohuQuote {
+            fields!(WordLike::LohuQuote {
                 lohu: left_lohu,
                 quoted_words: left_words,
                 lehu: left_lehu,
-            },
-            WordLike::LohuQuote {
+            }),
+            fields!(WordLike::LohuQuote {
                 lohu: right_lohu,
                 quoted_words: right_words,
                 lehu: right_lehu,
-            },
+            }),
         ) => {
             word_syntax_eq(left_lohu, right_lohu)
                 && left_words.len() == right_words.len()
@@ -376,36 +453,36 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
                 && word_syntax_eq(left_lehu, right_lehu)
         }
         (
-            WordLike::SingleWordQuote {
+            fields!(WordLike::SingleWordQuote {
                 marker: left_marker,
                 quoted_text: left_quoted,
-            },
-            WordLike::SingleWordQuote {
+            }),
+            fields!(WordLike::SingleWordQuote {
                 marker: right_marker,
                 quoted_text: right_quoted,
-            },
+            }),
         ) => word_syntax_eq(left_marker, right_marker) && left_quoted == right_quoted,
         (
-            WordLike::Letter {
+            fields!(WordLike::Letter {
                 base: left_base,
                 bu: left_bu,
-            },
-            WordLike::Letter {
+            }),
+            fields!(WordLike::Letter {
                 base: right_base,
                 bu: right_bu,
-            },
+            }),
         ) => word_like_syntax_eq(left_base, right_base) && word_syntax_eq(left_bu, right_bu),
         (
-            WordLike::ZeiLujvo {
+            fields!(WordLike::ZeiLujvo {
                 left: left_left,
                 zei: left_zei,
                 right: left_right,
-            },
-            WordLike::ZeiLujvo {
+            }),
+            fields!(WordLike::ZeiLujvo {
                 left: right_left,
                 zei: right_zei,
                 right: right_right,
-            },
+            }),
         ) => {
             word_like_syntax_eq(left_left, right_left)
                 && word_syntax_eq(left_zei, right_zei)
@@ -442,7 +519,6 @@ pub enum MorphologyError {
     SourceSpan(#[from] SourceLocationError),
 }
 
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers(
     input: &str,
 ) -> Result<Vec<WordWithModifiers>, MorphologyError> {
@@ -453,7 +529,6 @@ pub fn segment_words_with_modifiers(
     )
 }
 
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_with_options(
     input: &str,
     options: &MorphologyOptions,
@@ -461,7 +536,6 @@ pub fn segment_words_with_modifiers_with_options(
     segment_words_with_modifiers_with_options_and_source_id(input, options, None)
 }
 
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_with_source_id(
     input: &str,
     source_id: SourceId,
@@ -473,7 +547,6 @@ pub fn segment_words_with_modifiers_with_source_id(
     )
 }
 
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_with_options_and_source_id(
     input: &str,
     options: &MorphologyOptions,
@@ -482,7 +555,6 @@ pub fn segment_words_with_modifiers_with_options_and_source_id(
     grammar::segment_words_with_modifiers(input, options, source_id)
 }
 
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_raw(
     input: &str,
 ) -> Result<Vec<WordWithModifiers>, MorphologyError> {
@@ -493,7 +565,6 @@ pub fn segment_words_with_modifiers_raw(
     )
 }
 
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_raw_with_source_id(
     input: &str,
     source_id: SourceId,
@@ -505,7 +576,6 @@ pub fn segment_words_with_modifiers_raw_with_source_id(
     )
 }
 
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_raw_with_options(
     input: &str,
     options: &MorphologyOptions,
@@ -513,7 +583,6 @@ pub fn segment_words_with_modifiers_raw_with_options(
     segment_words_with_modifiers_raw_with_options_and_source_id(input, options, None)
 }
 
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|words| words.iter().all(WordWithModifiers::is_valid)))]
 pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
     input: &str,
     options: &MorphologyOptions,
@@ -523,29 +592,33 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-fn word_with_modifiers_is_valid(word: &WordWithModifiers) -> bool {
+fn word_with_modifiers_raw_is_valid(word: &WordWithModifiersRaw) -> bool {
     match word {
-        WordWithModifiers::BaseWord { word_like } => word_like.is_valid(),
-        WordWithModifiers::StandaloneIndicator { .. } => true,
-        WordWithModifiers::Emphasized { word_like, .. } => word_like.is_valid(),
-        WordWithModifiers::WithIndicator {
+        fields!(WordWithModifiers::BaseWord { word_like }) => {
+            word_like_raw_is_valid(word_like.as_raw())
+        }
+        fields!(WordWithModifiers::StandaloneIndicator { .. }) => true,
+        fields!(WordWithModifiers::Emphasized { word_like, .. }) => {
+            word_like_raw_is_valid(word_like.as_raw())
+        }
+        fields!(WordWithModifiers::WithIndicator {
             base,
             indicator: _,
             nai: _,
-        } => base.is_valid(),
-        WordWithModifiers::NotEof => true,
+        }) => word_with_modifiers_raw_is_valid(base.as_raw()),
+        fields!(WordWithModifiers::NotEof) => true,
     }
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-fn word_like_is_valid(word_like: &WordLike) -> bool {
+fn word_like_raw_is_valid(word_like: &WordLikeRaw) -> bool {
     match word_like {
-        WordLike::Bare { .. } | WordLike::ZoQuote { .. } => true,
-        WordLike::ZoiQuote { quoted_text, .. } => source_span_is_valid(quoted_text),
-        WordLike::LohuQuote { .. } => true,
-        WordLike::SingleWordQuote { quoted_text, .. } => source_span_is_valid(quoted_text),
-        WordLike::Letter { base, .. } => base.is_valid(),
-        WordLike::ZeiLujvo { left, .. } => left.is_valid(),
+        fields!(WordLike::Bare { .. }) | fields!(WordLike::ZoQuote { .. }) => true,
+        fields!(WordLike::ZoiQuote { quoted_text, .. }) => source_span_is_valid(quoted_text),
+        fields!(WordLike::LohuQuote { .. }) => true,
+        fields!(WordLike::SingleWordQuote { quoted_text, .. }) => source_span_is_valid(quoted_text),
+        fields!(WordLike::Letter { base, .. }) => word_like_raw_is_valid(base.as_raw()),
+        fields!(WordLike::ZeiLujvo { left, .. }) => word_like_raw_is_valid(left.as_raw()),
     }
 }
 
@@ -693,19 +766,17 @@ mod tests {
     fn syntax_equivalence_ignores_spans_and_diacritics_on_words() {
         let mut left = segment_words_with_modifiers("coi").expect("valid morphology");
         let mut right = segment_words_with_modifiers("coi").expect("valid morphology");
-        let WordWithModifiers::BaseWord { word_like } = &mut right[0] else {
-            panic!("expected base word");
+        let word = match right[0].as_raw() {
+            fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
+                fields!(WordLike::Bare { word }) => (**word).clone(),
+                _ => panic!("expected bare word"),
+            },
+            _ => panic!("expected base word"),
         };
-        let WordLike::Bare { word } = word_like.as_mut() else {
-            panic!("expected bare word");
-        };
-        **word = (**word)
-            .clone()
-            .try_with_fields(fields! {
-                phonemes: String::from("coĭ"),
-                span: SourceSpan::new(None, 99, 102, 99, 102).expect("valid span"),
-            })
-            .expect("updated test word remains valid");
+        right[0] = WordWithModifiers::base_word(WordLike::bare(word.with_fields(fields! {
+            phonemes: String::from("coĭ"),
+            span: SourceSpan::new(None, 99, 102, 99, 102).expect("valid span"),
+        })));
 
         assert!(word_with_modifiers_syntax_eq(
             &left.remove(0),
@@ -715,16 +786,15 @@ mod tests {
 
     #[test]
     fn invalid_morphology_options_are_rejected() {
-        assert!(
-            MorphologyOptions::default()
-                .try_with_fields(fields! {
-                    cmavo_dialect_entries: vec![CmavoDialectEntry::Expansion {
-                        source: "mi".to_owned(),
-                        replacement: Vec::new(),
-                    }],
-                })
-                .is_err()
-        );
+        let panic = std::panic::catch_unwind(|| {
+            let _ = MorphologyOptions::default().with_fields(fields! {
+                cmavo_dialect_entries: vec![CmavoDialectEntry::Expansion {
+                    source: "mi".to_owned(),
+                    replacement: Vec::new(),
+                }],
+            });
+        });
+        assert!(panic.is_err());
     }
 
     #[test]
@@ -756,9 +826,9 @@ mod tests {
     }
 
     fn base_word(word: &WordWithModifiers) -> Option<&Word> {
-        match word {
-            WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {
-                WordLike::Bare { word } => Some(word),
+        match word.as_raw() {
+            fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
+                fields!(WordLike::Bare { word }) => Some(word),
                 _ => None,
             },
             _ => None,

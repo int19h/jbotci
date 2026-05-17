@@ -103,8 +103,8 @@ The macro generates:
 - `SourceSpan`, the validated wrapper.
 - `SourceSpanRaw`, the unchecked data shape.
 - `SourceSpanInvariantError`.
-- `SourceSpan::try_from_fields(fields! { ... })` for full construction.
-- `span.try_with_fields(fields! { ... })` for whole-value updates.
+- `SourceSpan::new(fields! { ... })` for full construction.
+- `span.with_fields(fields! { ... })` for whole-value updates.
 - `SourceSpan::try_from_raw(raw)`, `TryFrom<SourceSpanRaw>`, `as_raw()`, and
   `into_raw()`.
 - Serde implementations that validate during deserialization when the original
@@ -115,22 +115,22 @@ compile time through builder typestate; duplicate fields are rejected by
 `fields!`.
 
 ```rust
-let span = SourceSpan::try_from_fields(fields! {
+let span = SourceSpan::new(fields! {
     byte_start: 0,
     byte_end: 4,
     char_start: 0,
     char_end: 4,
-})?;
+});
 ```
 
-`try_with_fields` consumes the old value, applies a partial field set, and
+`with_fields` consumes the old value, applies a partial field set, and
 revalidates the whole result. Clone first if the old value must be retained.
 
 ```rust
-let longer = span.try_with_fields(fields! {
+let longer = span.with_fields(fields! {
     byte_end: 8,
     char_end: 8,
-})?;
+});
 ```
 
 `Deref<Target = TypeRaw>` is implemented for read-only field access:
@@ -140,8 +140,35 @@ assert_eq!(longer.byte_end, 8);
 ```
 
 There is no `DerefMut`. Mutate invariant-bearing values through
-`try_with_fields` or through an explicit raw reconstruction followed by
-`try_from_raw`.
+`with_fields` or through an explicit raw reconstruction followed by
+`try_from_raw` or `from_raw`.
+
+If a type needs to provide its own `new` constructor, add
+`#[bityzba(no_new)]` after the invariant attributes. `from_raw`,
+`try_from_raw`, raw conversion, serde validation, `Deref`, and
+`with_fields` are still generated; only the field-builder `new` method is
+omitted.
+
+```rust
+#[invariant(self.start <= self.end)]
+#[bityzba(no_new)]
+pub struct Span {
+    pub start: usize,
+    pub end: usize,
+}
+
+impl Span {
+    pub fn new(start: usize, end: usize) -> Result<Self, SpanError> {
+        if start > end {
+            return Err(SpanError::Inverted);
+        }
+        Ok(Self::from_raw(fields!(Span {
+            start: start,
+            end: end,
+        })))
+    }
+}
+```
 
 ## Pattern Matching
 
@@ -171,5 +198,6 @@ to `TypeRaw`, as in `fields!(crate::model::Value::Node { node })`.
 
 `TypeRaw` exists for serde internals, low-level tests, generated fixtures, and
 rare advanced code that must represent unchecked data. Normal construction and
-updates should use `fields!` and the generated validation APIs.
-
+updates should use `fields!` and the generated validation APIs. Enum helper
+constructors should use `fields!(Type::Variant { ... })` rather than spelling
+`TypeRaw`.

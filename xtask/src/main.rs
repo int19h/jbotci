@@ -3,7 +3,7 @@ use std::process::{Command as ProcessCommand, ExitStatus};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
-use bityzba::{ensures, requires};
+use bityzba::{ensures, fields, requires};
 use bityzba::{expensive_ensures, expensive_requires};
 use clap::{Args, Parser, Subcommand};
 use jbotci_morphology::{
@@ -11,8 +11,8 @@ use jbotci_morphology::{
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
-    ParseOptions, SyntaxError, SyntaxValue, parse_syntax_tree_with_source_and_options,
-    syntax_values_equivalent,
+    ParseOptions, SyntaxError, SyntaxValue, SyntaxValueRaw,
+    parse_syntax_tree_with_source_and_options, syntax_values_equivalent,
 };
 use rayon::prelude::*;
 
@@ -529,8 +529,6 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
 }
 
 #[ensures(!ret.is_empty())]
-#[expensive_requires(expected.is_valid())]
-#[expensive_requires(actual.is_valid())]
 fn format_syntax_mismatch(expected: &SyntaxValue, actual: &SyntaxValue) -> String {
     let mut path = Vec::new();
     let detail = syntax_difference(expected, actual, &mut path)
@@ -546,40 +544,37 @@ fn syntax_difference(
     actual: &SyntaxValue,
     path: &mut Vec<String>,
 ) -> Option<String> {
-    match (expected, actual) {
-        (SyntaxValue::Null, SyntaxValue::Null) => None,
-        (SyntaxValue::Bool { value: left }, SyntaxValue::Bool { value: right })
-            if left == right =>
-        {
-            None
-        }
-        (SyntaxValue::Integer { value: left }, SyntaxValue::Integer { value: right })
-            if left == right =>
-        {
-            None
-        }
-        (SyntaxValue::Text { value: left }, SyntaxValue::Text { value: right })
-            if left == right =>
-        {
-            None
-        }
-        (SyntaxValue::Word { word: left }, SyntaxValue::Word { word: right })
+    match (expected.as_raw(), actual.as_raw()) {
+        (fields!(SyntaxValue::Null), fields!(SyntaxValue::Null)) => None,
+        (
+            fields!(SyntaxValue::Bool { value: left }),
+            fields!(SyntaxValue::Bool { value: right }),
+        ) if left == right => None,
+        (
+            fields!(SyntaxValue::Integer { value: left }),
+            fields!(SyntaxValue::Integer { value: right }),
+        ) if left == right => None,
+        (
+            fields!(SyntaxValue::Text { value: left }),
+            fields!(SyntaxValue::Text { value: right }),
+        ) if left == right => None,
+        (fields!(SyntaxValue::Word { word: left }), fields!(SyntaxValue::Word { word: right }))
             if jbotci_morphology::word_with_modifiers_syntax_eq(left, right) =>
         {
             None
         }
-        (SyntaxValue::Word { word: left }, SyntaxValue::Word { word: right }) => {
+        (fields!(SyntaxValue::Word { word: left }), fields!(SyntaxValue::Word { word: right })) => {
             Some(format!("expected word `{left}`, got `{right}`"))
         }
-        (SyntaxValue::Json { value: left }, SyntaxValue::Json { value: right })
-            if left == right =>
-        {
-            None
-        }
-        (SyntaxValue::List { items: left }, SyntaxValue::List { items: right }) => {
-            compare_syntax_slices(left, right, path)
-        }
-        (SyntaxValue::Node { node: left }, SyntaxValue::Node { node: right }) => {
+        (
+            fields!(SyntaxValue::Json { value: left }),
+            fields!(SyntaxValue::Json { value: right }),
+        ) if left == right => None,
+        (
+            fields!(SyntaxValue::List { items: left }),
+            fields!(SyntaxValue::List { items: right }),
+        ) => compare_syntax_slices(left, right, path),
+        (fields!(SyntaxValue::Node { node: left }), fields!(SyntaxValue::Node { node: right })) => {
             if left.constructor != right.constructor {
                 return Some(format!(
                     "expected constructor `{}`, got `{}`",
@@ -649,15 +644,15 @@ fn compare_syntax_slices(
 
 #[ensures(!ret.is_empty())]
 fn syntax_value_kind(value: &SyntaxValue) -> &'static str {
-    match value {
-        SyntaxValue::Null => "null",
-        SyntaxValue::Bool { .. } => "bool",
-        SyntaxValue::Integer { .. } => "integer",
-        SyntaxValue::Text { .. } => "text",
-        SyntaxValue::List { .. } => "list",
-        SyntaxValue::Node { .. } => "node",
-        SyntaxValue::Word { .. } => "word",
-        SyntaxValue::Json { .. } => "json",
+    match value.as_raw() {
+        fields!(SyntaxValue::Null) => "null",
+        fields!(SyntaxValue::Bool { .. }) => "bool",
+        fields!(SyntaxValue::Integer { .. }) => "integer",
+        fields!(SyntaxValue::Text { .. }) => "text",
+        fields!(SyntaxValue::List { .. }) => "list",
+        fields!(SyntaxValue::Node { .. }) => "node",
+        fields!(SyntaxValue::Word { .. }) => "word",
+        fields!(SyntaxValue::Json { .. }) => "json",
     }
 }
 

@@ -17,19 +17,17 @@ mod model {
 }
 
 fn main() {
-    let span = model::Span::try_from_fields(fields! {
+    let span = model::Span::new(fields! {
         start: 0,
         end: 4,
-    })
-    .unwrap();
+    });
 
     let fields!(model::Span { start, end }) = span.as_raw();
     assert_eq!((*start, *end), (0, 4));
 
-    let choice = model::Choice::try_from_raw(model::ChoiceRaw::Named {
+    let choice = model::Choice::from_raw(fields!(model::Choice::Named {
         name: String::from("cmavo"),
-    })
-    .unwrap();
+    }));
 
     match choice.as_raw() {
         fields!(model::Choice::Named { name }) => assert_eq!(name, "cmavo"),

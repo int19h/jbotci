@@ -7,11 +7,10 @@ struct Span {
 }
 
 fn main() {
-    let mut span = Span::try_from_fields(fields! {
+    let mut span = Span::new(fields! {
         start: 0,
         end: 1,
-    })
-    .unwrap();
+    });
 
     span.end = 2;
 }

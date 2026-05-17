@@ -1,7 +1,7 @@
 warning: variable does not need to be mutable
   --> tests/ui/fail/no_deref_mut.rs:10:9
    |
-10 |     let mut span = Span::try_from_fields(fields! {
+10 |     let mut span = Span::new(fields! {
    |         ----^^^^
    |         |
    |         help: remove this `mut`
@@ -9,9 +9,9 @@ warning: variable does not need to be mutable
    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
 
 error[E0594]: cannot assign to data in dereference of `Span`
-  --> tests/ui/fail/no_deref_mut.rs:16:5
+  --> tests/ui/fail/no_deref_mut.rs:15:5
    |
-16 |     span.end = 2;
+15 |     span.end = 2;
    |     ^^^^^^^^^^^^ cannot assign
    |
    = help: trait `DerefMut` is required to modify through a dereference, but it is not implemented for `Span`

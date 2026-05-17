@@ -7,10 +7,10 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use bityzba::{ensures, requires};
+use bityzba::{ensures, fields, requires};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::WordWithModifiers;
-use jbotci_syntax::SyntaxValue;
+use jbotci_syntax::{SyntaxValue, SyntaxValueRaw};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -748,24 +748,28 @@ fn format_syntax_value_toml(
     value: &SyntaxValue,
     indent: usize,
 ) -> Result<String, toml::ser::Error> {
-    match value {
-        SyntaxValue::Null => Ok(r#"{ kind = "null" }"#.to_owned()),
-        SyntaxValue::Bool { value } => Ok(format!(r#"{{ kind = "bool", value = {value} }}"#)),
-        SyntaxValue::Integer { value } => Ok(format!(r#"{{ kind = "integer", value = {value} }}"#)),
-        SyntaxValue::Text { value } => Ok(format!(
+    match value.as_raw() {
+        fields!(SyntaxValue::Null) => Ok(r#"{ kind = "null" }"#.to_owned()),
+        fields!(SyntaxValue::Bool { value }) => {
+            Ok(format!(r#"{{ kind = "bool", value = {value} }}"#))
+        }
+        fields!(SyntaxValue::Integer { value }) => {
+            Ok(format!(r#"{{ kind = "integer", value = {value} }}"#))
+        }
+        fields!(SyntaxValue::Text { value }) => Ok(format!(
             r#"{{ kind = "text", value = {} }}"#,
             format_toml_value(value)?
         )),
-        SyntaxValue::Word { word } => Ok(format!(
+        fields!(SyntaxValue::Word { word }) => Ok(format!(
             r#"{{ kind = "word", word = {} }}"#,
             format_toml_value(word.as_ref())?
         )),
-        SyntaxValue::Json { value } => Ok(format!(
+        fields!(SyntaxValue::Json { value }) => Ok(format!(
             r#"{{ kind = "json", value = {} }}"#,
             format_toml_value(value)?
         )),
-        SyntaxValue::List { items } => format_syntax_list_toml(items, indent),
-        SyntaxValue::Node { node } => {
+        fields!(SyntaxValue::List { items }) => format_syntax_list_toml(items, indent),
+        fields!(SyntaxValue::Node { node }) => {
             let child = indent + 4;
             let field_indent = indent + 8;
             let mut output = String::new();

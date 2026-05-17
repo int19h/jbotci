@@ -30,12 +30,9 @@ fn expensive_trait_contracts_are_disabled_without_feature() {
     assert_eq!(mapper.map(1), -1);
     assert_eq!(mapper.map(0), 0);
 
-    assert!(
-        ExpensiveEven::try_from_fields(bityzba::fields! {
-            value: 3,
-        })
-        .is_ok()
-    );
+    let _ = ExpensiveEven::new(bityzba::fields! {
+        value: 3,
+    });
 }
 
 #[cfg(feature = "expensive_contracts")]
@@ -57,10 +54,5 @@ fn expensive_trait_postcondition_is_checked_with_feature() {
 #[cfg(feature = "expensive_contracts")]
 #[test]
 fn expensive_type_invariant_is_checked_with_feature() {
-    assert!(
-        ExpensiveEven::try_from_fields(bityzba::fields! {
-            value: 3,
-        })
-        .is_err()
-    );
+    assert!(ExpensiveEven::try_from_raw(bityzba::fields!(ExpensiveEven { value: 3 })).is_err());
 }

@@ -272,8 +272,9 @@ pub fn contract_trait(attrs: TokenStream, toks: TokenStream) -> TokenStream {
 /// [`invariant`].
 ///
 /// In expression position, `fields! { name: value }` expands to a builder
-/// closure accepted by generated `Type::try_from_fields` and
-/// `value.try_with_fields` methods.
+/// closure accepted by generated `Type::new` and `value.with_fields` methods.
+/// `fields!(Type::Variant { name: value })` expands to the generated raw enum
+/// variant expression.
 ///
 /// In pattern position, `fields!(Type { name, .. })` expands to the generated
 /// raw type pattern, so code can destructure through `value.as_raw()` without

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bityzba::fields;
-use jbotci_morphology::{WordKind, WordLike, WordWithModifiers};
+use jbotci_morphology::{WordKind, WordLike, WordLikeRaw, WordWithModifiers, WordWithModifiersRaw};
 use jbotci_source::SourceId;
 use jbotci_syntax::{SyntaxField, SyntaxValue};
 use support::fixtures::{
@@ -295,20 +295,14 @@ fn writer_keeps_tree_and_words_as_values() {
     let temp_root = temp_root("jbotci-fixtures-writer-test");
     fs::create_dir_all(&temp_root).expect("temp root");
     let fixture_path = temp_root.join("fixture.toml");
-    let word = WordWithModifiers::BaseWord {
-        word_like: Box::new(WordLike::Bare {
-            word: Box::new(
-                jbotci_morphology::Word::try_from_fields(fields! {
-                    kind: WordKind::Cmavo,
-                    phonemes: String::from("coi"),
-                    span: jbotci_source_span(),
-                    surface_override: None,
-                    dialect_transform: None,
-                })
-                .expect("valid word"),
-            ),
-        }),
-    };
+    let word =
+        WordWithModifiers::base_word(WordLike::bare(jbotci_morphology::Word::new(fields! {
+            kind: WordKind::Cmavo,
+            phonemes: String::from("coi"),
+            span: jbotci_source_span(),
+            surface_override: None,
+            dialect_transform: None,
+        })));
     let test_case = TestCase {
         id: "adhoc.syntax".into(),
         lojban: "coi".into(),
@@ -332,10 +326,10 @@ fn writer_keeps_tree_and_words_as_values() {
                 status: ExpectationStatus::Success,
                 parse_tree: Some(SyntaxValue::node(
                     "LojbanText",
-                    vec![SyntaxField {
+                    vec![SyntaxField::new(fields! {
                         name: Some("paragraphs".into()),
-                        value: SyntaxValue::List { items: vec![] },
-                    }],
+                        value: SyntaxValue::list(vec![]),
+                    })],
                 )),
                 error: None,
                 xfail: Some(XfailExpectation {
@@ -413,9 +407,9 @@ trait WordWithModifiersExpectationExt {
 
 impl WordWithModifiersExpectationExt for WordWithModifiers {
     fn base_word_kind(&self) -> Option<WordKind> {
-        match self {
-            WordWithModifiers::BaseWord { word_like } => match word_like.as_ref() {
-                WordLike::Bare { word } => Some(word.kind),
+        match self.as_raw() {
+            fields!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_raw() {
+                fields!(WordLike::Bare { word }) => Some(word.kind),
                 _ => None,
             },
             _ => None,

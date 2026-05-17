@@ -1,0 +1,11 @@
+error[E0223]: ambiguous associated type
+ --> tests/ui/fail/direct_enum_construct.rs:9:13
+  |
+9 |     let _ = Choice::Named {
+  |             ^^^^^^^^^^^^^
+  |
+help: if there were a trait named `Example` with associated type `Named` implemented for `Choice`, you could use the fully-qualified path
+  |
+9 -     let _ = Choice::Named {
+9 +     let _ = <Choice as Example>::Named {
+  |
