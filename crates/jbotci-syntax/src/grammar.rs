@@ -314,6 +314,7 @@ enum ConnectiveKind {
     Afterthought,
     Relation,
     PredicateTail,
+    Forethought,
     NonLogical,
     Interval,
 }
@@ -382,6 +383,12 @@ enum RelationSyntax {
     TenseModal {
         tense_modal: TenseModalSyntax,
         inner_relation: Box<RelationSyntax>,
+    },
+    Guha {
+        guhek: ConnectiveSyntax,
+        leading_predicate: Box<BasicPredicate>,
+        gik: ConnectiveSyntax,
+        trailing_predicate: Box<BasicPredicate>,
     },
     Abstraction {
         abstraction: AbstractionSyntax,
@@ -1069,6 +1076,18 @@ impl RelationSyntax {
             } => {
                 let mut words = tense_modal.words();
                 words.extend(inner_relation.words());
+                words
+            }
+            RelationSyntax::Guha {
+                guhek,
+                leading_predicate,
+                gik,
+                trailing_predicate,
+            } => {
+                let mut words = guhek.words();
+                words.extend(leading_predicate.words());
+                words.extend(gik.words());
+                words.extend(trailing_predicate.words());
                 words
             }
             RelationSyntax::Abstraction { abstraction } => abstraction.words(),
@@ -2133,6 +2152,41 @@ fn statement_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 
 #[requires(true)]
 #[ensures(true)]
+fn guhek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+        .or_not()
+        .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
+        .then(cmavo_of("GUhA", &["gu'a", "gu'e", "gu'i", "gu'o", "gu'u"]))
+        .then(cmavo("nai").or_not())
+        .map(|(((nahe, se), guha), nai)| ConnectiveSyntax {
+            kind: ConnectiveKind::Forethought,
+            se,
+            nahe,
+            na: None,
+            cmavo: vec![guha],
+            nai,
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    cmavo("gi")
+        .then(cmavo("nai").or_not())
+        .map(|(gi, nai)| ConnectiveSyntax {
+            kind: ConnectiveKind::Forethought,
+            se: None,
+            nahe: None,
+            na: None,
+            cmavo: vec![gi],
+            nai,
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     cmavo_of("GIhA", &["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"])
         .then(cmavo("nai").or_not())
@@ -2311,6 +2365,23 @@ where
     });
 
     let bo_unit = recursive(|bo_unit| {
+        let guha_unit = guhek_connective()
+            .then(relation.clone())
+            .then(gik_connective())
+            .then(bo_unit.clone())
+            .map(
+                |(((guhek, leading_relation), gik), trailing_unit)| RelationUnitSyntax::Wrapped {
+                    relation: RelationSyntax::Guha {
+                        guhek,
+                        leading_predicate: Box::new(relation_to_empty_predicate(leading_relation)),
+                        gik,
+                        trailing_predicate: Box::new(relation_to_empty_predicate(
+                            relation_unit_to_relation(&trailing_unit),
+                        )),
+                    },
+                },
+            );
+        let atom_unit = choice((guha_unit, linked_unit.clone()));
         let connected_bo_tail = statement_connective()
             .then(tense_modal().or_not())
             .then(cmavo("bo"))
@@ -2321,8 +2392,7 @@ where
         let bare_bo_tail = cmavo("bo")
             .then(bo_unit)
             .map(|(bo, trailing_unit)| (None, None, bo, trailing_unit));
-        linked_unit
-            .clone()
+        atom_unit
             .then(choice((connected_bo_tail, bare_bo_tail)).or_not())
             .map(|(leading_unit, bo_tail)| {
                 bo_tail.map_or(
@@ -2484,6 +2554,25 @@ where
             });
 
         let bo_unit = recursive(|bo_unit| {
+            let guha_unit = guhek_connective()
+                .then(inner_relation.clone())
+                .then(gik_connective())
+                .then(bo_unit.clone())
+                .map(|(((guhek, leading_relation), gik), trailing_unit)| {
+                    RelationUnitSyntax::Wrapped {
+                        relation: RelationSyntax::Guha {
+                            guhek,
+                            leading_predicate: Box::new(relation_to_empty_predicate(
+                                leading_relation,
+                            )),
+                            gik,
+                            trailing_predicate: Box::new(relation_to_empty_predicate(
+                                relation_unit_to_relation(&trailing_unit),
+                            )),
+                        },
+                    }
+                });
+            let atom_unit = choice((guha_unit, linked_unit.clone()));
             let connected_bo_tail = statement_connective()
                 .then(tense_modal().or_not())
                 .then(cmavo("bo"))
@@ -2494,8 +2583,7 @@ where
             let bare_bo_tail = cmavo("bo")
                 .then(bo_unit)
                 .map(|(bo, trailing_unit)| (None, None, bo, trailing_unit));
-            linked_unit
-                .clone()
+            atom_unit
                 .then(choice((connected_bo_tail, bare_bo_tail)).or_not())
                 .map(|(leading_unit, bo_tail)| {
                     bo_tail.map_or(
@@ -2592,6 +2680,7 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
             leading_relation: Box::new(relation_unit_to_relation(leading_unit)),
             trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
         },
+        [RelationUnitSyntax::Wrapped { relation }] => relation.clone(),
         _ => RelationSyntax::Compound { units },
     }
 }
@@ -2641,9 +2730,23 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
             leading_relation: Box::new(relation_unit_to_relation(leading_unit)),
             trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
         },
+        RelationUnitSyntax::Wrapped { relation } => relation.clone(),
         unit => RelationSyntax::Compound {
             units: vec![unit.clone()],
         },
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn relation_to_empty_predicate(relation: RelationSyntax) -> BasicPredicate {
+    BasicPredicate {
+        leading_terms: Vec::new(),
+        cu: None,
+        relation,
+        tail_terms: Vec::new(),
+        vau: None,
+        continuations: Vec::new(),
     }
 }
 
@@ -3824,6 +3927,7 @@ fn connective_tree(connective: ConnectiveSyntax) -> SyntaxValue {
         ConnectiveKind::Afterthought => "AfterthoughtConnective",
         ConnectiveKind::Relation => "RelationConnective",
         ConnectiveKind::PredicateTail => "PredicateTailConnective",
+        ConnectiveKind::Forethought => "ForethoughtConnective",
         ConnectiveKind::NonLogical => "NonLogicalConnective",
         ConnectiveKind::Interval => "IntervalConnective",
     };
@@ -4009,6 +4113,20 @@ fn relation_tree(relation: RelationSyntax) -> SyntaxValue {
             vec![
                 field("tenseModal", tense_modal_tree(tense_modal)),
                 field("innerRelation", relation_tree(*inner_relation)),
+            ],
+        ),
+        RelationSyntax::Guha {
+            guhek,
+            leading_predicate,
+            gik,
+            trailing_predicate,
+        } => node(
+            "GuhaRelation",
+            vec![
+                field("guhek", connective_tree(guhek)),
+                field("leadingPredicate", predicate_tree(*leading_predicate)),
+                field("gik", connective_tree(gik)),
+                field("trailingPredicate", predicate_tree(*trailing_predicate)),
             ],
         ),
         RelationSyntax::Abstraction { abstraction } => node(
