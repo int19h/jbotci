@@ -198,6 +198,12 @@ enum ArgumentSyntax {
         base_argument: Box<ArgumentSyntax>,
         relative_clauses: Vec<RelativeClauseSyntax>,
     },
+    Tagged {
+        tag_words: Vec<WordWithModifiers>,
+        tag_tense_modal: Option<TenseModalSyntax>,
+        tag_fa: Option<WordWithModifiers>,
+        inner_argument: Box<ArgumentSyntax>,
+    },
     Koha {
         koha: WordWithModifiers,
     },
@@ -840,6 +846,15 @@ impl ArgumentSyntax {
                 for relative_clause in relative_clauses {
                     words.extend(relative_clause.words());
                 }
+                words
+            }
+            ArgumentSyntax::Tagged {
+                tag_words,
+                inner_argument,
+                ..
+            } => {
+                let mut words = tag_words;
+                words.extend(inner_argument.words());
                 words
             }
             ArgumentSyntax::Koha { koha } => vec![koha],
@@ -1776,6 +1791,26 @@ where
                 quantifier,
                 inner_argument: Box::new(inner_argument),
             });
+    let tense_tagged_argument =
+        tense_modal()
+            .then(argument.clone())
+            .map(|(tense_modal, inner_argument)| {
+                let tag_words = tense_modal.clone().words();
+                ArgumentSyntax::Tagged {
+                    tag_words,
+                    tag_tense_modal: Some(tense_modal),
+                    tag_fa: None,
+                    inner_argument: Box::new(inner_argument),
+                }
+            });
+    let fa_tagged_argument = cmavo_of("FA", &["fa", "fe", "fi", "fo", "fu"])
+        .then(argument.clone())
+        .map(|(fa, inner_argument)| ArgumentSyntax::Tagged {
+            tag_words: vec![fa.clone()],
+            tag_tense_modal: None,
+            tag_fa: Some(fa),
+            inner_argument: Box::new(inner_argument),
+        });
 
     let base_argument = choice((
         quote,
@@ -1783,6 +1818,8 @@ where
         letter,
         lahe,
         name,
+        tense_tagged_argument,
+        fa_tagged_argument,
         descriptor_with_gadri,
         quantified_argument,
         descriptor_without_gadri,
@@ -3665,6 +3702,28 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
                             .collect(),
                     ),
                 ),
+            ],
+        ),
+        ArgumentSyntax::Tagged {
+            tag_words,
+            tag_tense_modal,
+            tag_fa,
+            inner_argument,
+        } => node(
+            "TaggedArgument",
+            vec![
+                field(
+                    "tagWords",
+                    list(tag_words.into_iter().map(word_value).collect()),
+                ),
+                field(
+                    "tagTenseModal",
+                    tag_tense_modal
+                        .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+                ),
+                field("tagFa", maybe_word(tag_fa)),
+                field("freeModifiers", nil()),
+                field("innerArgument", argument_tree(*inner_argument)),
             ],
         ),
         ArgumentSyntax::Koha { koha } => node(
