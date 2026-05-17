@@ -52,6 +52,10 @@ const UI_WORDS: &[&str] = &[
     "si'a", "po'o", "pe'a", "ro'i", "ro'e", "ro'o", "ro'u", "ro'a", "re'e", "le'o", "ju'o", "fu'i",
     "dai", "ga'i", "zo'o", "be'u", "ri'e", "se'i", "se'a", "vu'e", "ki'a", "xu", "ge'e", "bu'o",
 ];
+const VUHU_WORDS: &[&str] = &[
+    "ge'a", "fu'u", "pi'i", "fe'i", "vu'u", "su'i", "ju'u", "gei", "pa'i", "fa'i", "te'a", "cu'a",
+    "va'a", "ne'o", "de'o", "fe'a", "sa'o", "ri'o", "sa'i", "pi'a", "si'i",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -351,6 +355,12 @@ enum MathExpressionSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+enum MathOperatorSyntax {
+    Vuhu { vuhu: WordWithModifiers },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
 enum RelationSyntax {
     Connected {
         connective: ConnectiveSyntax,
@@ -519,6 +529,10 @@ enum RelationUnitSyntax {
     Moi {
         number: Vec<WordWithModifiers>,
         moi: WordWithModifiers,
+    },
+    Nuha {
+        nuha: WordWithModifiers,
+        math_operator: MathOperatorSyntax,
     },
 }
 
@@ -1023,6 +1037,16 @@ impl QuantifierSyntax {
     }
 }
 
+impl MathOperatorSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        match self {
+            MathOperatorSyntax::Vuhu { vuhu } => vec![vuhu],
+        }
+    }
+}
+
 impl RelationSyntax {
     #[requires(true)]
     #[ensures(true)]
@@ -1200,6 +1224,14 @@ impl RelationUnitSyntax {
             RelationUnitSyntax::Moi { number, moi } => {
                 let mut words = number;
                 words.push(moi);
+                words
+            }
+            RelationUnitSyntax::Nuha {
+                nuha,
+                math_operator,
+            } => {
+                let mut words = vec![nuha];
+                words.extend(math_operator.words());
                 words
             }
         }
@@ -2240,6 +2272,14 @@ fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax
 
 #[requires(true)]
 #[ensures(true)]
+fn math_operator<'tokens>() -> BoxedParser<'tokens, MathOperatorSyntax> {
+    cmavo_of("VUhU", VUHU_WORDS)
+        .map(|vuhu| MathOperatorSyntax::Vuhu { vuhu })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn relation_parser_with<'tokens, P, R>(
     argument: P,
     relation: R,
@@ -2260,6 +2300,12 @@ where
         .collect::<Vec<_>>()
         .then(cmavo_of("MOI", MOI_WORDS))
         .map(|(number, moi)| RelationUnitSyntax::Moi { number, moi });
+    let nuha_unit = cmavo("nu'a")
+        .then(math_operator())
+        .map(|(nuha, math_operator)| RelationUnitSyntax::Nuha {
+            nuha,
+            math_operator,
+        });
 
     let ke_unit = cmavo("ke")
         .then(relation_units_inner(argument.clone()))
@@ -2375,6 +2421,7 @@ where
         nahe_unit,
         se_unit,
         ke_unit,
+        nuha_unit,
         moi_unit,
         word_unit,
     ));
@@ -2538,6 +2585,12 @@ where
             .collect::<Vec<_>>()
             .then(cmavo_of("MOI", MOI_WORDS))
             .map(|(number, moi)| RelationUnitSyntax::Moi { number, moi });
+        let nuha_unit = cmavo("nu'a")
+            .then(math_operator())
+            .map(|(nuha, math_operator)| RelationUnitSyntax::Nuha {
+                nuha,
+                math_operator,
+            });
         let ke_unit = cmavo("ke")
             .then(inner_relation.clone())
             .then(cmavo("ke'e").or_not())
@@ -2577,7 +2630,7 @@ where
                 (be, fa, first_argument, bei_links, beho)
             });
 
-        let linked_unit = choice((nahe_unit, se_unit, ke_unit, moi_unit, word_unit))
+        let linked_unit = choice((nahe_unit, se_unit, ke_unit, nuha_unit, moi_unit, word_unit))
             .then(be_link.or_not())
             .map(|(base, be_link)| {
                 be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
@@ -3785,10 +3838,7 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
             vec![
                 field("la", gadri_word_value(la)),
                 field("laFreeModifiers", nil()),
-                field(
-                    "names",
-                    plain_list(names.into_iter().map(name_word_value).collect()),
-                ),
+                field("names", nonempty_name_words(names)),
                 field("nameFreeModifiers", nil()),
             ],
         ),
@@ -4067,6 +4117,20 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
             vec![
                 field("letter", nonempty_letter_words(letter)),
                 field("boi", maybe_word(boi)),
+                field("freeModifiers", nil()),
+            ],
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn math_operator_tree(operator: MathOperatorSyntax) -> SyntaxValue {
+    match operator {
+        MathOperatorSyntax::Vuhu { vuhu } => node(
+            "VuhuOperator",
+            vec![
+                field("vuhu", word_value(vuhu)),
                 field("freeModifiers", nil()),
             ],
         ),
@@ -4469,6 +4533,18 @@ fn nonempty_letter_words(words: Vec<WordWithModifiers>) -> SyntaxValue {
 
 #[requires(true)]
 #[ensures(true)]
+fn nonempty_name_words(words: Vec<WordWithModifiers>) -> SyntaxValue {
+    let mut rendered = words.into_iter().map(name_word_value).collect::<Vec<_>>();
+    if rendered.len() <= 1 {
+        return plain_list(rendered);
+    }
+
+    let tail = rendered.split_off(1);
+    plain_list(vec![rendered.remove(0), list(tail)])
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn letter_word_value(word: WordWithModifiers) -> SyntaxValue {
     syntax_word_value(normalize_cmavo_i(normalize_syntax_word(word)))
 }
@@ -4619,6 +4695,17 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
                 ),
                 field("moi", word_value(moi)),
                 field("freeModifiers", nil()),
+            ],
+        ),
+        RelationUnitSyntax::Nuha {
+            nuha,
+            math_operator,
+        } => node(
+            "NuhaRelationUnit",
+            vec![
+                field("nuha", word_value(nuha)),
+                field("freeModifiers", nil()),
+                field("mathOperator", math_operator_tree(math_operator)),
             ],
         ),
     }
