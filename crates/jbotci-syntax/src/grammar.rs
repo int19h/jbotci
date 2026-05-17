@@ -2562,14 +2562,14 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             .clone()
             .then(tail_term.clone().repeated().collect::<Vec<_>>())
             .then(cmavo("vau").or_not())
-            .then(bo_continuation.or_not())
+            .then(bo_continuation.clone().or_not())
             .then(
                 predicate_tail_continuation
                     .clone()
                     .repeated()
                     .collect::<Vec<_>>(),
             )
-            .then(ke_continuation.or_not())
+            .then(ke_continuation.clone().or_not())
             .map(
                 |(
                     ((((relation, tail_terms), vau), bo_continuation), continuations),
@@ -2586,6 +2586,43 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     continuations,
                 },
             );
+        let bare_cu_predicate = cu
+            .clone()
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(relation.clone())
+            .then(tail_term.clone().repeated().collect::<Vec<_>>())
+            .then(cmavo("vau").or_not())
+            .then(bo_continuation.or_not())
+            .then(
+                predicate_tail_continuation
+                    .clone()
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .then(ke_continuation.or_not())
+            .map(
+                |(
+                    (
+                        (
+                            ((((cu, _cu_free_modifiers), relation), tail_terms), vau),
+                            bo_continuation,
+                        ),
+                        continuations,
+                    ),
+                    ke_continuation,
+                )| BasicPredicate {
+                    leading_terms: Vec::new(),
+                    cu: Some(cu),
+                    relation,
+                    tail_terms,
+                    vau,
+                    gek_sentence: None,
+                    bo_continuation,
+                    ke_continuation,
+                    continuations,
+                },
+            )
+            .boxed();
         let forethought_predicate = gek_sentence.clone().map(|gek_sentence| BasicPredicate {
             leading_terms: Vec::new(),
             cu: None,
@@ -2620,6 +2657,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             forethought_predicate_with_leading_terms,
             forethought_predicate,
             predicate_with_leading_terms,
+            bare_cu_predicate,
             relation_only,
         ))
         .boxed()
