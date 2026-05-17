@@ -781,10 +781,12 @@ struct AdditionalNuSyntax {
 enum RelationUnitSyntax {
     Word {
         word: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Goha {
         goha: WordWithModifiers,
         raho: Option<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Se {
         se: WordWithModifiers,
@@ -1975,10 +1977,26 @@ impl RelationUnitSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
-            RelationUnitSyntax::Word { word } => vec![word],
-            RelationUnitSyntax::Goha { goha, raho } => {
+            RelationUnitSyntax::Word {
+                word,
+                free_modifiers,
+            } => {
+                let mut words = vec![word];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            RelationUnitSyntax::Goha {
+                goha,
+                raho,
+                free_modifiers,
+            } => {
                 let mut words = vec![goha];
                 words.extend(raho);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             RelationUnitSyntax::Se { se, inner_unit } => {
@@ -2213,6 +2231,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         argument.clone(),
         relation.clone(),
         subsentence.clone(),
+        free_modifier.clone(),
     ));
 
     let argument_term = argument.clone().map(TermSyntax::Argument);
@@ -3860,7 +3879,7 @@ where
     T: Parser<'tokens, ParserInput<'tokens>, TextSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
     let compound_quote = any().try_map(move |word: WordWithModifiers, span| {
-        let data!(WordWithModifiers::BaseWord { word_like }) = word.as_data() else {
+        let Some(word_like) = quote_word_like(&word) else {
             return Err(Rich::custom(span, "expected quote"));
         };
 
@@ -3928,6 +3947,19 @@ where
         );
 
     choice((compound_quote, lu_quote)).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quote_word_like(word: &WordWithModifiers) -> Option<&WordLike> {
+    match word.as_data() {
+        data!(WordWithModifiers::BaseWord { word_like })
+        | data!(WordWithModifiers::Emphasized { word_like, .. }) => Some(word_like),
+        data!(WordWithModifiers::WithIndicator { base, .. }) => quote_word_like(base),
+        data!(WordWithModifiers::StandaloneIndicator { .. }) | data!(WordWithModifiers::NotEof) => {
+            None
+        }
+    }
 }
 
 #[requires(true)]
@@ -4595,15 +4627,19 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn relation_parser_with<'tokens, P, R, S>(
+fn relation_parser_with<'tokens, P, R, S, F>(
     argument: P,
     relation: R,
     subsentence: S,
+    free_modifier: F,
 ) -> BoxedParser<'tokens, RelationSyntax>
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     S: Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
         + Clone
         + 'tokens,
 {
@@ -4612,15 +4648,27 @@ where
         .then(cmavo("me'u").or_not())
         .map(|((me, argument), mehu)| RelationUnitSyntax::Me { me, argument, mehu });
 
-    let word_unit = relation_word().map(|word| RelationUnitSyntax::Word { word });
+    let word_unit = relation_word()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|(word, free_modifiers)| RelationUnitSyntax::Word {
+            word,
+            free_modifiers,
+        });
     let goha_unit = cmavo_of("GOhA", GOHA_WORDS)
         .then(cmavo("ra'o").or_not())
-        .map(|(goha, raho)| RelationUnitSyntax::Goha { goha, raho });
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|((goha, raho), free_modifiers)| RelationUnitSyntax::Goha {
+            goha,
+            raho,
+            free_modifiers,
+        });
     let goha_raho_unit = cmavo_of("GOhA", GOHA_WORDS)
         .then(cmavo("ra'o"))
-        .map(|(goha, raho)| RelationUnitSyntax::Goha {
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|((goha, raho), free_modifiers)| RelationUnitSyntax::Goha {
             goha,
             raho: Some(raho),
+            free_modifiers,
         });
     let moi_unit = number_or_letter_words()
         .then(cmavo_of("MOI", MOI_WORDS))
@@ -4633,7 +4681,10 @@ where
         });
 
     let ke_unit = cmavo("ke")
-        .then(relation_units_inner(argument.clone()))
+        .then(relation_units_inner(
+            argument.clone(),
+            free_modifier.clone(),
+        ))
         .then(cmavo("ke'e").or_not())
         .map(|((ke, relation), kehe)| RelationUnitSyntax::Ke {
             ke_tense_modal: None,
@@ -4656,7 +4707,10 @@ where
         });
 
     let wrapped_tense_unit = tense_modal()
-        .then(relation_units_inner(argument.clone()))
+        .then(relation_units_inner(
+            argument.clone(),
+            free_modifier.clone(),
+        ))
         .map(
             |(tense_modal, inner_relation)| RelationUnitSyntax::Wrapped {
                 relation: RelationSyntax::TenseModal {
@@ -4921,22 +4975,39 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn relation_units_inner<'tokens, P>(argument: P) -> BoxedParser<'tokens, RelationSyntax>
+fn relation_units_inner<'tokens, P, F>(
+    argument: P,
+    free_modifier: F,
+) -> BoxedParser<'tokens, RelationSyntax>
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
 {
     recursive(|inner_relation| {
-        let word_unit = relation_word().map(|word| RelationUnitSyntax::Word { word });
+        let word_unit = relation_word()
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|(word, free_modifiers)| RelationUnitSyntax::Word {
+                word,
+                free_modifiers,
+            });
         let goha_unit = cmavo_of("GOhA", GOHA_WORDS)
             .then(cmavo("ra'o").or_not())
-            .map(|(goha, raho)| RelationUnitSyntax::Goha { goha, raho });
-        let goha_raho_unit =
-            cmavo_of("GOhA", GOHA_WORDS)
-                .then(cmavo("ra'o"))
-                .map(|(goha, raho)| RelationUnitSyntax::Goha {
-                    goha,
-                    raho: Some(raho),
-                });
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|((goha, raho), free_modifiers)| RelationUnitSyntax::Goha {
+                goha,
+                raho,
+                free_modifiers,
+            });
+        let goha_raho_unit = cmavo_of("GOhA", GOHA_WORDS)
+            .then(cmavo("ra'o"))
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|((goha, raho), free_modifiers)| RelationUnitSyntax::Goha {
+                goha,
+                raho: Some(raho),
+                free_modifiers,
+            });
         let moi_unit = number_or_letter_words()
             .then(cmavo_of("MOI", MOI_WORDS))
             .map(|(number, moi)| RelationUnitSyntax::Moi { number, moi });
@@ -5126,11 +5197,22 @@ where
 #[ensures(true)]
 fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
     match units.as_slice() {
-        [RelationUnitSyntax::Word { word }] => RelationSyntax::Base { word: word.clone() },
-        [RelationUnitSyntax::Goha { goha, raho: None }] => {
-            RelationSyntax::Base { word: goha.clone() }
+        [
+            RelationUnitSyntax::Word {
+                word,
+                free_modifiers,
+            },
+        ] if free_modifiers.is_empty() => RelationSyntax::Base { word: word.clone() },
+        [
+            RelationUnitSyntax::Goha {
+                goha,
+                raho: None,
+                free_modifiers,
+            },
+        ] if free_modifiers.is_empty() => RelationSyntax::Base { word: goha.clone() },
+        [RelationUnitSyntax::Word { .. } | RelationUnitSyntax::Goha { .. }] => {
+            RelationSyntax::Compound { units }
         }
-        [RelationUnitSyntax::Goha { .. }] => RelationSyntax::Compound { units },
         [RelationUnitSyntax::Se { se, inner_unit }] => RelationSyntax::Se {
             se: se.clone(),
             inner_relation: Box::new(relation_unit_to_relation(inner_unit.as_ref())),
@@ -5186,10 +5268,15 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
 #[ensures(true)]
 fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
     match unit {
-        RelationUnitSyntax::Word { word } => RelationSyntax::Base { word: word.clone() },
-        RelationUnitSyntax::Goha { goha, raho: None } => {
-            RelationSyntax::Base { word: goha.clone() }
-        }
+        RelationUnitSyntax::Word {
+            word,
+            free_modifiers,
+        } if free_modifiers.is_empty() => RelationSyntax::Base { word: word.clone() },
+        RelationUnitSyntax::Goha {
+            goha,
+            raho: None,
+            free_modifiers,
+        } if free_modifiers.is_empty() => RelationSyntax::Base { word: goha.clone() },
         RelationUnitSyntax::Se { se, inner_unit } => RelationSyntax::Se {
             se: se.clone(),
             inner_relation: Box::new(relation_unit_to_relation(inner_unit)),
@@ -5256,7 +5343,10 @@ fn relation_to_empty_predicate(relation: RelationSyntax) -> BasicPredicate {
 #[requires(true)]
 #[ensures(true)]
 fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
-    let word_unit = relation_word().map(|word| RelationUnitSyntax::Word { word });
+    let word_unit = relation_word().map(|word| RelationUnitSyntax::Word {
+        word,
+        free_modifiers: Vec::new(),
+    });
     let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
         .then(word_unit.clone())
         .map(|(se, inner_unit)| RelationUnitSyntax::Se {
@@ -8573,19 +8663,32 @@ fn letter_word_value(word: WordWithModifiers) -> SyntaxValue {
 #[ensures(true)]
 fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
     match unit {
-        RelationUnitSyntax::Word { word } => node(
+        RelationUnitSyntax::Word {
+            word,
+            free_modifiers,
+        } => node(
             "WordRelationUnit",
             vec![
                 field("word", word_value(word)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
-        RelationUnitSyntax::Goha { goha, raho } => node(
+        RelationUnitSyntax::Goha {
+            goha,
+            raho,
+            free_modifiers,
+        } => node(
             "GohaRelationUnit",
             vec![
                 field("goha", word_value(goha)),
                 field("raho", maybe_word(raho)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         RelationUnitSyntax::Se { se, inner_unit } => node(
