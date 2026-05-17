@@ -67,7 +67,30 @@ struct BasicPredicate {
     tail_terms: Vec<TermSyntax>,
     vau: Option<WordWithModifiers>,
     gek_sentence: Option<GekSentenceSyntax>,
+    bo_continuation: Option<PredicateTailBoContinuationSyntax>,
+    ke_continuation: Option<PredicateTailKeContinuationSyntax>,
     continuations: Vec<PredicateTailContinuationSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct PredicateTailBoContinuationSyntax {
+    connective: ConnectiveSyntax,
+    tense_modal: Option<TenseModalSyntax>,
+    bo: WordWithModifiers,
+    predicate_tail: Box<BasicPredicate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct PredicateTailKeContinuationSyntax {
+    connective: ConnectiveSyntax,
+    tense_modal: Option<TenseModalSyntax>,
+    ke: WordWithModifiers,
+    predicate_tail: Box<BasicPredicate>,
+    kehe: Option<WordWithModifiers>,
+    tail_terms: Vec<TermSyntax>,
+    vau: Option<WordWithModifiers>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -281,6 +304,18 @@ enum ArgumentSyntax {
     Connected {
         leading_argument: Box<ArgumentSyntax>,
         connective: ConnectiveSyntax,
+        trailing_argument: Box<ArgumentSyntax>,
+    },
+    Ke {
+        ke: WordWithModifiers,
+        inner_argument: Box<ArgumentSyntax>,
+        kehe: Option<WordWithModifiers>,
+    },
+    Bo {
+        leading_argument: Box<ArgumentSyntax>,
+        bo_connective: Option<ConnectiveSyntax>,
+        bo_tense_modal: Option<TenseModalSyntax>,
+        bo: WordWithModifiers,
         trailing_argument: Box<ArgumentSyntax>,
     },
     Descriptor {
@@ -884,9 +919,48 @@ impl BasicPredicate {
             }
             words.extend(self.vau);
         }
+        if let Some(bo_continuation) = self.bo_continuation {
+            words.extend(bo_continuation.words());
+        }
         for continuation in self.continuations {
             words.extend(continuation.words());
         }
+        if let Some(ke_continuation) = self.ke_continuation {
+            words.extend(ke_continuation.words());
+        }
+        words
+    }
+}
+
+impl PredicateTailBoContinuationSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = self.connective.words();
+        if let Some(tense_modal) = self.tense_modal {
+            words.extend(tense_modal.words());
+        }
+        words.push(self.bo);
+        words.extend(self.predicate_tail.words());
+        words
+    }
+}
+
+impl PredicateTailKeContinuationSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = self.connective.words();
+        if let Some(tense_modal) = self.tense_modal {
+            words.extend(tense_modal.words());
+        }
+        words.push(self.ke);
+        words.extend(self.predicate_tail.words());
+        words.extend(self.kehe);
+        for term in self.tail_terms {
+            words.extend(term.words());
+        }
+        words.extend(self.vau);
         words
     }
 }
@@ -1152,6 +1226,34 @@ impl ArgumentSyntax {
             } => {
                 let mut words = leading_argument.words();
                 words.extend(connective.words());
+                words.extend(trailing_argument.words());
+                words
+            }
+            ArgumentSyntax::Ke {
+                ke,
+                inner_argument,
+                kehe,
+            } => {
+                let mut words = vec![ke];
+                words.extend(inner_argument.words());
+                words.extend(kehe);
+                words
+            }
+            ArgumentSyntax::Bo {
+                leading_argument,
+                bo_connective,
+                bo_tense_modal,
+                bo,
+                trailing_argument,
+            } => {
+                let mut words = leading_argument.words();
+                if let Some(connective) = bo_connective {
+                    words.extend(connective.words());
+                }
+                if let Some(tense_modal) = bo_tense_modal {
+                    words.extend(tense_modal.words());
+                }
+                words.push(bo);
                 words.extend(trailing_argument.words());
                 words
             }
@@ -1705,6 +1807,40 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         );
 
     let basic_predicate = recursive(|basic_predicate| {
+        let bo_continuation = predicate_tail_connective()
+            .then(tense_modal().or_not())
+            .then(cmavo("bo"))
+            .then(basic_predicate.clone())
+            .map(|(((connective, tense_modal), bo), predicate_tail)| {
+                PredicateTailBoContinuationSyntax {
+                    connective,
+                    tense_modal,
+                    bo,
+                    predicate_tail: Box::new(predicate_tail),
+                }
+            })
+            .boxed();
+        let ke_continuation = predicate_tail_connective()
+            .then(tense_modal().or_not())
+            .then(cmavo("ke"))
+            .then(basic_predicate.clone())
+            .then(cmavo("ke'e").or_not())
+            .then(term.clone().repeated().collect::<Vec<_>>())
+            .then(cmavo("vau").or_not())
+            .map(
+                |((((((connective, tense_modal), ke), predicate_tail), kehe), tail_terms), vau)| {
+                    PredicateTailKeContinuationSyntax {
+                        connective,
+                        tense_modal,
+                        ke,
+                        predicate_tail: Box::new(predicate_tail),
+                        kehe,
+                        tail_terms,
+                        vau,
+                    }
+                },
+            )
+            .boxed();
         let predicate_with_leading_terms = term
             .clone()
             .repeated()
@@ -1714,6 +1850,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             .then(relation.clone())
             .then(term.clone().repeated().collect::<Vec<_>>())
             .then(cmavo("vau").or_not())
+            .then(bo_continuation.clone().or_not())
+            .then(ke_continuation.clone().or_not())
             .then(
                 predicate_tail_continuation
                     .clone()
@@ -1721,7 +1859,13 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     .collect::<Vec<_>>(),
             )
             .map(
-                |(((((leading_terms, cu), relation), tail_terms), vau), continuations)| {
+                |(
+                    (
+                        (((((leading_terms, cu), relation), tail_terms), vau), bo_continuation),
+                        ke_continuation,
+                    ),
+                    continuations,
+                )| {
                     BasicPredicate {
                         leading_terms,
                         cu,
@@ -1729,6 +1873,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                         tail_terms,
                         vau,
                         gek_sentence: None,
+                        bo_continuation,
+                        ke_continuation,
                         continuations,
                     }
                 },
@@ -1738,6 +1884,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             .clone()
             .then(term.clone().repeated().collect::<Vec<_>>())
             .then(cmavo("vau").or_not())
+            .then(bo_continuation.or_not())
+            .then(ke_continuation.or_not())
             .then(
                 predicate_tail_continuation
                     .clone()
@@ -1745,13 +1893,18 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     .collect::<Vec<_>>(),
             )
             .map(
-                |(((relation, tail_terms), vau), continuations)| BasicPredicate {
+                |(
+                    ((((relation, tail_terms), vau), bo_continuation), ke_continuation),
+                    continuations,
+                )| BasicPredicate {
                     leading_terms: Vec::new(),
                     cu: None,
                     relation,
                     tail_terms,
                     vau,
                     gek_sentence: None,
+                    bo_continuation,
+                    ke_continuation,
                     continuations,
                 },
             );
@@ -1776,6 +1929,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                         tail_terms,
                         vau,
                     }),
+                    bo_continuation: None,
+                    ke_continuation: None,
                     continuations: Vec::new(),
                 },
             );
@@ -2449,34 +2604,85 @@ where
     );
     let base_argument = choice((unquantified_base_argument, quantified_argument));
 
-    base_argument
-        .clone()
-        .then(argument_connective().then(argument.clone()).or_not())
-        .map(|(leading_argument, connected)| {
-            connected.map_or(
-                leading_argument.clone(),
-                |(connective, trailing_argument)| match trailing_argument {
-                    ArgumentSyntax::RelativeClause {
-                        base_argument,
-                        vuho: Some(vuho),
-                        relative_clauses,
-                    } => ArgumentSyntax::RelativeClause {
-                        base_argument: Box::new(ArgumentSyntax::Connected {
+    let argument4 = base_argument.clone();
+    let argument3 = recursive(|argument3| {
+        argument4
+            .clone()
+            .then(
+                argument_connective()
+                    .then(tense_modal().or_not())
+                    .then(cmavo("bo"))
+                    .then(argument3)
+                    .or_not(),
+            )
+            .map(|(leading_argument, bo_tail)| {
+                bo_tail.map_or(
+                    leading_argument.clone(),
+                    |(((bo_connective, bo_tense_modal), bo), trailing_argument)| {
+                        ArgumentSyntax::Bo {
                             leading_argument: Box::new(leading_argument),
-                            connective,
-                            trailing_argument: base_argument,
-                        }),
-                        vuho: Some(vuho),
-                        relative_clauses,
+                            bo_connective: Some(bo_connective),
+                            bo_tense_modal,
+                            bo,
+                            trailing_argument: Box::new(trailing_argument),
+                        }
                     },
-                    trailing_argument => ArgumentSyntax::Connected {
-                        leading_argument: Box::new(leading_argument),
-                        connective,
-                        trailing_argument: Box::new(trailing_argument),
-                    },
+                )
+            })
+            .boxed()
+    });
+    let argument2 = argument3
+        .clone()
+        .then(
+            argument_connective()
+                .then(argument3.clone())
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(first, continuations)| {
+            continuations.into_iter().fold(
+                first,
+                |leading_argument, (connective, trailing_argument)| ArgumentSyntax::Connected {
+                    leading_argument: Box::new(leading_argument),
+                    connective,
+                    trailing_argument: Box::new(trailing_argument),
                 },
             )
         })
+        .boxed();
+
+    let argument1 = argument2
+        .clone()
+        .then(
+            argument_connective()
+                .then(tense_modal().or_not())
+                .then(cmavo("ke"))
+                .then(argument.clone())
+                .then(cmavo("ke'e").or_not())
+                .or_not(),
+        )
+        .map(|(leading_argument, ke_tail)| {
+            ke_tail.map_or(
+                leading_argument.clone(),
+                |((((connective, tense_modal), ke), inner_argument), kehe)| {
+                    let connective = tense_modal.map_or(connective.clone(), |tense_modal| {
+                        append_connective_words(connective, tense_modal.words())
+                    });
+                    ArgumentSyntax::Connected {
+                        leading_argument: Box::new(leading_argument),
+                        connective,
+                        trailing_argument: Box::new(ArgumentSyntax::Ke {
+                            ke,
+                            inner_argument: Box::new(inner_argument),
+                            kehe,
+                        }),
+                    }
+                },
+            )
+        })
+        .boxed();
+
+    argument1
         .then(cmavo("vu'o").or_not())
         .then(
             relative_clauses(argument, subsentence)
@@ -2852,11 +3058,12 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     choice((
         cmavo("na")
             .or_not()
+            .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
             .then(cmavo_of("A", &["a", "e", "o", "u"]))
             .then(cmavo("nai").or_not())
-            .map(|((na, cmavo), nai)| ConnectiveSyntax {
+            .map(|(((na, se), cmavo), nai)| ConnectiveSyntax {
                 kind: ConnectiveKind::Afterthought,
-                se: None,
+                se,
                 nahe: None,
                 na,
                 cmavo: vec![cmavo],
@@ -2879,6 +3086,24 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
         }),
     ))
     .boxed()
+}
+
+#[requires(true)]
+#[ensures(ret.cmavo.len() >= old(words.len()))]
+fn append_connective_words(
+    connective: ConnectiveSyntax,
+    words: Vec<WordWithModifiers>,
+) -> ConnectiveSyntax {
+    let mut cmavo = connective.cmavo;
+    cmavo.extend(words);
+    ConnectiveSyntax {
+        kind: connective.kind,
+        se: connective.se,
+        nahe: connective.nahe,
+        na: connective.na,
+        cmavo,
+        nai: connective.nai,
+    }
 }
 
 #[requires(true)]
@@ -3686,6 +3911,8 @@ fn relation_to_empty_predicate(relation: RelationSyntax) -> BasicPredicate {
         tail_terms: Vec::new(),
         vau: None,
         gek_sentence: None,
+        bo_continuation: None,
+        ke_continuation: None,
         continuations: Vec::new(),
     }
 }
@@ -4485,6 +4712,61 @@ fn goi_relative_clause_tree(relative_clause: GoiRelativeClauseSyntax) -> SyntaxV
 #[requires(true)]
 #[ensures(true)]
 fn predicate_tree(predicate: BasicPredicate) -> SyntaxValue {
+    let predicate_tail = predicate_tail_tree(predicate.clone());
+    node(
+        "Predicate",
+        vec![
+            field(
+                "leadingTerms",
+                list(predicate.leading_terms.into_iter().map(term_tree).collect()),
+            ),
+            field("cu", maybe_word(predicate.cu)),
+            field("cuFreeModifiers", nil()),
+            field("predicateTail", predicate_tail),
+            field("freeModifiers", nil()),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_tail_tree(predicate: BasicPredicate) -> SyntaxValue {
+    let ke_continuation = predicate.ke_continuation.clone();
+    node(
+        "PredicateTail",
+        vec![
+            field(
+                "first",
+                node(
+                    "PredicateTail1",
+                    vec![
+                        field("first", predicate_tail2_tree(predicate.clone())),
+                        field(
+                            "continuations",
+                            list(
+                                predicate
+                                    .continuations
+                                    .into_iter()
+                                    .map(predicate_tail_continuation_tree)
+                                    .collect(),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            field(
+                "keContinuation",
+                ke_continuation.map_or_else(nothing, |ke_continuation| {
+                    just(predicate_tail_ke_continuation_tree(ke_continuation))
+                }),
+            ),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_tail2_tree(predicate: BasicPredicate) -> SyntaxValue {
     let tail3 = predicate.gek_sentence.map_or_else(
         || {
             node(
@@ -4508,52 +4790,78 @@ fn predicate_tree(predicate: BasicPredicate) -> SyntaxValue {
         },
     );
     node(
-        "Predicate",
+        "PredicateTail2",
         vec![
+            field("first", tail3),
             field(
-                "leadingTerms",
-                list(predicate.leading_terms.into_iter().map(term_tree).collect()),
+                "boContinuation",
+                predicate
+                    .bo_continuation
+                    .map_or_else(nothing, |bo_continuation| {
+                        just(predicate_tail_bo_continuation_tree(bo_continuation))
+                    }),
             ),
-            field("cu", maybe_word(predicate.cu)),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_tail_bo_continuation_tree(
+    continuation: PredicateTailBoContinuationSyntax,
+) -> SyntaxValue {
+    node(
+        "BoPredicateTail",
+        vec![
+            field("connective", connective_tree(continuation.connective)),
+            field(
+                "tenseModal",
+                continuation
+                    .tense_modal
+                    .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+            ),
+            field("bo", word_value(continuation.bo)),
+            field("freeModifiers", nil()),
+            field("cu", nothing()),
             field("cuFreeModifiers", nil()),
             field(
                 "predicateTail",
-                node(
-                    "PredicateTail",
-                    vec![
-                        field(
-                            "first",
-                            node(
-                                "PredicateTail1",
-                                vec![
-                                    field(
-                                        "first",
-                                        node(
-                                            "PredicateTail2",
-                                            vec![
-                                                field("first", tail3),
-                                                field("boContinuation", nothing()),
-                                            ],
-                                        ),
-                                    ),
-                                    field(
-                                        "continuations",
-                                        list(
-                                            predicate
-                                                .continuations
-                                                .into_iter()
-                                                .map(predicate_tail_continuation_tree)
-                                                .collect(),
-                                        ),
-                                    ),
-                                ],
-                            ),
-                        ),
-                        field("keContinuation", nothing()),
-                    ],
-                ),
+                predicate_tail2_tree(*continuation.predicate_tail),
             ),
-            field("freeModifiers", nil()),
+            field("tailTerms", nil()),
+            field("vau", nothing()),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_tail_ke_continuation_tree(
+    continuation: PredicateTailKeContinuationSyntax,
+) -> SyntaxValue {
+    node(
+        "KePredicateTail",
+        vec![
+            field("connective", connective_tree(continuation.connective)),
+            field(
+                "tenseModal",
+                continuation
+                    .tense_modal
+                    .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+            ),
+            field("ke", word_value(continuation.ke)),
+            field("keFreeModifiers", nil()),
+            field(
+                "predicateTail",
+                predicate_tail_tree(*continuation.predicate_tail),
+            ),
+            field("kehe", maybe_word(continuation.kehe)),
+            field("keheFreeModifiers", nil()),
+            field(
+                "tailTerms",
+                list(continuation.tail_terms.into_iter().map(term_tree).collect()),
+            ),
+            field("vau", maybe_word(continuation.vau)),
         ],
     )
 }
@@ -4846,6 +5154,45 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
             vec![
                 field("leadingArgument", argument_tree(*leading_argument)),
                 field("connective", connective_tree(connective)),
+                field("trailingArgument", argument_tree(*trailing_argument)),
+            ],
+        ),
+        ArgumentSyntax::Ke {
+            ke,
+            inner_argument,
+            kehe,
+        } => node(
+            "KeArgument",
+            vec![
+                field("ke", word_value(ke)),
+                field("keFreeModifiers", nil()),
+                field("innerArgument", argument_tree(*inner_argument)),
+                field("kehe", maybe_word(kehe)),
+                field("keheFreeModifiers", nil()),
+            ],
+        ),
+        ArgumentSyntax::Bo {
+            leading_argument,
+            bo_connective,
+            bo_tense_modal,
+            bo,
+            trailing_argument,
+        } => node(
+            "BoArgument",
+            vec![
+                field("leadingArgument", argument_tree(*leading_argument)),
+                field(
+                    "boConnective",
+                    bo_connective
+                        .map_or_else(nothing, |connective| just(connective_tree(connective))),
+                ),
+                field(
+                    "boTenseModal",
+                    bo_tense_modal
+                        .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+                ),
+                field("bo", word_value(bo)),
+                field("freeModifiers", nil()),
                 field("trailingArgument", argument_tree(*trailing_argument)),
             ],
         ),
@@ -5391,6 +5738,8 @@ fn abstraction_tree(abstraction: AbstractionSyntax) -> SyntaxValue {
                         tail_terms: abstraction.subsentence_terms,
                         vau: None,
                         gek_sentence: None,
+                        bo_continuation: None,
+                        ke_continuation: None,
                         continuations: Vec::new(),
                     }))],
                 ),
