@@ -2506,18 +2506,20 @@ where
             na,
             inner_relation: Box::new(inner_relation),
         });
-    let co_relation = connected_relation
-        .clone()
-        .then(cmavo("co").then(connected_relation.clone()).or_not())
-        .map(|(leading_relation, co_tail)| {
-            co_tail.map_or(leading_relation.clone(), |(co, trailing_relation)| {
-                RelationSyntax::Co {
-                    leading_relation: Box::new(leading_relation),
-                    co,
-                    trailing_relation: Box::new(trailing_relation),
-                }
+    let co_relation = recursive(|co_relation| {
+        connected_relation
+            .clone()
+            .then(cmavo("co").then(co_relation).or_not())
+            .map(|(leading_relation, co_tail)| {
+                co_tail.map_or(leading_relation.clone(), |(co, trailing_relation)| {
+                    RelationSyntax::Co {
+                        leading_relation: Box::new(leading_relation),
+                        co,
+                        trailing_relation: Box::new(trailing_relation),
+                    }
+                })
             })
-        });
+    });
 
     choice((na_relation, co_relation)).boxed()
 }
