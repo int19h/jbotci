@@ -2750,8 +2750,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             },
         );
 
-    let simple_statement = choice((
-        prenex_statement,
+    let simple_statement_after_i_connective = choice((
         predicate,
         tuhe_statement,
         gihek_fragment,
@@ -2760,12 +2759,18 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         term_fragment,
         math_expression_fragment,
         relation_fragment,
+    ))
+    .boxed();
+
+    let simple_statement = choice((
+        prenex_statement,
+        simple_statement_after_i_connective.clone(),
     ));
 
     let i_connective_statement_tail = cmavo("i")
         .then(statement_connective())
         .then(tense_modal().or_not().then(cmavo("bo")).or_not())
-        .then(simple_statement.clone())
+        .then(simple_statement_after_i_connective.clone())
         .map(|(((i, connective), tag_bo), trailing_statement)| {
             let connective = tag_bo.map_or(connective.clone(), |(tense_modal, bo)| {
                 let mut cmavo = connective.cmavo;
@@ -2787,7 +2792,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let i_bo_statement_tail = cmavo("i")
         .then(tense_modal().or_not())
         .then(cmavo("bo"))
-        .then(simple_statement.clone())
+        .then(simple_statement_after_i_connective)
         .map(|(((i, tense_modal), bo), trailing_statement)| {
             let mut cmavo = tense_modal.map_or_else(Vec::new, TenseModalSyntax::words);
             cmavo.push(bo);
