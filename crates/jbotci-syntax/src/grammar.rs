@@ -113,9 +113,9 @@ struct PredicateTailKeContinuationSyntax {
 enum GekSentenceSyntax {
     Pair {
         gek: ConnectiveSyntax,
-        first: Box<BasicPredicate>,
+        first: Box<SubsentenceSyntax>,
         gik: ConnectiveSyntax,
-        second: Box<BasicPredicate>,
+        second: Box<SubsentenceSyntax>,
         tail_terms: Vec<TermSyntax>,
         vau: Option<WordWithModifiers>,
     },
@@ -2318,9 +2318,9 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let basic_predicate = recursive(|basic_predicate| {
         let gek_sentence = recursive(|gek_sentence| {
             let pair = modal_forethought_connective()
-                .then(basic_predicate.clone())
+                .then(subsentence.clone())
                 .then(gik_connective())
-                .then(basic_predicate.clone())
+                .then(subsentence.clone())
                 .then(tail_term.clone().repeated().collect::<Vec<_>>())
                 .then(cmavo("vau").or_not())
                 .map(|(((((gek, first), gik), second), tail_terms), vau)| {
@@ -6926,12 +6926,9 @@ fn gek_sentence_tree(gek_sentence: GekSentenceSyntax) -> SyntaxValue {
             "GekSentencePair",
             vec![
                 field("gek", connective_tree(gek)),
-                field("first", subsentence_tree(SubsentenceSyntax::Plain(*first))),
+                field("first", subsentence_tree(*first)),
                 field("gik", connective_tree(gik)),
-                field(
-                    "second",
-                    subsentence_tree(SubsentenceSyntax::Plain(*second)),
-                ),
+                field("second", subsentence_tree(*second)),
                 field(
                     "tailTerms",
                     list(tail_terms.into_iter().map(term_tree).collect()),
