@@ -269,6 +269,12 @@ enum TermSyntax {
         cehe: WordWithModifiers,
         trailing_terms: Vec<TermSyntax>,
     },
+    Pehe {
+        leading_terms: Vec<TermSyntax>,
+        pehe: WordWithModifiers,
+        connective: ConnectiveSyntax,
+        trailing_terms: Vec<TermSyntax>,
+    },
     Argument(ArgumentSyntax),
     Fa {
         fa: WordWithModifiers,
@@ -1244,6 +1250,23 @@ impl TermSyntax {
                 }
                 words
             }
+            TermSyntax::Pehe {
+                leading_terms,
+                pehe,
+                connective,
+                trailing_terms,
+            } => {
+                let mut words = Vec::new();
+                for term in leading_terms {
+                    words.extend(term.words());
+                }
+                words.push(pehe);
+                words.extend(connective.words());
+                for term in trailing_terms {
+                    words.extend(term.words());
+                }
+                words
+            }
             TermSyntax::Argument(argument) => argument.words(),
             TermSyntax::Fa { fa, argument } => {
                 let mut words = vec![fa];
@@ -2007,7 +2030,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             });
         let simple_term =
             choice((base_simple_term.clone(), gek_nuhi_termset, nuhi_termset)).boxed();
-        simple_term
+        let term2 = simple_term
             .clone()
             .then(
                 cmavo("ce'e")
@@ -2028,6 +2051,27 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                         trailing_terms,
                     }
                 })
+            })
+            .boxed();
+        term2
+            .clone()
+            .then(
+                cmavo("pe'e")
+                    .then(statement_connective())
+                    .then(term2.clone())
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(leading_term, pehe_tails)| {
+                pehe_tails.into_iter().fold(
+                    leading_term,
+                    |leading_term, ((pehe, connective), trailing_term)| TermSyntax::Pehe {
+                        leading_terms: vec![leading_term],
+                        pehe,
+                        connective,
+                        trailing_terms: vec![trailing_term],
+                    },
+                )
             })
     })
     .boxed();
@@ -3511,7 +3555,7 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
         cmavo_of(
             "JOI",
             &[
-                "ce", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
+                "ce", "ce'e", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
             ],
         )
         .then(cmavo("nai").or_not())
@@ -6202,6 +6246,27 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
                 ),
                 field("cehe", word_value(cehe)),
                 field("freeModifiers", nil()),
+                field(
+                    "trailingTerms",
+                    list(trailing_terms.into_iter().map(term_tree).collect()),
+                ),
+            ],
+        ),
+        TermSyntax::Pehe {
+            leading_terms,
+            pehe,
+            connective,
+            trailing_terms,
+        } => node(
+            "PeheTerm",
+            vec![
+                field(
+                    "leadingTerms",
+                    list(leading_terms.into_iter().map(term_tree).collect()),
+                ),
+                field("pehe", word_value(pehe)),
+                field("freeModifiers", nil()),
+                field("connective", connective_tree(connective)),
                 field(
                     "trailingTerms",
                     list(trailing_terms.into_iter().map(term_tree).collect()),
