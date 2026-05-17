@@ -192,6 +192,11 @@ enum FragmentSyntax {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 enum TermSyntax {
+    Cehe {
+        leading_terms: Vec<TermSyntax>,
+        cehe: WordWithModifiers,
+        trailing_terms: Vec<TermSyntax>,
+    },
     Argument(ArgumentSyntax),
     Fa {
         fa: WordWithModifiers,
@@ -926,6 +931,21 @@ impl TermSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
+            TermSyntax::Cehe {
+                leading_terms,
+                cehe,
+                trailing_terms,
+            } => {
+                let mut words = Vec::new();
+                for term in leading_terms {
+                    words.extend(term.words());
+                }
+                words.push(cehe);
+                for term in trailing_terms {
+                    words.extend(term.words());
+                }
+                words
+            }
             TermSyntax::Argument(argument) => argument.words(),
             TermSyntax::Fa { fa, argument } => {
                 let mut words = vec![fa];
@@ -1580,7 +1600,30 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             tense_modal,
             argument,
         });
-    let term = choice((fa_term, tagged_term, argument_term));
+    let simple_term = choice((fa_term, tagged_term, argument_term)).boxed();
+    let term = simple_term
+        .clone()
+        .then(
+            cmavo("ce'e")
+                .then(
+                    simple_term
+                        .clone()
+                        .repeated()
+                        .at_least(1)
+                        .collect::<Vec<_>>(),
+                )
+                .or_not(),
+        )
+        .map(|(leading_term, cehe_tail)| {
+            cehe_tail.map_or(leading_term.clone(), |(cehe, trailing_terms)| {
+                TermSyntax::Cehe {
+                    leading_terms: vec![leading_term],
+                    cehe,
+                    trailing_terms,
+                }
+            })
+        })
+        .boxed();
     let cu = cmavo("cu");
     let predicate_tail_continuation = predicate_tail_connective()
         .then(relation.clone())
@@ -2704,7 +2747,7 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
         cmavo_of(
             "JOI",
             &[
-                "ce", "ce'e", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
+                "ce", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
             ],
         )
         .then(cmavo("nai").or_not())
@@ -2748,7 +2791,7 @@ fn joik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
             .then(cmavo_of(
                 "JOI",
                 &[
-                    "ce", "ce'e", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
+                    "ce", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a", "pi'u",
                 ],
             ))
             .then(cmavo("nai").or_not())
@@ -4400,6 +4443,25 @@ fn predicate_tail_continuation_tree(continuation: PredicateTailContinuationSynta
 #[ensures(true)]
 fn term_tree(term: TermSyntax) -> SyntaxValue {
     match term {
+        TermSyntax::Cehe {
+            leading_terms,
+            cehe,
+            trailing_terms,
+        } => node(
+            "CeheTerm",
+            vec![
+                field(
+                    "leadingTerms",
+                    list(leading_terms.into_iter().map(term_tree).collect()),
+                ),
+                field("cehe", word_value(cehe)),
+                field("freeModifiers", nil()),
+                field(
+                    "trailingTerms",
+                    list(trailing_terms.into_iter().map(term_tree).collect()),
+                ),
+            ],
+        ),
         TermSyntax::Argument(argument) => node(
             "ArgumentTerm",
             vec![field("argument", argument_tree(argument))],
