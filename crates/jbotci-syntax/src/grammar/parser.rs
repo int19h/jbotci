@@ -524,7 +524,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 )
             })
             .boxed();
-        let bo_tail = argument_connective()
+        let bo_tail = connective_with_free_modifiers(argument_connective(), free_modifier.clone())
             .or_not()
             .then(tense_modal_with_free_modifiers.clone().or_not())
             .then(cmavo("bo"))
@@ -588,7 +588,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         let connected_term = term2
             .clone()
             .then(
-                argument_connective()
+                connective_with_free_modifiers(argument_connective(), free_modifier.clone())
                     .then(term2.clone())
                     .repeated()
                     .at_least(1)
@@ -2964,7 +2964,7 @@ where
         argument4
             .clone()
             .then(
-                argument_connective()
+                connective_with_free_modifiers(argument_connective(), free_modifier.clone())
                     .then(tense_modal().or_not())
                     .then(cmavo("bo"))
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -2994,7 +2994,7 @@ where
     let argument2 = argument3
         .clone()
         .then(
-            argument_connective()
+            connective_with_free_modifiers(argument_connective(), free_modifier.clone())
                 .then(argument3.clone())
                 .repeated()
                 .collect::<Vec<_>>(),
@@ -3014,7 +3014,7 @@ where
     let argument1 = argument2
         .clone()
         .then(
-            argument_connective()
+            connective_with_free_modifiers(argument_connective(), free_modifier.clone())
                 .then(tense_modal().or_not())
                 .then(cmavo("ke"))
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -3938,6 +3938,47 @@ fn ek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
             free_modifiers: Vec::new(),
         })
         .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connective_with_free_modifiers<'tokens, C, F>(
+    connective: C,
+    free_modifier: F,
+) -> BoxedParser<'tokens, ConnectiveSyntax>
+where
+    C: Parser<'tokens, ParserInput<'tokens>, ConnectiveSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
+    connective
+        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .map(|(connective, free_modifiers)| {
+            append_connective_free_modifiers(connective, free_modifiers)
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(ret.free_modifiers.len() >= old(connective.free_modifiers.len()))]
+fn append_connective_free_modifiers(
+    connective: ConnectiveSyntax,
+    free_modifiers: Vec<FreeModifierSyntax>,
+) -> ConnectiveSyntax {
+    let mut existing_free_modifiers = connective.free_modifiers;
+    existing_free_modifiers.extend(free_modifiers);
+    ConnectiveSyntax {
+        kind: connective.kind,
+        se: connective.se,
+        nahe: connective.nahe,
+        na: connective.na,
+        cmavo: connective.cmavo,
+        nai: connective.nai,
+        free_modifiers: existing_free_modifiers,
+    }
 }
 
 #[requires(true)]
