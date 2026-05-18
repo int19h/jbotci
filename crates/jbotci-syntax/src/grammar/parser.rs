@@ -1904,22 +1904,27 @@ fn math_expression_body<'tokens>() -> BoxedParser<'tokens, MathExpressionSyntax>
 
 #[requires(true)]
 #[ensures(true)]
-fn math_expression_body_with_context<'tokens, A, R>(
+fn math_expression_body_with_context<'tokens, A, R, F>(
     argument: A,
     relation: R,
+    free_modifier: F,
 ) -> BoxedParser<'tokens, MathExpressionSyntax>
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
 {
-    math_parser_pair_with_context(argument, relation).0
+    math_parser_pair_with_context(argument, relation, free_modifier).0
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn math_parser_pair_with_context<'tokens, A, R>(
+fn math_parser_pair_with_context<'tokens, A, R, F>(
     argument: A,
     relation: R,
+    free_modifier: F,
 ) -> (
     BoxedParser<'tokens, MathExpressionSyntax>,
     BoxedParser<'tokens, MathOperatorSyntax>,
@@ -1927,6 +1932,9 @@ fn math_parser_pair_with_context<'tokens, A, R>(
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
 {
     let mut expression = Recursive::declare();
     let mut operator = Recursive::declare();
@@ -1935,6 +1943,7 @@ where
         operator.clone(),
         argument.clone(),
         relation.clone(),
+        free_modifier,
     ));
     operator.define(math_operator_with_context(
         expression.clone(),
@@ -1946,11 +1955,12 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn math_expression_body_with_context_inner<'tokens, E, O, A, R>(
+fn math_expression_body_with_context_inner<'tokens, E, O, A, R, F>(
     expression: E,
     operator: O,
     argument: A,
     relation: R,
+    free_modifier: F,
 ) -> BoxedParser<'tokens, MathExpressionSyntax>
 where
     E: Parser<'tokens, ParserInput<'tokens>, MathExpressionSyntax, ParseExtra<'tokens>>
@@ -1961,16 +1971,23 @@ where
         + 'tokens,
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
 {
-    let number = number_quantifier().map(MathExpressionSyntax::Number);
+    let number = quantifier_with_free_modifiers(number_quantifier(), free_modifier.clone())
+        .map(MathExpressionSyntax::Number);
     let letter = letter_string()
         .then_ignore(cmavo_of("MOI", MOI_WORDS).rewind().not())
         .then(cmavo("boi").or_not())
-        .map(|(letter, boi)| MathExpressionSyntax::Letter {
-            letter,
-            boi,
-            free_modifiers: Vec::new(),
-        });
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |((letter, boi), free_modifiers)| MathExpressionSyntax::Letter {
+                letter,
+                boi,
+                free_modifiers,
+            },
+        );
     let nihe = cmavo("ni'e")
         .then(relation.clone())
         .then(cmavo("te'u").or_not())
@@ -2417,7 +2434,7 @@ where
             argument => vec![ArgumentTailElementSyntax::Argument(Box::new(argument))],
         });
     let contextual_quantifier = quantifier_with_free_modifiers(
-        quantifier_with_context(argument.clone(), relation.clone()),
+        quantifier_with_context(argument.clone(), relation.clone(), free_modifier.clone()),
         free_modifier.clone(),
     );
     let descriptor_relative_clauses =
@@ -2506,6 +2523,7 @@ where
         .then(math_expression_body_with_context(
             argument.clone(),
             relation.clone(),
+            free_modifier.clone(),
         ))
         .then(cmavo("lo'o").or_not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -2597,7 +2615,7 @@ where
         );
 
     let contextual_quantifier = quantifier_with_free_modifiers(
-        quantifier_with_context(argument.clone(), relation.clone()),
+        quantifier_with_context(argument.clone(), relation.clone(), free_modifier.clone()),
         free_modifier.clone(),
     );
     let descriptor_tail = argument_tail_with(
@@ -3209,16 +3227,24 @@ fn quantifier<'tokens>() -> BoxedParser<'tokens, QuantifierSyntax> {
 
 #[requires(true)]
 #[ensures(true)]
-fn quantifier_with_context<'tokens, A, R>(
+fn quantifier_with_context<'tokens, A, R, F>(
     argument: A,
     relation: R,
+    free_modifier: F,
 ) -> BoxedParser<'tokens, QuantifierSyntax>
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
 {
     let vei_quantifier = cmavo("vei")
-        .then(math_expression_body_with_context(argument, relation))
+        .then(math_expression_body_with_context(
+            argument,
+            relation,
+            free_modifier,
+        ))
         .then(cmavo("ve'o").or_not())
         .map(|((vei, math_expression), veho)| QuantifierSyntax::Vei {
             vei,
