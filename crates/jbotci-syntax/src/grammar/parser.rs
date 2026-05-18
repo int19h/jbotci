@@ -553,23 +553,13 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 )
             })
             .boxed();
-        let bo_tail = connective_with_free_modifiers(argument_connective(), free_modifier.clone())
-            .or_not()
-            .then(tense_modal_with_free_modifiers.clone().or_not())
+        let bo_tail = connective_with_free_modifiers(joik_ek_connective(), free_modifier.clone())
             .then(cmavo("bo"))
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(simple_term.clone())
-            .map(
-                |((((bo_connective, tense_modal), bo), free_modifiers), trailing_term)| {
-                    (
-                        bo_connective,
-                        tense_modal,
-                        bo,
-                        free_modifiers,
-                        trailing_term,
-                    )
-                },
-            );
+            .map(|(((bo_connective, bo), free_modifiers), trailing_term)| {
+                (Some(bo_connective), None, bo, free_modifiers, trailing_term)
+            });
         let term2 = cehe_term
             .clone()
             .then(bo_tail.repeated().collect::<Vec<_>>())
@@ -4177,6 +4167,12 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
         vuhu_nonlogical_connective(),
     ))
     .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn joik_ek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    choice((joik_connective(), ek_connective())).boxed()
 }
 
 #[requires(true)]
