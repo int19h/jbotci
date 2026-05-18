@@ -5908,10 +5908,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             free_modifiers: Vec::new(),
         }
     });
-    let numbered_interval = pa_word()
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<_>>()
+    let numbered_interval = number_words()
         .then(cmavo_of("ROI", &["roi", "re'u"]))
         .then(cmavo("nai").or_not())
         .map(|((number, roi_or_tahe), nai)| {
@@ -5994,7 +5991,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             }
         });
     let fehe_numbered_interval = cmavo("fe'e")
-        .then(pa_word().repeated().at_least(1).collect::<Vec<_>>())
+        .then(number_words())
         .then(cmavo_of("ROI", &["roi", "re'u"]))
         .then(cmavo("nai").or_not())
         .map(|(((fehe, number), roi_or_tahe), nai)| {
@@ -6463,10 +6460,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
             free_modifiers: Vec::new(),
         }
     });
-    let numbered_interval = pa_word()
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<_>>()
+    let numbered_interval = number_words()
         .then(cmavo_of("ROI", &["roi", "re'u"]))
         .then(cmavo("nai").or_not())
         .map(|((number, roi_or_tahe), nai)| {
