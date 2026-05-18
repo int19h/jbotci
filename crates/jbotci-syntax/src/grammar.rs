@@ -360,10 +360,55 @@ enum TermSyntax {
         na: WordWithModifiers,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
+    NoihaAdverbial {
+        noiha: WordWithModifiers,
+        leading_free_modifiers: Vec<FreeModifierSyntax>,
+        tail_elements: Vec<ArgumentTailElementSyntax>,
+        relation: Option<RelationSyntax>,
+        relative_clauses: Vec<RelativeClauseSyntax>,
+        fehu: Option<WordWithModifiers>,
+        trailing_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    PoihaBrigahi {
+        poiha: WordWithModifiers,
+        leading_free_modifiers: Vec<FreeModifierSyntax>,
+        tail_elements: Vec<ArgumentTailElementSyntax>,
+        relation: Option<RelationSyntax>,
+        relative_clauses: Vec<RelativeClauseSyntax>,
+        brigahi_ku: WordWithModifiers,
+        trailing_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    FihoiAdverbial {
+        fihoi: WordWithModifiers,
+        leading_free_modifiers: Vec<FreeModifierSyntax>,
+        subsentence: Box<SubsentenceSyntax>,
+        fihau: Option<WordWithModifiers>,
+        trailing_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    SoiAdverbial {
+        soi: WordWithModifiers,
+        leading_free_modifiers: Vec<FreeModifierSyntax>,
+        subsentence: Box<SubsentenceSyntax>,
+        sehu: Option<WordWithModifiers>,
+        trailing_free_modifiers: Vec<FreeModifierSyntax>,
+    },
     Tagged {
         tense_modal: Option<TenseModalSyntax>,
         free_modifiers: Vec<FreeModifierSyntax>,
         argument: ArgumentSyntax,
+    },
+    Connected {
+        leading_terms: Vec<TermSyntax>,
+        connective: ConnectiveSyntax,
+        trailing_terms: Vec<TermSyntax>,
+    },
+    BoConnected {
+        leading_terms: Vec<TermSyntax>,
+        bo_connective: Option<ConnectiveSyntax>,
+        tense_modal: Option<TenseModalSyntax>,
+        bo: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        trailing_term: Box<TermSyntax>,
     },
 }
 
@@ -1777,6 +1822,98 @@ impl TermSyntax {
                 }
                 words
             }
+            TermSyntax::NoihaAdverbial {
+                noiha,
+                leading_free_modifiers,
+                tail_elements,
+                relation,
+                relative_clauses,
+                fehu,
+                trailing_free_modifiers,
+            } => {
+                let mut words = vec![noiha];
+                for free_modifier in leading_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                for tail_element in tail_elements {
+                    words.extend(tail_element.words());
+                }
+                if let Some(relation) = relation {
+                    words.extend(relation.words());
+                }
+                for relative_clause in relative_clauses {
+                    words.extend(relative_clause.words());
+                }
+                words.extend(fehu);
+                for free_modifier in trailing_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            TermSyntax::PoihaBrigahi {
+                poiha,
+                leading_free_modifiers,
+                tail_elements,
+                relation,
+                relative_clauses,
+                brigahi_ku,
+                trailing_free_modifiers,
+            } => {
+                let mut words = vec![poiha];
+                for free_modifier in leading_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                for tail_element in tail_elements {
+                    words.extend(tail_element.words());
+                }
+                if let Some(relation) = relation {
+                    words.extend(relation.words());
+                }
+                for relative_clause in relative_clauses {
+                    words.extend(relative_clause.words());
+                }
+                words.push(brigahi_ku);
+                for free_modifier in trailing_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            TermSyntax::FihoiAdverbial {
+                fihoi,
+                leading_free_modifiers,
+                subsentence,
+                fihau,
+                trailing_free_modifiers,
+            } => {
+                let mut words = vec![fihoi];
+                for free_modifier in leading_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(subsentence.words());
+                words.extend(fihau);
+                for free_modifier in trailing_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            TermSyntax::SoiAdverbial {
+                soi,
+                leading_free_modifiers,
+                subsentence,
+                sehu,
+                trailing_free_modifiers,
+            } => {
+                let mut words = vec![soi];
+                for free_modifier in leading_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(subsentence.words());
+                words.extend(sehu);
+                for free_modifier in trailing_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             TermSyntax::Tagged {
                 tense_modal,
                 free_modifiers,
@@ -1790,6 +1927,46 @@ impl TermSyntax {
                     words.extend(free_modifier.words());
                 }
                 words.extend(argument.words());
+                words
+            }
+            TermSyntax::Connected {
+                leading_terms,
+                connective,
+                trailing_terms,
+            } => {
+                let mut words = Vec::new();
+                for term in leading_terms {
+                    words.extend(term.words());
+                }
+                words.extend(connective.words());
+                for term in trailing_terms {
+                    words.extend(term.words());
+                }
+                words
+            }
+            TermSyntax::BoConnected {
+                leading_terms,
+                bo_connective,
+                tense_modal,
+                bo,
+                free_modifiers,
+                trailing_term,
+            } => {
+                let mut words = Vec::new();
+                for term in leading_terms {
+                    words.extend(term.words());
+                }
+                if let Some(connective) = bo_connective {
+                    words.extend(connective.words());
+                }
+                if let Some(tense_modal) = tense_modal {
+                    words.extend(tense_modal.words());
+                }
+                words.push(bo);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(trailing_term.words());
                 words
             }
         }
@@ -3367,9 +3544,96 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             },
         );
     let tagged_term = choice((tagged_term_before_tag, tagged_term_before_non_relation));
+    let noiha_adverbial = cmavo_of("NOIhA", &["noi'a", "poi'a", "poi'o'a", "soi'a", "noi'o'a"])
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(argument_tail_with(
+            argument.clone(),
+            relation.clone(),
+            subsentence.clone(),
+            free_modifier.clone(),
+        ))
+        .then(cmavo("fe'u").map(Ok).or(cmavo("ku").map(Err)).or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(
+                (
+                    ((noiha, leading_free_modifiers), (tail_elements, relation, relative_clauses)),
+                    terminator,
+                ),
+                trailing_free_modifiers,
+            )| {
+                match terminator {
+                    Some(Err(brigahi_ku)) => TermSyntax::PoihaBrigahi {
+                        poiha: noiha,
+                        leading_free_modifiers,
+                        tail_elements,
+                        relation,
+                        relative_clauses,
+                        brigahi_ku,
+                        trailing_free_modifiers,
+                    },
+                    Some(Ok(fehu)) => TermSyntax::NoihaAdverbial {
+                        noiha,
+                        leading_free_modifiers,
+                        tail_elements,
+                        relation,
+                        relative_clauses,
+                        fehu: Some(fehu),
+                        trailing_free_modifiers,
+                    },
+                    None => TermSyntax::NoihaAdverbial {
+                        noiha,
+                        leading_free_modifiers,
+                        tail_elements,
+                        relation,
+                        relative_clauses,
+                        fehu: None,
+                        trailing_free_modifiers,
+                    },
+                }
+            },
+        )
+        .boxed();
+    let fihoi_adverbial = cmavo("fi'oi")
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(subsentence.clone())
+        .then(cmavo("fi'au").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |((((fihoi, leading_free_modifiers), subsentence), fihau), trailing_free_modifiers)| {
+                TermSyntax::FihoiAdverbial {
+                    fihoi,
+                    leading_free_modifiers,
+                    subsentence: Box::new(subsentence),
+                    fihau,
+                    trailing_free_modifiers,
+                }
+            },
+        )
+        .boxed();
+    let soi_adverbial = cmavo_of("SOI", &["soi", "xoi"])
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(subsentence.clone())
+        .then(cmavo("se'u").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |((((soi, leading_free_modifiers), subsentence), sehu), trailing_free_modifiers)| {
+                TermSyntax::SoiAdverbial {
+                    soi,
+                    leading_free_modifiers,
+                    subsentence: Box::new(subsentence),
+                    sehu,
+                    trailing_free_modifiers,
+                }
+            },
+        )
+        .boxed();
     let base_simple_term = choice((
         fa_term,
         tagged_term,
+        noiha_adverbial,
+        fihoi_adverbial,
+        soi_adverbial,
         argument_term,
         na_ku_term,
         bare_na_term,
@@ -3437,7 +3701,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             );
         let simple_term =
             choice((base_simple_term.clone(), gek_nuhi_termset, nuhi_termset)).boxed();
-        let term2 = simple_term
+        let cehe_term = simple_term
             .clone()
             .then(
                 cmavo("ce'e")
@@ -3463,7 +3727,43 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 )
             })
             .boxed();
-        term2
+        let bo_tail = argument_connective()
+            .or_not()
+            .then(tense_modal_with_free_modifiers.clone().or_not())
+            .then(cmavo("bo"))
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(simple_term.clone())
+            .map(
+                |((((bo_connective, tense_modal), bo), free_modifiers), trailing_term)| {
+                    (
+                        bo_connective,
+                        tense_modal,
+                        bo,
+                        free_modifiers,
+                        trailing_term,
+                    )
+                },
+            );
+        let term2 = cehe_term
+            .clone()
+            .then(bo_tail.repeated().collect::<Vec<_>>())
+            .map(|(first, tails)| {
+                tails.into_iter().fold(
+                    first,
+                    |leading_term, (bo_connective, tense_modal, bo, free_modifiers, trailing_term)| {
+                        TermSyntax::BoConnected {
+                            leading_terms: vec![leading_term],
+                            bo_connective,
+                            tense_modal,
+                            bo,
+                            free_modifiers,
+                            trailing_term: Box::new(trailing_term),
+                        }
+                    },
+                )
+            })
+            .boxed();
+        let pehe_term = term2
             .clone()
             .then(
                 cmavo("pe'e")
@@ -3487,6 +3787,29 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     },
                 )
             })
+            .boxed();
+        let connected_term = term2
+            .clone()
+            .then(
+                argument_connective()
+                    .then(term2.clone())
+                    .repeated()
+                    .at_least(1)
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(first, tails)| {
+                tails
+                    .into_iter()
+                    .fold(first, |leading_term, (connective, trailing_term)| {
+                        TermSyntax::Connected {
+                            leading_terms: vec![leading_term],
+                            connective,
+                            trailing_terms: vec![trailing_term],
+                        }
+                    })
+            })
+            .boxed();
+        choice((pehe_term, connected_term, term2)).boxed()
     };
     term.define(term_body.boxed());
     let tail_term = term.clone();
@@ -4879,6 +5202,105 @@ where
 
 #[requires(true)]
 #[ensures(true)]
+fn argument_tail_with<'tokens, A, R, S, F>(
+    argument: A,
+    relation: R,
+    subsentence: S,
+    free_modifier: F,
+) -> BoxedParser<
+    'tokens,
+    (
+        Vec<ArgumentTailElementSyntax>,
+        Option<RelationSyntax>,
+        Vec<RelativeClauseSyntax>,
+    ),
+>
+where
+    A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    S: Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
+    let tail_argument = pa_word()
+        .rewind()
+        .not()
+        .ignore_then(argument.clone())
+        .map(|argument| match argument {
+            ArgumentSyntax::RelativeClause {
+                base_argument,
+                vuho: _,
+                vuho_free_modifiers: _,
+                relative_clauses,
+            } => vec![
+                ArgumentTailElementSyntax::Argument(base_argument),
+                ArgumentTailElementSyntax::RelativeClauses(relative_clauses),
+            ],
+            argument => vec![ArgumentTailElementSyntax::Argument(Box::new(argument))],
+        });
+    let contextual_quantifier = quantifier_with_context(argument.clone(), relation.clone());
+    let descriptor_relative_clauses =
+        relative_clauses(argument.clone(), subsentence, free_modifier.clone())
+            .or_not()
+            .map(Option::unwrap_or_default);
+
+    let leading_tail_elements = tail_argument
+        .or_not()
+        .then(descriptor_relative_clauses.clone())
+        .map(|(argument, relative_clauses)| {
+            let mut tail_elements = argument.into_iter().flatten().collect::<Vec<_>>();
+            if !relative_clauses.is_empty() {
+                tail_elements.push(ArgumentTailElementSyntax::RelativeClauses(relative_clauses));
+            }
+            tail_elements
+        });
+
+    let relation_tail = relation
+        .clone()
+        .then(descriptor_relative_clauses.clone())
+        .map(|(relation, relative_clauses)| (Vec::new(), Some(relation), relative_clauses));
+    let quantifier_relation_tail = contextual_quantifier
+        .clone()
+        .map(ArgumentTailElementSyntax::Quantifier)
+        .then(relation.clone())
+        .then(descriptor_relative_clauses.clone())
+        .map(|((quantifier, relation), relative_clauses)| {
+            (vec![quantifier], Some(relation), relative_clauses)
+        });
+    let quantifier_argument_tail = contextual_quantifier
+        .map(ArgumentTailElementSyntax::Quantifier)
+        .then(argument)
+        .map(|(quantifier, argument)| {
+            (
+                vec![
+                    quantifier,
+                    ArgumentTailElementSyntax::Argument(Box::new(argument)),
+                ],
+                None,
+                Vec::new(),
+            )
+        });
+
+    leading_tail_elements
+        .then(choice((
+            quantifier_relation_tail,
+            quantifier_argument_tail,
+            relation_tail,
+        )))
+        .map(
+            |(mut leading_tail_elements, (tail_elements, relation, relative_clauses))| {
+                leading_tail_elements.extend(tail_elements);
+                (leading_tail_elements, relation, relative_clauses)
+            },
+        )
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn argument_parser_with<'tokens, A, R, S, T, F>(
     argument: A,
     relation: R,
@@ -4994,78 +5416,13 @@ where
             },
         );
 
-    let tail_argument = pa_word()
-        .rewind()
-        .not()
-        .ignore_then(argument.clone())
-        .map(|argument| match argument {
-            ArgumentSyntax::RelativeClause {
-                base_argument,
-                vuho: _,
-                vuho_free_modifiers: _,
-                relative_clauses,
-            } => vec![
-                ArgumentTailElementSyntax::Argument(base_argument),
-                ArgumentTailElementSyntax::RelativeClauses(relative_clauses),
-            ],
-            argument => vec![ArgumentTailElementSyntax::Argument(Box::new(argument))],
-        });
     let contextual_quantifier = quantifier_with_context(argument.clone(), relation.clone());
-    let descriptor_relative_clauses =
-        relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone())
-            .or_not()
-            .map(Option::unwrap_or_default);
-
-    let leading_tail_elements = tail_argument
-        .or_not()
-        .then(descriptor_relative_clauses.clone())
-        .map(|(argument, relative_clauses)| {
-            let mut tail_elements = argument.into_iter().flatten().collect::<Vec<_>>();
-            if !relative_clauses.is_empty() {
-                tail_elements.push(ArgumentTailElementSyntax::RelativeClauses(relative_clauses));
-            }
-            tail_elements
-        });
-
-    let relation_tail = relation
-        .clone()
-        .then(descriptor_relative_clauses.clone())
-        .map(|(relation, relative_clauses)| (Vec::new(), Some(relation), relative_clauses));
-    let quantifier_relation_tail = contextual_quantifier
-        .clone()
-        .map(ArgumentTailElementSyntax::Quantifier)
-        .then(relation.clone())
-        .then(descriptor_relative_clauses.clone())
-        .map(|((quantifier, relation), relative_clauses)| {
-            (vec![quantifier], Some(relation), relative_clauses)
-        });
-    let quantifier_argument_tail = contextual_quantifier
-        .clone()
-        .map(ArgumentTailElementSyntax::Quantifier)
-        .then(argument.clone())
-        .map(|(quantifier, argument)| {
-            (
-                vec![
-                    quantifier,
-                    ArgumentTailElementSyntax::Argument(Box::new(argument)),
-                ],
-                None,
-                Vec::new(),
-            )
-        });
-
-    let descriptor_tail = leading_tail_elements
-        .then(choice((
-            quantifier_relation_tail,
-            quantifier_argument_tail,
-            relation_tail,
-        )))
-        .map(
-            |(mut leading_tail_elements, (tail_elements, relation, relative_clauses))| {
-                leading_tail_elements.extend(tail_elements);
-                (leading_tail_elements, relation, relative_clauses)
-            },
-        );
+    let descriptor_tail = argument_tail_with(
+        argument.clone(),
+        relation.clone(),
+        subsentence.clone(),
+        free_modifier.clone(),
+    );
 
     let descriptor_with_gadri = le_cmavo()
         .or(la_cmavo())
@@ -9960,6 +10317,180 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
                 ),
             ],
         ),
+        TermSyntax::NoihaAdverbial {
+            noiha,
+            leading_free_modifiers,
+            tail_elements,
+            relation,
+            relative_clauses,
+            fehu,
+            trailing_free_modifiers,
+        } => node(
+            "NoihaAdverbialTerm",
+            vec![
+                field("noiha", word_value(noiha)),
+                field(
+                    "leadingFreeModifiers",
+                    list(
+                        leading_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field(
+                    "tailElements",
+                    list(
+                        tail_elements
+                            .into_iter()
+                            .map(argument_tail_element_tree)
+                            .collect(),
+                    ),
+                ),
+                field(
+                    "relation",
+                    relation.map_or_else(nothing, |relation| just(relation_tree(relation))),
+                ),
+                field(
+                    "relativeClauses",
+                    list(
+                        relative_clauses
+                            .into_iter()
+                            .map(relative_clause_tree)
+                            .collect(),
+                    ),
+                ),
+                field("fehu", maybe_word(fehu)),
+                field(
+                    "trailingFreeModifiers",
+                    list(
+                        trailing_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        TermSyntax::PoihaBrigahi {
+            poiha,
+            leading_free_modifiers,
+            tail_elements,
+            relation,
+            relative_clauses,
+            brigahi_ku,
+            trailing_free_modifiers,
+        } => node(
+            "PoihaBrigahiTerm",
+            vec![
+                field("poiha", word_value(poiha)),
+                field(
+                    "leadingFreeModifiers",
+                    list(
+                        leading_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field(
+                    "tailElements",
+                    list(
+                        tail_elements
+                            .into_iter()
+                            .map(argument_tail_element_tree)
+                            .collect(),
+                    ),
+                ),
+                field(
+                    "relation",
+                    relation.map_or_else(nothing, |relation| just(relation_tree(relation))),
+                ),
+                field(
+                    "relativeClauses",
+                    list(
+                        relative_clauses
+                            .into_iter()
+                            .map(relative_clause_tree)
+                            .collect(),
+                    ),
+                ),
+                field("brigahiKu", word_value(brigahi_ku)),
+                field(
+                    "trailingFreeModifiers",
+                    list(
+                        trailing_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        TermSyntax::FihoiAdverbial {
+            fihoi,
+            leading_free_modifiers,
+            subsentence,
+            fihau,
+            trailing_free_modifiers,
+        } => node(
+            "FihoiAdverbialTerm",
+            vec![
+                field("fihoi", word_value(fihoi)),
+                field(
+                    "leadingFreeModifiers",
+                    list(
+                        leading_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field("subsentence", subsentence_tree(*subsentence)),
+                field("fihau", maybe_word(fihau)),
+                field(
+                    "trailingFreeModifiers",
+                    list(
+                        trailing_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        TermSyntax::SoiAdverbial {
+            soi,
+            leading_free_modifiers,
+            subsentence,
+            sehu,
+            trailing_free_modifiers,
+        } => node(
+            "SoiAdverbialTerm",
+            vec![
+                field("soi", word_value(soi)),
+                field(
+                    "leadingFreeModifiers",
+                    list(
+                        leading_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field("subsentence", subsentence_tree(*subsentence)),
+                field("sehu", maybe_word(sehu)),
+                field(
+                    "trailingFreeModifiers",
+                    list(
+                        trailing_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
         TermSyntax::Tagged {
             tense_modal,
             free_modifiers,
@@ -9977,6 +10508,56 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
                     list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
                 ),
                 field("argument", argument_tree(argument)),
+            ],
+        ),
+        TermSyntax::Connected {
+            leading_terms,
+            connective,
+            trailing_terms,
+        } => node(
+            "ConnectedTerm",
+            vec![
+                field(
+                    "leadingTerms",
+                    list(leading_terms.into_iter().map(term_tree).collect()),
+                ),
+                field("connective", connective_tree(connective)),
+                field(
+                    "trailingTerms",
+                    list(trailing_terms.into_iter().map(term_tree).collect()),
+                ),
+            ],
+        ),
+        TermSyntax::BoConnected {
+            leading_terms,
+            bo_connective,
+            tense_modal,
+            bo,
+            free_modifiers,
+            trailing_term,
+        } => node(
+            "BoConnectedTerm",
+            vec![
+                field(
+                    "leadingTerms",
+                    list(leading_terms.into_iter().map(term_tree).collect()),
+                ),
+                field(
+                    "boConnective",
+                    bo_connective
+                        .map_or_else(nothing, |connective| just(connective_tree(connective))),
+                ),
+                field(
+                    "tenseModal",
+                    tense_modal
+                        .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+                ),
+                field("bo", word_value(bo)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field("trailingTerm", term_tree(*trailing_term)),
             ],
         ),
     }
