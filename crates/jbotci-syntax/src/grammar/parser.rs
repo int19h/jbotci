@@ -381,6 +381,7 @@ fn statement_parser<'tokens>(
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(argument_tail_with(
             argument.clone(),
+            argument.clone(),
             relation.clone(),
             subsentence.clone(),
             free_modifier.clone(),
@@ -2589,7 +2590,8 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn argument_tail_with<'tokens, A, R, S, F>(
+fn argument_tail_with<'tokens, B, A, R, S, F>(
+    leading_argument: B,
     argument: A,
     relation: R,
     subsentence: S,
@@ -2603,6 +2605,7 @@ fn argument_tail_with<'tokens, A, R, S, F>(
     ),
 >
 where
+    B: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     S: Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
@@ -2615,7 +2618,7 @@ where
     let tail_argument = pa_word()
         .rewind()
         .not()
-        .ignore_then(argument.clone())
+        .ignore_then(leading_argument)
         .map(|argument| match argument {
             ArgumentSyntax::RelativeClause {
                 base_argument,
@@ -2813,7 +2816,9 @@ where
         quantifier_with_context(argument.clone(), relation.clone(), free_modifier.clone()),
         free_modifier.clone(),
     );
+    let mut argument6 = Recursive::declare();
     let descriptor_tail = argument_tail_with(
+        argument6.clone(),
         argument.clone(),
         relation.clone(),
         subsentence.clone(),
@@ -3085,6 +3090,7 @@ where
         descriptor_argument_core,
     ))
     .boxed();
+    argument6.define(unquantified_base_argument_core.clone());
     let base_relative_clauses =
         relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone())
             .or_not()
