@@ -585,13 +585,19 @@ fn statement_parser<'tokens>(
         } else {
             argument.clone().rewind().not().boxed()
         };
+        let post_bo_trailing_argument_gate = if term_hierarchy_enabled {
+            empty().to(()).boxed()
+        } else {
+            argument.clone().rewind().not().boxed()
+        };
         let bo_tail = connective_with_free_modifiers(joik_ek_connective(), free_modifier.clone())
             .then(cmavo("bo"))
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(post_bo_argument_gate)
             .then(simple_term.clone())
+            .then(post_bo_trailing_argument_gate)
             .map(
-                |((((bo_connective, bo), free_modifiers), _), trailing_term)| {
+                |(((((bo_connective, bo), free_modifiers), _), trailing_term), _)| {
                     (Some(bo_connective), None, bo, free_modifiers, trailing_term)
                 },
             );
