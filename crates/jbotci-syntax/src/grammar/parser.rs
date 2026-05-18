@@ -4193,7 +4193,7 @@ fn gik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 #[requires(true)]
 #[ensures(true)]
 fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
-    na_cmavo()
+    let gihek = na_cmavo()
         .or_not()
         .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
         .then(cmavo_of("GIhA", &["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"]))
@@ -4207,7 +4207,16 @@ fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax
             nai,
             free_modifiers: Vec::new(),
         })
-        .boxed()
+        .boxed();
+    let experimental = relation_afterthought_connective()
+        .map(|connective| connective_with_kind(connective, ConnectiveKind::PredicateTail));
+    choice((gihek, experimental)).boxed()
+}
+
+#[requires(true)]
+#[ensures(ret.kind == old(kind.clone()))]
+fn connective_with_kind(connective: ConnectiveSyntax, kind: ConnectiveKind) -> ConnectiveSyntax {
+    ConnectiveSyntax { kind, ..connective }
 }
 
 #[requires(true)]
