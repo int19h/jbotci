@@ -249,8 +249,13 @@ enum StatementSyntax {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 enum FragmentSyntax {
+    Ek {
+        connective: ConnectiveSyntax,
+        free_modifiers: Vec<FreeModifierSyntax>,
+    },
     Gihek {
         connective: ConnectiveSyntax,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Other {
         words: Vec<WordWithModifiers>,
@@ -265,6 +270,9 @@ enum FragmentSyntax {
         bei_links: Vec<BeiLinkSyntax>,
         beho: Option<WordWithModifiers>,
         beho_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    BeiLink {
+        bei_only_links: Vec<BeiLinkSyntax>,
     },
     RelativeClause {
         relative_clauses: Vec<RelativeClauseSyntax>,
@@ -1386,7 +1394,20 @@ impl FragmentSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
-            FragmentSyntax::Gihek { connective } => connective.words(),
+            FragmentSyntax::Ek {
+                connective,
+                free_modifiers,
+            }
+            | FragmentSyntax::Gihek {
+                connective,
+                free_modifiers,
+            } => {
+                let mut words = connective.words();
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             FragmentSyntax::Other {
                 words,
                 free_modifiers,
@@ -1425,6 +1446,10 @@ impl FragmentSyntax {
                 }
                 words
             }
+            FragmentSyntax::BeiLink { bei_only_links } => bei_only_links
+                .into_iter()
+                .flat_map(BeiLinkSyntax::words)
+                .collect(),
             FragmentSyntax::RelativeClause { relative_clauses } => relative_clauses
                 .into_iter()
                 .flat_map(RelativeClauseSyntax::words)
@@ -3057,8 +3082,22 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         relative_clauses(argument.clone(), subsentence.clone()).map(|relative_clauses| {
             StatementSyntax::Fragment(FragmentSyntax::RelativeClause { relative_clauses })
         });
+    let ek_fragment = ek_connective()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|(connective, free_modifiers)| {
+            StatementSyntax::Fragment(FragmentSyntax::Ek {
+                connective,
+                free_modifiers,
+            })
+        });
     let gihek_fragment = predicate_tail_connective()
-        .map(|connective| StatementSyntax::Fragment(FragmentSyntax::Gihek { connective }));
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|(connective, free_modifiers)| {
+            StatementSyntax::Fragment(FragmentSyntax::Gihek {
+                connective,
+                free_modifiers,
+            })
+        });
 
     let multiple_na_fragment = na_cmavo()
         .then(na_cmavo())
@@ -3119,6 +3158,13 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             })
         }
     });
+    let bei_link_fragment = bei_link_parser(argument.clone(), free_modifier.clone())
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .map(|bei_only_links| {
+            StatementSyntax::Fragment(FragmentSyntax::BeiLink { bei_only_links })
+        });
 
     let math_expression_fragment = number_quantifier().map(|quantifier| {
         if let QuantifierSyntax::Number { number, boi, .. } = quantifier {
@@ -3162,8 +3208,10 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let simple_statement_after_i_connective = choice((
         predicate,
         tuhe_statement,
+        ek_fragment,
         gihek_fragment,
         be_link_fragment,
+        bei_link_fragment,
         relative_clause_fragment,
         multiple_na_fragment,
         single_na_fragment,
@@ -5045,6 +5093,25 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
             ),
     ))
     .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn ek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    na_cmavo()
+        .or_not()
+        .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
+        .then(cmavo_of("A", &["a", "e", "o", "u", "ji"]))
+        .then(cmavo("nai").or_not())
+        .map(|(((na, se), cmavo), nai)| ConnectiveSyntax {
+            kind: ConnectiveKind::Afterthought,
+            se,
+            nahe: None,
+            na,
+            cmavo: vec![cmavo],
+            nai,
+        })
+        .boxed()
 }
 
 #[requires(true)]
@@ -7979,11 +8046,30 @@ fn statement_tree(statement: StatementSyntax) -> SyntaxValue {
 #[ensures(true)]
 fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
     match fragment {
-        FragmentSyntax::Gihek { connective } => node(
+        FragmentSyntax::Ek {
+            connective,
+            free_modifiers,
+        } => node(
+            "EkFragment",
+            vec![
+                field("connective", connective_tree(connective)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+            ],
+        ),
+        FragmentSyntax::Gihek {
+            connective,
+            free_modifiers,
+        } => node(
             "GihekFragment",
             vec![
                 field("connective", connective_tree(connective)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         FragmentSyntax::Other {
@@ -8045,6 +8131,13 @@ fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
                     ),
                 ),
             ],
+        ),
+        FragmentSyntax::BeiLink { bei_only_links } => node(
+            "BeiLinkFragment",
+            vec![field(
+                "beiOnlyLinks",
+                list(bei_only_links.into_iter().map(bei_link_tree).collect()),
+            )],
         ),
         FragmentSyntax::RelativeClause { relative_clauses } => node(
             "RelativeClauseFragment",
