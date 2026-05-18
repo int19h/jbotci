@@ -3213,6 +3213,7 @@ where
                         word: base_word_from_record((**quoted).clone()),
                         free_modifiers: Vec::new(),
                     },
+                    free_modifiers: Vec::new(),
                 }),
                 data!(WordLike::ZoiQuote {
                     zoi,
@@ -3233,6 +3234,7 @@ where
                                 quoted_text,
                                 free_modifiers: Vec::new(),
                             },
+                            free_modifiers: Vec::new(),
                         })
                     } else {
                         Ok(ArgumentSyntax::Quote {
@@ -3243,6 +3245,7 @@ where
                                 quoted_text,
                                 free_modifiers: Vec::new(),
                             },
+                            free_modifiers: Vec::new(),
                         })
                     }
                 }
@@ -3261,6 +3264,7 @@ where
                         lehu: base_word_from_record((**lehu).clone()),
                         lehu_free_modifiers: Vec::new(),
                     },
+                    free_modifiers: Vec::new(),
                 }),
                 data!(WordLike::SingleWordQuote {
                     marker: _,
@@ -3271,6 +3275,7 @@ where
                         quoted_text: source_text(source, quoted_text),
                         free_modifiers: Vec::new(),
                     },
+                    free_modifiers: Vec::new(),
                 }),
                 _ => Err(Rich::custom(span, "expected quote")),
             }
@@ -3292,6 +3297,7 @@ where
                     lihu,
                     lihu_free_modifiers,
                 },
+                free_modifiers: Vec::new(),
             },
         );
 
@@ -3305,8 +3311,12 @@ fn attach_quote_free_modifiers(
     free_modifiers: Vec<FreeModifierSyntax>,
 ) -> ArgumentSyntax {
     match argument {
-        ArgumentSyntax::Quote { quote } => ArgumentSyntax::Quote {
+        ArgumentSyntax::Quote {
+            quote,
+            free_modifiers: argument_free_modifiers,
+        } => ArgumentSyntax::Quote {
             quote: quote_with_free_modifiers(quote, free_modifiers),
+            free_modifiers: argument_free_modifiers,
         },
         other => other,
     }
@@ -3383,6 +3393,15 @@ fn quote_with_free_modifiers(
             quoted_words,
             lehu,
             lehu_free_modifiers: free_modifiers,
+        },
+        QuoteSyntax::Meho {
+            meho,
+            math_expression,
+            ..
+        } => QuoteSyntax::Meho {
+            meho,
+            free_modifiers,
+            math_expression,
         },
     }
 }

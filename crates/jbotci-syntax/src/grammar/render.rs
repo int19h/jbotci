@@ -1644,11 +1644,17 @@ fn term_wrapper_kind_tree(kind: TermWrapperKindSyntax) -> SyntaxValue {
 #[ensures(true)]
 fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
     match argument {
-        ArgumentSyntax::Quote { quote } => node(
+        ArgumentSyntax::Quote {
+            quote,
+            free_modifiers,
+        } => node(
             "QuoteArgument",
             vec![
                 field("quote", quote_tree(quote)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         ArgumentSyntax::MathExpression {
@@ -2478,6 +2484,21 @@ fn quote_tree(quote: QuoteSyntax) -> SyntaxValue {
                             .collect(),
                     ),
                 ),
+            ],
+        ),
+        QuoteSyntax::Meho {
+            meho,
+            free_modifiers,
+            math_expression,
+        } => node(
+            "MehoQuote",
+            vec![
+                field("meho", word_value(meho)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field("mathExpression", math_expression_tree(math_expression)),
             ],
         ),
     }

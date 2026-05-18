@@ -518,6 +518,7 @@ struct ArgumentConnectionSyntax {
 enum ArgumentSyntax {
     Quote {
         quote: QuoteSyntax,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     MathExpression {
         li: WordWithModifiers,
@@ -745,6 +746,14 @@ enum QuoteSyntax {
         quoted_words: Vec<WordWithModifiers>,
         lehu: WordWithModifiers,
         lehu_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    // v0 exposes this constructor in the Quote ADT; current v0 grammar parses
+    // ordinary `me'o` through MathExpressionArgument.
+    #[allow(dead_code)]
+    Meho {
+        meho: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        math_expression: MathExpressionSyntax,
     },
 }
 
@@ -2656,7 +2665,16 @@ impl ArgumentSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
-            ArgumentSyntax::Quote { quote } => quote.words(),
+            ArgumentSyntax::Quote {
+                quote,
+                free_modifiers,
+            } => {
+                let mut words = quote.words();
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             ArgumentSyntax::MathExpression {
                 li,
                 li_free_modifiers,
@@ -3166,6 +3184,18 @@ impl QuoteSyntax {
                 for free_modifier in lehu_free_modifiers {
                     words.extend(free_modifier.words());
                 }
+                words
+            }
+            QuoteSyntax::Meho {
+                meho,
+                free_modifiers,
+                math_expression,
+            } => {
+                let mut words = vec![meho];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(math_expression.words());
                 words
             }
         }
