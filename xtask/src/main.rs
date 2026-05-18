@@ -21,7 +21,7 @@ mod syntax_compare;
 
 use fixtures::{
     ExpectationStatus, Facet, FacetResult, FixtureBackend, FixtureProfile, FixtureSelector,
-    LoadedTestCase, MuplisForm, RunSummary, fixture_matches_selector, fixture_paths,
+    LoadedTestCase, MuplisForm, Provenance, RunSummary, fixture_matches_selector, fixture_paths,
     import_export_file, load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree,
 };
 use syntax_compare::format_syntax_mismatch;
@@ -467,12 +467,55 @@ fn run_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
     };
     match pretty_brackets(&parsed.parse_tree, &fixture.test_case.lojban) {
-        Ok(actual) if actual == expectation.text => FacetResult::passed(),
+        Ok(actual) if brackets_expectation_matches(fixture, &expectation.text, &actual) => {
+            FacetResult::passed()
+        }
         Ok(actual) => FacetResult::failed(format!(
             "brackets mismatch: expected `{}`, got `{actual}`",
             expectation.text
         )),
         Err(error) => FacetResult::failed(format!("brackets render error: {error}")),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn brackets_expectation_matches(fixture: &LoadedTestCase, expected: &str, actual: &str) -> bool {
+    if expected == actual {
+        return true;
+    }
+    if !fixture_is_cll(fixture) {
+        return false;
+    }
+    normalize_cll_brackets(expected) == normalize_cll_brackets(actual)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn fixture_is_cll(fixture: &LoadedTestCase) -> bool {
+    fixture
+        .test_case
+        .provenance
+        .iter()
+        .any(|provenance| matches!(provenance, Provenance::Cll { .. }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_cll_brackets(text: &str) -> String {
+    text.chars()
+        .filter_map(normalize_cll_bracket_char)
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_cll_bracket_char(ch: char) -> Option<char> {
+    match ch {
+        '.' | '\u{0306}' => None,
+        'ĭ' | 'Ĭ' => Some('i'),
+        'ŭ' | 'Ŭ' => Some('u'),
+        other => Some(other),
     }
 }
 

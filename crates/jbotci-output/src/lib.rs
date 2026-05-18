@@ -112,6 +112,37 @@ fn to_sexpr(value: &SyntaxValue, source: &str) -> Result<SExpr, OutputError> {
             if is_compound_quote_node(constructor, value) {
                 return compound_quote_sexpr(value, source);
             }
+            if constructor == "TenseModal" {
+                return named_fields_sexpr(value, source, &["leaves", "freeModifiers", "fiho"]);
+            }
+            if constructor == "ConnectedRelation" {
+                return named_fields_sexpr(
+                    value,
+                    source,
+                    &["leadingRelation", "connective", "trailingRelation"],
+                );
+            }
+            if constructor == "ConnectedRelationUnit" {
+                return named_fields_sexpr(
+                    value,
+                    source,
+                    &["leadingUnit", "connective", "trailingUnit"],
+                );
+            }
+            if constructor == "ConnectedOperator" {
+                return named_fields_sexpr(
+                    value,
+                    source,
+                    &["leftOperator", "connective", "rightOperator"],
+                );
+            }
+            if constructor == "TaggedArgument" {
+                return named_fields_sexpr(
+                    value,
+                    source,
+                    &["tagWords", "freeModifiers", "innerArgument"],
+                );
+            }
             syntax_node
                 .fields
                 .iter()
@@ -127,15 +158,27 @@ fn to_sexpr(value: &SyntaxValue, source: &str) -> Result<SExpr, OutputError> {
 #[requires(true)]
 #[ensures(true)]
 fn list_sexpr(items: &[SyntaxValue], source: &str) -> Result<SExpr, OutputError> {
-    let mut children = Vec::new();
-    for item in items {
-        let sexpr = flatten(to_sexpr(item, source)?);
-        match sexpr {
-            SExpr::Node(items) => children.extend(items),
-            leaf => children.push(leaf),
-        }
+    if let [head, tail] = items
+        && syntax_value_is_list_tail(tail)
+    {
+        let mut children = vec![to_sexpr(head, source)?];
+        children.extend(list_tail_items(tail, source)?);
+        return Ok(node(children));
     }
+    let children = items
+        .iter()
+        .map(|item| to_sexpr(item, source))
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(node(children))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_value_is_list_tail(value: &SyntaxValue) -> bool {
+    matches!(
+        value.as_data(),
+        data!(SyntaxValue::Node { node }) if node.constructor == "[]" || node.constructor == "(:)"
+    )
 }
 
 #[requires(true)]
@@ -144,15 +187,37 @@ fn cons_node_sexpr(value: &SyntaxValue, source: &str) -> Result<SExpr, OutputErr
     let data!(SyntaxValue::Node { node: syntax_node }) = value.as_data() else {
         return Ok(empty_node());
     };
-    let mut children = Vec::new();
-    for field in &syntax_node.fields {
-        let sexpr = flatten(to_sexpr(&field.value, source)?);
-        match sexpr {
-            SExpr::Node(items) => children.extend(items),
-            leaf => children.push(leaf),
+    cons_list_items(syntax_node, source).map(node)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cons_list_items(
+    syntax_node: &jbotci_syntax::SyntaxNode,
+    source: &str,
+) -> Result<Vec<SExpr>, OutputError> {
+    let Some(head) = syntax_node.fields.first() else {
+        return Ok(Vec::new());
+    };
+    let Some(tail) = syntax_node.fields.get(1) else {
+        return Ok(vec![to_sexpr(&head.value, source)?]);
+    };
+
+    let mut children = vec![to_sexpr(&head.value, source)?];
+    children.extend(list_tail_items(&tail.value, source)?);
+    Ok(children)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn list_tail_items(value: &SyntaxValue, source: &str) -> Result<Vec<SExpr>, OutputError> {
+    match value.as_data() {
+        data!(SyntaxValue::Node { node }) if node.constructor == "[]" => Ok(Vec::new()),
+        data!(SyntaxValue::Node { node }) if node.constructor == "(:)" => {
+            cons_list_items(node, source)
         }
+        _ => Ok(vec![to_sexpr(value, source)?]),
     }
-    Ok(node(children))
 }
 
 #[requires(true)]
@@ -226,6 +291,30 @@ fn named_field<'tree>(value: &'tree SyntaxValue, name: &str) -> Option<&'tree Sy
         .iter()
         .find(|field| field.name.as_deref() == Some(name))
         .map(|field| &field.value)
+}
+
+#[requires(!field_names.is_empty())]
+#[ensures(true)]
+fn named_fields_sexpr(
+    value: &SyntaxValue,
+    source: &str,
+    field_names: &[&str],
+) -> Result<SExpr, OutputError> {
+    field_names
+        .iter()
+        .map(|field_name| named_field_sexpr(value, source, field_name))
+        .collect::<Result<Vec<_>, _>>()
+        .map(node)
+}
+
+#[requires(!field_name.is_empty())]
+#[ensures(true)]
+fn named_field_sexpr(
+    value: &SyntaxValue,
+    source: &str,
+    field_name: &str,
+) -> Result<SExpr, OutputError> {
+    named_field(value, field_name).map_or_else(|| Ok(empty_node()), |field| to_sexpr(field, source))
 }
 
 #[requires(true)]
@@ -528,7 +617,8 @@ fn render_word_without_pause(word: &Word) -> String {
 #[ensures(true)]
 fn render_visible_word_surface(word: &Word) -> String {
     let mut rendered = match word.kind {
-        WordKind::Cmavo | WordKind::Cmevla => strip_stress_accents(&add_diacritics(&word.phonemes)),
+        WordKind::Cmavo => strip_stress_accents(&add_diacritics(&word.phonemes)),
+        WordKind::Cmevla => add_diacritics(&word.phonemes),
         WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => add_diacritics(&word.phonemes),
     };
     if needs_leading_pause(word) {
