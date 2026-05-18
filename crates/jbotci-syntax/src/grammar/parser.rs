@@ -218,6 +218,7 @@ pub(super) fn parse_statement(
     let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
 
     statement_parser(source)
+        .then_ignore(end())
         .parse(
             tokens
                 .as_slice()
@@ -4109,6 +4110,12 @@ fn statement_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 
 #[requires(true)]
 #[ensures(true)]
+fn relation_afterthought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    choice((joik_connective(), jek_connective(), ek_connective())).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn guhek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
         .or_not()
@@ -4979,7 +4986,7 @@ where
     let connected_unit = bo_unit
         .clone()
         .then(
-            statement_connective()
+            relation_afterthought_connective()
                 .then(bo_unit)
                 .repeated()
                 .collect::<Vec<_>>(),
@@ -5005,7 +5012,11 @@ where
     let base_relation = relation_units;
     let connected_relation = base_relation
         .clone()
-        .then(statement_connective().then(base_relation.clone()).or_not())
+        .then(
+            relation_afterthought_connective()
+                .then(base_relation.clone())
+                .or_not(),
+        )
         .map(|(leading_relation, connected)| {
             connected.map_or(
                 leading_relation.clone(),
