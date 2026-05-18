@@ -456,12 +456,26 @@ enum ArgumentSyntax {
 enum RelativeClauseSyntax {
     Goi(GoiRelativeClauseSyntax),
     Noi {
-        marker: WordWithModifiers,
+        noi: WordWithModifiers,
+        leading_free_modifiers: Vec<FreeModifierSyntax>,
         subsentence: SubsentenceSyntax,
         kuho: Option<WordWithModifiers>,
+        trailing_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    Poi {
+        poi: WordWithModifiers,
+        leading_free_modifiers: Vec<FreeModifierSyntax>,
+        subsentence: SubsentenceSyntax,
+        kuho: Option<WordWithModifiers>,
+        trailing_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Zihe {
         zihe: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        inner: Box<RelativeClauseSyntax>,
+    },
+    Connected {
+        connective: ConnectiveSyntax,
         inner: Box<RelativeClauseSyntax>,
     },
 }
@@ -470,8 +484,10 @@ enum RelativeClauseSyntax {
 #[invariant(true)]
 struct GoiRelativeClauseSyntax {
     goi: WordWithModifiers,
+    leading_free_modifiers: Vec<FreeModifierSyntax>,
     argument: ArgumentSyntax,
     gehu: Option<WordWithModifiers>,
+    trailing_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1998,8 +2014,14 @@ impl GoiRelativeClauseSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         let mut words = vec![self.goi];
+        for free_modifier in self.leading_free_modifiers {
+            words.extend(free_modifier.words());
+        }
         words.extend(self.argument.words());
         words.extend(self.gehu);
+        for free_modifier in self.trailing_free_modifiers {
+            words.extend(free_modifier.words());
+        }
         words
     }
 }
@@ -2011,17 +2033,55 @@ impl RelativeClauseSyntax {
         match self {
             RelativeClauseSyntax::Goi(relative_clause) => relative_clause.words(),
             RelativeClauseSyntax::Noi {
-                marker,
+                noi,
+                leading_free_modifiers,
                 subsentence,
                 kuho,
+                trailing_free_modifiers,
             } => {
-                let mut words = vec![marker];
+                let mut words = vec![noi];
+                for free_modifier in leading_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(subsentence.words());
                 words.extend(kuho);
+                for free_modifier in trailing_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
-            RelativeClauseSyntax::Zihe { zihe, inner } => {
+            RelativeClauseSyntax::Poi {
+                poi,
+                leading_free_modifiers,
+                subsentence,
+                kuho,
+                trailing_free_modifiers,
+            } => {
+                let mut words = vec![poi];
+                for free_modifier in leading_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(subsentence.words());
+                words.extend(kuho);
+                for free_modifier in trailing_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            RelativeClauseSyntax::Zihe {
+                zihe,
+                free_modifiers,
+                inner,
+            } => {
                 let mut words = vec![zihe];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(inner.words());
+                words
+            }
+            RelativeClauseSyntax::Connected { connective, inner } => {
+                let mut words = connective.words();
                 words.extend(inner.words());
                 words
             }
@@ -3458,9 +3518,11 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         .map(|(terms, vau)| StatementSyntax::Fragment(FragmentSyntax::Term { terms, vau }));
 
     let relative_clause_fragment =
-        relative_clauses(argument.clone(), subsentence.clone()).map(|relative_clauses| {
-            StatementSyntax::Fragment(FragmentSyntax::RelativeClause { relative_clauses })
-        });
+        relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone()).map(
+            |relative_clauses| {
+                StatementSyntax::Fragment(FragmentSyntax::RelativeClause { relative_clauses })
+            },
+        );
     let ek_fragment = ek_connective()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(connective, free_modifiers)| {
@@ -4553,7 +4615,7 @@ where
         });
     let lahe = lahe_cmavo()
         .then(
-            relative_clauses(argument.clone(), subsentence.clone())
+            relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone())
                 .or_not()
                 .map(Option::unwrap_or_default),
         )
@@ -4588,9 +4650,10 @@ where
             argument => vec![ArgumentTailElementSyntax::Argument(Box::new(argument))],
         });
     let contextual_quantifier = quantifier_with_context(argument.clone(), relation.clone());
-    let descriptor_relative_clauses = relative_clauses(argument.clone(), subsentence.clone())
-        .or_not()
-        .map(Option::unwrap_or_default);
+    let descriptor_relative_clauses =
+        relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone())
+            .or_not()
+            .map(Option::unwrap_or_default);
 
     let leading_tail_elements = tail_argument
         .or_not()
@@ -4689,7 +4752,7 @@ where
         .map(ArgumentTailElementSyntax::Quantifier)
         .then(relation.clone())
         .then(
-            relative_clauses(argument.clone(), subsentence.clone())
+            relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone())
                 .or_not()
                 .map(Option::unwrap_or_default),
         )
@@ -4754,9 +4817,10 @@ where
         descriptor_without_gadri,
         koha,
     ));
-    let base_relative_clauses = relative_clauses(argument.clone(), subsentence.clone())
-        .or_not()
-        .map(Option::unwrap_or_default);
+    let base_relative_clauses =
+        relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone())
+            .or_not()
+            .map(Option::unwrap_or_default);
     let unquantified_base_argument = unquantified_base_argument_core
         .clone()
         .then(base_relative_clauses.clone())
@@ -4888,7 +4952,7 @@ where
         .then(
             cmavo("vu'o")
                 .then(
-                    relative_clauses(argument, subsentence)
+                    relative_clauses(argument, subsentence, free_modifier.clone())
                         .or_not()
                         .map(Option::unwrap_or_default),
                 )
@@ -5234,6 +5298,9 @@ fn quote_word_like(word: &WordWithModifiers) -> Option<&WordLike> {
 fn relative_clauses<'tokens, A, S>(
     argument: A,
     subsentence: S,
+    free_modifier: impl Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+    + Clone
+    + 'tokens,
 ) -> BoxedParser<'tokens, Vec<RelativeClauseSyntax>>
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
@@ -5241,18 +5308,30 @@ where
         + Clone
         + 'tokens,
 {
-    let clause = relative_clause(argument, subsentence);
+    let clause = relative_clause(argument, subsentence, free_modifier.clone());
     clause
         .clone()
         .then(
-            cmavo("zi'e")
-                .then(clause)
-                .map(|(zihe, inner)| RelativeClauseSyntax::Zihe {
-                    zihe,
-                    inner: Box::new(inner),
-                })
-                .repeated()
-                .collect::<Vec<_>>(),
+            choice((
+                cmavo("zi'e")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .then(clause.clone())
+                    .map(
+                        |((zihe, free_modifiers), inner)| RelativeClauseSyntax::Zihe {
+                            zihe,
+                            free_modifiers,
+                            inner: Box::new(inner),
+                        },
+                    ),
+                relative_clause_connective()
+                    .then(clause)
+                    .map(|(connective, inner)| RelativeClauseSyntax::Connected {
+                        connective,
+                        inner: Box::new(inner),
+                    }),
+            ))
+            .repeated()
+            .collect::<Vec<_>>(),
         )
         .map(|(first, rest)| std::iter::once(first).chain(rest).collect())
         .boxed()
@@ -5265,38 +5344,78 @@ fn relative_clause<'tokens, R>(
     + Clone
     + 'tokens,
     subsentence: R,
+    free_modifier: impl Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+    + Clone
+    + 'tokens,
 ) -> BoxedParser<'tokens, RelativeClauseSyntax>
 where
     R: Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
         + Clone
         + 'tokens,
 {
-    let goi = goi_relative_clause(argument).map(RelativeClauseSyntax::Goi);
+    let goi = goi_relative_clause(argument, free_modifier.clone()).map(RelativeClauseSyntax::Goi);
     let noi = cmavo_of("NOI", &["poi", "noi", "voi"])
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(subsentence)
         .then(cmavo("ku'o").or_not())
-        .map(|((marker, subsentence), kuho)| RelativeClauseSyntax::Noi {
-            marker,
-            subsentence,
-            kuho,
-        });
+        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .map(
+            |((((marker, leading_free_modifiers), subsentence), kuho), trailing_free_modifiers)| {
+                if cmavo_text_matches(&marker, "poi") {
+                    RelativeClauseSyntax::Poi {
+                        poi: marker,
+                        leading_free_modifiers,
+                        subsentence,
+                        kuho,
+                        trailing_free_modifiers,
+                    }
+                } else {
+                    RelativeClauseSyntax::Noi {
+                        noi: marker,
+                        leading_free_modifiers,
+                        subsentence,
+                        kuho,
+                        trailing_free_modifiers,
+                    }
+                }
+            },
+        );
     choice((goi, noi)).boxed()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn goi_relative_clause<'tokens, A>(argument: A) -> BoxedParser<'tokens, GoiRelativeClauseSyntax>
+fn relative_clause_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    choice((joik_connective(), jek_connective())).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn goi_relative_clause<'tokens, A>(
+    argument: A,
+    free_modifier: impl Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+    + Clone
+    + 'tokens,
+) -> BoxedParser<'tokens, GoiRelativeClauseSyntax>
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
     cmavo_of("GOI", &["pe", "ne", "po", "po'e", "po'u", "no'u", "goi"])
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(argument)
         .then(cmavo("ge'u").or_not())
-        .map(|((goi, argument), gehu)| GoiRelativeClauseSyntax {
-            goi,
-            argument,
-            gehu,
-        })
+        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .map(
+            |((((goi, leading_free_modifiers), argument), gehu), trailing_free_modifiers)| {
+                GoiRelativeClauseSyntax {
+                    goi,
+                    leading_free_modifiers,
+                    argument,
+                    gehu,
+                    trailing_free_modifiers,
+                }
+            },
+        )
         .boxed()
 }
 
@@ -5402,9 +5521,10 @@ where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
-    let optional_relative_clauses = relative_clauses(argument.clone(), subsentence.clone())
-        .or_not()
-        .map(Option::unwrap_or_default);
+    let optional_relative_clauses =
+        relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone())
+            .or_not()
+            .map(Option::unwrap_or_default);
     let relation_vocative = optional_relative_clauses
         .clone()
         .then(relation)
@@ -8819,10 +8939,28 @@ fn goi_relative_clause_tree(relative_clause: GoiRelativeClauseSyntax) -> SyntaxV
         "GoiRelativeClause",
         vec![
             field("goi", word_value(relative_clause.goi)),
-            field("leadingFreeModifiers", nil()),
+            field(
+                "leadingFreeModifiers",
+                list(
+                    relative_clause
+                        .leading_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
             field("argument", argument_tree(relative_clause.argument)),
             field("gehu", maybe_word(relative_clause.gehu)),
-            field("trailingFreeModifiers", nil()),
+            field(
+                "trailingFreeModifiers",
+                list(
+                    relative_clause
+                        .trailing_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
         ],
     )
 }
@@ -9603,39 +9741,88 @@ fn relative_clause_tree(relative_clause: RelativeClauseSyntax) -> SyntaxValue {
     match relative_clause {
         RelativeClauseSyntax::Goi(relative_clause) => goi_relative_clause_tree(relative_clause),
         RelativeClauseSyntax::Noi {
-            marker,
+            noi,
+            leading_free_modifiers,
             subsentence,
             kuho,
-        } => {
-            let constructor = if cmavo_text_matches(&marker, "poi") {
-                "PoiRelativeClause"
-            } else {
-                "NoiRelativeClause"
-            };
-
-            node(
-                constructor,
-                vec![
-                    field(
-                        if constructor == "NoiRelativeClause" {
-                            "noi"
-                        } else {
-                            "poi"
-                        },
-                        word_value(marker),
+            trailing_free_modifiers,
+        } => node(
+            "NoiRelativeClause",
+            vec![
+                field("noi", word_value(noi)),
+                field(
+                    "leadingFreeModifiers",
+                    list(
+                        leading_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
                     ),
-                    field("leadingFreeModifiers", nil()),
-                    field("subsentence", subsentence_tree(subsentence)),
-                    field("kuho", maybe_word(kuho)),
-                    field("trailingFreeModifiers", nil()),
-                ],
-            )
-        }
-        RelativeClauseSyntax::Zihe { zihe, inner } => node(
+                ),
+                field("subsentence", subsentence_tree(subsentence)),
+                field("kuho", maybe_word(kuho)),
+                field(
+                    "trailingFreeModifiers",
+                    list(
+                        trailing_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        RelativeClauseSyntax::Poi {
+            poi,
+            leading_free_modifiers,
+            subsentence,
+            kuho,
+            trailing_free_modifiers,
+        } => node(
+            "PoiRelativeClause",
+            vec![
+                field("poi", word_value(poi)),
+                field(
+                    "leadingFreeModifiers",
+                    list(
+                        leading_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field("subsentence", subsentence_tree(subsentence)),
+                field("kuho", maybe_word(kuho)),
+                field(
+                    "trailingFreeModifiers",
+                    list(
+                        trailing_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        RelativeClauseSyntax::Zihe {
+            zihe,
+            free_modifiers,
+            inner,
+        } => node(
             "ZiheRelativeClause",
             vec![
                 field("zihe", word_value(zihe)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field("inner", relative_clause_tree(*inner)),
+            ],
+        ),
+        RelativeClauseSyntax::Connected { connective, inner } => node(
+            "ConnectedRelativeClause",
+            vec![
+                field("connective", connective_tree(connective)),
                 field("inner", relative_clause_tree(*inner)),
             ],
         ),
