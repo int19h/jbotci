@@ -269,7 +269,35 @@ enum StatementSyntax {
         iau_free_modifiers: Vec<FreeModifierSyntax>,
         reset_terms: Vec<TermSyntax>,
     },
+    ExperimentalPredicateContinuation {
+        leading_statement: Box<StatementSyntax>,
+        continuation: PredicateStatementContinuationSyntax,
+    },
     Fragment(FragmentSyntax),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct PredicateStatementContinuationSyntax {
+    connective: ConnectiveSyntax,
+    tense_modal: Option<TenseModalSyntax>,
+    marker: PredicateStatementContinuationMarkerSyntax,
+    trailing_subsentence: SubsentenceSyntax,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+enum PredicateStatementContinuationMarkerSyntax {
+    Bo {
+        bo: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    Ke {
+        ke: WordWithModifiers,
+        ke_free_modifiers: Vec<FreeModifierSyntax>,
+        kehe: Option<WordWithModifiers>,
+        kehe_free_modifiers: Vec<FreeModifierSyntax>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1377,8 +1405,53 @@ impl StatementSyntax {
                 }
                 words
             }
+            StatementSyntax::ExperimentalPredicateContinuation {
+                leading_statement,
+                continuation,
+            } => {
+                let mut words = leading_statement.words();
+                words.extend(continuation.words());
+                words
+            }
             StatementSyntax::Fragment(fragment) => fragment.words(),
         }
+    }
+}
+
+impl PredicateStatementContinuationSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = self.connective.words();
+        if let Some(tense_modal) = self.tense_modal {
+            words.extend(tense_modal.words());
+        }
+        match self.marker {
+            PredicateStatementContinuationMarkerSyntax::Bo { bo, free_modifiers } => {
+                words.push(bo);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(self.trailing_subsentence.words());
+            }
+            PredicateStatementContinuationMarkerSyntax::Ke {
+                ke,
+                ke_free_modifiers,
+                kehe,
+                kehe_free_modifiers,
+            } => {
+                let mut words = vec![ke];
+                for free_modifier in ke_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(self.trailing_subsentence.words());
+                words.extend(kehe);
+                for free_modifier in kehe_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+            }
+        }
+        words
     }
 }
 
@@ -4402,7 +4475,59 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             },
         );
     subsentence.define(choice((prenex_subsentence, plain_subsentence)));
-    let predicate = basic_predicate.map(StatementSyntax::Predicate);
+    let predicate_statement_bo_continuation = predicate_tail_connective()
+        .then(tense_modal_with_free_modifiers.clone().or_not())
+        .then(cmavo("bo"))
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(subsentence.clone())
+        .map(
+            |((((connective, tense_modal), bo), free_modifiers), trailing_subsentence)| {
+                PredicateStatementContinuationSyntax {
+                    connective,
+                    tense_modal,
+                    marker: PredicateStatementContinuationMarkerSyntax::Bo { bo, free_modifiers },
+                    trailing_subsentence,
+                }
+            },
+        );
+    let predicate_statement_ke_continuation = predicate_tail_connective()
+        .then(tense_modal_with_free_modifiers.clone().or_not())
+        .then(cmavo("ke"))
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(subsentence.clone())
+        .then(cmavo("ke'e").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(
+                (
+                    ((((connective, tense_modal), ke), ke_free_modifiers), trailing_subsentence),
+                    kehe,
+                ),
+                kehe_free_modifiers,
+            )| PredicateStatementContinuationSyntax {
+                connective,
+                tense_modal,
+                marker: PredicateStatementContinuationMarkerSyntax::Ke {
+                    ke,
+                    ke_free_modifiers,
+                    kehe,
+                    kehe_free_modifiers,
+                },
+                trailing_subsentence,
+            },
+        );
+    let predicate_statement_continuation = choice((
+        predicate_statement_bo_continuation,
+        predicate_statement_ke_continuation,
+    ));
+    let predicate = basic_predicate
+        .clone()
+        .then(
+            predicate_statement_continuation
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(predicate, continuations)| build_predicate_statement(predicate, continuations));
 
     let fragment_term = term.clone();
 
@@ -4860,6 +4985,21 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
 
     text.define(text_body);
     text.then_ignore(end()).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_predicate_statement(
+    predicate: BasicPredicate,
+    continuations: Vec<PredicateStatementContinuationSyntax>,
+) -> StatementSyntax {
+    continuations.into_iter().fold(
+        StatementSyntax::Predicate(predicate),
+        |leading_statement, continuation| StatementSyntax::ExperimentalPredicateContinuation {
+            leading_statement: Box::new(leading_statement),
+            continuation,
+        },
+    )
 }
 
 #[requires(true)]
@@ -10361,9 +10501,98 @@ fn statement_tree(statement: StatementSyntax) -> SyntaxValue {
                 ),
             ],
         ),
+        StatementSyntax::ExperimentalPredicateContinuation {
+            leading_statement,
+            continuation,
+        } => node(
+            "ExperimentalPredicateContinuationStatement",
+            vec![
+                field("leadingStatement", statement_tree(*leading_statement)),
+                field(
+                    "continuation",
+                    predicate_statement_continuation_tree(continuation),
+                ),
+            ],
+        ),
         StatementSyntax::Fragment(fragment) => node(
             "StatementFragment",
             vec![field("fragment", fragment_tree(fragment))],
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_statement_continuation_tree(
+    continuation: PredicateStatementContinuationSyntax,
+) -> SyntaxValue {
+    node(
+        "PredicateStatementContinuation",
+        vec![
+            field("connective", connective_tree(continuation.connective)),
+            field(
+                "tenseModal",
+                continuation
+                    .tense_modal
+                    .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+            ),
+            field(
+                "marker",
+                predicate_statement_continuation_marker_tree(continuation.marker),
+            ),
+            field(
+                "trailingSubsentence",
+                subsentence_tree(continuation.trailing_subsentence),
+            ),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_statement_continuation_marker_tree(
+    marker: PredicateStatementContinuationMarkerSyntax,
+) -> SyntaxValue {
+    match marker {
+        PredicateStatementContinuationMarkerSyntax::Bo { bo, free_modifiers } => node(
+            "PredicateStatementBo",
+            vec![
+                field("bo", word_value(bo)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+            ],
+        ),
+        PredicateStatementContinuationMarkerSyntax::Ke {
+            ke,
+            ke_free_modifiers,
+            kehe,
+            kehe_free_modifiers,
+        } => node(
+            "PredicateStatementKe",
+            vec![
+                field("ke", word_value(ke)),
+                field(
+                    "keFreeModifiers",
+                    list(
+                        ke_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field("kehe", maybe_word(kehe)),
+                field(
+                    "keheFreeModifiers",
+                    list(
+                        kehe_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
         ),
     }
 }
