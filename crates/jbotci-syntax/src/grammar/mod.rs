@@ -1155,17 +1155,38 @@ struct IntervalTenseSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+struct SimpleTenseModalSyntax {
+    nahe: Option<WordWithModifiers>,
+    se: Option<WordWithModifiers>,
+    bai: Option<WordWithModifiers>,
+    nai: Option<WordWithModifiers>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct FihoModalSyntax {
+    nahe: Option<WordWithModifiers>,
+    fiho: WordWithModifiers,
+    fiho_free_modifiers: Vec<FreeModifierSyntax>,
+    relation: RelationSyntax,
+    fehu: Option<WordWithModifiers>,
+    fehu_free_modifiers: Vec<FreeModifierSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
 enum TenseModalSyntax {
     Composite {
         leaves: Vec<WordWithModifiers>,
         time: Option<TimeTenseSyntax>,
         space: Option<SpaceTenseSyntax>,
-        nahe: Option<WordWithModifiers>,
+        simple: Option<SimpleTenseModalSyntax>,
         interval: Option<IntervalTenseSyntax>,
         zaho: Vec<WordWithModifiers>,
         caha: Option<WordWithModifiers>,
         ki: Option<WordWithModifiers>,
         cuhe: Option<WordWithModifiers>,
+        fiho: Vec<FihoModalSyntax>,
         connectives: Vec<WordWithModifiers>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },

@@ -11,12 +11,13 @@ fn attach_tense_modal_free_modifiers(
             leaves,
             time,
             space,
-            nahe,
+            simple,
             interval,
             zaho,
             caha,
             ki,
             cuhe,
+            fiho,
             connectives,
             free_modifiers: mut existing_free_modifiers,
         } => {
@@ -25,12 +26,13 @@ fn attach_tense_modal_free_modifiers(
                 leaves,
                 time,
                 space,
-                nahe,
+                simple,
                 interval,
                 zaho,
                 caha,
                 ki,
                 cuhe,
+                fiho,
                 connectives,
                 free_modifiers: existing_free_modifiers,
             }
@@ -5550,12 +5552,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                     nai,
                 }),
                 space: None,
-                nahe: None,
+                simple: None,
                 interval: None,
                 zaho: Vec::new(),
                 caha: None,
                 ki: None,
                 cuhe: None,
+                fiho: Vec::new(),
                 connectives: Vec::new(),
                 free_modifiers: Vec::new(),
             }
@@ -5569,12 +5572,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             nai: None,
         }),
         space: None,
-        nahe: None,
+        simple: None,
         interval: None,
         zaho: Vec::new(),
         caha: None,
         ki: None,
         cuhe: None,
+        fiho: Vec::new(),
         connectives: Vec::new(),
         free_modifiers: Vec::new(),
     });
@@ -5588,12 +5592,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 nai: None,
             }),
             space: None,
-            nahe: None,
+            simple: None,
             interval: None,
             zaho: Vec::new(),
             caha: None,
             ki: None,
             cuhe: None,
+            fiho: Vec::new(),
             connectives: Vec::new(),
             free_modifiers: Vec::new(),
         }
@@ -5622,12 +5627,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 mohi: None,
                 fehe: None,
             }),
-            nahe: None,
+            simple: None,
             interval: None,
             zaho: Vec::new(),
             caha: None,
             ki: None,
             cuhe: None,
+            fiho: Vec::new(),
             connectives: Vec::new(),
             free_modifiers: Vec::new(),
         }
@@ -5643,12 +5649,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             mohi: None,
             fehe: None,
         }),
-        nahe: None,
+        simple: None,
         interval: None,
         zaho: Vec::new(),
         caha: None,
         ki: None,
         cuhe: None,
+        fiho: Vec::new(),
         connectives: Vec::new(),
         free_modifiers: Vec::new(),
     });
@@ -5686,12 +5693,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                     mohi: None,
                     fehe: None,
                 }),
-                nahe: None,
+                simple: None,
                 interval: None,
                 zaho: Vec::new(),
                 caha: None,
                 ki: None,
                 cuhe: None,
+                fiho: Vec::new(),
                 connectives: Vec::new(),
                 free_modifiers: Vec::new(),
             }
@@ -5708,12 +5716,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 mohi: None,
                 fehe: None,
             }),
-            nahe: None,
+            simple: None,
             interval: None,
             zaho: Vec::new(),
             caha: None,
             ki: None,
             cuhe: None,
+            fiho: Vec::new(),
             connectives: Vec::new(),
             free_modifiers: Vec::new(),
         }
@@ -5732,7 +5741,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 leaves,
                 time: None,
                 space: None,
-                nahe: None,
+                simple: None,
                 interval: Some(IntervalTenseSyntax {
                     number,
                     roi_or_tahe,
@@ -5742,6 +5751,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 caha: None,
                 ki: None,
                 cuhe: None,
+                fiho: Vec::new(),
                 connectives: Vec::new(),
                 free_modifiers: Vec::new(),
             }
@@ -5755,7 +5765,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 leaves,
                 time: None,
                 space: None,
-                nahe: None,
+                simple: None,
                 interval: Some(IntervalTenseSyntax {
                     number: Vec::new(),
                     roi_or_tahe,
@@ -5765,6 +5775,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 caha: None,
                 ki: None,
                 cuhe: None,
+                fiho: Vec::new(),
                 connectives: Vec::new(),
                 free_modifiers: Vec::new(),
             }
@@ -5786,7 +5797,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                     mohi: None,
                     fehe: Some(fehe),
                 }),
-                nahe: None,
+                simple: None,
                 interval: Some(IntervalTenseSyntax {
                     number: Vec::new(),
                     roi_or_tahe,
@@ -5796,6 +5807,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 caha: None,
                 ki: None,
                 cuhe: None,
+                fiho: Vec::new(),
                 connectives: Vec::new(),
                 free_modifiers: Vec::new(),
             }
@@ -5820,7 +5832,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                     mohi: None,
                     fehe: Some(fehe),
                 }),
-                nahe: None,
+                simple: None,
                 interval: Some(IntervalTenseSyntax {
                     number,
                     roi_or_tahe,
@@ -5830,6 +5842,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 caha: None,
                 ki: None,
                 cuhe: None,
+                fiho: Vec::new(),
                 connectives: Vec::new(),
                 free_modifiers: Vec::new(),
             }
@@ -5856,12 +5869,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                     mohi: None,
                     fehe: Some(fehe),
                 }),
-                nahe: None,
+                simple: None,
                 interval: None,
                 zaho: vec![zaho],
                 caha: None,
                 ki: None,
                 cuhe: None,
+                fiho: Vec::new(),
                 connectives: Vec::new(),
                 free_modifiers: Vec::new(),
             }
@@ -5892,12 +5906,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                     mohi: Some(mohi),
                     fehe: None,
                 }),
-                nahe: None,
+                simple: None,
                 interval: None,
                 zaho: Vec::new(),
                 caha: None,
                 ki: None,
                 cuhe: None,
+                fiho: Vec::new(),
                 connectives: Vec::new(),
                 free_modifiers: Vec::new(),
             }
@@ -5906,12 +5921,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         leaves: vec![caha.clone()],
         time: None,
         space: None,
-        nahe: None,
+        simple: None,
         interval: None,
         zaho: Vec::new(),
         caha: Some(caha),
         ki: None,
         cuhe: None,
+        fiho: Vec::new(),
         connectives: Vec::new(),
         free_modifiers: Vec::new(),
     });
@@ -5929,12 +5945,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             leaves,
             time: None,
             space: None,
-            nahe: None,
+            simple: None,
             interval: None,
             zaho: vec![zaho],
             caha: None,
             ki: None,
             cuhe: None,
+            fiho: Vec::new(),
             connectives: Vec::new(),
             free_modifiers: Vec::new(),
         }
@@ -5943,12 +5960,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         leaves: vec![ki.clone()],
         time: None,
         space: None,
-        nahe: None,
+        simple: None,
         interval: None,
         zaho: Vec::new(),
         caha: None,
         ki: Some(ki),
         cuhe: None,
+        fiho: Vec::new(),
         connectives: Vec::new(),
         free_modifiers: Vec::new(),
     });
@@ -5956,12 +5974,13 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         leaves: vec![cuhe.clone()],
         time: None,
         space: None,
-        nahe: None,
+        simple: None,
         interval: None,
         zaho: Vec::new(),
         caha: None,
         ki: None,
         cuhe: Some(cuhe),
+        fiho: Vec::new(),
         connectives: Vec::new(),
         free_modifiers: Vec::new(),
     });
@@ -6021,23 +6040,25 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 TenseModalSyntax::Composite {
                     time,
                     space,
-                    nahe,
+                    simple,
                     interval,
                     zaho,
                     caha,
                     ki,
                     cuhe,
+                    fiho,
                     ..
                 } => TenseModalSyntax::Composite {
                     leaves,
                     time,
                     space,
-                    nahe,
+                    simple,
                     interval,
                     zaho,
                     caha,
                     ki,
                     cuhe,
+                    fiho,
                     connectives,
                     free_modifiers: Vec::new(),
                 },
@@ -6048,18 +6069,19 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
 }
 
 #[requires(matches!(modal, TenseModalSyntax::Composite { .. }))]
-#[ensures(matches!(ret, TenseModalSyntax::Composite { nahe: Some(_), .. }))]
+#[ensures(matches!(ret, TenseModalSyntax::Composite { simple: Some(SimpleTenseModalSyntax { nahe: Some(_), .. }), .. }))]
 fn prefix_tense_modal_nahe(nahe: WordWithModifiers, modal: TenseModalSyntax) -> TenseModalSyntax {
     let TenseModalSyntax::Composite {
         mut leaves,
         time,
         space,
-        nahe: _,
+        simple,
         interval,
         zaho,
         caha,
         ki,
         cuhe,
+        fiho,
         connectives,
         free_modifiers,
     } = modal
@@ -6067,16 +6089,31 @@ fn prefix_tense_modal_nahe(nahe: WordWithModifiers, modal: TenseModalSyntax) -> 
         unreachable!("prefix_tense_modal_nahe requires a composite tense modal")
     };
     leaves.insert(0, nahe.clone());
+    let simple = Some(match simple {
+        Some(simple) => SimpleTenseModalSyntax {
+            nahe: Some(nahe),
+            se: simple.se,
+            bai: simple.bai,
+            nai: simple.nai,
+        },
+        None => SimpleTenseModalSyntax {
+            nahe: Some(nahe),
+            se: None,
+            bai: None,
+            nai: None,
+        },
+    });
     TenseModalSyntax::Composite {
         leaves,
         time,
         space,
-        nahe: Some(nahe),
+        simple,
         interval,
         zaho,
         caha,
         ki,
         cuhe,
+        fiho,
         connectives,
         free_modifiers,
     }
@@ -6096,11 +6133,12 @@ fn combine_composite_tense_modals(parts: Vec<TenseModalSyntax>) -> TenseModalSyn
     let mut space_dimensions = Vec::new();
     let mut space_mohi = None;
     let mut space_fehe = None;
-    let mut nahe = None;
+    let mut simple = None;
     let mut zaho = Vec::new();
     let mut caha = None;
     let mut ki = None;
     let mut cuhe = None;
+    let mut fiho = Vec::new();
     let mut connectives = Vec::new();
     let mut interval = None;
     let mut free_modifiers = Vec::new();
@@ -6110,12 +6148,13 @@ fn combine_composite_tense_modals(parts: Vec<TenseModalSyntax>) -> TenseModalSyn
             leaves: part_leaves,
             time,
             space,
-            nahe: part_nahe,
+            simple: part_simple,
             interval: part_interval,
             zaho: part_zaho,
             caha: part_caha,
             ki: part_ki,
             cuhe: part_cuhe,
+            fiho: part_fiho,
             connectives: part_connectives,
             free_modifiers: part_free_modifiers,
         } = part
@@ -6135,11 +6174,12 @@ fn combine_composite_tense_modals(parts: Vec<TenseModalSyntax>) -> TenseModalSyn
                 space_mohi = space_mohi.or(space.mohi);
                 space_fehe = space_fehe.or(space.fehe);
             }
-            nahe = nahe.or(part_nahe);
+            simple = simple.or(part_simple);
             zaho.extend(part_zaho);
             caha = caha.or(part_caha);
             ki = ki.or(part_ki);
             cuhe = cuhe.or(part_cuhe);
+            fiho.extend(part_fiho);
             interval = interval.or(part_interval);
             connectives.extend(part_connectives);
             free_modifiers.extend(part_free_modifiers);
@@ -6172,12 +6212,13 @@ fn combine_composite_tense_modals(parts: Vec<TenseModalSyntax>) -> TenseModalSyn
         leaves,
         time,
         space,
-        nahe,
+        simple,
         interval,
         zaho,
         caha,
         ki,
         cuhe,
+        fiho,
         connectives,
         free_modifiers,
     }
@@ -6205,12 +6246,13 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
                     nai,
                 }),
                 space: None,
-                nahe: None,
+                simple: None,
                 interval: None,
                 zaho: Vec::new(),
                 caha: None,
                 ki: None,
                 cuhe: None,
+                fiho: Vec::new(),
                 connectives: Vec::new(),
                 free_modifiers: Vec::new(),
             }
@@ -6229,12 +6271,13 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
             leaves,
             time: None,
             space: None,
-            nahe: None,
+            simple: None,
             interval: None,
             zaho: vec![zaho],
             caha: None,
             ki: None,
             cuhe: None,
+            fiho: Vec::new(),
             connectives: Vec::new(),
             free_modifiers: Vec::new(),
         }
@@ -6253,7 +6296,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
                 leaves,
                 time: None,
                 space: None,
-                nahe: None,
+                simple: None,
                 interval: Some(IntervalTenseSyntax {
                     number,
                     roi_or_tahe,
@@ -6263,6 +6306,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
                 caha: None,
                 ki: None,
                 cuhe: None,
+                fiho: Vec::new(),
                 connectives: Vec::new(),
                 free_modifiers: Vec::new(),
             }
@@ -6276,7 +6320,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
                 leaves,
                 time: None,
                 space: None,
-                nahe: None,
+                simple: None,
                 interval: Some(IntervalTenseSyntax {
                     number: Vec::new(),
                     roi_or_tahe,
@@ -6286,6 +6330,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
                 caha: None,
                 ki: None,
                 cuhe: None,
+                fiho: Vec::new(),
                 connectives: Vec::new(),
                 free_modifiers: Vec::new(),
             }

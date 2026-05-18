@@ -3547,26 +3547,17 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             leaves: _,
             time,
             space,
-            nahe,
+            simple,
             interval,
             zaho,
             caha,
+            fiho,
             connectives: _,
             ..
         } => (
             time.map_or_else(nothing, |time| just(time_tense_tree(time))),
             space.map_or_else(nothing, |space| just(space_tense_tree(space))),
-            nahe.map_or_else(nothing, |nahe| {
-                just(node(
-                    "SimpleTenseModal",
-                    vec![
-                        field("nahe", just(word_value(nahe))),
-                        field("se", nothing()),
-                        field("bai", nothing()),
-                        field("nai", nothing()),
-                    ],
-                ))
-            }),
+            simple.map_or_else(nothing, |simple| just(simple_tense_modal_tree(simple))),
             interval.map_or_else(nothing, |interval| {
                 just(node(
                     "Interval",
@@ -3586,7 +3577,7 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             }),
             list(zaho.into_iter().map(word_value).collect()),
             caha.map_or_else(nothing, |caha| just(word_value(caha))),
-            nil(),
+            list(fiho.into_iter().map(fiho_modal_tree).collect()),
         ),
         TenseModalSyntax::Pu { word, .. } => (
             just(node(
@@ -3844,6 +3835,52 @@ fn tense_modal_tree(tense_modal: TenseModalSyntax) -> SyntaxValue {
             field(
                 "freeModifiers",
                 list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+            ),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn simple_tense_modal_tree(simple: SimpleTenseModalSyntax) -> SyntaxValue {
+    node(
+        "SimpleTenseModal",
+        vec![
+            field("nahe", maybe_word(simple.nahe)),
+            field("se", maybe_word(simple.se)),
+            field("bai", maybe_word(simple.bai)),
+            field("nai", maybe_word(simple.nai)),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn fiho_modal_tree(fiho: FihoModalSyntax) -> SyntaxValue {
+    node(
+        "FihoModal",
+        vec![
+            field("nahe", maybe_word(fiho.nahe)),
+            field("fiho", word_value(fiho.fiho)),
+            field(
+                "fihoFreeModifiers",
+                list(
+                    fiho.fiho_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
+            field("relation", relation_tree(fiho.relation)),
+            field("fehu", maybe_word(fiho.fehu)),
+            field(
+                "fehuFreeModifiers",
+                list(
+                    fiho.fehu_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
             ),
         ],
     )
