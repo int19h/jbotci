@@ -5623,22 +5623,7 @@ where
         .collect::<Vec<_>>()
         .map(relation_from_units);
 
-    let post_tense_relation = na_cmavo()
-        .then(relation.clone())
-        .map(|(na, inner_relation)| RelationSyntax::Na {
-            na,
-            inner_relation: Box::new(inner_relation),
-        })
-        .or(relation_units.clone());
-
-    let tagged = tense_modal()
-        .then(post_tense_relation)
-        .map(|(tense_modal, inner_relation)| RelationSyntax::TenseModal {
-            tense_modal,
-            inner_relation: Box::new(inner_relation),
-        });
-
-    let base_relation = choice((tagged, relation_units));
+    let base_relation = relation_units;
     let connected_relation = base_relation
         .clone()
         .then(statement_connective().then(base_relation.clone()).or_not())
@@ -5673,7 +5658,16 @@ where
             })
     });
 
-    choice((na_relation, co_relation)).boxed()
+    let untagged_relation = choice((na_relation, co_relation)).boxed();
+    let tagged_relation =
+        tense_modal()
+            .then(untagged_relation.clone())
+            .map(|(tense_modal, inner_relation)| RelationSyntax::TenseModal {
+                tense_modal,
+                inner_relation: Box::new(inner_relation),
+            });
+
+    choice((tagged_relation, untagged_relation)).boxed()
 }
 
 #[requires(true)]
