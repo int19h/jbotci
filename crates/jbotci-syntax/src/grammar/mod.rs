@@ -76,47 +76,88 @@ const COI_WORDS: &[&str] = &[
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-struct BasicPredicate {
+struct PredicateSyntax {
     leading_terms: Vec<TermSyntax>,
     cu: Option<WordWithModifiers>,
     cu_free_modifiers: Vec<FreeModifierSyntax>,
-    relation: RelationSyntax,
-    tail_terms: Vec<TermSyntax>,
-    vau: Option<WordWithModifiers>,
-    tail_free_modifiers: Vec<FreeModifierSyntax>,
-    gek_sentence: Option<GekSentenceSyntax>,
-    bo_continuation: Option<PredicateTailBoContinuationSyntax>,
-    ke_continuation: Option<PredicateTailKeContinuationSyntax>,
-    continuations: Vec<PredicateTailContinuationSyntax>,
+    predicate_tail: PredicateTailSyntax,
     free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-struct PredicateTailBoContinuationSyntax {
+struct PredicateTailSyntax {
+    first: PredicateTail1Syntax,
+    ke_continuation: Option<KePredicateTailSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct KePredicateTailSyntax {
+    connective: ConnectiveSyntax,
+    tense_modal: Option<TenseModalSyntax>,
+    ke: WordWithModifiers,
+    ke_free_modifiers: Vec<FreeModifierSyntax>,
+    predicate_tail: Box<PredicateTailSyntax>,
+    kehe: Option<WordWithModifiers>,
+    kehe_free_modifiers: Vec<FreeModifierSyntax>,
+    tail_terms: Vec<TermSyntax>,
+    vau: Option<WordWithModifiers>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct PredicateTail1Syntax {
+    first: PredicateTail2Syntax,
+    continuations: Vec<PredicateTailContinuationSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct PredicateTailContinuationSyntax {
+    connective: ConnectiveSyntax,
+    tense_modal: Option<TenseModalSyntax>,
+    cu: Option<WordWithModifiers>,
+    cu_free_modifiers: Vec<FreeModifierSyntax>,
+    predicate_tail: PredicateTail2Syntax,
+    tail_terms: Vec<TermSyntax>,
+    vau: Option<WordWithModifiers>,
+    free_modifiers: Vec<FreeModifierSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct PredicateTail2Syntax {
+    first: PredicateTail3Syntax,
+    bo_continuation: Option<BoPredicateTailSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct BoPredicateTailSyntax {
     connective: ConnectiveSyntax,
     tense_modal: Option<TenseModalSyntax>,
     bo: WordWithModifiers,
     free_modifiers: Vec<FreeModifierSyntax>,
     cu: Option<WordWithModifiers>,
     cu_free_modifiers: Vec<FreeModifierSyntax>,
-    predicate_tail: Box<BasicPredicate>,
+    predicate_tail: Box<PredicateTail2Syntax>,
     tail_terms: Vec<TermSyntax>,
     vau: Option<WordWithModifiers>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-struct PredicateTailKeContinuationSyntax {
-    connective: ConnectiveSyntax,
-    tense_modal: Option<TenseModalSyntax>,
-    ke: WordWithModifiers,
-    ke_free_modifiers: Vec<FreeModifierSyntax>,
-    predicate_tail: Box<BasicPredicate>,
-    kehe: Option<WordWithModifiers>,
-    kehe_free_modifiers: Vec<FreeModifierSyntax>,
-    tail_terms: Vec<TermSyntax>,
-    vau: Option<WordWithModifiers>,
+enum PredicateTail3Syntax {
+    Relation {
+        relation: RelationSyntax,
+        terms: Vec<TermSyntax>,
+        vau: Option<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    GekSentence {
+        gek_sentence: GekSentenceSyntax,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -149,29 +190,13 @@ enum GekSentenceSyntax {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 enum SubsentenceSyntax {
-    Plain(BasicPredicate),
+    Plain(PredicateSyntax),
     Prenex {
         prenex_terms: Vec<TermSyntax>,
         zohu: WordWithModifiers,
         zohu_free_modifiers: Vec<FreeModifierSyntax>,
         inner_subsentence: Box<SubsentenceSyntax>,
     },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-struct PredicateTailContinuationSyntax {
-    connective: ConnectiveSyntax,
-    tense_modal: Option<TenseModalSyntax>,
-    cu: Option<WordWithModifiers>,
-    cu_free_modifiers: Vec<FreeModifierSyntax>,
-    relation: RelationSyntax,
-    terms: Vec<TermSyntax>,
-    vau: Option<WordWithModifiers>,
-    free_modifiers: Vec<FreeModifierSyntax>,
-    bo_continuation: Option<PredicateTailBoContinuationSyntax>,
-    tail_terms: Vec<TermSyntax>,
-    tail_vau: Option<WordWithModifiers>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -275,7 +300,7 @@ enum StatementSyntax {
         zohu_free_modifiers: Vec<FreeModifierSyntax>,
         inner_statement: Box<StatementSyntax>,
     },
-    Predicate(BasicPredicate),
+    Predicate(PredicateSyntax),
     Connected {
         i: WordWithModifiers,
         connective: ConnectiveSyntax,
@@ -1088,9 +1113,9 @@ enum RelationSyntax {
     },
     Guha {
         guhek: ConnectiveSyntax,
-        leading_predicate: Box<BasicPredicate>,
+        leading_predicate: Box<PredicateSyntax>,
         gik: ConnectiveSyntax,
-        trailing_predicate: Box<BasicPredicate>,
+        trailing_predicate: Box<PredicateSyntax>,
     },
     Abstraction {
         abstraction: AbstractionSyntax,
@@ -1807,7 +1832,7 @@ impl FreeModifierSyntax {
     }
 }
 
-impl BasicPredicate {
+impl PredicateSyntax {
     #[requires(true)]
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
@@ -1819,27 +1844,7 @@ impl BasicPredicate {
         for free_modifier in self.cu_free_modifiers {
             words.extend(free_modifier.words());
         }
-        if let Some(gek_sentence) = self.gek_sentence {
-            words.extend(gek_sentence.words());
-        } else {
-            words.extend(self.relation.words());
-            for term in self.tail_terms {
-                words.extend(term.words());
-            }
-            words.extend(self.vau);
-            for free_modifier in self.tail_free_modifiers {
-                words.extend(free_modifier.words());
-            }
-        }
-        if let Some(bo_continuation) = self.bo_continuation {
-            words.extend(bo_continuation.words());
-        }
-        for continuation in self.continuations {
-            words.extend(continuation.words());
-        }
-        if let Some(ke_continuation) = self.ke_continuation {
-            words.extend(ke_continuation.words());
-        }
+        words.extend(self.predicate_tail.words());
         for free_modifier in self.free_modifiers {
             words.extend(free_modifier.words());
         }
@@ -1847,7 +1852,92 @@ impl BasicPredicate {
     }
 }
 
-impl PredicateTailBoContinuationSyntax {
+impl PredicateTailSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = self.first.words();
+        if let Some(ke_continuation) = self.ke_continuation {
+            words.extend(ke_continuation.words());
+        }
+        words
+    }
+}
+
+impl KePredicateTailSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = self.connective.words();
+        if let Some(tense_modal) = self.tense_modal {
+            words.extend(tense_modal.words());
+        }
+        words.push(self.ke);
+        for free_modifier in self.ke_free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        words.extend(self.predicate_tail.words());
+        words.extend(self.kehe);
+        for free_modifier in self.kehe_free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        for term in self.tail_terms {
+            words.extend(term.words());
+        }
+        words.extend(self.vau);
+        words
+    }
+}
+
+impl PredicateTail1Syntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = self.first.words();
+        for continuation in self.continuations {
+            words.extend(continuation.words());
+        }
+        words
+    }
+}
+
+impl PredicateTailContinuationSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = self.connective.words();
+        if let Some(tense_modal) = self.tense_modal {
+            words.extend(tense_modal.words());
+        }
+        words.extend(self.cu);
+        for free_modifier in self.cu_free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        words.extend(self.predicate_tail.words());
+        for term in self.tail_terms {
+            words.extend(term.words());
+        }
+        words.extend(self.vau);
+        for free_modifier in self.free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        words
+    }
+}
+
+impl PredicateTail2Syntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = self.first.words();
+        if let Some(bo_continuation) = self.bo_continuation {
+            words.extend(bo_continuation.words());
+        }
+        words
+    }
+}
+
+impl BoPredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
@@ -1872,28 +1962,29 @@ impl PredicateTailBoContinuationSyntax {
     }
 }
 
-impl PredicateTailKeContinuationSyntax {
+impl PredicateTail3Syntax {
     #[requires(true)]
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
-        let mut words = self.connective.words();
-        if let Some(tense_modal) = self.tense_modal {
-            words.extend(tense_modal.words());
+        match self {
+            PredicateTail3Syntax::Relation {
+                relation,
+                terms,
+                vau,
+                free_modifiers,
+            } => {
+                let mut words = relation.words();
+                for term in terms {
+                    words.extend(term.words());
+                }
+                words.extend(vau);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            PredicateTail3Syntax::GekSentence { gek_sentence } => gek_sentence.words(),
         }
-        words.push(self.ke);
-        for free_modifier in self.ke_free_modifiers {
-            words.extend(free_modifier.words());
-        }
-        words.extend(self.predicate_tail.words());
-        words.extend(self.kehe);
-        for free_modifier in self.kehe_free_modifiers {
-            words.extend(free_modifier.words());
-        }
-        for term in self.tail_terms {
-            words.extend(term.words());
-        }
-        words.extend(self.vau);
-        words
     }
 }
 
@@ -1987,37 +2078,6 @@ impl SubsentenceSyntax {
                 words
             }
         }
-    }
-}
-
-impl PredicateTailContinuationSyntax {
-    #[requires(true)]
-    #[ensures(true)]
-    fn words(self) -> Vec<WordWithModifiers> {
-        let mut words = self.connective.words();
-        if let Some(tense_modal) = self.tense_modal {
-            words.extend(tense_modal.words());
-        }
-        words.extend(self.cu);
-        for free_modifier in self.cu_free_modifiers {
-            words.extend(free_modifier.words());
-        }
-        words.extend(self.relation.words());
-        for term in self.terms {
-            words.extend(term.words());
-        }
-        words.extend(self.vau);
-        for free_modifier in self.free_modifiers {
-            words.extend(free_modifier.words());
-        }
-        if let Some(bo_continuation) = self.bo_continuation {
-            words.extend(bo_continuation.words());
-        }
-        for term in self.tail_terms {
-            words.extend(term.words());
-        }
-        words.extend(self.tail_vau);
-        words
     }
 }
 

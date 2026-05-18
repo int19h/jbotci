@@ -805,8 +805,7 @@ fn goi_relative_clause_tree(relative_clause: GoiRelativeClauseSyntax) -> SyntaxV
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_tree(predicate: BasicPredicate) -> SyntaxValue {
-    let predicate_tail = predicate_tail_tree(predicate.clone());
+fn predicate_tree(predicate: PredicateSyntax) -> SyntaxValue {
     node(
         "Predicate",
         vec![
@@ -825,7 +824,10 @@ fn predicate_tree(predicate: BasicPredicate) -> SyntaxValue {
                         .collect(),
                 ),
             ),
-            field("predicateTail", predicate_tail),
+            field(
+                "predicateTail",
+                predicate_tail_tree(predicate.predicate_tail),
+            ),
             field(
                 "freeModifiers",
                 list(
@@ -842,84 +844,17 @@ fn predicate_tree(predicate: BasicPredicate) -> SyntaxValue {
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_tail_tree(predicate: BasicPredicate) -> SyntaxValue {
-    let ke_continuation = predicate.ke_continuation.clone();
+fn predicate_tail_tree(predicate_tail: PredicateTailSyntax) -> SyntaxValue {
     node(
         "PredicateTail",
         vec![
-            field(
-                "first",
-                node(
-                    "PredicateTail1",
-                    vec![
-                        field("first", predicate_tail2_tree(predicate.clone())),
-                        field(
-                            "continuations",
-                            list(
-                                predicate
-                                    .continuations
-                                    .into_iter()
-                                    .map(predicate_tail_continuation_tree)
-                                    .collect(),
-                            ),
-                        ),
-                    ],
-                ),
-            ),
+            field("first", predicate_tail1_tree(predicate_tail.first)),
             field(
                 "keContinuation",
-                ke_continuation.map_or_else(nothing, |ke_continuation| {
-                    just(predicate_tail_ke_continuation_tree(ke_continuation))
-                }),
-            ),
-        ],
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn predicate_tail2_tree(predicate: BasicPredicate) -> SyntaxValue {
-    let tail3 = predicate.gek_sentence.map_or_else(
-        || {
-            node(
-                "RelationPredicateTail3",
-                vec![
-                    field("relation", relation_tree(predicate.relation)),
-                    field(
-                        "terms",
-                        list(predicate.tail_terms.into_iter().map(term_tree).collect()),
-                    ),
-                    field("vau", maybe_word(predicate.vau)),
-                    field(
-                        "freeModifiers",
-                        list(
-                            predicate
-                                .tail_free_modifiers
-                                .into_iter()
-                                .map(free_modifier_tree)
-                                .collect(),
-                        ),
-                    ),
-                ],
-            )
-        },
-        |gek_sentence| {
-            node(
-                "GekSentencePredicateTail3",
-                vec![field("gekSentence", gek_sentence_tree(gek_sentence))],
-            )
-        },
-    );
-    node(
-        "PredicateTail2",
-        vec![
-            field("first", tail3),
-            field(
-                "boContinuation",
-                predicate
-                    .bo_continuation
-                    .map_or_else(nothing, |bo_continuation| {
-                        just(predicate_tail_bo_continuation_tree(bo_continuation))
+                predicate_tail
+                    .ke_continuation
+                    .map_or_else(nothing, |ke_continuation| {
+                        just(ke_predicate_tail_tree(ke_continuation))
                     }),
             ),
         ],
@@ -928,9 +863,75 @@ fn predicate_tail2_tree(predicate: BasicPredicate) -> SyntaxValue {
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_tail_bo_continuation_tree(
-    continuation: PredicateTailBoContinuationSyntax,
-) -> SyntaxValue {
+fn predicate_tail1_tree(predicate_tail: PredicateTail1Syntax) -> SyntaxValue {
+    node(
+        "PredicateTail1",
+        vec![
+            field("first", predicate_tail2_tree(predicate_tail.first)),
+            field(
+                "continuations",
+                list(
+                    predicate_tail
+                        .continuations
+                        .into_iter()
+                        .map(predicate_tail_continuation_tree)
+                        .collect(),
+                ),
+            ),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_tail2_tree(predicate_tail: PredicateTail2Syntax) -> SyntaxValue {
+    node(
+        "PredicateTail2",
+        vec![
+            field("first", predicate_tail3_tree(predicate_tail.first)),
+            field(
+                "boContinuation",
+                predicate_tail
+                    .bo_continuation
+                    .map_or_else(nothing, |bo_continuation| {
+                        just(bo_predicate_tail_tree(bo_continuation))
+                    }),
+            ),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_tail3_tree(predicate_tail: PredicateTail3Syntax) -> SyntaxValue {
+    match predicate_tail {
+        PredicateTail3Syntax::Relation {
+            relation,
+            terms,
+            vau,
+            free_modifiers,
+        } => node(
+            "RelationPredicateTail3",
+            vec![
+                field("relation", relation_tree(relation)),
+                field("terms", list(terms.into_iter().map(term_tree).collect())),
+                field("vau", maybe_word(vau)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+            ],
+        ),
+        PredicateTail3Syntax::GekSentence { gek_sentence } => node(
+            "GekSentencePredicateTail3",
+            vec![field("gekSentence", gek_sentence_tree(gek_sentence))],
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bo_predicate_tail_tree(continuation: BoPredicateTailSyntax) -> SyntaxValue {
     node(
         "BoPredicateTail",
         vec![
@@ -978,9 +979,7 @@ fn predicate_tail_bo_continuation_tree(
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_tail_ke_continuation_tree(
-    continuation: PredicateTailKeContinuationSyntax,
-) -> SyntaxValue {
+fn ke_predicate_tail_tree(continuation: KePredicateTailSyntax) -> SyntaxValue {
     node(
         "KePredicateTail",
         vec![
@@ -1138,52 +1137,23 @@ fn predicate_tail_continuation_tree(continuation: PredicateTailContinuationSynta
             ),
             field(
                 "predicateTail",
-                node(
-                    "PredicateTail2",
-                    vec![
-                        field(
-                            "first",
-                            node(
-                                "RelationPredicateTail3",
-                                vec![
-                                    field("relation", relation_tree(continuation.relation)),
-                                    field(
-                                        "terms",
-                                        list(
-                                            continuation.terms.into_iter().map(term_tree).collect(),
-                                        ),
-                                    ),
-                                    field("vau", maybe_word(continuation.vau)),
-                                    field(
-                                        "freeModifiers",
-                                        list(
-                                            continuation
-                                                .free_modifiers
-                                                .into_iter()
-                                                .map(free_modifier_tree)
-                                                .collect(),
-                                        ),
-                                    ),
-                                ],
-                            ),
-                        ),
-                        field(
-                            "boContinuation",
-                            continuation
-                                .bo_continuation
-                                .map_or_else(nothing, |bo_continuation| {
-                                    just(predicate_tail_bo_continuation_tree(bo_continuation))
-                                }),
-                        ),
-                    ],
-                ),
+                predicate_tail2_tree(continuation.predicate_tail),
             ),
             field(
                 "tailTerms",
                 list(continuation.tail_terms.into_iter().map(term_tree).collect()),
             ),
-            field("vau", maybe_word(continuation.tail_vau)),
-            field("freeModifiers", nil()),
+            field("vau", maybe_word(continuation.vau)),
+            field(
+                "freeModifiers",
+                list(
+                    continuation
+                        .free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
         ],
     )
 }

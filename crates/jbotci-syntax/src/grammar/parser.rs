@@ -594,7 +594,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     term.define(term_body.boxed());
     let tail_term = term.clone();
     let cu = cmavo("cu");
-    let basic_predicate = recursive(|basic_predicate| {
+    let basic_predicate = recursive(|_basic_predicate| {
         let gek_sentence = recursive(|gek_sentence| {
             let pair = modal_forethought_connective()
                 .then(subsentence.clone())
@@ -674,121 +674,142 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .or_not()
             .map(|cu| cu.map_or((None, Vec::new()), |(cu, frees)| (Some(cu), frees)));
-        let bo_continuation = predicate_tail_connective()
-            .then(tense_modal_with_free_modifiers.clone().or_not())
-            .then(cmavo("bo"))
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(experimental_predicate_tail_cu.clone())
-            .then(basic_predicate.clone())
-            .then(predicate_tail_terms.clone())
-            .map(
-                |(
-                    (
-                        (
-                            (((connective, tense_modal), bo), free_modifiers),
-                            (cu, cu_free_modifiers),
-                        ),
-                        predicate_tail,
-                    ),
-                    ((tail_terms, vau), _tail_free_modifiers),
-                )| {
-                    PredicateTailBoContinuationSyntax {
-                        connective,
-                        tense_modal,
-                        bo,
-                        free_modifiers,
-                        cu,
-                        cu_free_modifiers,
-                        predicate_tail: Box::new(predicate_tail),
-                        tail_terms,
-                        vau,
-                    }
-                },
-            )
-            .boxed();
-        let ke_continuation = predicate_tail_connective()
-            .then(tense_modal_with_free_modifiers.clone().or_not())
-            .then(cmavo("ke"))
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(basic_predicate.clone())
-            .then(cmavo("ke'e").or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(predicate_tail_terms.clone())
-            .map(
-                |(
-                    (
-                        (
-                            ((((connective, tense_modal), ke), ke_free_modifiers), predicate_tail),
-                            kehe,
-                        ),
-                        kehe_free_modifiers,
-                    ),
-                    ((tail_terms, vau), _tail_free_modifiers),
-                )| {
-                    PredicateTailKeContinuationSyntax {
-                        connective,
-                        tense_modal,
-                        ke,
-                        ke_free_modifiers,
-                        predicate_tail: Box::new(predicate_tail),
-                        kehe,
-                        kehe_free_modifiers,
-                        tail_terms,
-                        vau,
-                    }
-                },
-            )
-            .boxed();
-        let bo_or_ke_continuation_start = predicate_tail_connective()
-            .then(tense_modal_with_free_modifiers.clone().or_not())
-            .then(choice((cmavo("bo"), cmavo("ke"))))
-            .rewind();
-        let predicate_tail_continuation = bo_or_ke_continuation_start
-            .not()
-            .ignore_then(predicate_tail_connective())
-            .then(tense_modal_with_free_modifiers.clone().or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(experimental_predicate_tail_cu.clone())
-            .then(relation.clone())
-            .then(predicate_tail_terms.clone())
-            .then(bo_continuation.clone().or_not())
-            .then(predicate_tail_terms.clone())
-            .map(
-                |(
-                    (
-                        (
-                            (
-                                (
-                                    ((connective, tense_modal), free_modifiers),
-                                    (cu, cu_free_modifiers),
-                                ),
-                                relation,
-                            ),
-                            ((terms, vau), tail3_free_modifiers),
-                        ),
-                        bo_continuation,
-                    ),
-                    ((tail_terms, tail_vau), _tail_free_modifiers),
-                )| {
-                    let mut connective = connective;
-                    connective.free_modifiers.extend(free_modifiers);
-                    let _ = tail3_free_modifiers;
-                    PredicateTailContinuationSyntax {
-                        connective,
-                        tense_modal,
-                        cu,
-                        cu_free_modifiers,
+        let predicate_tail = recursive(|predicate_tail| {
+            let predicate_tail2 = recursive(|predicate_tail2| {
+                let relation_tail3 = relation.clone().then(predicate_tail_terms.clone()).map(
+                    |(relation, ((terms, vau), free_modifiers))| PredicateTail3Syntax::Relation {
                         relation,
                         terms,
                         vau,
-                        free_modifiers: Vec::new(),
+                        free_modifiers,
+                    },
+                );
+                let gek_tail3 = gek_sentence
+                    .clone()
+                    .map(|gek_sentence| PredicateTail3Syntax::GekSentence { gek_sentence });
+                let bo_continuation = predicate_tail_connective()
+                    .then(tense_modal_with_free_modifiers.clone().or_not())
+                    .then(cmavo("bo"))
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .then(experimental_predicate_tail_cu.clone())
+                    .then(predicate_tail2.clone())
+                    .then(predicate_tail_terms.clone())
+                    .map(
+                        |(
+                            (
+                                (
+                                    (((connective, tense_modal), bo), free_modifiers),
+                                    (cu, cu_free_modifiers),
+                                ),
+                                predicate_tail,
+                            ),
+                            ((tail_terms, vau), _tail_free_modifiers),
+                        )| BoPredicateTailSyntax {
+                            connective,
+                            tense_modal,
+                            bo,
+                            free_modifiers,
+                            cu,
+                            cu_free_modifiers,
+                            predicate_tail: Box::new(predicate_tail),
+                            tail_terms,
+                            vau,
+                        },
+                    )
+                    .boxed();
+                choice((gek_tail3, relation_tail3))
+                    .then(bo_continuation.or_not())
+                    .map(|(first, bo_continuation)| PredicateTail2Syntax {
+                        first,
                         bo_continuation,
-                        tail_terms,
-                        tail_vau,
-                    }
-                },
-            )
-            .boxed();
+                    })
+            });
+            let bo_or_ke_continuation_start = predicate_tail_connective()
+                .then(tense_modal_with_free_modifiers.clone().or_not())
+                .then(choice((cmavo("bo"), cmavo("ke"))))
+                .rewind();
+            let predicate_tail_continuation = bo_or_ke_continuation_start
+                .not()
+                .ignore_then(predicate_tail_connective())
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(experimental_predicate_tail_cu.clone())
+                .then(predicate_tail2.clone())
+                .then(predicate_tail_terms.clone())
+                .map(
+                    |(
+                        (((connective, free_modifiers), (cu, cu_free_modifiers)), predicate_tail),
+                        ((tail_terms, vau), _tail_free_modifiers),
+                    )| {
+                        let mut connective = connective;
+                        connective.free_modifiers.extend(free_modifiers);
+                        PredicateTailContinuationSyntax {
+                            connective,
+                            tense_modal: None,
+                            cu,
+                            cu_free_modifiers,
+                            predicate_tail,
+                            tail_terms,
+                            vau,
+                            free_modifiers: Vec::new(),
+                        }
+                    },
+                )
+                .boxed();
+            let predicate_tail1 = predicate_tail2
+                .clone()
+                .then(
+                    predicate_tail_continuation
+                        .clone()
+                        .repeated()
+                        .collect::<Vec<_>>(),
+                )
+                .map(|(first, continuations)| PredicateTail1Syntax {
+                    first,
+                    continuations,
+                });
+            let ke_continuation = predicate_tail_connective()
+                .then(tense_modal_with_free_modifiers.clone().or_not())
+                .then(cmavo("ke"))
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(predicate_tail.clone())
+                .then(cmavo("ke'e").or_not())
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(predicate_tail_terms.clone())
+                .map(
+                    |(
+                        (
+                            (
+                                (
+                                    (((connective, tense_modal), ke), ke_free_modifiers),
+                                    predicate_tail,
+                                ),
+                                kehe,
+                            ),
+                            kehe_free_modifiers,
+                        ),
+                        ((tail_terms, vau), _tail_free_modifiers),
+                    )| {
+                        KePredicateTailSyntax {
+                            connective,
+                            tense_modal,
+                            ke,
+                            ke_free_modifiers,
+                            predicate_tail: Box::new(predicate_tail),
+                            kehe,
+                            kehe_free_modifiers,
+                            tail_terms,
+                            vau,
+                        }
+                    },
+                )
+                .boxed();
+            predicate_tail1
+                .then(ke_continuation.or_not())
+                .map(|(first, ke_continuation)| PredicateTailSyntax {
+                    first,
+                    ke_continuation,
+                })
+        });
         let predicate_with_leading_terms = term
             .clone()
             .repeated()
@@ -799,149 +820,45 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     .or_not()
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>()),
             )
-            .then(relation.clone())
-            .then(predicate_tail_terms.clone())
-            .then(bo_continuation.clone().or_not())
-            .then(
-                predicate_tail_continuation
-                    .clone()
-                    .repeated()
-                    .collect::<Vec<_>>(),
-            )
-            .then(ke_continuation.clone().or_not())
+            .then(predicate_tail.clone())
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(
-                |(
-                    (
-                        (
-                            (
-                                (
-                                    ((leading_terms, (cu, cu_free_modifiers)), relation),
-                                    ((tail_terms, vau), tail_free_modifiers),
-                                ),
-                                bo_continuation,
-                            ),
-                            continuations,
-                        ),
-                        ke_continuation,
-                    ),
-                    free_modifiers,
-                )| BasicPredicate {
-                    leading_terms,
-                    cu,
-                    cu_free_modifiers,
-                    relation,
-                    tail_terms,
-                    vau,
-                    tail_free_modifiers,
-                    gek_sentence: None,
-                    bo_continuation,
-                    ke_continuation,
-                    continuations,
-                    free_modifiers,
+                |(((leading_terms, (cu, cu_free_modifiers)), predicate_tail), free_modifiers)| {
+                    PredicateSyntax {
+                        leading_terms,
+                        cu,
+                        cu_free_modifiers,
+                        predicate_tail,
+                        free_modifiers,
+                    }
                 },
             );
 
-        let relation_only = relation
+        let relation_only = predicate_tail
             .clone()
-            .then(predicate_tail_terms.clone())
-            .then(bo_continuation.clone().or_not())
-            .then(
-                predicate_tail_continuation
-                    .clone()
-                    .repeated()
-                    .collect::<Vec<_>>(),
-            )
-            .then(ke_continuation.clone().or_not())
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .map(
-                |(
-                    (
-                        (
-                            ((relation, ((tail_terms, vau), tail_free_modifiers)), bo_continuation),
-                            continuations,
-                        ),
-                        ke_continuation,
-                    ),
-                    free_modifiers,
-                )| BasicPredicate {
-                    leading_terms: Vec::new(),
-                    cu: None,
-                    cu_free_modifiers: Vec::new(),
-                    relation,
-                    tail_terms,
-                    vau,
-                    tail_free_modifiers,
-                    gek_sentence: None,
-                    bo_continuation,
-                    ke_continuation,
-                    continuations,
-                    free_modifiers,
-                },
-            );
+            .map(|(predicate_tail, free_modifiers)| PredicateSyntax {
+                leading_terms: Vec::new(),
+                cu: None,
+                cu_free_modifiers: Vec::new(),
+                predicate_tail,
+                free_modifiers,
+            });
         let bare_cu_predicate = cu
             .clone()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(relation.clone())
-            .then(predicate_tail_terms.clone())
-            .then(bo_continuation.or_not())
-            .then(
-                predicate_tail_continuation
-                    .clone()
-                    .repeated()
-                    .collect::<Vec<_>>(),
-            )
-            .then(ke_continuation.or_not())
+            .then(predicate_tail.clone())
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(
-                |(
-                    (
-                        (
-                            (
-                                (
-                                    ((cu, cu_free_modifiers), relation),
-                                    ((tail_terms, vau), tail_free_modifiers),
-                                ),
-                                bo_continuation,
-                            ),
-                            continuations,
-                        ),
-                        ke_continuation,
-                    ),
-                    free_modifiers,
-                )| BasicPredicate {
+                |(((cu, cu_free_modifiers), predicate_tail), free_modifiers)| PredicateSyntax {
                     leading_terms: Vec::new(),
                     cu: Some(cu),
                     cu_free_modifiers,
-                    relation,
-                    tail_terms,
-                    vau,
-                    tail_free_modifiers,
-                    gek_sentence: None,
-                    bo_continuation,
-                    ke_continuation,
-                    continuations,
+                    predicate_tail,
                     free_modifiers,
                 },
             )
             .boxed();
-        let forethought_predicate = gek_sentence
-            .clone()
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .map(|(gek_sentence, free_modifiers)| BasicPredicate {
-                leading_terms: Vec::new(),
-                cu: None,
-                cu_free_modifiers: Vec::new(),
-                relation: RelationSyntax::Compound { units: Vec::new() },
-                tail_terms: Vec::new(),
-                vau: None,
-                tail_free_modifiers: Vec::new(),
-                gek_sentence: Some(gek_sentence),
-                bo_continuation: None,
-                ke_continuation: None,
-                continuations: Vec::new(),
-                free_modifiers,
-            });
         let forethought_predicate_with_leading_terms = gek_leading_term
             .clone()
             .repeated()
@@ -952,22 +869,15 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     .or_not()
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>()),
             )
-            .then(gek_sentence)
+            .then(predicate_tail)
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(
-                |(((leading_terms, (cu, cu_free_modifiers)), gek_sentence), free_modifiers)| {
-                    BasicPredicate {
+                |(((leading_terms, (cu, cu_free_modifiers)), predicate_tail), free_modifiers)| {
+                    PredicateSyntax {
                         leading_terms,
                         cu,
                         cu_free_modifiers,
-                        relation: RelationSyntax::Compound { units: Vec::new() },
-                        tail_terms: Vec::new(),
-                        vau: None,
-                        tail_free_modifiers: Vec::new(),
-                        gek_sentence: Some(gek_sentence),
-                        bo_continuation: None,
-                        ke_continuation: None,
-                        continuations: Vec::new(),
+                        predicate_tail,
                         free_modifiers,
                     }
                 },
@@ -975,7 +885,6 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
 
         choice((
             forethought_predicate_with_leading_terms,
-            forethought_predicate,
             predicate_with_leading_terms,
             bare_cu_predicate,
             relation_only,
@@ -1585,7 +1494,7 @@ fn normalize_trailing_ijek_fragment(
 #[requires(true)]
 #[ensures(true)]
 fn build_predicate_statement(
-    predicate: BasicPredicate,
+    predicate: PredicateSyntax,
     continuations: Vec<PredicateStatementContinuationSyntax>,
 ) -> StatementSyntax {
     continuations.into_iter().fold(
@@ -5566,19 +5475,26 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
 
 #[requires(true)]
 #[ensures(true)]
-fn relation_to_empty_predicate(relation: RelationSyntax) -> BasicPredicate {
-    BasicPredicate {
+fn relation_to_empty_predicate(relation: RelationSyntax) -> PredicateSyntax {
+    PredicateSyntax {
         leading_terms: Vec::new(),
         cu: None,
         cu_free_modifiers: Vec::new(),
-        relation,
-        tail_terms: Vec::new(),
-        vau: None,
-        tail_free_modifiers: Vec::new(),
-        gek_sentence: None,
-        bo_continuation: None,
-        ke_continuation: None,
-        continuations: Vec::new(),
+        predicate_tail: PredicateTailSyntax {
+            first: PredicateTail1Syntax {
+                first: PredicateTail2Syntax {
+                    first: PredicateTail3Syntax::Relation {
+                        relation,
+                        terms: Vec::new(),
+                        vau: None,
+                        free_modifiers: Vec::new(),
+                    },
+                    bo_continuation: None,
+                },
+                continuations: Vec::new(),
+            },
+            ke_continuation: None,
+        },
         free_modifiers: Vec::new(),
     }
 }
