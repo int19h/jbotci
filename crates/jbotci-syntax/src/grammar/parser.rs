@@ -416,8 +416,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         noiha_adverbial,
         fihoi_adverbial,
         soi_adverbial,
-        argument_term,
         na_ku_term,
+        argument_term,
         bare_na_term,
     ))
     .boxed();
