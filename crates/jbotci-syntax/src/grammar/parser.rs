@@ -1,6 +1,7 @@
 use super::tense::*;
 use super::tokens::*;
 use super::*;
+use jbotci_dialect::DialectFeature;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -230,11 +231,12 @@ fn attach_tense_modal_free_modifiers(
 pub(super) fn parse_statement(
     words: &[WordWithModifiers],
     source: Option<&str>,
+    options: &ParseOptions,
 ) -> Result<TextSyntax, SyntaxError> {
     let tokens = spanned_tokens(words);
     let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
 
-    statement_parser(source)
+    statement_parser(source, options)
         .then_ignore(end())
         .parse(
             tokens
@@ -247,7 +249,10 @@ pub(super) fn parse_statement(
 
 #[requires(true)]
 #[ensures(true)]
-fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'tokens, TextSyntax> {
+fn statement_parser<'tokens>(
+    source: Option<&'tokens str>,
+    options: &ParseOptions,
+) -> BoxedParser<'tokens, TextSyntax> {
     let mut text = Recursive::declare();
     let mut argument = Recursive::declare();
     let mut relation = Recursive::declare();
@@ -452,17 +457,34 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             },
         )
         .boxed();
-    let base_simple_term = choice((
-        fa_term,
-        tagged_term,
-        noiha_adverbial,
-        fihoi_adverbial,
-        soi_adverbial,
-        na_ku_term,
-        argument_term,
-        bare_na_term,
-    ))
-    .boxed();
+    let soi_adverbials_enabled = options
+        .dialect
+        .features
+        .contains(&DialectFeature::SoiAdverbials);
+    let base_simple_term = if soi_adverbials_enabled {
+        choice((
+            fa_term.clone(),
+            tagged_term.clone(),
+            noiha_adverbial.clone(),
+            fihoi_adverbial.clone(),
+            soi_adverbial,
+            na_ku_term.clone(),
+            argument_term.clone(),
+            bare_na_term.clone(),
+        ))
+        .boxed()
+    } else {
+        choice((
+            fa_term,
+            tagged_term,
+            noiha_adverbial,
+            fihoi_adverbial,
+            na_ku_term,
+            argument_term,
+            bare_na_term,
+        ))
+        .boxed()
+    };
     let term_body = {
         let term = term.clone();
         let gek_nuhi_termset = cmavo("nu'i")

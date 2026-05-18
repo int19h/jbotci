@@ -43,9 +43,9 @@ pub(crate) fn parse_syntax_tree(
 pub(crate) fn parse_syntax_tree_with_source(
     words: &[WordWithModifiers],
     source: Option<&str>,
-    _options: &ParseOptions,
+    options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
-    let text = parser::parse_statement(words, source)?;
+    let text = parser::parse_statement(words, source, options)?;
     Ok(new!(SyntaxParse {
         parse_tree: render::lojban_text_tree(text),
         warnings: Vec::new(),
@@ -58,13 +58,12 @@ pub(crate) fn parse_text(
     words: &[WordWithModifiers],
     options: &ParseOptions,
 ) -> Result<LojbanText, SyntaxError> {
-    let text = parser::parse_statement(words, None)?;
+    let text = parser::parse_statement(words, None, options)?;
     let paragraphs = text
         .paragraphs
         .into_iter()
         .map(public_paragraph)
         .collect::<Vec<_>>();
-    let _ = options;
     Ok(new!(LojbanText {
         leading_nai: text.leading_nai,
         leading_cmevla: text.leading_cmevla,

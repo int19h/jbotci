@@ -444,10 +444,12 @@ fn run_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
     else {
         return FacetResult::skipped("fixture has no brackets expectation");
     };
-    let options = match fixture.test_case.dialect_definition() {
-        Ok(dialect) => MorphologyOptions::default().with_dialect_definition(&dialect),
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
         Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
     };
+    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let words = match segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
         &options,
@@ -459,7 +461,7 @@ fn run_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let parsed = match parse_syntax_tree_with_source_and_options(
         &words,
         &fixture.test_case.lojban,
-        &ParseOptions::default(),
+        &syntax_options,
     ) {
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
@@ -480,10 +482,12 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let Some(expectation) = &fixture.test_case.expectations.syntax else {
         return FacetResult::skipped("fixture has no syntax expectation");
     };
-    let options = match fixture.test_case.dialect_definition() {
-        Ok(dialect) => MorphologyOptions::default().with_dialect_definition(&dialect),
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
         Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
     };
+    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let words = match segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
         &options,
@@ -514,7 +518,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
     match parse_syntax_tree_with_source_and_options(
         &words,
         &fixture.test_case.lojban,
-        &ParseOptions::default(),
+        &syntax_options,
     ) {
         Ok(parsed) => match expectation.status {
             ExpectationStatus::Success => {

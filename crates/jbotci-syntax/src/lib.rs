@@ -3,6 +3,7 @@
 mod grammar;
 
 use bityzba::{data, expensive_invariant, invariant, new, requires};
+use jbotci_dialect::DialectDefinition;
 use jbotci_morphology::{WordWithModifiers, word_with_modifiers_syntax_eq};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -18,6 +19,16 @@ pub struct TraceOptions {
 #[invariant(true)]
 pub struct ParseOptions {
     pub trace: TraceOptions,
+    pub dialect: DialectDefinition,
+}
+
+impl ParseOptions {
+    #[requires(true)]
+    #[ensures(ret.dialect == *definition)]
+    pub fn with_dialect_definition(mut self, definition: &DialectDefinition) -> Self {
+        self.dialect = definition.clone();
+        self
+    }
 }
 
 #[expensive_invariant(lojban_text_data_is_valid(self.as_data()))]
