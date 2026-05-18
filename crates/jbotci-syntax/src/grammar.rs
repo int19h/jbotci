@@ -843,6 +843,7 @@ enum RelationSyntax {
     Co {
         leading_relation: Box<RelationSyntax>,
         co: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         trailing_relation: Box<RelationSyntax>,
     },
     Bo {
@@ -850,6 +851,7 @@ enum RelationSyntax {
         bo_connective: Option<ConnectiveSyntax>,
         bo_tense_modal: Option<TenseModalSyntax>,
         bo: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         trailing_relation: Box<RelationSyntax>,
     },
     Na {
@@ -868,8 +870,10 @@ enum RelationSyntax {
     Ke {
         ke_tense_modal: Option<TenseModalSyntax>,
         ke: WordWithModifiers,
+        ke_free_modifiers: Vec<FreeModifierSyntax>,
         relation: Box<RelationSyntax>,
         kehe: Option<WordWithModifiers>,
+        kehe_free_modifiers: Vec<FreeModifierSyntax>,
     },
     TenseModal {
         tense_modal: TenseModalSyntax,
@@ -1037,8 +1041,10 @@ enum RelationUnitSyntax {
     Ke {
         ke_tense_modal: Option<TenseModalSyntax>,
         ke: WordWithModifiers,
+        ke_free_modifiers: Vec<FreeModifierSyntax>,
         relation: RelationSyntax,
         kehe: Option<WordWithModifiers>,
+        kehe_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Nahe {
         nahe: WordWithModifiers,
@@ -1050,6 +1056,7 @@ enum RelationUnitSyntax {
         bo_connective: Option<ConnectiveSyntax>,
         bo_tense_modal: Option<TenseModalSyntax>,
         bo: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         trailing_unit: Box<RelationUnitSyntax>,
     },
     Connected {
@@ -1062,6 +1069,7 @@ enum RelationUnitSyntax {
     },
     Jai {
         jai: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         tense_modal: Option<TenseModalSyntax>,
         inner_unit: Box<RelationUnitSyntax>,
     },
@@ -1106,6 +1114,7 @@ enum RelationUnitSyntax {
     },
     Nuha {
         nuha: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         math_operator: MathOperatorSyntax,
     },
     Xohi {
@@ -2788,10 +2797,14 @@ impl RelationSyntax {
             RelationSyntax::Co {
                 leading_relation,
                 co,
+                free_modifiers,
                 trailing_relation,
             } => {
                 let mut words = leading_relation.words();
                 words.push(co);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(trailing_relation.words());
                 words
             }
@@ -2800,6 +2813,7 @@ impl RelationSyntax {
                 bo_connective,
                 bo_tense_modal,
                 bo,
+                free_modifiers,
                 trailing_relation,
             } => {
                 let mut words = leading_relation.words();
@@ -2810,6 +2824,9 @@ impl RelationSyntax {
                     words.extend(tense_modal.words());
                 }
                 words.push(bo);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(trailing_relation.words());
                 words
             }
@@ -2839,11 +2856,22 @@ impl RelationSyntax {
                 words
             }
             RelationSyntax::Ke {
-                ke, relation, kehe, ..
+                ke,
+                ke_free_modifiers,
+                relation,
+                kehe,
+                kehe_free_modifiers,
+                ..
             } => {
                 let mut words = vec![ke];
+                for free_modifier in ke_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(relation.words());
                 words.extend(kehe);
+                for free_modifier in kehe_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             RelationSyntax::TenseModal {
@@ -2915,11 +2943,22 @@ impl RelationUnitSyntax {
                 words
             }
             RelationUnitSyntax::Ke {
-                ke, relation, kehe, ..
+                ke,
+                ke_free_modifiers,
+                relation,
+                kehe,
+                kehe_free_modifiers,
+                ..
             } => {
                 let mut words = vec![ke];
+                for free_modifier in ke_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(relation.words());
                 words.extend(kehe);
+                for free_modifier in kehe_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             RelationUnitSyntax::Nahe {
@@ -2939,6 +2978,7 @@ impl RelationUnitSyntax {
                 bo_connective,
                 bo_tense_modal,
                 bo,
+                free_modifiers,
                 trailing_unit,
             } => {
                 let mut words = leading_unit.words();
@@ -2949,6 +2989,9 @@ impl RelationUnitSyntax {
                     words.extend(tense_modal.words());
                 }
                 words.push(bo);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(trailing_unit.words());
                 words
             }
@@ -2965,10 +3008,14 @@ impl RelationUnitSyntax {
             RelationUnitSyntax::Wrapped { relation } => relation.words(),
             RelationUnitSyntax::Jai {
                 jai,
+                free_modifiers,
                 tense_modal,
                 inner_unit,
             } => {
                 let mut words = vec![jai];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 if let Some(tense_modal) = tense_modal {
                     words.extend(tense_modal.words());
                 }
@@ -3074,9 +3121,13 @@ impl RelationUnitSyntax {
             }
             RelationUnitSyntax::Nuha {
                 nuha,
+                free_modifiers,
                 math_operator,
             } => {
                 let mut words = vec![nuha];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(math_operator.words());
                 words
             }
@@ -7025,11 +7076,15 @@ where
             free_modifiers,
         });
     let nuha_unit = cmavo("nu'a")
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(math_operator())
-        .map(|(nuha, math_operator)| RelationUnitSyntax::Nuha {
-            nuha,
-            math_operator,
-        });
+        .map(
+            |((nuha, free_modifiers), math_operator)| RelationUnitSyntax::Nuha {
+                nuha,
+                free_modifiers,
+                math_operator,
+            },
+        );
     let xohi_unit = cmavo("xo'i")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(tense_modal())
@@ -7040,18 +7095,26 @@ where
         });
 
     let ke_unit = cmavo("ke")
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(relation_units_inner(
             argument.clone(),
             subsentence.clone(),
             free_modifier.clone(),
         ))
         .then(cmavo("ke'e").or_not())
-        .map(|((ke, relation), kehe)| RelationUnitSyntax::Ke {
-            ke_tense_modal: None,
-            ke,
-            relation,
-            kehe,
-        });
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |((((ke, ke_free_modifiers), relation), kehe), kehe_free_modifiers)| {
+                RelationUnitSyntax::Ke {
+                    ke_tense_modal: None,
+                    ke,
+                    ke_free_modifiers,
+                    relation,
+                    kehe,
+                    kehe_free_modifiers,
+                }
+            },
+        );
 
     let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -7104,17 +7167,21 @@ where
         );
 
     let jai_unit = cmavo("jai")
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(tense_modal().or_not())
         .then(choice((
             se_unit.clone(),
             goha_unit.clone(),
             word_unit.clone(),
         )))
-        .map(|((jai, tense_modal), inner_unit)| RelationUnitSyntax::Jai {
-            jai,
-            tense_modal,
-            inner_unit: Box::new(inner_unit),
-        });
+        .map(
+            |(((jai, free_modifiers), tense_modal), inner_unit)| RelationUnitSyntax::Jai {
+                jai,
+                free_modifiers,
+                tense_modal,
+                inner_unit: Box::new(inner_unit),
+            },
+        );
 
     let nu_cmavo = || cmavo_of("NU", NU_WORDS);
     let additional_nu = statement_connective()
@@ -7287,24 +7354,39 @@ where
         let connected_bo_tail = statement_connective()
             .then(tense_modal().or_not())
             .then(cmavo("bo"))
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(bo_unit.clone())
-            .map(|(((connective, bo_tense_modal), bo), trailing_unit)| {
-                (Some(connective), bo_tense_modal, bo, trailing_unit)
-            });
+            .map(
+                |((((connective, bo_tense_modal), bo), free_modifiers), trailing_unit)| {
+                    (
+                        Some(connective),
+                        bo_tense_modal,
+                        bo,
+                        free_modifiers,
+                        trailing_unit,
+                    )
+                },
+            );
         let bare_bo_tail = cmavo("bo")
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(bo_unit)
-            .map(|(bo, trailing_unit)| (None, None, bo, trailing_unit));
+            .map(|((bo, free_modifiers), trailing_unit)| {
+                (None, None, bo, free_modifiers, trailing_unit)
+            });
         atom_unit
             .then(choice((connected_bo_tail, bare_bo_tail)).or_not())
             .map(|(leading_unit, bo_tail)| {
                 bo_tail.map_or(
                     leading_unit.clone(),
-                    |(bo_connective, bo_tense_modal, bo, trailing_unit)| RelationUnitSyntax::Bo {
-                        leading_unit: Box::new(leading_unit),
-                        bo_connective,
-                        bo_tense_modal,
-                        bo,
-                        trailing_unit: Box::new(trailing_unit),
+                    |(bo_connective, bo_tense_modal, bo, free_modifiers, trailing_unit)| {
+                        RelationUnitSyntax::Bo {
+                            leading_unit: Box::new(leading_unit),
+                            bo_connective,
+                            bo_tense_modal,
+                            bo,
+                            free_modifiers,
+                            trailing_unit: Box::new(trailing_unit),
+                        }
                     },
                 )
             })
@@ -7363,15 +7445,22 @@ where
     let co_relation = recursive(|co_relation| {
         connected_relation
             .clone()
-            .then(cmavo("co").then(co_relation).or_not())
+            .then(
+                cmavo("co")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .then(co_relation)
+                    .or_not(),
+            )
             .map(|(leading_relation, co_tail)| {
-                co_tail.map_or(leading_relation.clone(), |(co, trailing_relation)| {
-                    RelationSyntax::Co {
+                co_tail.map_or(
+                    leading_relation.clone(),
+                    |((co, free_modifiers), trailing_relation)| RelationSyntax::Co {
                         leading_relation: Box::new(leading_relation),
                         co,
+                        free_modifiers,
                         trailing_relation: Box::new(trailing_relation),
-                    }
-                })
+                    },
+                )
             })
     });
 
@@ -7474,11 +7563,15 @@ where
                 free_modifiers,
             });
         let nuha_unit = cmavo("nu'a")
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(math_operator())
-            .map(|(nuha, math_operator)| RelationUnitSyntax::Nuha {
-                nuha,
-                math_operator,
-            });
+            .map(
+                |((nuha, free_modifiers), math_operator)| RelationUnitSyntax::Nuha {
+                    nuha,
+                    free_modifiers,
+                    math_operator,
+                },
+            );
         let xohi_unit = cmavo("xo'i")
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(tense_modal())
@@ -7517,14 +7610,22 @@ where
                 },
             );
         let ke_unit = cmavo("ke")
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(inner_relation.clone())
             .then(cmavo("ke'e").or_not())
-            .map(|((ke, relation), kehe)| RelationUnitSyntax::Ke {
-                ke_tense_modal: None,
-                ke,
-                relation,
-                kehe,
-            });
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(
+                |((((ke, ke_free_modifiers), relation), kehe), kehe_free_modifiers)| {
+                    RelationUnitSyntax::Ke {
+                        ke_tense_modal: None,
+                        ke,
+                        ke_free_modifiers,
+                        relation,
+                        kehe,
+                        kehe_free_modifiers,
+                    }
+                },
+            );
         let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(choice((
@@ -7695,24 +7796,37 @@ where
             let connected_bo_tail = statement_connective()
                 .then(tense_modal().or_not())
                 .then(cmavo("bo"))
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .then(bo_unit.clone())
-                .map(|(((connective, bo_tense_modal), bo), trailing_unit)| {
-                    (Some(connective), bo_tense_modal, bo, trailing_unit)
-                });
+                .map(
+                    |((((connective, bo_tense_modal), bo), free_modifiers), trailing_unit)| {
+                        (
+                            Some(connective),
+                            bo_tense_modal,
+                            bo,
+                            free_modifiers,
+                            trailing_unit,
+                        )
+                    },
+                );
             let bare_bo_tail = cmavo("bo")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .then(bo_unit)
-                .map(|(bo, trailing_unit)| (None, None, bo, trailing_unit));
+                .map(|((bo, free_modifiers), trailing_unit)| {
+                    (None, None, bo, free_modifiers, trailing_unit)
+                });
             atom_unit
                 .then(choice((connected_bo_tail, bare_bo_tail)).or_not())
                 .map(|(leading_unit, bo_tail)| {
                     bo_tail.map_or(
                         leading_unit.clone(),
-                        |(bo_connective, bo_tense_modal, bo, trailing_unit)| {
+                        |(bo_connective, bo_tense_modal, bo, free_modifiers, trailing_unit)| {
                             RelationUnitSyntax::Bo {
                                 leading_unit: Box::new(leading_unit),
                                 bo_connective,
                                 bo_tense_modal,
                                 bo,
+                                free_modifiers,
                                 trailing_unit: Box::new(trailing_unit),
                             }
                         },
@@ -7780,14 +7894,18 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
             RelationUnitSyntax::Ke {
                 ke_tense_modal,
                 ke,
+                ke_free_modifiers,
                 relation,
                 kehe,
+                kehe_free_modifiers,
             },
         ] => RelationSyntax::Ke {
             ke_tense_modal: ke_tense_modal.clone(),
             ke: ke.clone(),
+            ke_free_modifiers: ke_free_modifiers.clone(),
             relation: Box::new(relation.clone()),
             kehe: kehe.clone(),
+            kehe_free_modifiers: kehe_free_modifiers.clone(),
         },
         [RelationUnitSyntax::Abstraction { abstraction }] => RelationSyntax::Abstraction {
             abstraction: abstraction.clone(),
@@ -7798,6 +7916,7 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
                 bo_connective,
                 bo_tense_modal,
                 bo,
+                free_modifiers,
                 trailing_unit,
             },
         ] => RelationSyntax::Bo {
@@ -7805,6 +7924,7 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
             bo_connective: bo_connective.clone(),
             bo_tense_modal: bo_tense_modal.clone(),
             bo: bo.clone(),
+            free_modifiers: free_modifiers.clone(),
             trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
         },
         [
@@ -7848,13 +7968,17 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
         RelationUnitSyntax::Ke {
             ke_tense_modal,
             ke,
+            ke_free_modifiers,
             relation,
             kehe,
+            kehe_free_modifiers,
         } => RelationSyntax::Ke {
             ke_tense_modal: ke_tense_modal.clone(),
             ke: ke.clone(),
+            ke_free_modifiers: ke_free_modifiers.clone(),
             relation: Box::new(relation.clone()),
             kehe: kehe.clone(),
+            kehe_free_modifiers: kehe_free_modifiers.clone(),
         },
         RelationUnitSyntax::Abstraction { abstraction } => RelationSyntax::Abstraction {
             abstraction: abstraction.clone(),
@@ -7864,12 +7988,14 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
             bo_connective,
             bo_tense_modal,
             bo,
+            free_modifiers,
             trailing_unit,
         } => RelationSyntax::Bo {
             leading_relation: Box::new(relation_unit_to_relation(leading_unit)),
             bo_connective: bo_connective.clone(),
             bo_tense_modal: bo_tense_modal.clone(),
             bo: bo.clone(),
+            free_modifiers: free_modifiers.clone(),
             trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
         },
         RelationUnitSyntax::Connected {
@@ -11829,13 +11955,17 @@ fn relation_tree(relation: RelationSyntax) -> SyntaxValue {
         RelationSyntax::Co {
             leading_relation,
             co,
+            free_modifiers,
             trailing_relation,
         } => node(
             "CoRelation",
             vec![
                 field("leadingRelation", relation_tree(*leading_relation)),
                 field("co", word_value(co)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("trailingRelation", relation_tree(*trailing_relation)),
             ],
         ),
@@ -11844,6 +11974,7 @@ fn relation_tree(relation: RelationSyntax) -> SyntaxValue {
             bo_connective,
             bo_tense_modal,
             bo,
+            free_modifiers,
             trailing_relation,
         } => node(
             "BoRelation",
@@ -11860,7 +11991,10 @@ fn relation_tree(relation: RelationSyntax) -> SyntaxValue {
                         .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
                 ),
                 field("bo", word_value(bo)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("trailingRelation", relation_tree(*trailing_relation)),
             ],
         ),
@@ -11900,8 +12034,10 @@ fn relation_tree(relation: RelationSyntax) -> SyntaxValue {
         RelationSyntax::Ke {
             ke_tense_modal,
             ke,
+            ke_free_modifiers,
             relation,
             kehe,
+            kehe_free_modifiers,
         } => node(
             "KeRelation",
             vec![
@@ -11911,10 +12047,26 @@ fn relation_tree(relation: RelationSyntax) -> SyntaxValue {
                         .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
                 ),
                 field("ke", word_value(ke)),
-                field("keFreeModifiers", nil()),
+                field(
+                    "keFreeModifiers",
+                    list(
+                        ke_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field("innerRelation", relation_tree(*relation)),
                 field("kehe", maybe_word(kehe)),
-                field("keheFreeModifiers", nil()),
+                field(
+                    "keheFreeModifiers",
+                    list(
+                        kehe_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         RelationSyntax::TenseModal {
@@ -12496,8 +12648,10 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
         RelationUnitSyntax::Ke {
             ke_tense_modal,
             ke,
+            ke_free_modifiers,
             relation,
             kehe,
+            kehe_free_modifiers,
         } => node(
             "KeRelationUnit",
             vec![
@@ -12507,10 +12661,26 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
                         .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
                 ),
                 field("ke", word_value(ke)),
-                field("keFreeModifiers", nil()),
+                field(
+                    "keFreeModifiers",
+                    list(
+                        ke_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field("relation", relation_tree(relation)),
                 field("kehe", maybe_word(kehe)),
-                field("keheFreeModifiers", nil()),
+                field(
+                    "keheFreeModifiers",
+                    list(
+                        kehe_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         RelationUnitSyntax::Nahe {
@@ -12533,6 +12703,7 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
             bo_connective,
             bo_tense_modal,
             bo,
+            free_modifiers,
             trailing_unit,
         } => node(
             "BoRelationUnit",
@@ -12549,7 +12720,10 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
                         .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
                 ),
                 field("bo", word_value(bo)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("trailingUnit", relation_unit_tree(*trailing_unit)),
             ],
         ),
@@ -12571,13 +12745,17 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
         ),
         RelationUnitSyntax::Jai {
             jai,
+            free_modifiers,
             tense_modal,
             inner_unit,
         } => node(
             "JaiRelationUnit",
             vec![
                 field("jai", word_value(jai)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field(
                     "tenseModal",
                     tense_modal
@@ -12743,12 +12921,16 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
         ),
         RelationUnitSyntax::Nuha {
             nuha,
+            free_modifiers,
             math_operator,
         } => node(
             "NuhaRelationUnit",
             vec![
                 field("nuha", word_value(nuha)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("mathOperator", math_operator_tree(math_operator)),
             ],
         ),
