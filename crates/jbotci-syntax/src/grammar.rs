@@ -80,6 +80,7 @@ struct BasicPredicate {
     relation: RelationSyntax,
     tail_terms: Vec<TermSyntax>,
     vau: Option<WordWithModifiers>,
+    tail_free_modifiers: Vec<FreeModifierSyntax>,
     gek_sentence: Option<GekSentenceSyntax>,
     bo_continuation: Option<PredicateTailBoContinuationSyntax>,
     ke_continuation: Option<PredicateTailKeContinuationSyntax>,
@@ -93,6 +94,9 @@ struct PredicateTailBoContinuationSyntax {
     connective: ConnectiveSyntax,
     tense_modal: Option<TenseModalSyntax>,
     bo: WordWithModifiers,
+    free_modifiers: Vec<FreeModifierSyntax>,
+    cu: Option<WordWithModifiers>,
+    cu_free_modifiers: Vec<FreeModifierSyntax>,
     predicate_tail: Box<BasicPredicate>,
     tail_terms: Vec<TermSyntax>,
     vau: Option<WordWithModifiers>,
@@ -104,8 +108,10 @@ struct PredicateTailKeContinuationSyntax {
     connective: ConnectiveSyntax,
     tense_modal: Option<TenseModalSyntax>,
     ke: WordWithModifiers,
+    ke_free_modifiers: Vec<FreeModifierSyntax>,
     predicate_tail: Box<BasicPredicate>,
     kehe: Option<WordWithModifiers>,
+    kehe_free_modifiers: Vec<FreeModifierSyntax>,
     tail_terms: Vec<TermSyntax>,
     vau: Option<WordWithModifiers>,
 }
@@ -120,15 +126,19 @@ enum GekSentenceSyntax {
         second: Box<SubsentenceSyntax>,
         tail_terms: Vec<TermSyntax>,
         vau: Option<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Ke {
         tense_modal: Option<TenseModalSyntax>,
         ke: WordWithModifiers,
+        ke_free_modifiers: Vec<FreeModifierSyntax>,
         inner: Box<GekSentenceSyntax>,
         kehe: Option<WordWithModifiers>,
+        kehe_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Na {
         na: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         inner: Box<GekSentenceSyntax>,
     },
 }
@@ -149,9 +159,13 @@ enum SubsentenceSyntax {
 #[invariant(true)]
 struct PredicateTailContinuationSyntax {
     connective: ConnectiveSyntax,
+    tense_modal: Option<TenseModalSyntax>,
+    cu: Option<WordWithModifiers>,
+    cu_free_modifiers: Vec<FreeModifierSyntax>,
     relation: RelationSyntax,
     terms: Vec<TermSyntax>,
     vau: Option<WordWithModifiers>,
+    free_modifiers: Vec<FreeModifierSyntax>,
     bo_continuation: Option<PredicateTailBoContinuationSyntax>,
     tail_terms: Vec<TermSyntax>,
     tail_vau: Option<WordWithModifiers>,
@@ -1675,6 +1689,9 @@ impl BasicPredicate {
                 words.extend(term.words());
             }
             words.extend(self.vau);
+            for free_modifier in self.tail_free_modifiers {
+                words.extend(free_modifier.words());
+            }
         }
         if let Some(bo_continuation) = self.bo_continuation {
             words.extend(bo_continuation.words());
@@ -1701,6 +1718,13 @@ impl PredicateTailBoContinuationSyntax {
             words.extend(tense_modal.words());
         }
         words.push(self.bo);
+        for free_modifier in self.free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        words.extend(self.cu);
+        for free_modifier in self.cu_free_modifiers {
+            words.extend(free_modifier.words());
+        }
         words.extend(self.predicate_tail.words());
         for term in self.tail_terms {
             words.extend(term.words());
@@ -1719,8 +1743,14 @@ impl PredicateTailKeContinuationSyntax {
             words.extend(tense_modal.words());
         }
         words.push(self.ke);
+        for free_modifier in self.ke_free_modifiers {
+            words.extend(free_modifier.words());
+        }
         words.extend(self.predicate_tail.words());
         words.extend(self.kehe);
+        for free_modifier in self.kehe_free_modifiers {
+            words.extend(free_modifier.words());
+        }
         for term in self.tail_terms {
             words.extend(term.words());
         }
@@ -1741,6 +1771,7 @@ impl GekSentenceSyntax {
                 second,
                 tail_terms,
                 vau,
+                free_modifiers,
             } => {
                 let mut words = gek.words();
                 words.extend(first.words());
@@ -1750,25 +1781,43 @@ impl GekSentenceSyntax {
                     words.extend(term.words());
                 }
                 words.extend(vau);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             GekSentenceSyntax::Ke {
                 tense_modal,
                 ke,
+                ke_free_modifiers,
                 inner,
                 kehe,
+                kehe_free_modifiers,
             } => {
                 let mut words = Vec::new();
                 if let Some(tense_modal) = tense_modal {
                     words.extend(tense_modal.words());
                 }
                 words.push(ke);
+                for free_modifier in ke_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner.words());
                 words.extend(kehe);
+                for free_modifier in kehe_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
-            GekSentenceSyntax::Na { na, inner } => {
+            GekSentenceSyntax::Na {
+                na,
+                free_modifiers,
+                inner,
+            } => {
                 let mut words = vec![na];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner.words());
                 words
             }
@@ -1808,11 +1857,21 @@ impl PredicateTailContinuationSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.connective.words();
+        if let Some(tense_modal) = self.tense_modal {
+            words.extend(tense_modal.words());
+        }
+        words.extend(self.cu);
+        for free_modifier in self.cu_free_modifiers {
+            words.extend(free_modifier.words());
+        }
         words.extend(self.relation.words());
         for term in self.terms {
             words.extend(term.words());
         }
         words.extend(self.vau);
+        for free_modifier in self.free_modifiers {
+            words.extend(free_modifier.words());
+        }
         if let Some(bo_continuation) = self.bo_continuation {
             words.extend(bo_continuation.words());
         }
@@ -4224,35 +4283,51 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 .then(subsentence.clone())
                 .then(tail_term.clone().repeated().collect::<Vec<_>>())
                 .then(cmavo("vau").or_not())
-                .map(|(((((gek, first), gik), second), tail_terms), vau)| {
-                    GekSentenceSyntax::Pair {
-                        gek,
-                        first: Box::new(first),
-                        gik,
-                        second: Box::new(second),
-                        tail_terms,
-                        vau,
-                    }
-                });
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .map(
+                    |((((((gek, first), gik), second), tail_terms), vau), free_modifiers)| {
+                        GekSentenceSyntax::Pair {
+                            gek,
+                            first: Box::new(first),
+                            gik,
+                            second: Box::new(second),
+                            tail_terms,
+                            vau,
+                            free_modifiers,
+                        }
+                    },
+                );
             let ke = tense_modal_with_free_modifiers
                 .clone()
                 .or_not()
                 .then(cmavo("ke"))
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .then(gek_sentence.clone())
                 .then(cmavo("ke'e").or_not())
-                .map(|(((tense_modal, ke), inner), kehe)| GekSentenceSyntax::Ke {
-                    tense_modal,
-                    ke,
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .map(
+                    |(
+                        ((((tense_modal, ke), ke_free_modifiers), inner), kehe),
+                        kehe_free_modifiers,
+                    )| {
+                        GekSentenceSyntax::Ke {
+                            tense_modal,
+                            ke,
+                            ke_free_modifiers,
+                            inner: Box::new(inner),
+                            kehe,
+                            kehe_free_modifiers,
+                        }
+                    },
+                );
+            let na = na_cmavo()
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(gek_sentence.clone())
+                .map(|((na, free_modifiers), inner)| GekSentenceSyntax::Na {
+                    na,
+                    free_modifiers,
                     inner: Box::new(inner),
-                    kehe,
                 });
-            let na =
-                na_cmavo()
-                    .then(gek_sentence.clone())
-                    .map(|(na, inner)| GekSentenceSyntax::Na {
-                        na,
-                        inner: Box::new(inner),
-                    });
             choice((pair, ke, na)).boxed()
         });
         let implicit_tagged_term_before_grouped_gek = tense_modal_with_free_modifiers
@@ -4269,18 +4344,42 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             non_grouped_gek_term,
         ))
         .boxed();
+        let predicate_tail_terms = tail_term
+            .clone()
+            .repeated()
+            .collect::<Vec<_>>()
+            .then(cmavo("vau").or_not())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>());
+        let experimental_predicate_tail_cu = cu
+            .clone()
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .or_not()
+            .map(|cu| cu.map_or((None, Vec::new()), |(cu, frees)| (Some(cu), frees)));
         let bo_continuation = predicate_tail_connective()
             .then(tense_modal_with_free_modifiers.clone().or_not())
             .then(cmavo("bo"))
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(experimental_predicate_tail_cu.clone())
             .then(basic_predicate.clone())
-            .then(tail_term.clone().repeated().collect::<Vec<_>>())
-            .then(cmavo("vau").or_not())
+            .then(predicate_tail_terms.clone())
             .map(
-                |(((((connective, tense_modal), bo), predicate_tail), tail_terms), vau)| {
+                |(
+                    (
+                        (
+                            (((connective, tense_modal), bo), free_modifiers),
+                            (cu, cu_free_modifiers),
+                        ),
+                        predicate_tail,
+                    ),
+                    ((tail_terms, vau), _tail_free_modifiers),
+                )| {
                     PredicateTailBoContinuationSyntax {
                         connective,
                         tense_modal,
                         bo,
+                        free_modifiers,
+                        cu,
+                        cu_free_modifiers,
                         predicate_tail: Box::new(predicate_tail),
                         tail_terms,
                         vau,
@@ -4291,18 +4390,30 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         let ke_continuation = predicate_tail_connective()
             .then(tense_modal_with_free_modifiers.clone().or_not())
             .then(cmavo("ke"))
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(basic_predicate.clone())
             .then(cmavo("ke'e").or_not())
-            .then(tail_term.clone().repeated().collect::<Vec<_>>())
-            .then(cmavo("vau").or_not())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(predicate_tail_terms.clone())
             .map(
-                |((((((connective, tense_modal), ke), predicate_tail), kehe), tail_terms), vau)| {
+                |(
+                    (
+                        (
+                            ((((connective, tense_modal), ke), ke_free_modifiers), predicate_tail),
+                            kehe,
+                        ),
+                        kehe_free_modifiers,
+                    ),
+                    ((tail_terms, vau), _tail_free_modifiers),
+                )| {
                     PredicateTailKeContinuationSyntax {
                         connective,
                         tense_modal,
                         ke,
+                        ke_free_modifiers,
                         predicate_tail: Box::new(predicate_tail),
                         kehe,
+                        kehe_free_modifiers,
                         tail_terms,
                         vau,
                     }
@@ -4316,22 +4427,42 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         let predicate_tail_continuation = bo_or_ke_continuation_start
             .not()
             .ignore_then(predicate_tail_connective())
+            .then(tense_modal_with_free_modifiers.clone().or_not())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(experimental_predicate_tail_cu.clone())
             .then(relation.clone())
-            .then(tail_term.clone().repeated().collect::<Vec<_>>())
-            .then(cmavo("vau").or_not())
+            .then(predicate_tail_terms.clone())
             .then(bo_continuation.clone().or_not())
-            .then(tail_term.clone().repeated().collect::<Vec<_>>())
-            .then(cmavo("vau").or_not())
+            .then(predicate_tail_terms.clone())
             .map(
                 |(
-                    (((((connective, relation), terms), vau), bo_continuation), tail_terms),
-                    tail_vau,
+                    (
+                        (
+                            (
+                                (
+                                    ((connective, tense_modal), free_modifiers),
+                                    (cu, cu_free_modifiers),
+                                ),
+                                relation,
+                            ),
+                            ((terms, vau), tail3_free_modifiers),
+                        ),
+                        bo_continuation,
+                    ),
+                    ((tail_terms, tail_vau), _tail_free_modifiers),
                 )| {
+                    let mut connective = connective;
+                    connective.free_modifiers.extend(free_modifiers);
+                    let _ = tail3_free_modifiers;
                     PredicateTailContinuationSyntax {
                         connective,
+                        tense_modal,
+                        cu,
+                        cu_free_modifiers,
                         relation,
                         terms,
                         vau,
+                        free_modifiers: Vec::new(),
                         bo_continuation,
                         tail_terms,
                         tail_vau,
@@ -4350,8 +4481,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>()),
             )
             .then(relation.clone())
-            .then(tail_term.clone().repeated().collect::<Vec<_>>())
-            .then(cmavo("vau").or_not())
+            .then(predicate_tail_terms.clone())
             .then(bo_continuation.clone().or_not())
             .then(
                 predicate_tail_continuation
@@ -4367,11 +4497,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                         (
                             (
                                 (
-                                    (
-                                        ((leading_terms, (cu, cu_free_modifiers)), relation),
-                                        tail_terms,
-                                    ),
-                                    vau,
+                                    ((leading_terms, (cu, cu_free_modifiers)), relation),
+                                    ((tail_terms, vau), tail_free_modifiers),
                                 ),
                                 bo_continuation,
                             ),
@@ -4387,6 +4514,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     relation,
                     tail_terms,
                     vau,
+                    tail_free_modifiers,
                     gek_sentence: None,
                     bo_continuation,
                     ke_continuation,
@@ -4397,8 +4525,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
 
         let relation_only = relation
             .clone()
-            .then(tail_term.clone().repeated().collect::<Vec<_>>())
-            .then(cmavo("vau").or_not())
+            .then(predicate_tail_terms.clone())
             .then(bo_continuation.clone().or_not())
             .then(
                 predicate_tail_continuation
@@ -4411,7 +4538,10 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             .map(
                 |(
                     (
-                        ((((relation, tail_terms), vau), bo_continuation), continuations),
+                        (
+                            ((relation, ((tail_terms, vau), tail_free_modifiers)), bo_continuation),
+                            continuations,
+                        ),
                         ke_continuation,
                     ),
                     free_modifiers,
@@ -4422,6 +4552,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     relation,
                     tail_terms,
                     vau,
+                    tail_free_modifiers,
                     gek_sentence: None,
                     bo_continuation,
                     ke_continuation,
@@ -4433,8 +4564,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             .clone()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(relation.clone())
-            .then(tail_term.clone().repeated().collect::<Vec<_>>())
-            .then(cmavo("vau").or_not())
+            .then(predicate_tail_terms.clone())
             .then(bo_continuation.or_not())
             .then(
                 predicate_tail_continuation
@@ -4449,7 +4579,10 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     (
                         (
                             (
-                                ((((cu, cu_free_modifiers), relation), tail_terms), vau),
+                                (
+                                    ((cu, cu_free_modifiers), relation),
+                                    ((tail_terms, vau), tail_free_modifiers),
+                                ),
                                 bo_continuation,
                             ),
                             continuations,
@@ -4464,6 +4597,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     relation,
                     tail_terms,
                     vau,
+                    tail_free_modifiers,
                     gek_sentence: None,
                     bo_continuation,
                     ke_continuation,
@@ -4482,6 +4616,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 relation: RelationSyntax::Compound { units: Vec::new() },
                 tail_terms: Vec::new(),
                 vau: None,
+                tail_free_modifiers: Vec::new(),
                 gek_sentence: Some(gek_sentence),
                 bo_continuation: None,
                 ke_continuation: None,
@@ -4509,6 +4644,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                         relation: RelationSyntax::Compound { units: Vec::new() },
                         tail_terms: Vec::new(),
                         vau: None,
+                        tail_free_modifiers: Vec::new(),
                         gek_sentence: Some(gek_sentence),
                         bo_continuation: None,
                         ke_continuation: None,
@@ -8871,6 +9007,7 @@ fn relation_to_empty_predicate(relation: RelationSyntax) -> BasicPredicate {
         relation,
         tail_terms: Vec::new(),
         vau: None,
+        tail_free_modifiers: Vec::new(),
         gek_sentence: None,
         bo_continuation: None,
         ke_continuation: None,
@@ -11069,7 +11206,16 @@ fn predicate_tail2_tree(predicate: BasicPredicate) -> SyntaxValue {
                         list(predicate.tail_terms.into_iter().map(term_tree).collect()),
                     ),
                     field("vau", maybe_word(predicate.vau)),
-                    field("freeModifiers", nil()),
+                    field(
+                        "freeModifiers",
+                        list(
+                            predicate
+                                .tail_free_modifiers
+                                .into_iter()
+                                .map(free_modifier_tree)
+                                .collect(),
+                        ),
+                    ),
                 ],
             )
         },
@@ -11112,9 +11258,27 @@ fn predicate_tail_bo_continuation_tree(
                     .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
             ),
             field("bo", word_value(continuation.bo)),
-            field("freeModifiers", nil()),
-            field("cu", nothing()),
-            field("cuFreeModifiers", nil()),
+            field(
+                "freeModifiers",
+                list(
+                    continuation
+                        .free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
+            field("cu", maybe_word(continuation.cu)),
+            field(
+                "cuFreeModifiers",
+                list(
+                    continuation
+                        .cu_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
             field(
                 "predicateTail",
                 predicate_tail2_tree(*continuation.predicate_tail),
@@ -11144,13 +11308,31 @@ fn predicate_tail_ke_continuation_tree(
                     .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
             ),
             field("ke", word_value(continuation.ke)),
-            field("keFreeModifiers", nil()),
+            field(
+                "keFreeModifiers",
+                list(
+                    continuation
+                        .ke_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
             field(
                 "predicateTail",
                 predicate_tail_tree(*continuation.predicate_tail),
             ),
             field("kehe", maybe_word(continuation.kehe)),
-            field("keheFreeModifiers", nil()),
+            field(
+                "keheFreeModifiers",
+                list(
+                    continuation
+                        .kehe_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
             field(
                 "tailTerms",
                 list(continuation.tail_terms.into_iter().map(term_tree).collect()),
@@ -11171,6 +11353,7 @@ fn gek_sentence_tree(gek_sentence: GekSentenceSyntax) -> SyntaxValue {
             second,
             tail_terms,
             vau,
+            free_modifiers,
         } => node(
             "GekSentencePair",
             vec![
@@ -11183,14 +11366,19 @@ fn gek_sentence_tree(gek_sentence: GekSentenceSyntax) -> SyntaxValue {
                     list(tail_terms.into_iter().map(term_tree).collect()),
                 ),
                 field("vau", maybe_word(vau)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         GekSentenceSyntax::Ke {
             tense_modal,
             ke,
+            ke_free_modifiers,
             inner,
             kehe,
+            kehe_free_modifiers,
         } => node(
             "KeGekSentence",
             vec![
@@ -11200,17 +11388,40 @@ fn gek_sentence_tree(gek_sentence: GekSentenceSyntax) -> SyntaxValue {
                         .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
                 ),
                 field("ke", word_value(ke)),
-                field("keFreeModifiers", nil()),
+                field(
+                    "keFreeModifiers",
+                    list(
+                        ke_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field("inner", gek_sentence_tree(*inner)),
                 field("kehe", maybe_word(kehe)),
-                field("keheFreeModifiers", nil()),
+                field(
+                    "keheFreeModifiers",
+                    list(
+                        kehe_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
-        GekSentenceSyntax::Na { na, inner } => node(
+        GekSentenceSyntax::Na {
+            na,
+            free_modifiers,
+            inner,
+        } => node(
             "NaGekSentence",
             vec![
                 field("na", word_value(na)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("inner", gek_sentence_tree(*inner)),
             ],
         ),
@@ -11224,9 +11435,23 @@ fn predicate_tail_continuation_tree(continuation: PredicateTailContinuationSynta
         "PredicateTailContinuation",
         vec![
             field("connective", connective_tree(continuation.connective)),
-            field("tenseModal", nothing()),
-            field("cu", nothing()),
-            field("cuFreeModifiers", nil()),
+            field(
+                "tenseModal",
+                continuation
+                    .tense_modal
+                    .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+            ),
+            field("cu", maybe_word(continuation.cu)),
+            field(
+                "cuFreeModifiers",
+                list(
+                    continuation
+                        .cu_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
             field(
                 "predicateTail",
                 node(
@@ -11245,7 +11470,16 @@ fn predicate_tail_continuation_tree(continuation: PredicateTailContinuationSynta
                                         ),
                                     ),
                                     field("vau", maybe_word(continuation.vau)),
-                                    field("freeModifiers", nil()),
+                                    field(
+                                        "freeModifiers",
+                                        list(
+                                            continuation
+                                                .free_modifiers
+                                                .into_iter()
+                                                .map(free_modifier_tree)
+                                                .collect(),
+                                        ),
+                                    ),
                                 ],
                             ),
                         ),
