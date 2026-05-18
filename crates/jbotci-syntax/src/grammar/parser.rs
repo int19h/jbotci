@@ -6657,6 +6657,34 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
                 free_modifiers: Vec::new(),
             }
         });
+    let pu_distance_before_tag = cmavo_of("PU", &["pu", "ca", "ba"])
+        .then(cmavo("nai").or_not())
+        .then(cmavo_of("ZI", &["zi", "za", "zu"]))
+        .then(cmavo_of("ZI", &["zi", "za", "zu"]).rewind())
+        .map(|(((pu, nai), distance), _)| {
+            let mut leaves = vec![pu.clone()];
+            leaves.extend(nai.clone());
+            leaves.push(distance.clone());
+            TenseModalSyntax::Composite {
+                leaves,
+                time: Some(TimeTenseSyntax {
+                    direction: vec![pu],
+                    distance: Some(distance),
+                    interval: None,
+                    nai,
+                }),
+                space: None,
+                simple: None,
+                interval: None,
+                zaho: Vec::new(),
+                caha: None,
+                ki: None,
+                cuhe: None,
+                fiho: Vec::new(),
+                connectives: Vec::new(),
+                free_modifiers: Vec::new(),
+            }
+        });
     let zaho_property = cmavo_of("ZAhO", ZAHO_WORDS)
         .then(cmavo("nai").or_not())
         .map(|(zaho, nai)| {
@@ -6742,17 +6770,6 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
         cmavo_of("PU", &["pu", "ca", "ba"]).ignored(),
         cmavo_of("ZI", &["zi", "za", "zu"]).ignored(),
         cmavo_of("ZEhA", &["ze'i", "ze'a", "ze'u", "ze'e"]).ignored(),
-        cmavo_of("VA", &["vi", "va", "vu"]).ignored(),
-        cmavo_of(
-            "FAhA",
-            &[
-                "be'a", "du'a", "vu'a", "ne'u", "ca'u", "ri'u", "zu'a", "ga'u", "ni'a", "ti'a",
-                "ru'u", "re'o", "te'e", "bu'u", "ne'a", "pa'o", "ne'i", "fa'a", "to'o", "zo'a",
-                "zo'i", "ze'o",
-            ],
-        )
-        .ignored(),
-        cmavo_of("CAhA", CAHA_WORDS).ignored(),
         cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
             .then(cmavo_of("CAhA", CAHA_WORDS))
             .ignored(),
@@ -6764,6 +6781,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
 
     choice((
         pu_before_nahe,
+        pu_distance_before_tag,
         caha_before_tag,
         leading_interval_property.map(|(tense_modal, _)| tense_modal),
         tense_modal(),
