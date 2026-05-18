@@ -324,12 +324,13 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let tagged_term_before_non_relation = tagged_term_start
         .then(relation.clone().rewind().not())
         .then(
-            argument
-                .clone()
-                .or(cmavo("ku").or_not().map(|maybe_ku| ArgumentSyntax::Zohe {
+            argument.clone().or(cmavo("ku")
+                .or_not()
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .map(|(maybe_ku, free_modifiers)| ArgumentSyntax::Zohe {
                     tag_words: Vec::new(),
                     maybe_ku,
-                    free_modifiers: Vec::new(),
+                    free_modifiers,
                 })),
         )
         .map(
@@ -6731,6 +6732,12 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
                 free_modifiers: Vec::new(),
             }
         });
+    let caha_before_tag = cmavo_of("CAhA", CAHA_WORDS)
+        .then(tense_modal().rewind())
+        .map(|(caha, _)| TenseModalSyntax::Caha {
+            word: caha,
+            free_modifiers: Vec::new(),
+        });
     let property_split_follower = choice((
         cmavo_of("PU", &["pu", "ca", "ba"]).ignored(),
         cmavo_of("ZI", &["zi", "za", "zu"]).ignored(),
@@ -6757,6 +6764,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
 
     choice((
         pu_before_nahe,
+        caha_before_tag,
         leading_interval_property.map(|(tense_modal, _)| tense_modal),
         tense_modal(),
     ))
