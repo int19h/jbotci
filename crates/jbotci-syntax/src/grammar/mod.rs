@@ -1,15 +1,12 @@
-use std::ops::Range;
-
 use bityzba::{data, invariant, new, requires};
 use chumsky::Boxed;
-use chumsky::error::{Rich, RichReason};
+use chumsky::error::Rich;
 use chumsky::input::MappedInput;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_morphology::{
-    Word, WordKind, WordLike, WordLikeData, WordWithModifiers, WordWithModifiersData,
+    WordKind, WordLike, WordLikeData, WordWithModifiers, WordWithModifiersData,
 };
-use jbotci_source::SourceSpan;
 
 use crate::{
     Connective, Fragment, FreeModifier, LojbanText, Paragraph, ParagraphStatement, ParseOptions,
@@ -18,6 +15,7 @@ use crate::{
 
 mod parser;
 mod render;
+mod tokens;
 
 type Span = SimpleSpan;
 type Token = WordWithModifiers;
@@ -26,53 +24,6 @@ type ParserInput<'tokens> = MappedInput<'tokens, Token, Span, &'tokens [SpannedT
 type ParseExtra<'tokens> = extra::Err<Rich<'tokens, Token, Span>>;
 type BoxedParser<'tokens, O> =
     Boxed<'tokens, 'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>>;
-
-const PA_WORDS: &[&str] = &[
-    "dau", "fei", "gai", "jau", "rei", "vai", "pi'e", "pi", "fi'u", "za'u", "me'i", "ni'u", "ki'o",
-    "ce'i", "ma'u", "ra'e", "da'a", "so'a", "ji'i", "su'o", "su'e", "ro", "rau", "so'u", "so'i",
-    "so'e", "so'o", "mo'a", "du'e", "te'o", "ka'o", "ci'i", "tu'o", "xo", "pai", "ro'oi", "su'oi",
-    "xo'e", "no'o", "no", "pa", "re", "ci", "vo", "mu", "xa", "ze", "bi", "so", "0", "1", "2", "3",
-    "4", "5", "6", "7", "8", "9",
-];
-const MOI_WORDS: &[&str] = &["moi", "mei", "si'e", "cu'o", "va'e", "cei'a"];
-const MAI_WORDS: &[&str] = &["mo'o", "mai"];
-const LAU_WORDS: &[&str] = &["lau", "tau", "zai", "ce'a"];
-const CAI_WORDS: &[&str] = &["pei", "cai", "cu'i", "sai", "ru'e"];
-const CAHA_WORDS: &[&str] = &["ca'a", "pu'i", "nu'o", "ka'e", "bi'ai"];
-const KOHA_WORDS: &[&str] = &[
-    "da'u", "da'e", "di'u", "di'e", "de'u", "de'e", "dei", "do'i", "mi'o", "ma'a", "mi'a", "do'o",
-    "ko'a", "fo'u", "ko'e", "ko'i", "ko'o", "ko'u", "fo'a", "fo'e", "fo'i", "fo'o", "vo'a", "vo'e",
-    "vo'i", "vo'o", "vo'u", "ru", "ri", "ra", "ta", "tu", "ti", "zi'o", "ke'a", "ma", "zu'i",
-    "zo'e", "ce'u", "mi'ai", "nau'o", "nau'u", "xai", "zu'ai", "da", "de", "di", "ko", "mi", "do",
-];
-const GOHA_WORDS: &[&str] = &[
-    "mo", "nei", "go'u", "go'o", "go'i", "no'a", "go'e", "go'a", "du", "bu'a", "bu'e", "bu'i",
-    "co'e",
-];
-const FA_WORDS: &[&str] = &["fa", "fe", "fi", "fo", "fu", "fai", "fi'a"];
-const UI_WORDS: &[&str] = &[
-    "i'a", "ie", "a'e", "u'i", "i'o", "i'e", "a'a", "ia", "o'i", "o'e", "e'e", "oi", "uo", "e'i",
-    "u'o", "au", "ua", "a'i", "i'u", "ii", "u'a", "ui", "a'o", "ai", "a'u", "iu", "ei", "o'o",
-    "e'a", "uu", "o'a", "o'u", "u'u", "e'o", "io", "e'u", "ue", "i'i", "u'e", "ba'a", "ja'o",
-    "ca'e", "su'a", "ti'e", "ka'u", "se'o", "za'a", "pe'i", "ru'a", "ju'a", "ta'o", "ra'u", "li'a",
-    "ba'u", "mu'a", "do'a", "to'u", "va'i", "pa'e", "zu'u", "sa'e", "la'a", "ke'u", "sa'u", "da'i",
-    "je'u", "sa'a", "kau", "ta'u", "na'i", "jo'a", "bi'u", "li'o", "pau", "mi'u", "ku'i", "ji'a",
-    "si'a", "po'o", "pe'a", "ro'i", "ro'e", "ro'o", "ro'u", "ro'a", "re'e", "le'o", "ju'o", "fu'i",
-    "dai", "ga'i", "zo'o", "be'u", "ri'e", "se'i", "se'a", "vu'e", "ki'a", "xu", "ge'e", "bu'o",
-    "ai'i", "e'ei", "fu'au", "ju'oi", "ko'oi", "oi'a", "si'au", "ue'i", "xo'o", "li'oi",
-];
-const VUHU_WORDS: &[&str] = &[
-    "ge'a", "fu'u", "pi'i", "fe'i", "vu'u", "su'i", "ju'u", "gei", "pa'i", "fa'i", "te'a", "cu'a",
-    "va'a", "ne'o", "de'o", "fe'a", "sa'o", "ri'o", "sa'i", "pi'a", "si'i", "joi'i",
-];
-const NU_WORDS: &[&str] = &[
-    "nu", "ni", "du'u", "si'o", "li'i", "ka", "jei", "su'u", "zu'o", "mu'e", "pu'u", "za'i",
-    "kai'u", "poi'i", "xe'ei",
-];
-const COI_WORDS: &[&str] = &[
-    "ju'i", "coi", "fi'i", "ta'a", "mu'o", "fe'o", "co'o", "pe'u", "ke'o", "nu'e", "re'i", "be'e",
-    "je'e", "mi'e", "ki'e", "vi'o", "co'oi", "di'ai", "ki'ai", "sa'ei", "a'oi", "o'ai",
-];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
