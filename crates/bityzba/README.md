@@ -6,6 +6,8 @@ ordinary support APIs such as the optional source scanner. It is an MPL-2.0
 fork of `contracts 0.6.7` with first-class expensive contracts and
 valid-by-construction type invariants.
 
+[bityzba](https://lojban.int19h.org/jbotci/vlacku/bityzba) is a word in the [Lojban](https://lojban.int19h.org/jbotci/cukta/section/section-what-is-lojban) language meaning "␣ ensures ␣ is true with means ␣". 
+
 ## Function And Trait Contracts
 
 Use cheap contracts for checks that should run in normal builds:
@@ -258,4 +260,6 @@ Diagnostics are intentionally worded for coding agents: they ask for the real
 contract to be reasoned through and describe `true` markers as a last resort,
 not as the default response. The scanner is syntactic and stable-Rust
 compatible; it does not inspect macro expansions and does not treat `cfg_attr`
+as a visible contract in v1.
+attr`
 as a visible contract in v1.
