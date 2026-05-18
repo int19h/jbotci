@@ -1193,9 +1193,7 @@ fn statement_parser<'tokens>(
             },
         );
 
-    let simple_statement_after_i_connective = choice((
-        predicate,
-        tuhe_statement,
+    let fragment_statement = choice((
         prenex_fragment,
         relation_fragment,
         multiple_na_fragment,
@@ -1209,6 +1207,8 @@ fn statement_parser<'tokens>(
         be_link_fragment,
     ))
     .boxed();
+
+    let simple_statement_after_i_connective = choice((predicate, tuhe_statement)).boxed();
 
     let simple_statement = choice((
         prenex_statement,
@@ -1402,12 +1402,16 @@ fn statement_parser<'tokens>(
         ),
     )));
 
-    let initial_statement = statement.clone().map(|statement| ParagraphStatementSyntax {
-        i: None,
-        connective: None,
-        free_modifiers: Vec::new(),
-        statement: Some(statement),
-    });
+    let paragraph_statement_body = choice((statement.clone(), fragment_statement.clone())).boxed();
+    let initial_statement =
+        paragraph_statement_body
+            .clone()
+            .map(|statement| ParagraphStatementSyntax {
+                i: None,
+                connective: None,
+                free_modifiers: Vec::new(),
+                statement: Some(statement),
+            });
 
     let i_connective_tag_bo = standard_statement_connective()
         .or_not()
@@ -1474,7 +1478,7 @@ fn statement_parser<'tokens>(
     let following_statement = cmavo("i")
         .then_ignore(statement_connective().rewind().not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(statement.clone().or_not())
+        .then(paragraph_statement_body.or_not())
         .map(
             |((i, free_modifiers), statement)| ParagraphStatementSyntax {
                 i: Some(i),
