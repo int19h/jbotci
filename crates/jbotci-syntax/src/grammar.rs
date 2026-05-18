@@ -4452,44 +4452,6 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn simple_vocative_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
-    let vocative_argument = choice((
-        koha_argument().map(|koha| ArgumentSyntax::Koha {
-            koha,
-            free_modifiers: Vec::new(),
-        }),
-        cmevla_word()
-            .repeated()
-            .at_least(1)
-            .collect::<Vec<_>>()
-            .map(|cmevla| ArgumentSyntax::Cmevla {
-                cmevla,
-                free_modifiers: Vec::new(),
-            }),
-        relation_word().map(|word| ArgumentSyntax::RelationVocative {
-            relation: RelationSyntax::Base { word },
-            leading_relative_clauses: Vec::new(),
-            trailing_relative_clauses: Vec::new(),
-        }),
-    ));
-
-    vocative_markers()
-        .then(vocative_argument.or_not())
-        .then(cmavo("do'u").or_not())
-        .map(
-            |((vocative_markers, argument), dohu)| FreeModifierSyntax::Vocative {
-                vocative_markers,
-                free_modifiers: Vec::new(),
-                argument,
-                dohu,
-                dohu_free_modifiers: Vec::new(),
-            },
-        )
-        .boxed()
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn xi_free<'tokens, F>(free_modifier: F) -> BoxedParser<'tokens, FreeModifierSyntax>
 where
     F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
@@ -4605,7 +4567,7 @@ where
     let cmevla_vocative = optional_relative_clauses
         .clone()
         .then(cmevla_word().repeated().at_least(1).collect::<Vec<_>>())
-        .then(simple_vocative_free().repeated().collect::<Vec<_>>())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(optional_relative_clauses)
         .map(
             |(((leading_relative_clauses, cmevla), free_modifiers), trailing_relative_clauses)| {
