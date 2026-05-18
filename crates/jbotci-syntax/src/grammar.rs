@@ -12,8 +12,8 @@ use jbotci_morphology::{
 use jbotci_source::SourceSpan;
 
 use crate::{
-    Fragment, LojbanText, Paragraph, ParagraphStatement, ParseOptions, Statement, SyntaxError,
-    SyntaxField, SyntaxParse, SyntaxValue,
+    Connective, Fragment, FreeModifier, LojbanText, Paragraph, ParagraphStatement, ParseOptions,
+    Statement, SyntaxError, SyntaxField, SyntaxParse, SyntaxValue,
 };
 
 type Span = SimpleSpan;
@@ -165,8 +165,16 @@ struct TextSyntax {
     leading_indicators: Vec<WordWithModifiers>,
     leading_free_modifiers: Vec<FreeModifierSyntax>,
     leading_connective: Option<ConnectiveSyntax>,
-    paragraph_niho: Vec<WordWithModifiers>,
-    paragraph_statements: Vec<ParagraphStatementSyntax>,
+    paragraphs: Vec<ParagraphSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct ParagraphSyntax {
+    i: Option<WordWithModifiers>,
+    niho: Vec<WordWithModifiers>,
+    free_modifiers: Vec<FreeModifierSyntax>,
+    statements: Vec<ParagraphStatementSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1211,32 +1219,76 @@ pub(crate) fn parse_text(
     options: &ParseOptions,
 ) -> Result<LojbanText, SyntaxError> {
     let text = parse_statement(words, None)?;
-    let statement_words = text
-        .paragraph_statements
+    let paragraphs = text
+        .paragraphs
         .into_iter()
-        .flat_map(ParagraphStatementSyntax::words)
+        .map(public_paragraph)
         .collect::<Vec<_>>();
-    let has_statement = !statement_words.is_empty();
-    let statement = Statement::fragment(Fragment::other(statement_words));
     let _ = options;
     Ok(new!(LojbanText {
         leading_nai: text.leading_nai,
         leading_cmevla: text.leading_cmevla,
         leading_indicators: text.leading_indicators,
-        leading_free_modifiers: Vec::new(),
-        leading_connective: None,
-        paragraphs: vec![new!(Paragraph {
-            i: None,
-            niho: Vec::new(),
-            free_modifiers: Vec::new(),
-            statements: vec![new!(ParagraphStatement {
-                i: None,
-                connective: None,
-                free_modifiers: Vec::new(),
-                statement: has_statement.then_some(statement),
-            })],
-        })],
+        leading_free_modifiers: text
+            .leading_free_modifiers
+            .into_iter()
+            .map(public_free_modifier)
+            .collect(),
+        leading_connective: text.leading_connective.map(public_connective),
+        paragraphs,
     }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn public_paragraph(paragraph: ParagraphSyntax) -> Paragraph {
+    new!(Paragraph {
+        i: paragraph.i,
+        niho: paragraph.niho,
+        free_modifiers: paragraph
+            .free_modifiers
+            .into_iter()
+            .map(public_free_modifier)
+            .collect(),
+        statements: paragraph
+            .statements
+            .into_iter()
+            .map(public_paragraph_statement)
+            .collect(),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn public_paragraph_statement(statement: ParagraphStatementSyntax) -> ParagraphStatement {
+    new!(ParagraphStatement {
+        i: statement.i,
+        connective: statement.connective.map(public_connective),
+        free_modifiers: statement
+            .free_modifiers
+            .into_iter()
+            .map(public_free_modifier)
+            .collect(),
+        statement: statement.statement.map(public_statement),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn public_statement(statement: StatementSyntax) -> Statement {
+    Statement::fragment(Fragment::other(statement.words()))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn public_free_modifier(free_modifier: FreeModifierSyntax) -> FreeModifier {
+    FreeModifier::words(free_modifier.words())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn public_connective(connective: ConnectiveSyntax) -> Connective {
+    Connective::words(connective.words())
 }
 
 impl StatementSyntax {
@@ -1343,8 +1395,23 @@ impl TextSyntax {
         if let Some(leading_connective) = self.leading_connective {
             words.extend(leading_connective.words());
         }
-        words.extend(self.paragraph_niho);
-        for paragraph_statement in self.paragraph_statements {
+        for paragraph in self.paragraphs {
+            words.extend(paragraph.words());
+        }
+        words
+    }
+}
+
+impl ParagraphSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = self.i.into_iter().collect::<Vec<_>>();
+        words.extend(self.niho);
+        for free_modifier in self.free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        for paragraph_statement in self.statements {
             words.extend(paragraph_statement.words());
         }
         words
@@ -4702,6 +4769,62 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             },
         );
 
+    let paragraph_without_niho = initial_statement
+        .clone()
+        .then(following_statement.clone().repeated().collect::<Vec<_>>())
+        .map(|(initial, following)| ParagraphSyntax {
+            i: None,
+            niho: Vec::new(),
+            free_modifiers: Vec::new(),
+            statements: std::iter::once(initial).chain(following).collect(),
+        });
+    let paragraph_starting_with_i = following_statement
+        .clone()
+        .then(following_statement.clone().repeated().collect::<Vec<_>>())
+        .map(|(initial, following)| ParagraphSyntax {
+            i: None,
+            niho: Vec::new(),
+            free_modifiers: Vec::new(),
+            statements: std::iter::once(initial).chain(following).collect(),
+        });
+    let paragraph = choice((paragraph_without_niho, paragraph_starting_with_i)).boxed();
+    let paragraph_with_niho = cmavo_of("NIhO", &["ni'o", "no'i"])
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(paragraph.clone().or_not())
+        .map(|((niho, free_modifiers), paragraph)| match paragraph {
+            Some(mut paragraph) => {
+                if paragraph.niho.is_empty() {
+                    paragraph.niho = niho;
+                }
+                if paragraph.free_modifiers.is_empty() {
+                    paragraph.free_modifiers = free_modifiers;
+                }
+                paragraph
+            }
+            None => ParagraphSyntax {
+                i: None,
+                niho,
+                free_modifiers,
+                statements: Vec::new(),
+            },
+        })
+        .boxed();
+    let paragraphs = choice((
+        paragraph
+            .clone()
+            .then(paragraph_with_niho.clone().repeated().collect::<Vec<_>>())
+            .map(|(first, rest)| std::iter::once(first).chain(rest).collect::<Vec<_>>()),
+        paragraph_with_niho
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>(),
+    ))
+    .or_not()
+    .map(Option::unwrap_or_default);
+
     let text_body = cmavo("nai")
         .repeated()
         .collect::<Vec<_>>()
@@ -4715,39 +4838,22 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 .ignore_then(statement_connective())
                 .or_not(),
         )
-        .then(
-            cmavo_of("NIhO", &["ni'o", "no'i"])
-                .repeated()
-                .collect::<Vec<_>>(),
-        )
-        .then(initial_statement.or_not())
-        .then(following_statement.repeated().collect::<Vec<_>>())
+        .then(paragraphs)
         .map(
             |(
                 (
-                    (
-                        (
-                            (
-                                ((leading_nai, leading_cmevla), leading_indicators),
-                                leading_free_modifiers,
-                            ),
-                            leading_connective,
-                        ),
-                        paragraph_niho,
-                    ),
-                    initial,
+                    (((leading_nai, leading_cmevla), leading_indicators), leading_free_modifiers),
+                    leading_connective,
                 ),
-                following,
+                paragraphs,
             )| {
-                let paragraph_statements = initial.into_iter().chain(following).collect::<Vec<_>>();
                 TextSyntax {
                     leading_nai,
                     leading_cmevla,
                     leading_indicators,
                     leading_free_modifiers,
                     leading_connective,
-                    paragraph_niho,
-                    paragraph_statements,
+                    paragraphs,
                 }
             },
         );
@@ -4838,8 +4944,7 @@ fn empty_text() -> TextSyntax {
         leading_indicators: Vec::new(),
         leading_free_modifiers: Vec::new(),
         leading_connective: None,
-        paragraph_niho: Vec::new(),
-        paragraph_statements: Vec::new(),
+        paragraphs: Vec::new(),
     }
 }
 
@@ -9873,30 +9978,42 @@ fn lojban_text_tree(text: TextSyntax) -> SyntaxValue {
 #[requires(true)]
 #[ensures(true)]
 fn paragraphs_tree(text: TextSyntax) -> SyntaxValue {
-    if text.paragraph_statements.is_empty() {
-        nil()
-    } else {
-        list(vec![node(
-            "Paragraph",
-            vec![
-                field("i", nothing()),
-                field(
-                    "niho",
-                    list(text.paragraph_niho.into_iter().map(word_value).collect()),
+    list(text.paragraphs.into_iter().map(paragraph_tree).collect())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn paragraph_tree(paragraph: ParagraphSyntax) -> SyntaxValue {
+    node(
+        "Paragraph",
+        vec![
+            field("i", maybe_word(paragraph.i)),
+            field(
+                "niho",
+                list(paragraph.niho.into_iter().map(word_value).collect()),
+            ),
+            field(
+                "freeModifiers",
+                list(
+                    paragraph
+                        .free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
                 ),
-                field("freeModifiers", nil()),
-                field(
-                    "statements",
-                    list(
-                        text.paragraph_statements
-                            .into_iter()
-                            .map(paragraph_statement_tree)
-                            .collect(),
-                    ),
+            ),
+            field(
+                "statements",
+                list(
+                    paragraph
+                        .statements
+                        .into_iter()
+                        .map(paragraph_statement_tree)
+                        .collect(),
                 ),
-            ],
-        )])
-    }
+            ),
+        ],
+    )
 }
 
 #[requires(true)]
