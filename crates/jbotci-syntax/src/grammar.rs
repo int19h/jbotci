@@ -305,7 +305,10 @@ enum TermSyntax {
     Argument(ArgumentSyntax),
     Fa {
         fa: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         argument: ArgumentSyntax,
+        ku: Option<WordWithModifiers>,
+        ku_free_modifiers: Vec<FreeModifierSyntax>,
     },
     NaKu {
         na: WordWithModifiers,
@@ -365,6 +368,7 @@ enum ArgumentSyntax {
     Zohe {
         tag_words: Vec<WordWithModifiers>,
         maybe_ku: Option<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Lahe {
         lahe: WordWithModifiers,
@@ -1431,9 +1435,22 @@ impl TermSyntax {
                 words
             }
             TermSyntax::Argument(argument) => argument.words(),
-            TermSyntax::Fa { fa, argument } => {
+            TermSyntax::Fa {
+                fa,
+                free_modifiers,
+                argument,
+                ku,
+                ku_free_modifiers,
+            } => {
                 let mut words = vec![fa];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(argument.words());
+                words.extend(ku);
+                for free_modifier in ku_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             TermSyntax::NaKu { na, na_ku } => vec![na, na_ku],
@@ -1661,7 +1678,14 @@ impl ArgumentSyntax {
             ArgumentSyntax::Zohe {
                 tag_words,
                 maybe_ku,
-            } => [tag_words, maybe_ku.into_iter().collect()].concat(),
+                free_modifiers,
+            } => {
+                let mut words = [tag_words, maybe_ku.into_iter().collect()].concat();
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             ArgumentSyntax::Lahe {
                 lahe,
                 relative_clauses,
@@ -2410,9 +2434,24 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     ));
 
     let argument_term = argument.clone().map(TermSyntax::Argument);
+    let elided_argument = cmavo("ku")
+        .or_not()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|(maybe_ku, free_modifiers)| ArgumentSyntax::Zohe {
+            tag_words: Vec::new(),
+            maybe_ku,
+            free_modifiers,
+        });
     let fa_term = cmavo_of("FA", FA_WORDS)
-        .then(argument.clone())
-        .map(|(fa, argument)| TermSyntax::Fa { fa, argument });
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(argument.clone().or(elided_argument))
+        .map(|((fa, free_modifiers), argument)| TermSyntax::Fa {
+            fa,
+            free_modifiers,
+            argument,
+            ku: None,
+            ku_free_modifiers: Vec::new(),
+        });
     let na_ku_term = na_cmavo()
         .then(cmavo("ku"))
         .map(|(na, na_ku)| TermSyntax::NaKu { na, na_ku });
@@ -2453,6 +2492,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 .or(cmavo("ku").or_not().map(|maybe_ku| ArgumentSyntax::Zohe {
                     tag_words: Vec::new(),
                     maybe_ku,
+                    free_modifiers: Vec::new(),
                 })),
         )
         .map(|((tense_modal, _), argument)| TermSyntax::Tagged {
@@ -3712,6 +3752,7 @@ where
     let zohe = cmavo("ku").map(|ku| ArgumentSyntax::Zohe {
         tag_words: Vec::new(),
         maybe_ku: Some(ku),
+        free_modifiers: Vec::new(),
     });
 
     let lahe = lahe_cmavo()
@@ -4082,6 +4123,7 @@ fn implicit_zohe_argument() -> ArgumentSyntax {
     ArgumentSyntax::Zohe {
         tag_words: Vec::new(),
         maybe_ku: None,
+        free_modifiers: Vec::new(),
     }
 }
 
@@ -8007,14 +8049,31 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
             "ArgumentTerm",
             vec![field("argument", argument_tree(argument))],
         ),
-        TermSyntax::Fa { fa, argument } => node(
+        TermSyntax::Fa {
+            fa,
+            free_modifiers,
+            argument,
+            ku,
+            ku_free_modifiers,
+        } => node(
             "FaTerm",
             vec![
                 field("fa", word_value(fa)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("argument", argument_tree(argument)),
-                field("ku", nothing()),
-                field("kuFreeModifiers", nil()),
+                field("ku", maybe_word(ku)),
+                field(
+                    "kuFreeModifiers",
+                    list(
+                        ku_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         TermSyntax::NaKu { na, na_ku } => node(
@@ -8179,6 +8238,7 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
         ArgumentSyntax::Zohe {
             tag_words,
             maybe_ku,
+            free_modifiers,
         } => node(
             "ZoheArgument",
             vec![
@@ -8187,7 +8247,10 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
                     list(tag_words.into_iter().map(word_value).collect()),
                 ),
                 field("maybeKu", maybe_word(maybe_ku)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         ArgumentSyntax::Lahe {
