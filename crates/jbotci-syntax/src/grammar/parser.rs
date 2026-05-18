@@ -6281,27 +6281,11 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         .boxed();
 
     atom.clone()
-        .then(
-            choice((
-                choice((joik_connective(), jek_connective()))
-                    .then(atom.clone())
-                    .map(|(connective, atom)| {
-                        let connective_cmavo = connective.cmavo.clone();
-                        let connective_leaves = connective_tense_modal_leaves(connective);
-                        (connective_leaves, connective_cmavo, atom)
-                    }),
-                atom.map(|atom| (Vec::new(), Vec::new(), atom)),
-            ))
-            .repeated()
-            .collect::<Vec<_>>(),
-        )
+        .then(atom.repeated().collect::<Vec<_>>())
         .map(|(first, continuations)| {
             let mut leaves = first.clone().leaf_words();
             let mut parts = vec![first];
-            let mut connectives = Vec::new();
-            for (connective_leaves, connective_cmavo, part) in continuations {
-                leaves.extend(connective_leaves);
-                connectives.extend(connective_cmavo);
+            for part in continuations {
                 leaves.extend(part.clone().leaf_words());
                 parts.push(part);
             }
@@ -6328,7 +6312,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                     ki,
                     cuhe,
                     fiho,
-                    connectives,
+                    connectives: Vec::new(),
                     free_modifiers: Vec::new(),
                 },
                 other => other,
@@ -6636,6 +6620,41 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
 #[requires(true)]
 #[ensures(true)]
 fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
+    let atom = tense_modal_atom();
+    atom.clone()
+        .then(
+            choice((joik_connective(), jek_connective()))
+                .then(atom)
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(first, continuations)| combine_connected_tense_modals(first, continuations))
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn combine_connected_tense_modals(
+    first: TenseModalSyntax,
+    continuations: Vec<(ConnectiveSyntax, TenseModalSyntax)>,
+) -> TenseModalSyntax {
+    if continuations.is_empty() {
+        return first;
+    }
+
+    let mut parts = vec![tense_modal_as_composite(first)];
+    for (connective, tense_modal) in continuations {
+        parts.push(connective_tense_modal_from_leaves(
+            connective_tense_modal_leaves(connective),
+        ));
+        parts.push(tense_modal_as_composite(tense_modal));
+    }
+    combine_composite_tense_modals(parts)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tense_modal_atom<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
     #[derive(Clone)]
     #[invariant(true)]
     enum PuTail {
@@ -6759,7 +6778,7 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
 #[requires(true)]
 #[ensures(true)]
 fn simple_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
-    let simple_atom = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+    cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
         .or_not()
         .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
         .then(cmavo_of("BAI", BAI_WORDS))
@@ -6774,46 +6793,6 @@ fn simple_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             connectives: Vec::new(),
             extra_leaves: Vec::new(),
             free_modifiers: Vec::new(),
-        });
-
-    simple_atom
-        .clone()
-        .then(
-            cmavo_of("JA", &["je'i", "ja", "je", "jo", "ju"])
-                .then(simple_atom)
-                .repeated()
-                .collect::<Vec<_>>(),
-        )
-        .map(|(first, continuations)| {
-            continuations
-                .into_iter()
-                .fold(first, |first, (connective, next)| {
-                    let TenseModalSyntax::Simple {
-                        nahe,
-                        se,
-                        bai,
-                        nai,
-                        ki,
-                        mut connectives,
-                        mut extra_leaves,
-                        free_modifiers,
-                    } = first
-                    else {
-                        return first;
-                    };
-                    connectives.push(connective);
-                    extra_leaves.extend(next.words());
-                    TenseModalSyntax::Simple {
-                        nahe,
-                        se,
-                        bai,
-                        nai,
-                        ki,
-                        connectives,
-                        extra_leaves,
-                        free_modifiers,
-                    }
-                })
         })
         .boxed()
 }

@@ -2,8 +2,8 @@ use bityzba::requires;
 use jbotci_morphology::WordWithModifiers;
 
 use super::ast::{
-    FreeModifierSyntax, IntervalTenseSyntax, SimpleTenseModalSyntax, SpaceTenseSyntax,
-    TenseModalSyntax, TimeTenseSyntax,
+    FihoModalSyntax, FreeModifierSyntax, IntervalTenseSyntax, SimpleTenseModalSyntax,
+    SpaceTenseSyntax, TenseModalSyntax, TimeTenseSyntax,
 };
 use super::tokens::{BAI_WORDS, CAHA_WORDS, FA_WORDS, ROI_WORDS, cmavo_text_matches};
 
@@ -150,6 +150,79 @@ pub(super) fn tense_modal_from_leaves(
         fiho: Vec::new(),
         connectives,
         free_modifiers,
+    }
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, TenseModalSyntax::Composite { .. }))]
+pub(super) fn tense_modal_as_composite(tense_modal: TenseModalSyntax) -> TenseModalSyntax {
+    match tense_modal {
+        composite @ TenseModalSyntax::Composite { .. } => composite,
+        TenseModalSyntax::Fiho {
+            fiho,
+            relation,
+            fehu,
+            free_modifiers,
+        } => TenseModalSyntax::Composite {
+            leaves: Vec::new(),
+            time: None,
+            space: None,
+            simple: None,
+            interval: None,
+            zaho: Vec::new(),
+            caha: None,
+            ki: None,
+            cuhe: None,
+            fiho: vec![FihoModalSyntax {
+                nahe: None,
+                fiho,
+                fiho_free_modifiers: Vec::new(),
+                relation: *relation,
+                fehu,
+                fehu_free_modifiers: Vec::new(),
+            }],
+            connectives: Vec::new(),
+            free_modifiers,
+        },
+        other => tense_modal_from_leaves(other.clone().leaf_words(), other.free_modifiers()),
+    }
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, TenseModalSyntax::Composite { .. }))]
+#[ensures(ret.clone().leaf_words() == old(leaves.clone()))]
+pub(super) fn connective_tense_modal_from_leaves(
+    leaves: Vec<WordWithModifiers>,
+) -> TenseModalSyntax {
+    let connectives = leaves
+        .iter()
+        .filter(|leaf| {
+            cmavo_matches_any(leaf, &["je'i", "ja", "je", "jo", "ju"])
+                || cmavo_matches_any(
+                    leaf,
+                    &[
+                        "ce", "ce'e", "ce'o", "fa'u", "jo'e", "jo'u", "joi", "ju'e", "ku'a",
+                        "pi'u", "bi'i", "bi'o", "mi'i",
+                    ],
+                )
+                || cmavo_matches_any(leaf, &["ga'o", "ke'i"])
+                || cmavo_matches_any(leaf, FA_WORDS)
+        })
+        .cloned()
+        .collect();
+    TenseModalSyntax::Composite {
+        leaves,
+        time: None,
+        space: None,
+        simple: None,
+        interval: None,
+        zaho: Vec::new(),
+        caha: None,
+        ki: None,
+        cuhe: None,
+        fiho: Vec::new(),
+        connectives,
+        free_modifiers: Vec::new(),
     }
 }
 
