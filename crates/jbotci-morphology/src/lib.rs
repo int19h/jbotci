@@ -402,6 +402,11 @@ pub enum MorphologyError {
         word: String,
         reason: String,
     },
+    #[error("unterminated ZOI quote, expected closing delimiter `{delimiter}`")]
+    UnterminatedZoiQuote {
+        char_offset: usize,
+        delimiter: String,
+    },
     #[error("invalid source span: {0}")]
     SourceSpan(#[from] SourceLocationError),
 }

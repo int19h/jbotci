@@ -309,14 +309,10 @@ impl<'a> Segmenter<'a> {
         let Some((quoted_end, closing_delimiter, close_start)) =
             self.find_zoi_close(&opening_delimiter)?
         else {
-            return Err(self.invalid_at(
-                quoted_start,
-                "",
-                &format!(
-                    "unterminated ZOI quote, expected closing delimiter `{}`",
-                    opening_delimiter.phonemes
-                ),
-            ));
+            return Err(MorphologyError::UnterminatedZoiQuote {
+                char_offset: quoted_start,
+                delimiter: opening_delimiter.phonemes.clone(),
+            });
         };
         self.index = close_start;
         let closing = self.next_plain_word()?;
@@ -424,6 +420,7 @@ impl<'a> Segmenter<'a> {
             }
             let replacement = match self.next_sa_base_segment() {
                 Ok(replacement) => replacement,
+                Err(error @ MorphologyError::UnterminatedZoiQuote { .. }) => return Err(error),
                 Err(_) => {
                     acc.clear();
                     self.index = self.chars.len();
