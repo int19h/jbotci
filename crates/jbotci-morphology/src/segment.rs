@@ -402,6 +402,9 @@ pub(crate) fn is_cmevla_with_options(normalized: &str, options: &MorphologyOptio
     chars.last().is_some_and(|last| is_consonant(*last))
         && chars.first().is_some_and(|first| *first != '\'')
         && !blocks_word_shape(&chars, options)
+        && !has_forbidden_consonant_triple(&chars)
+        && !has_forbidden_consonant_pair(&chars)
+        && !has_digit_followed_by_nucleus(&chars)
         && !has_vowel_hiatus(&chars)
         && chars.iter().all(|value| {
             is_consonant(*value)
@@ -442,6 +445,55 @@ fn has_geminated_consonant(chars: &[char]) -> bool {
     chars.iter().enumerate().any(|(index, value)| {
         is_consonant(*value)
             && next_non_comma_index(chars, index + 1).is_some_and(|next| chars[next] == *value)
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_forbidden_consonant_triple(chars: &[char]) -> bool {
+    consonant_runs(chars).iter().any(|run| {
+        run.windows(3)
+            .any(|triple| matches!(triple, ['n', 'd', 'j' | 'z'] | ['n', 't', 'c' | 's']))
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|run| run.iter().all(|value| is_consonant(*value))))]
+fn consonant_runs(chars: &[char]) -> Vec<Vec<char>> {
+    let mut runs = Vec::new();
+    let mut current = Vec::new();
+    for value in chars.iter().copied() {
+        if is_consonant(value) {
+            current.push(value);
+        } else if !current.is_empty() {
+            runs.push(std::mem::take(&mut current));
+        }
+    }
+    if !current.is_empty() {
+        runs.push(current);
+    }
+    runs
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_forbidden_consonant_pair(chars: &[char]) -> bool {
+    chars.iter().enumerate().any(|(index, value)| {
+        is_consonant(*value)
+            && next_non_comma_index(chars, index + 1).is_some_and(|next| {
+                is_consonant(chars[next])
+                    && !is_fast_permissible_consonant_pair(*value, chars[next])
+            })
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_digit_followed_by_nucleus(chars: &[char]) -> bool {
+    chars.iter().enumerate().any(|(index, value)| {
+        value.is_ascii_digit()
+            && next_non_comma_index(chars, index + 1)
+                .is_some_and(|next| starts_with_nucleus(chars, next))
     })
 }
 
