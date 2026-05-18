@@ -722,6 +722,7 @@ impl<'a> Segmenter<'a> {
                     self.options,
                 ))
                 .is_some()
+                    && self.cmavo_boundary_ok(prefix_end, end)
             })
     }
 
