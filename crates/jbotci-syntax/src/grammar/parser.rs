@@ -3638,8 +3638,38 @@ fn goi_relative_clause<'tokens, A>(
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
+    let tense_elided_argument = tense_modal()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(cmavo("ku").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(((tense_modal, mut free_modifiers), maybe_ku), trailing_free_modifiers)| {
+                free_modifiers.extend(trailing_free_modifiers);
+                ArgumentSyntax::Zohe {
+                    tag_words: tense_modal.words(),
+                    maybe_ku,
+                    free_modifiers,
+                }
+            },
+        );
+    let fa_elided_argument = cmavo_of("FA", FA_WORDS)
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(cmavo("ku").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(((fa, mut free_modifiers), maybe_ku), trailing_free_modifiers)| {
+                free_modifiers.extend(trailing_free_modifiers);
+                ArgumentSyntax::Zohe {
+                    tag_words: vec![fa],
+                    maybe_ku,
+                    free_modifiers,
+                }
+            },
+        );
     let argument_base = argument
         .clone()
+        .or(tense_elided_argument)
+        .or(fa_elided_argument)
         .or(na_ku_argument_parser(free_modifier.clone()))
         .boxed();
 
@@ -4759,6 +4789,11 @@ where
         choice((
             se_inner_unit,
             nahe_inner_unit,
+            me_unit.clone(),
+            mehoi_unit.clone(),
+            gohoi_unit.clone(),
+            muhoi_unit.clone(),
+            luhei_unit.clone(),
             ke_unit.clone(),
             moi_unit.clone(),
             nuha_unit.clone(),
@@ -5427,6 +5462,11 @@ where
             choice((
                 se_inner_unit,
                 nahe_inner_unit,
+                me_unit.clone(),
+                mehoi_unit.clone(),
+                gohoi_unit.clone(),
+                muhoi_unit.clone(),
+                luhei_unit.clone(),
                 ke_unit.clone(),
                 moi_unit.clone(),
                 nuha_unit.clone(),
