@@ -857,12 +857,17 @@ enum RelationUnitSyntax {
     },
     Me {
         me: WordWithModifiers,
+        me_free_modifiers: Vec<FreeModifierSyntax>,
         argument: ArgumentSyntax,
         mehu: Option<WordWithModifiers>,
+        mehu_free_modifiers: Vec<FreeModifierSyntax>,
+        moi_marker: Option<WordWithModifiers>,
+        moi_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Moi {
         number: Vec<WordWithModifiers>,
         moi: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Nuha {
         nuha: WordWithModifiers,
@@ -2201,15 +2206,40 @@ impl RelationUnitSyntax {
                 words
             }
             RelationUnitSyntax::Abstraction { abstraction } => abstraction.words(),
-            RelationUnitSyntax::Me { me, argument, mehu } => {
+            RelationUnitSyntax::Me {
+                me,
+                me_free_modifiers,
+                argument,
+                mehu,
+                mehu_free_modifiers,
+                moi_marker,
+                moi_free_modifiers,
+            } => {
                 let mut words = vec![me];
+                for free_modifier in me_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(argument.words());
                 words.extend(mehu);
+                for free_modifier in mehu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(moi_marker);
+                for free_modifier in moi_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
-            RelationUnitSyntax::Moi { number, moi } => {
+            RelationUnitSyntax::Moi {
+                number,
+                moi,
+                free_modifiers,
+            } => {
                 let mut words = number;
                 words.push(moi);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             RelationUnitSyntax::Nuha {
@@ -5101,9 +5131,26 @@ where
         + 'tokens,
 {
     let me_unit = cmavo("me")
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(argument.clone())
         .then(cmavo("me'u").or_not())
-        .map(|((me, argument), mehu)| RelationUnitSyntax::Me { me, argument, mehu });
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(cmavo_of("MOI", MOI_WORDS).or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(
+                (((((me, me_free_modifiers), argument), mehu), mehu_free_modifiers), moi_marker),
+                moi_free_modifiers,
+            )| RelationUnitSyntax::Me {
+                me,
+                me_free_modifiers,
+                argument,
+                mehu,
+                mehu_free_modifiers,
+                moi_marker,
+                moi_free_modifiers,
+            },
+        );
 
     let brivla_word_unit = brivla_relation_word()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -5144,7 +5191,12 @@ where
         });
     let moi_unit = number_or_letter_words()
         .then(cmavo_of("MOI", MOI_WORDS))
-        .map(|(number, moi)| RelationUnitSyntax::Moi { number, moi });
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|((number, moi), free_modifiers)| RelationUnitSyntax::Moi {
+            number,
+            moi,
+            free_modifiers,
+        });
     let nuha_unit = cmavo("nu'a")
         .then(math_operator())
         .map(|(nuha, math_operator)| RelationUnitSyntax::Nuha {
@@ -5480,9 +5532,29 @@ where
 {
     recursive(|inner_relation| {
         let me_unit = cmavo("me")
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(argument.clone())
             .then(cmavo("me'u").or_not())
-            .map(|((me, argument), mehu)| RelationUnitSyntax::Me { me, argument, mehu });
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(cmavo_of("MOI", MOI_WORDS).or_not())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(
+                |(
+                    (
+                        ((((me, me_free_modifiers), argument), mehu), mehu_free_modifiers),
+                        moi_marker,
+                    ),
+                    moi_free_modifiers,
+                )| RelationUnitSyntax::Me {
+                    me,
+                    me_free_modifiers,
+                    argument,
+                    mehu,
+                    mehu_free_modifiers,
+                    moi_marker,
+                    moi_free_modifiers,
+                },
+            );
         let brivla_word_unit = brivla_relation_word()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(|(word, free_modifiers)| RelationUnitSyntax::Word {
@@ -5522,7 +5594,12 @@ where
             });
         let moi_unit = number_or_letter_words()
             .then(cmavo_of("MOI", MOI_WORDS))
-            .map(|(number, moi)| RelationUnitSyntax::Moi { number, moi });
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|((number, moi), free_modifiers)| RelationUnitSyntax::Moi {
+                number,
+                moi,
+                free_modifiers,
+            });
         let nuha_unit = cmavo("nu'a")
             .then(math_operator())
             .map(|(nuha, math_operator)| RelationUnitSyntax::Nuha {
@@ -9637,24 +9714,63 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
             "AbstractionRelationUnit",
             vec![field("abstraction", abstraction_tree(abstraction))],
         ),
-        RelationUnitSyntax::Me { me, argument, mehu } => node(
+        RelationUnitSyntax::Me {
+            me,
+            me_free_modifiers,
+            argument,
+            mehu,
+            mehu_free_modifiers,
+            moi_marker,
+            moi_free_modifiers,
+        } => node(
             "MeRelationUnit",
             vec![
                 field("me", word_value(me)),
-                field("meFreeModifiers", nil()),
+                field(
+                    "meFreeModifiers",
+                    list(
+                        me_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field("argument", argument_tree(argument)),
                 field("mehu", maybe_word(mehu)),
-                field("mehuFreeModifiers", nil()),
-                field("moiMarker", nothing()),
-                field("moiFreeModifiers", nil()),
+                field(
+                    "mehuFreeModifiers",
+                    list(
+                        mehu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field("moiMarker", maybe_word(moi_marker)),
+                field(
+                    "moiFreeModifiers",
+                    list(
+                        moi_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
-        RelationUnitSyntax::Moi { number, moi } => node(
+        RelationUnitSyntax::Moi {
+            number,
+            moi,
+            free_modifiers,
+        } => node(
             "MoiRelationUnit",
             vec![
                 field("number", nonempty_number_words(number)),
                 field("moi", word_value(moi)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         RelationUnitSyntax::Nuha {
