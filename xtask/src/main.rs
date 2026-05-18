@@ -647,8 +647,11 @@ fn syntax_difference(
         (data!(SyntaxValue::Node { node: left }), data!(SyntaxValue::Node { node: right })) => {
             if left.constructor != right.constructor {
                 return Some(format!(
-                    "expected constructor `{}`, got `{}`",
-                    left.constructor, right.constructor
+                    "expected constructor `{}`, got `{}`; expected preview [{}], actual preview [{}]",
+                    left.constructor,
+                    right.constructor,
+                    syntax_value_preview(expected),
+                    syntax_value_preview(actual)
                 ));
             }
             if left.fields.len() != right.fields.len() {
@@ -698,9 +701,11 @@ fn compare_syntax_slices(
 ) -> Option<String> {
     if expected.len() != actual.len() {
         return Some(format!(
-            "expected {} item(s), got {}",
+            "expected {} item(s), got {}; expected preview [{}], actual preview [{}]",
             expected.len(),
-            actual.len()
+            actual.len(),
+            syntax_values_preview(expected),
+            syntax_values_preview(actual)
         ));
     }
     for (index, (left, right)) in expected.iter().zip(actual.iter()).enumerate() {
@@ -712,6 +717,87 @@ fn compare_syntax_slices(
         path.pop();
     }
     None
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= 240)]
+fn syntax_values_preview(values: &[SyntaxValue]) -> String {
+    const PREVIEW_LIMIT: usize = 240;
+    let mut preview = values
+        .iter()
+        .take(3)
+        .map(syntax_value_preview)
+        .collect::<Vec<_>>()
+        .join(", ");
+    if values.len() > 3 {
+        preview.push_str(", ...");
+    }
+    if preview.len() > PREVIEW_LIMIT {
+        preview.truncate(PREVIEW_LIMIT);
+    }
+    preview
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn syntax_value_preview(value: &SyntaxValue) -> String {
+    match value.as_data() {
+        data!(SyntaxValue::Null) => "null".to_owned(),
+        data!(SyntaxValue::Bool { value }) => value.to_string(),
+        data!(SyntaxValue::Integer { value }) => value.to_string(),
+        data!(SyntaxValue::Text { value }) => format!("{value:?}"),
+        data!(SyntaxValue::Json { .. }) => "json".to_owned(),
+        data!(SyntaxValue::Word { word }) => word.to_string(),
+        data!(SyntaxValue::List { items }) => {
+            format!("list({}: {})", items.len(), syntax_values_preview(items))
+        }
+        data!(SyntaxValue::Node { node }) => {
+            let words = syntax_node_word_preview(node);
+            if words.is_empty() {
+                node.constructor.clone()
+            } else {
+                format!("{}({words})", node.constructor)
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_node_word_preview(node: &jbotci_syntax::SyntaxNode) -> String {
+    let mut words = Vec::new();
+    collect_syntax_words_from_node(node, &mut words);
+    words.truncate(5);
+    words.join(" ")
+}
+
+#[requires(true)]
+#[ensures(words.len() >= old(words.len()))]
+fn collect_syntax_words_from_node(node: &jbotci_syntax::SyntaxNode, words: &mut Vec<String>) {
+    for field in &node.fields {
+        collect_syntax_words(&field.value, words);
+        if words.len() >= 5 {
+            return;
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(words.len() >= old(words.len()))]
+fn collect_syntax_words(value: &SyntaxValue, words: &mut Vec<String>) {
+    match value.as_data() {
+        data!(SyntaxValue::Word { word }) => words.push(word.to_string()),
+        data!(SyntaxValue::List { items }) => {
+            for item in items {
+                collect_syntax_words(item, words);
+                if words.len() >= 5 {
+                    return;
+                }
+            }
+        }
+        data!(SyntaxValue::Node { node }) => collect_syntax_words_from_node(node, words),
+        _ => {}
+    }
 }
 
 #[ensures(!ret.is_empty())]
