@@ -2860,16 +2860,6 @@ where
             },
         )
         .boxed();
-    let na_ku_argument = na_cmavo()
-        .then(cmavo("ku"))
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|((na, ku), free_modifiers)| ArgumentSyntax::NaKu {
-            na,
-            ku,
-            free_modifiers,
-        })
-        .boxed();
-
     let quoted_or_simple_argument_core = choice((
         quote,
         math_expression,
@@ -2887,7 +2877,6 @@ where
         nahe_bo_term_wrapper,
         nahe_argument,
         nahe_term_wrapper,
-        na_ku_argument,
     ))
     .boxed();
     let descriptor_argument_core = choice((
@@ -3616,9 +3605,14 @@ fn goi_relative_clause<'tokens, A>(
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
+    let argument_base = argument
+        .clone()
+        .or(na_ku_argument_parser(free_modifier.clone()))
+        .boxed();
+
     cmavo_of("GOI", &["pe", "ne", "po", "po'e", "po'u", "no'u", "goi"])
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(argument)
+        .then(argument_base)
         .then(cmavo("ge'u").or_not())
         .then(free_modifier.repeated().collect::<Vec<_>>())
         .map(
@@ -3632,6 +3626,25 @@ where
                 }
             },
         )
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn na_ku_argument_parser<'tokens, F>(free_modifier: F) -> BoxedParser<'tokens, ArgumentSyntax>
+where
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
+    na_cmavo()
+        .then(cmavo("ku"))
+        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .map(|((na, ku), free_modifiers)| ArgumentSyntax::NaKu {
+            na,
+            ku,
+            free_modifiers,
+        })
         .boxed()
 }
 
@@ -6799,7 +6812,11 @@ where
         + Clone
         + 'tokens,
 {
-    let fa_tail = argument
+    let argument_base = argument
+        .clone()
+        .or(na_ku_argument_parser(free_modifier.clone()))
+        .boxed();
+    let fa_tail = argument_base
         .clone()
         .map(|argument| (Some(argument), None, Vec::new()))
         .or(cmavo("ku")
@@ -6831,7 +6848,7 @@ where
                 }
             },
         );
-    let plain_argument = argument.map(|argument| {
+    let plain_argument = argument_base.map(|argument| {
         new!(LinkArgumentSyntax {
             fa: None,
             fa_free_modifiers: Vec::new(),
