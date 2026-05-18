@@ -878,9 +878,19 @@ fn statement_parser<'tokens>(
                 .boxed();
             predicate_tail1
                 .then(ke_continuation.or_not())
-                .map(|(first, ke_continuation)| PredicateTailSyntax {
-                    first,
-                    ke_continuation,
+                .try_map(|(first, ke_continuation), span| {
+                    if ke_continuation.as_ref().is_some_and(|ke_continuation| {
+                        !predicate_tail_ke_continuation_allowed(&first, ke_continuation)
+                    }) {
+                        return Err(Rich::custom(
+                            span,
+                            "predicate-tail KE continuation conflicts with trailing argument connection",
+                        ));
+                    }
+                    Ok(PredicateTailSyntax {
+                        first,
+                        ke_continuation,
+                    })
                 })
         });
         let predicate_with_leading_terms = term
@@ -1832,6 +1842,70 @@ fn connective_has_bo(connective: &ConnectiveSyntax) -> bool {
         .cmavo
         .iter()
         .any(|word| cmavo_text_matches(word, "bo"))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_tail_ke_continuation_allowed(
+    first: &PredicateTail1Syntax,
+    ke_continuation: &KePredicateTailSyntax,
+) -> bool {
+    !predicate_tail1_has_tail_terms(first) || connective_is_gihek(&ke_continuation.connective)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_tail1_has_tail_terms(predicate_tail: &PredicateTail1Syntax) -> bool {
+    predicate_tail2_has_tail_terms(&predicate_tail.first)
+        || predicate_tail.continuations.iter().any(|continuation| {
+            !continuation.tail_terms.is_empty()
+                || predicate_tail2_has_tail_terms(&continuation.predicate_tail)
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_tail2_has_tail_terms(predicate_tail: &PredicateTail2Syntax) -> bool {
+    predicate_tail3_has_tail_terms(&predicate_tail.first)
+        || predicate_tail
+            .bo_continuation
+            .as_ref()
+            .is_some_and(|continuation| {
+                !continuation.tail_terms.is_empty()
+                    || predicate_tail2_has_tail_terms(&continuation.predicate_tail)
+            })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_tail3_has_tail_terms(predicate_tail: &PredicateTail3Syntax) -> bool {
+    match predicate_tail {
+        PredicateTail3Syntax::Relation { terms, .. } => !terms.is_empty(),
+        PredicateTail3Syntax::GekSentence { gek_sentence } => {
+            gek_sentence_has_tail_terms(gek_sentence)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gek_sentence_has_tail_terms(gek_sentence: &GekSentenceSyntax) -> bool {
+    match gek_sentence {
+        GekSentenceSyntax::Pair { tail_terms, .. } => !tail_terms.is_empty(),
+        GekSentenceSyntax::Ke { inner, .. } | GekSentenceSyntax::Na { inner, .. } => {
+            gek_sentence_has_tail_terms(inner)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connective_is_gihek(connective: &ConnectiveSyntax) -> bool {
+    connective.cmavo.iter().any(|word| {
+        ["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"]
+            .iter()
+            .any(|text| cmavo_text_matches(word, text))
+    })
 }
 
 #[requires(true)]
