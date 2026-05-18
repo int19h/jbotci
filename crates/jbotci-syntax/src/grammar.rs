@@ -375,8 +375,10 @@ enum ArgumentSyntax {
     },
     MathExpression {
         li: WordWithModifiers,
+        li_free_modifiers: Vec<FreeModifierSyntax>,
         expression: MathExpressionSyntax,
         loho: Option<WordWithModifiers>,
+        loho_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Letter {
         letter: Vec<WordWithModifiers>,
@@ -390,19 +392,23 @@ enum ArgumentSyntax {
     RelativeClause {
         base_argument: Box<ArgumentSyntax>,
         vuho: Option<WordWithModifiers>,
+        vuho_free_modifiers: Vec<FreeModifierSyntax>,
         relative_clauses: Vec<RelativeClauseSyntax>,
     },
     Tagged {
         tag_words: Vec<WordWithModifiers>,
         tag_tense_modal: Option<TenseModalSyntax>,
         tag_fa: Option<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
         inner_argument: Box<ArgumentSyntax>,
     },
     NaheBo {
         nahe: WordWithModifiers,
         bo: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         inner_argument: Box<ArgumentSyntax>,
         luhu: Option<WordWithModifiers>,
+        luhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Koha {
         koha: WordWithModifiers,
@@ -415,9 +421,11 @@ enum ArgumentSyntax {
     },
     Lahe {
         lahe: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         relative_clauses: Vec<RelativeClauseSyntax>,
         inner_argument: Box<ArgumentSyntax>,
         luhu: Option<WordWithModifiers>,
+        luhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Connected {
         leading_argument: Box<ArgumentSyntax>,
@@ -426,14 +434,17 @@ enum ArgumentSyntax {
     },
     Ke {
         ke: WordWithModifiers,
+        ke_free_modifiers: Vec<FreeModifierSyntax>,
         inner_argument: Box<ArgumentSyntax>,
         kehe: Option<WordWithModifiers>,
+        kehe_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Bo {
         leading_argument: Box<ArgumentSyntax>,
         bo_connective: Option<ConnectiveSyntax>,
         bo_tense_modal: Option<TenseModalSyntax>,
         bo: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         trailing_argument: Box<ArgumentSyntax>,
     },
     Gek {
@@ -447,7 +458,9 @@ enum ArgumentSyntax {
     },
     Name {
         la: WordWithModifiers,
+        la_free_modifiers: Vec<FreeModifierSyntax>,
         names: Vec<WordWithModifiers>,
+        name_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Cmevla {
         cmevla: Vec<WordWithModifiers>,
@@ -1890,9 +1903,22 @@ impl ArgumentSyntax {
             ArgumentSyntax::Quote { quote } => quote.words(),
             ArgumentSyntax::MathExpression {
                 li,
+                li_free_modifiers,
                 expression,
                 loho,
-            } => [vec![li], expression.words(), loho.into_iter().collect()].concat(),
+                loho_free_modifiers,
+            } => {
+                let mut words = vec![li];
+                for free_modifier in li_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(expression.words());
+                words.extend(loho);
+                for free_modifier in loho_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             ArgumentSyntax::Letter {
                 letter,
                 boi,
@@ -1916,10 +1942,14 @@ impl ArgumentSyntax {
             ArgumentSyntax::RelativeClause {
                 base_argument,
                 vuho,
+                vuho_free_modifiers,
                 relative_clauses,
             } => {
                 let mut words = base_argument.words();
                 words.extend(vuho);
+                for free_modifier in vuho_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 for relative_clause in relative_clauses {
                     words.extend(relative_clause.words());
                 }
@@ -1927,22 +1957,34 @@ impl ArgumentSyntax {
             }
             ArgumentSyntax::Tagged {
                 tag_words,
+                free_modifiers,
                 inner_argument,
                 ..
             } => {
                 let mut words = tag_words;
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner_argument.words());
                 words
             }
             ArgumentSyntax::NaheBo {
                 nahe,
                 bo,
+                free_modifiers,
                 inner_argument,
                 luhu,
+                luhu_free_modifiers,
             } => {
                 let mut words = vec![nahe, bo];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner_argument.words());
                 words.extend(luhu);
+                for free_modifier in luhu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             ArgumentSyntax::Koha {
@@ -1968,16 +2010,24 @@ impl ArgumentSyntax {
             }
             ArgumentSyntax::Lahe {
                 lahe,
+                free_modifiers,
                 relative_clauses,
                 inner_argument,
                 luhu,
+                luhu_free_modifiers,
             } => {
                 let mut words = vec![lahe];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 for relative_clause in relative_clauses {
                     words.extend(relative_clause.words());
                 }
                 words.extend(inner_argument.words());
                 words.extend(luhu);
+                for free_modifier in luhu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             ArgumentSyntax::Connected {
@@ -1992,12 +2042,20 @@ impl ArgumentSyntax {
             }
             ArgumentSyntax::Ke {
                 ke,
+                ke_free_modifiers,
                 inner_argument,
                 kehe,
+                kehe_free_modifiers,
             } => {
                 let mut words = vec![ke];
+                for free_modifier in ke_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner_argument.words());
                 words.extend(kehe);
+                for free_modifier in kehe_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             ArgumentSyntax::Bo {
@@ -2005,6 +2063,7 @@ impl ArgumentSyntax {
                 bo_connective,
                 bo_tense_modal,
                 bo,
+                free_modifiers,
                 trailing_argument,
             } => {
                 let mut words = leading_argument.words();
@@ -2015,6 +2074,9 @@ impl ArgumentSyntax {
                     words.extend(tense_modal.words());
                 }
                 words.push(bo);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(trailing_argument.words());
                 words
             }
@@ -2031,7 +2093,22 @@ impl ArgumentSyntax {
                 words
             }
             ArgumentSyntax::Descriptor { descriptor } => descriptor.words(),
-            ArgumentSyntax::Name { la, names } => [vec![la], names].concat(),
+            ArgumentSyntax::Name {
+                la,
+                la_free_modifiers,
+                names,
+                name_free_modifiers,
+            } => {
+                let mut words = vec![la];
+                for free_modifier in la_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(names);
+                for free_modifier in name_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             ArgumentSyntax::Cmevla {
                 cmevla,
                 free_modifiers,
@@ -4681,16 +4758,24 @@ where
     let quote = quote_argument(source, text, free_modifier.clone());
 
     let math_expression = cmavo_of("LI", &["li", "me'o"])
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(math_expression_body_with_context(
             argument.clone(),
             relation.clone(),
         ))
         .then(cmavo("lo'o").or_not())
-        .map(|((li, expression), loho)| ArgumentSyntax::MathExpression {
-            li,
-            expression,
-            loho,
-        });
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |((((li, li_free_modifiers), expression), loho), loho_free_modifiers)| {
+                ArgumentSyntax::MathExpression {
+                    li,
+                    li_free_modifiers,
+                    expression,
+                    loho,
+                    loho_free_modifiers,
+                }
+            },
+        );
 
     let letter = letter_string()
         .then(cmavo("boi").or_not())
@@ -4710,6 +4795,7 @@ where
             free_modifiers,
         });
     let lahe = lahe_cmavo()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(
             relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone())
                 .or_not()
@@ -4717,18 +4803,33 @@ where
         )
         .then(argument.clone())
         .then(cmavo("lu'u").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(
-            |(((lahe, relative_clauses), inner_argument), luhu)| ArgumentSyntax::Lahe {
+            |(
+                ((((lahe, free_modifiers), relative_clauses), inner_argument), luhu),
+                luhu_free_modifiers,
+            )| ArgumentSyntax::Lahe {
                 lahe,
+                free_modifiers,
                 relative_clauses,
                 inner_argument: Box::new(inner_argument),
                 luhu,
+                luhu_free_modifiers,
             },
         );
 
     let name = la_cmavo()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(cmevla_word().repeated().at_least(1).collect::<Vec<_>>())
-        .map(|(la, names)| ArgumentSyntax::Name { la, names });
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(((la, la_free_modifiers), names), name_free_modifiers)| ArgumentSyntax::Name {
+                la,
+                la_free_modifiers,
+                names,
+                name_free_modifiers,
+            },
+        );
 
     let tail_argument = pa_word()
         .rewind()
@@ -4738,6 +4839,7 @@ where
             ArgumentSyntax::RelativeClause {
                 base_argument,
                 vuho: _,
+                vuho_free_modifiers: _,
                 relative_clauses,
             } => vec![
                 ArgumentTailElementSyntax::Argument(base_argument),
@@ -4865,37 +4967,47 @@ where
             },
         );
 
-    let tense_tagged_argument =
-        tense_modal()
-            .then(argument.clone())
-            .map(|(tense_modal, inner_argument)| {
-                let tag_words = tense_modal.clone().words();
-                ArgumentSyntax::Tagged {
-                    tag_words,
-                    tag_tense_modal: Some(tense_modal),
-                    tag_fa: None,
-                    inner_argument: Box::new(inner_argument),
-                }
-            });
-    let fa_tagged_argument =
-        cmavo_of("FA", FA_WORDS)
-            .then(argument.clone())
-            .map(|(fa, inner_argument)| ArgumentSyntax::Tagged {
+    let tense_tagged_argument = tense_modal()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(argument.clone())
+        .map(|((tense_modal, free_modifiers), inner_argument)| {
+            let tag_words = tense_modal.clone().words();
+            ArgumentSyntax::Tagged {
+                tag_words,
+                tag_tense_modal: Some(tense_modal),
+                tag_fa: None,
+                free_modifiers,
+                inner_argument: Box::new(inner_argument),
+            }
+        });
+    let fa_tagged_argument = cmavo_of("FA", FA_WORDS)
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(argument.clone())
+        .map(
+            |((fa, free_modifiers), inner_argument)| ArgumentSyntax::Tagged {
                 tag_words: vec![fa.clone()],
                 tag_tense_modal: None,
                 tag_fa: Some(fa),
+                free_modifiers,
                 inner_argument: Box::new(inner_argument),
-            });
+            },
+        );
     let nahe_bo_argument = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
         .then(cmavo("bo"))
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(argument.clone())
         .then(cmavo("lu'u").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(
-            |(((nahe, bo), inner_argument), luhu)| ArgumentSyntax::NaheBo {
-                nahe,
-                bo,
-                inner_argument: Box::new(inner_argument),
-                luhu,
+            |(((((nahe, bo), free_modifiers), inner_argument), luhu), luhu_free_modifiers)| {
+                ArgumentSyntax::NaheBo {
+                    nahe,
+                    bo,
+                    free_modifiers,
+                    inner_argument: Box::new(inner_argument),
+                    luhu,
+                    luhu_free_modifiers,
+                }
             },
         );
 
@@ -4927,6 +5039,7 @@ where
                 ArgumentSyntax::RelativeClause {
                     base_argument: Box::new(base_argument),
                     vuho: None,
+                    vuho_free_modifiers: Vec::new(),
                     relative_clauses,
                 }
             }
@@ -4945,6 +5058,7 @@ where
                 ArgumentSyntax::RelativeClause {
                     base_argument: Box::new(quantified),
                     vuho: None,
+                    vuho_free_modifiers: Vec::new(),
                     relative_clauses,
                 }
             }
@@ -4974,18 +5088,23 @@ where
                 argument_connective()
                     .then(tense_modal().or_not())
                     .then(cmavo("bo"))
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                     .then(argument3)
                     .or_not(),
             )
             .map(|(leading_argument, bo_tail)| {
                 bo_tail.map_or(
                     leading_argument.clone(),
-                    |(((bo_connective, bo_tense_modal), bo), trailing_argument)| {
+                    |(
+                        (((bo_connective, bo_tense_modal), bo), free_modifiers),
+                        trailing_argument,
+                    )| {
                         ArgumentSyntax::Bo {
                             leading_argument: Box::new(leading_argument),
                             bo_connective: Some(bo_connective),
                             bo_tense_modal,
                             bo,
+                            free_modifiers,
                             trailing_argument: Box::new(trailing_argument),
                         }
                     },
@@ -5019,14 +5138,19 @@ where
             argument_connective()
                 .then(tense_modal().or_not())
                 .then(cmavo("ke"))
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .then(argument.clone())
                 .then(cmavo("ke'e").or_not())
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .or_not(),
         )
         .map(|(leading_argument, ke_tail)| {
             ke_tail.map_or(
                 leading_argument.clone(),
-                |((((connective, tense_modal), ke), inner_argument), kehe)| {
+                |(
+                    (((((connective, tense_modal), ke), ke_free_modifiers), inner_argument), kehe),
+                    kehe_free_modifiers,
+                )| {
                     let connective = tense_modal.map_or(connective.clone(), |tense_modal| {
                         append_connective_words(connective, tense_modal.words())
                     });
@@ -5035,8 +5159,10 @@ where
                         connective,
                         trailing_argument: Box::new(ArgumentSyntax::Ke {
                             ke,
+                            ke_free_modifiers,
                             inner_argument: Box::new(inner_argument),
                             kehe,
+                            kehe_free_modifiers,
                         }),
                     }
                 },
@@ -5047,6 +5173,7 @@ where
     argument1
         .then(
             cmavo("vu'o")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .then(
                     relative_clauses(argument, subsentence, free_modifier.clone())
                         .or_not()
@@ -5055,13 +5182,14 @@ where
                 .or_not(),
         )
         .map(|(base_argument, vuho_attachment)| {
-            if let Some((vuho, relative_clauses)) = vuho_attachment {
+            if let Some(((vuho, vuho_free_modifiers), relative_clauses)) = vuho_attachment {
                 if relative_clauses.is_empty() {
                     base_argument
                 } else {
                     ArgumentSyntax::RelativeClause {
                         base_argument: Box::new(base_argument),
                         vuho: Some(vuho),
+                        vuho_free_modifiers,
                         relative_clauses,
                     }
                 }
@@ -5655,6 +5783,7 @@ where
                     ArgumentSyntax::RelativeClause {
                         base_argument: Box::new(argument),
                         vuho: None,
+                        vuho_free_modifiers: Vec::new(),
                         relative_clauses,
                     }
                 }
@@ -9580,16 +9709,34 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
         ),
         ArgumentSyntax::MathExpression {
             li,
+            li_free_modifiers,
             expression,
             loho,
+            loho_free_modifiers,
         } => node(
             "MathExpressionArgument",
             vec![
                 field("li", word_value(li)),
-                field("liFreeModifiers", nil()),
+                field(
+                    "liFreeModifiers",
+                    list(
+                        li_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field("mathExpression", math_expression_tree(expression)),
                 field("loho", maybe_word(loho)),
-                field("lohoFreeModifiers", nil()),
+                field(
+                    "lohoFreeModifiers",
+                    list(
+                        loho_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         ArgumentSyntax::Letter {
@@ -9625,13 +9772,22 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
         ArgumentSyntax::RelativeClause {
             base_argument,
             vuho,
+            vuho_free_modifiers,
             relative_clauses,
         } => node(
             "RelativeClauseArgument",
             vec![
                 field("baseArgument", argument_tree(*base_argument)),
                 field("vuho", maybe_word(vuho)),
-                field("vuhoFreeModifiers", nil()),
+                field(
+                    "vuhoFreeModifiers",
+                    list(
+                        vuho_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field(
                     "relativeClauses",
                     list(
@@ -9647,6 +9803,7 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
             tag_words,
             tag_tense_modal,
             tag_fa,
+            free_modifiers,
             inner_argument,
         } => node(
             "TaggedArgument",
@@ -9661,24 +9818,40 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
                         .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
                 ),
                 field("tagFa", maybe_word(tag_fa)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("innerArgument", argument_tree(*inner_argument)),
             ],
         ),
         ArgumentSyntax::NaheBo {
             nahe,
             bo,
+            free_modifiers,
             inner_argument,
             luhu,
+            luhu_free_modifiers,
         } => node(
             "NaheBoArgument",
             vec![
                 field("nahe", word_value(nahe)),
                 field("bo", word_value(bo)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("innerArgument", argument_tree(*inner_argument)),
                 field("luhu", maybe_word(luhu)),
-                field("luhuFreeModifiers", nil()),
+                field(
+                    "luhuFreeModifiers",
+                    list(
+                        luhu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         ArgumentSyntax::Koha {
@@ -9714,14 +9887,19 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
         ),
         ArgumentSyntax::Lahe {
             lahe,
+            free_modifiers,
             relative_clauses,
             inner_argument,
             luhu,
+            luhu_free_modifiers,
         } => node(
             "LaheArgument",
             vec![
                 field("lahe", word_value(lahe)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field(
                     "laheRelativeClauses",
                     list(
@@ -9733,7 +9911,15 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
                 ),
                 field("innerArgument", argument_tree(*inner_argument)),
                 field("luhu", maybe_word(luhu)),
-                field("luhuFreeModifiers", nil()),
+                field(
+                    "luhuFreeModifiers",
+                    list(
+                        luhu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         ArgumentSyntax::Connected {
@@ -9750,16 +9936,34 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
         ),
         ArgumentSyntax::Ke {
             ke,
+            ke_free_modifiers,
             inner_argument,
             kehe,
+            kehe_free_modifiers,
         } => node(
             "KeArgument",
             vec![
                 field("ke", word_value(ke)),
-                field("keFreeModifiers", nil()),
+                field(
+                    "keFreeModifiers",
+                    list(
+                        ke_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field("innerArgument", argument_tree(*inner_argument)),
                 field("kehe", maybe_word(kehe)),
-                field("keheFreeModifiers", nil()),
+                field(
+                    "keheFreeModifiers",
+                    list(
+                        kehe_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         ArgumentSyntax::Bo {
@@ -9767,6 +9971,7 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
             bo_connective,
             bo_tense_modal,
             bo,
+            free_modifiers,
             trailing_argument,
         } => node(
             "BoArgument",
@@ -9783,7 +9988,10 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
                         .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
                 ),
                 field("bo", word_value(bo)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("trailingArgument", argument_tree(*trailing_argument)),
             ],
         ),
@@ -9805,13 +10013,34 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
             "DescriptorArgument",
             vec![field("descriptor", descriptor_tree(descriptor))],
         ),
-        ArgumentSyntax::Name { la, names } => node(
+        ArgumentSyntax::Name {
+            la,
+            la_free_modifiers,
+            names,
+            name_free_modifiers,
+        } => node(
             "NameArgument",
             vec![
                 field("la", gadri_word_value(la)),
-                field("laFreeModifiers", nil()),
+                field(
+                    "laFreeModifiers",
+                    list(
+                        la_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field("names", nonempty_name_words(names)),
-                field("nameFreeModifiers", nil()),
+                field(
+                    "nameFreeModifiers",
+                    list(
+                        name_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         ArgumentSyntax::Cmevla {
