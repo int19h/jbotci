@@ -4652,12 +4652,27 @@ where
         );
 
     let se_unit = recursive(|se_unit| {
+        let nahe_inner_unit = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(choice((
+                se_unit.clone(),
+                goha_unit.clone(),
+                word_unit.clone(),
+            )))
+            .map(
+                |((nahe, free_modifiers), inner_unit)| RelationUnitSyntax::Nahe {
+                    nahe,
+                    free_modifiers,
+                    inner_unit: Box::new(inner_unit),
+                },
+            );
         cmavo_of("SE", &["se", "te", "ve", "xe"])
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(choice((
                 ke_unit.clone(),
                 moi_unit.clone(),
                 nuha_unit.clone(),
+                nahe_inner_unit,
                 se_unit,
                 word_unit.clone(),
                 goha_unit.clone(),
@@ -4689,24 +4704,6 @@ where
             },
         );
 
-    let nahe_unit = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(choice((
-            wrapped_tense_unit,
-            ke_unit.clone(),
-            moi_unit.clone(),
-            se_unit.clone(),
-            goha_unit.clone(),
-            word_unit.clone(),
-        )))
-        .map(
-            |((nahe, free_modifiers), inner_unit)| RelationUnitSyntax::Nahe {
-                nahe,
-                free_modifiers,
-                inner_unit: Box::new(inner_unit),
-            },
-        );
-
     let jai_unit = cmavo("jai")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(tense_modal().or_not())
@@ -4723,6 +4720,29 @@ where
                 inner_unit: Box::new(inner_unit),
             },
         );
+
+    let nahe_unit = recursive(|nahe_unit| {
+        cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(choice((
+                wrapped_tense_unit.clone(),
+                ke_unit.clone(),
+                moi_unit.clone(),
+                se_unit.clone(),
+                jai_unit.clone(),
+                nahe_unit,
+                goha_unit.clone(),
+                word_unit.clone(),
+            )))
+            .map(
+                |((nahe, free_modifiers), inner_unit)| RelationUnitSyntax::Nahe {
+                    nahe,
+                    free_modifiers,
+                    inner_unit: Box::new(inner_unit),
+                },
+            )
+    })
+    .boxed();
 
     let nu_cmavo = || cmavo_of("NU", NU_WORDS);
     let additional_nu = statement_connective()
