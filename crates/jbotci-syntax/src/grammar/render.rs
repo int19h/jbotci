@@ -2105,6 +2105,15 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
             "DescriptorArgument",
             vec![field("descriptor", descriptor_tree(descriptor))],
         ),
+        ArgumentSyntax::ConnectedDescriptor {
+            connected_descriptor,
+        } => node(
+            "ConnectedDescriptorArgument",
+            vec![field(
+                "connectedDescriptor",
+                connected_descriptor_tree(connected_descriptor),
+            )],
+        ),
         ArgumentSyntax::Name {
             la,
             la_free_modifiers,
@@ -2501,6 +2510,82 @@ fn descriptor_tree(descriptor: DescriptorSyntax) -> SyntaxValue {
                 descriptor
                     .outer_quantifier
                     .map_or_else(nothing, |quantifier| just(quantifier_tree(quantifier))),
+            ),
+            field(
+                "tailElements",
+                list(
+                    descriptor
+                        .tail_elements
+                        .into_iter()
+                        .map(argument_tail_element_tree)
+                        .collect(),
+                ),
+            ),
+            field(
+                "relation",
+                descriptor
+                    .relation
+                    .map_or_else(nothing, |relation| just(relation_tree(relation))),
+            ),
+            field(
+                "relativeClauses",
+                list(
+                    descriptor
+                        .relative_clauses
+                        .into_iter()
+                        .map(relative_clause_tree)
+                        .collect(),
+                ),
+            ),
+            field("ku", maybe_word(descriptor.ku)),
+            field(
+                "kuFreeModifiers",
+                list(
+                    descriptor
+                        .ku_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn descriptor_head_tree(head: DescriptorHeadSyntax) -> SyntaxValue {
+    node(
+        "DescriptorHead",
+        vec![
+            field("descriptor", word_value(head.descriptor)),
+            field(
+                "descriptorFreeModifiers",
+                list(
+                    head.descriptor_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connected_descriptor_tree(descriptor: ConnectedDescriptorSyntax) -> SyntaxValue {
+    node(
+        "ConnectedDescriptor",
+        vec![
+            field(
+                "leadingDescriptorHead",
+                descriptor_head_tree(descriptor.leading_descriptor_head),
+            ),
+            field("connective", connective_tree(descriptor.connective)),
+            field(
+                "trailingDescriptorHead",
+                descriptor_head_tree(descriptor.trailing_descriptor_head),
             ),
             field(
                 "tailElements",

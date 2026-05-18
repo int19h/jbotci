@@ -637,6 +637,9 @@ enum ArgumentSyntax {
     Descriptor {
         descriptor: DescriptorSyntax,
     },
+    ConnectedDescriptor {
+        connected_descriptor: ConnectedDescriptorSyntax,
+    },
     Name {
         la: WordWithModifiers,
         la_free_modifiers: Vec<FreeModifierSyntax>,
@@ -751,6 +754,26 @@ struct DescriptorSyntax {
     descriptor: Option<WordWithModifiers>,
     descriptor_free_modifiers: Vec<FreeModifierSyntax>,
     outer_quantifier: Option<QuantifierSyntax>,
+    tail_elements: Vec<ArgumentTailElementSyntax>,
+    relation: Option<RelationSyntax>,
+    relative_clauses: Vec<RelativeClauseSyntax>,
+    ku: Option<WordWithModifiers>,
+    ku_free_modifiers: Vec<FreeModifierSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct DescriptorHeadSyntax {
+    descriptor: WordWithModifiers,
+    descriptor_free_modifiers: Vec<FreeModifierSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct ConnectedDescriptorSyntax {
+    leading_descriptor_head: DescriptorHeadSyntax,
+    connective: ConnectiveSyntax,
+    trailing_descriptor_head: DescriptorHeadSyntax,
     tail_elements: Vec<ArgumentTailElementSyntax>,
     relation: Option<RelationSyntax>,
     relative_clauses: Vec<RelativeClauseSyntax>,
@@ -2915,6 +2938,9 @@ impl ArgumentSyntax {
                 words
             }
             ArgumentSyntax::Descriptor { descriptor } => descriptor.words(),
+            ArgumentSyntax::ConnectedDescriptor {
+                connected_descriptor,
+            } => connected_descriptor.words(),
             ArgumentSyntax::Name {
                 la,
                 la_free_modifiers,
@@ -3159,6 +3185,42 @@ impl DescriptorSyntax {
         for free_modifier in self.descriptor_free_modifiers {
             words.extend(free_modifier.words());
         }
+        for element in self.tail_elements {
+            words.extend(element.words());
+        }
+        if let Some(relation) = self.relation {
+            words.extend(relation.words());
+        }
+        for relative_clause in self.relative_clauses {
+            words.extend(relative_clause.words());
+        }
+        words.extend(self.ku);
+        for free_modifier in self.ku_free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        words
+    }
+}
+
+impl DescriptorHeadSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = vec![self.descriptor];
+        for free_modifier in self.descriptor_free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        words
+    }
+}
+
+impl ConnectedDescriptorSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = self.leading_descriptor_head.words();
+        words.extend(self.connective.words());
+        words.extend(self.trailing_descriptor_head.words());
         for element in self.tail_elements {
             words.extend(element.words());
         }

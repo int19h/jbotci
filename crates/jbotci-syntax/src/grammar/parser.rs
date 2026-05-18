@@ -2552,6 +2552,56 @@ where
         subsentence.clone(),
         free_modifier.clone(),
     );
+    let descriptor_head = le_cmavo()
+        .or(la_cmavo())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(descriptor, descriptor_free_modifiers)| DescriptorHeadSyntax {
+                descriptor,
+                descriptor_free_modifiers,
+            },
+        );
+    let descriptor_head_connective = jek_connective().map(|connective| ConnectiveSyntax {
+        kind: ConnectiveKind::Afterthought,
+        se: connective.se,
+        nahe: connective.nahe,
+        na: connective.na,
+        cmavo: connective.cmavo,
+        nai: connective.nai,
+        free_modifiers: connective.free_modifiers,
+    });
+    let connected_descriptor = descriptor_head
+        .clone()
+        .then(descriptor_head_connective)
+        .then(descriptor_head)
+        .then(descriptor_tail.clone())
+        .then(cmavo("ku").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(
+                (
+                    (
+                        ((leading_descriptor_head, connective), trailing_descriptor_head),
+                        (tail_elements, relation, relative_clauses),
+                    ),
+                    ku,
+                ),
+                ku_free_modifiers,
+            )| {
+                ArgumentSyntax::ConnectedDescriptor {
+                    connected_descriptor: ConnectedDescriptorSyntax {
+                        leading_descriptor_head,
+                        connective,
+                        trailing_descriptor_head,
+                        tail_elements,
+                        relation,
+                        relative_clauses,
+                        ku,
+                        ku_free_modifiers,
+                    },
+                }
+            },
+        );
 
     let descriptor_with_gadri = le_cmavo()
         .or(la_cmavo())
@@ -2793,6 +2843,7 @@ where
     ))
     .boxed();
     let descriptor_argument_core = choice((
+        connected_descriptor,
         descriptor_with_outer_quantifier,
         descriptor_with_gadri,
         descriptor_without_gadri,
