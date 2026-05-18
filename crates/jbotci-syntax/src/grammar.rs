@@ -3695,20 +3695,7 @@ where
         );
 
     let koha = koha_argument()
-        .then(
-            choice((
-                xi_free(free_modifier.clone()),
-                soi_free(argument.clone(), free_modifier.clone()),
-                vocative_free(
-                    argument.clone(),
-                    relation.clone(),
-                    subsentence.clone(),
-                    free_modifier.clone(),
-                ),
-            ))
-            .repeated()
-            .collect::<Vec<_>>(),
-        )
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(koha, free_modifiers)| ArgumentSyntax::Koha {
             koha,
             free_modifiers,
