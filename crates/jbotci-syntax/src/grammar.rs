@@ -737,12 +737,14 @@ enum QuoteSyntax {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 struct DescriptorSyntax {
-    outer_quantifier: Option<QuantifierSyntax>,
     descriptor: Option<WordWithModifiers>,
+    descriptor_free_modifiers: Vec<FreeModifierSyntax>,
+    outer_quantifier: Option<QuantifierSyntax>,
     tail_elements: Vec<ArgumentTailElementSyntax>,
     relation: Option<RelationSyntax>,
     relative_clauses: Vec<RelativeClauseSyntax>,
     ku: Option<WordWithModifiers>,
+    ku_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2974,6 +2976,9 @@ impl DescriptorSyntax {
             .flat_map(QuantifierSyntax::words)
             .collect::<Vec<_>>();
         words.extend(self.descriptor);
+        for free_modifier in self.descriptor_free_modifiers {
+            words.extend(free_modifier.words());
+        }
         for element in self.tail_elements {
             words.extend(element.words());
         }
@@ -2984,6 +2989,9 @@ impl DescriptorSyntax {
             words.extend(relative_clause.words());
         }
         words.extend(self.ku);
+        for free_modifier in self.ku_free_modifiers {
+            words.extend(free_modifier.words());
+        }
         words
     }
 }
@@ -6137,18 +6145,31 @@ where
 
     let descriptor_with_gadri = le_cmavo()
         .or(la_cmavo())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(descriptor_tail.clone())
         .then(cmavo("ku").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(
-            |((descriptor, (tail_elements, relation, relative_clauses)), ku)| {
+            |(
+                (
+                    (
+                        (descriptor, descriptor_free_modifiers),
+                        (tail_elements, relation, relative_clauses),
+                    ),
+                    ku,
+                ),
+                ku_free_modifiers,
+            )| {
                 ArgumentSyntax::Descriptor {
                     descriptor: DescriptorSyntax {
-                        outer_quantifier: None,
                         descriptor: Some(descriptor),
+                        descriptor_free_modifiers,
+                        outer_quantifier: None,
                         tail_elements,
                         relation,
                         relative_clauses,
                         ku,
+                        ku_free_modifiers,
                     },
                 }
             },
@@ -6156,21 +6177,31 @@ where
     let descriptor_with_outer_quantifier = contextual_quantifier
         .clone()
         .then(le_cmavo().or(la_cmavo()))
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(descriptor_tail.clone())
         .then(cmavo("ku").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(
             |(
-                ((outer_quantifier, descriptor), (tail_elements, relation, relative_clauses)),
-                ku,
+                (
+                    (
+                        ((outer_quantifier, descriptor), descriptor_free_modifiers),
+                        (tail_elements, relation, relative_clauses),
+                    ),
+                    ku,
+                ),
+                ku_free_modifiers,
             )| {
                 ArgumentSyntax::Descriptor {
                     descriptor: DescriptorSyntax {
-                        outer_quantifier: Some(outer_quantifier),
                         descriptor: Some(descriptor),
+                        descriptor_free_modifiers,
+                        outer_quantifier: Some(outer_quantifier),
                         tail_elements,
                         relation,
                         relative_clauses,
                         ku,
+                        ku_free_modifiers,
                     },
                 }
             },
@@ -6188,12 +6219,14 @@ where
         .map(
             |((quantifier, relation), relative_clauses)| ArgumentSyntax::Descriptor {
                 descriptor: DescriptorSyntax {
-                    outer_quantifier: None,
                     descriptor: None,
+                    descriptor_free_modifiers: Vec::new(),
+                    outer_quantifier: None,
                     tail_elements: vec![quantifier],
                     relation: Some(relation),
                     relative_clauses,
                     ku: None,
+                    ku_free_modifiers: Vec::new(),
                 },
             },
         );
@@ -12802,7 +12835,16 @@ fn descriptor_tree(descriptor: DescriptorSyntax) -> SyntaxValue {
                     .descriptor
                     .map_or_else(nothing, |descriptor| just(word_value(descriptor))),
             ),
-            field("descriptorFreeModifiers", nil()),
+            field(
+                "descriptorFreeModifiers",
+                list(
+                    descriptor
+                        .descriptor_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
             field(
                 "outerQuantifier",
                 descriptor
@@ -12836,7 +12878,16 @@ fn descriptor_tree(descriptor: DescriptorSyntax) -> SyntaxValue {
                 ),
             ),
             field("ku", maybe_word(descriptor.ku)),
-            field("kuFreeModifiers", nil()),
+            field(
+                "kuFreeModifiers",
+                list(
+                    descriptor
+                        .ku_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
         ],
     )
 }
