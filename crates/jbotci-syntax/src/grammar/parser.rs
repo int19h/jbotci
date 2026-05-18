@@ -4724,6 +4724,14 @@ where
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(choice((
                 se_unit.clone(),
+                me_unit.clone(),
+                mehoi_unit.clone(),
+                gohoi_unit.clone(),
+                muhoi_unit.clone(),
+                luhei_unit.clone(),
+                xohi_unit.clone(),
+                nuha_unit.clone(),
+                moi_unit.clone(),
                 goha_unit.clone(),
                 word_unit.clone(),
             )))
@@ -4839,6 +4847,13 @@ where
             .then(choice((
                 wrapped_tense_unit.clone(),
                 ke_unit.clone(),
+                me_unit.clone(),
+                mehoi_unit.clone(),
+                gohoi_unit.clone(),
+                muhoi_unit.clone(),
+                luhei_unit.clone(),
+                xohi_unit.clone(),
+                nuha_unit.clone(),
                 moi_unit.clone(),
                 se_unit.clone(),
                 jai_unit.clone(),
@@ -7206,6 +7221,49 @@ where
                 }
             },
         );
+    let tagged_tail = argument_base
+        .clone()
+        .map(|argument| (Some(argument), None, Vec::new()))
+        .or(cmavo("ku")
+            .or_not()
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|(maybe_ku, free_modifiers)| (None, maybe_ku, free_modifiers)));
+    let tagged_link_argument = tense_modal()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(tagged_tail)
+        .map(
+            |(
+                (tense_modal, mut tag_free_modifiers),
+                (argument, maybe_ku, trailing_free_modifiers),
+            )| {
+                let tag_words = tense_modal.clone().leaf_words();
+                tag_free_modifiers.extend(tense_modal.clone().free_modifiers());
+                if let Some(argument) = argument {
+                    new!(LinkArgumentSyntax {
+                        fa: None,
+                        fa_free_modifiers: Vec::new(),
+                        argument: Some(ArgumentSyntax::Tagged {
+                            tag_words,
+                            tag_tense_modal: Some(tense_modal),
+                            tag_fa: None,
+                            free_modifiers: tag_free_modifiers,
+                            inner_argument: Box::new(argument),
+                        }),
+                    })
+                } else {
+                    tag_free_modifiers.extend(trailing_free_modifiers);
+                    new!(LinkArgumentSyntax {
+                        fa: None,
+                        fa_free_modifiers: Vec::new(),
+                        argument: Some(ArgumentSyntax::Zohe {
+                            tag_words,
+                            maybe_ku,
+                            free_modifiers: tag_free_modifiers,
+                        }),
+                    })
+                }
+            },
+        );
     let plain_argument = argument_base.map(|argument| {
         new!(LinkArgumentSyntax {
             fa: None,
@@ -7214,7 +7272,7 @@ where
         })
     });
 
-    choice((fa_link_argument, plain_argument)).boxed()
+    choice((fa_link_argument, tagged_link_argument, plain_argument)).boxed()
 }
 
 #[requires(true)]
