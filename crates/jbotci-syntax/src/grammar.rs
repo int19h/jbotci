@@ -180,10 +180,13 @@ struct ParagraphStatementSyntax {
 enum FreeModifierSyntax {
     Sei {
         sei: WordWithModifiers,
+        leading_free_modifiers: Vec<FreeModifierSyntax>,
         terms: Vec<TermSyntax>,
         cu: Option<WordWithModifiers>,
+        cu_free_modifiers: Vec<FreeModifierSyntax>,
         relation: RelationSyntax,
         sehu: Option<WordWithModifiers>,
+        sehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     To {
         to: WordWithModifiers,
@@ -194,11 +197,13 @@ enum FreeModifierSyntax {
     },
     Xi {
         xi: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         expression: MathExpressionSyntax,
     },
     Mai {
         number: Vec<WordWithModifiers>,
         mai: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Soi {
         soi: WordWithModifiers,
@@ -210,8 +215,10 @@ enum FreeModifierSyntax {
     },
     Vocative {
         vocative_markers: Vec<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
         argument: Option<ArgumentSyntax>,
         dohu: Option<WordWithModifiers>,
+        dohu_free_modifiers: Vec<FreeModifierSyntax>,
     },
 }
 
@@ -1029,18 +1036,30 @@ impl FreeModifierSyntax {
         match self {
             FreeModifierSyntax::Sei {
                 sei,
+                leading_free_modifiers,
                 terms,
                 cu,
+                cu_free_modifiers,
                 relation,
                 sehu,
+                sehu_free_modifiers,
             } => {
                 let mut words = vec![sei];
+                for free_modifier in leading_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 for term in terms {
                     words.extend(term.words());
                 }
                 words.extend(cu);
+                for free_modifier in cu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(relation.words());
                 words.extend(sehu);
+                for free_modifier in sehu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             FreeModifierSyntax::To {
@@ -1061,14 +1080,28 @@ impl FreeModifierSyntax {
                 }
                 words
             }
-            FreeModifierSyntax::Xi { xi, expression } => {
+            FreeModifierSyntax::Xi {
+                xi,
+                free_modifiers,
+                expression,
+            } => {
                 let mut words = vec![xi];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(expression.words());
                 words
             }
-            FreeModifierSyntax::Mai { number, mai } => {
+            FreeModifierSyntax::Mai {
+                number,
+                mai,
+                free_modifiers,
+            } => {
                 let mut words = number;
                 words.push(mai);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             FreeModifierSyntax::Soi {
@@ -1095,14 +1128,22 @@ impl FreeModifierSyntax {
             }
             FreeModifierSyntax::Vocative {
                 vocative_markers,
+                free_modifiers,
                 argument,
                 dohu,
+                dohu_free_modifiers,
             } => {
                 let mut words = vocative_markers;
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 if let Some(argument) = argument {
                     words.extend(argument.words());
                 }
                 words.extend(dohu);
+                for free_modifier in dohu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
         }
@@ -2863,12 +2904,17 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
 
     statement.define(statement_body);
     free_modifier.define(choice((
-        mai_free(),
-        xi_free(),
-        sei_free(term.clone(), relation.clone()),
-        soi_free(argument.clone()),
+        mai_free(free_modifier.clone()),
+        xi_free(free_modifier.clone()),
+        sei_free(term.clone(), relation.clone(), free_modifier.clone()),
+        soi_free(argument.clone(), free_modifier.clone()),
         to_free(text.clone(), free_modifier.clone()),
-        vocative_free(argument.clone(), relation.clone(), subsentence.clone()),
+        vocative_free(
+            argument.clone(),
+            relation.clone(),
+            subsentence.clone(),
+            free_modifier.clone(),
+        ),
     )));
 
     let initial_statement = statement.clone().map(|statement| ParagraphStatementSyntax {
@@ -3049,23 +3095,47 @@ fn empty_text() -> TextSyntax {
 
 #[requires(true)]
 #[ensures(true)]
-fn sei_free<'tokens, T, R>(term: T, relation: R) -> BoxedParser<'tokens, FreeModifierSyntax>
+fn sei_free<'tokens, T, R, F>(
+    term: T,
+    relation: R,
+    free_modifier: F,
+) -> BoxedParser<'tokens, FreeModifierSyntax>
 where
     T: Parser<'tokens, ParserInput<'tokens>, TermSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
 {
     cmavo_of("SEI", &["sei", "ti'o"])
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(term.repeated().collect::<Vec<_>>())
-        .then(cmavo("cu").or_not())
+        .then(
+            cmavo("cu")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .then(relation)
         .then(cmavo("se'u").or_not())
+        .then(free_modifier.repeated().collect::<Vec<_>>())
         .map(
-            |((((sei, terms), cu), relation), sehu)| FreeModifierSyntax::Sei {
-                sei,
-                terms,
-                cu,
-                relation,
-                sehu,
+            |(
+                (((((sei, leading_free_modifiers), terms), cu), relation), sehu),
+                sehu_free_modifiers,
+            )| {
+                let (cu, cu_free_modifiers) = cu
+                    .map(|(cu, free_modifiers)| (Some(cu), free_modifiers))
+                    .unwrap_or((None, Vec::new()));
+                FreeModifierSyntax::Sei {
+                    sei,
+                    leading_free_modifiers,
+                    terms,
+                    cu,
+                    cu_free_modifiers,
+                    relation,
+                    sehu,
+                    sehu_free_modifiers,
+                }
             },
         )
         .boxed()
@@ -3505,9 +3575,14 @@ where
     let koha = koha_argument()
         .then(
             choice((
-                xi_free(),
-                soi_free(argument.clone()),
-                vocative_free(argument.clone(), relation.clone(), subsentence.clone()),
+                xi_free(free_modifier.clone()),
+                soi_free(argument.clone(), free_modifier.clone()),
+                vocative_free(
+                    argument.clone(),
+                    relation.clone(),
+                    subsentence.clone(),
+                    free_modifier.clone(),
+                ),
             ))
             .repeated()
             .collect::<Vec<_>>(),
@@ -4295,8 +4370,10 @@ fn simple_vocative_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
         .map(
             |((vocative_markers, argument), dohu)| FreeModifierSyntax::Vocative {
                 vocative_markers,
+                free_modifiers: Vec::new(),
                 argument,
                 dohu,
+                dohu_free_modifiers: Vec::new(),
             },
         )
         .boxed()
@@ -4304,7 +4381,12 @@ fn simple_vocative_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
 
 #[requires(true)]
 #[ensures(true)]
-fn xi_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
+fn xi_free<'tokens, F>(free_modifier: F) -> BoxedParser<'tokens, FreeModifierSyntax>
+where
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
     let number_or_letter =
         number_or_letter_words()
             .then(cmavo("boi").or_not())
@@ -4314,38 +4396,66 @@ fn xi_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
     let xi_expression = choice((number_or_letter, math_expression_body()));
 
     cmavo_of("XI", &["xi", "te'ai"])
+        .then(free_modifier.repeated().collect::<Vec<_>>())
         .then(xi_expression)
-        .map(|(xi, expression)| FreeModifierSyntax::Xi { xi, expression })
+        .map(
+            |((xi, free_modifiers), expression)| FreeModifierSyntax::Xi {
+                xi,
+                free_modifiers,
+                expression,
+            },
+        )
         .boxed()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn mai_free<'tokens>() -> BoxedParser<'tokens, FreeModifierSyntax> {
+fn mai_free<'tokens, F>(free_modifier: F) -> BoxedParser<'tokens, FreeModifierSyntax>
+where
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
     number_or_letter_words()
         .then(cmavo_of("MAI", MAI_WORDS))
-        .map(|(number, mai)| FreeModifierSyntax::Mai { number, mai })
+        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .map(|((number, mai), free_modifiers)| FreeModifierSyntax::Mai {
+            number,
+            mai,
+            free_modifiers,
+        })
         .boxed()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn soi_free<'tokens, A>(argument: A) -> BoxedParser<'tokens, FreeModifierSyntax>
+fn soi_free<'tokens, A, F>(
+    argument: A,
+    free_modifier: F,
+) -> BoxedParser<'tokens, FreeModifierSyntax>
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
 {
     cmavo("soi")
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(argument.clone())
         .then(argument.or_not())
         .then(cmavo("se'u").or_not())
+        .then(free_modifier.repeated().collect::<Vec<_>>())
         .map(
-            |(((soi, leading_argument), trailing_argument), sehu)| FreeModifierSyntax::Soi {
+            |(
+                ((((soi, free_modifiers), leading_argument), trailing_argument), sehu),
+                sehu_free_modifiers,
+            )| FreeModifierSyntax::Soi {
                 soi,
-                free_modifiers: Vec::new(),
+                free_modifiers,
                 leading_argument: Box::new(leading_argument),
                 trailing_argument: trailing_argument.map(Box::new),
                 sehu,
-                sehu_free_modifiers: Vec::new(),
+                sehu_free_modifiers,
             },
         )
         .boxed()
@@ -4357,6 +4467,9 @@ fn vocative_free<'tokens, A, R>(
     argument: A,
     relation: R,
     subsentence: impl Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
+    + Clone
+    + 'tokens,
+    free_modifier: impl Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
     + Clone
     + 'tokens,
 ) -> BoxedParser<'tokens, FreeModifierSyntax>
@@ -4409,13 +4522,19 @@ where
     let vocative_argument = choice((relation_vocative, cmevla_vocative, argument));
 
     vocative_markers()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(vocative_argument.or_not())
         .then(cmavo("do'u").or_not())
+        .then(free_modifier.repeated().collect::<Vec<_>>())
         .map(
-            |((vocative_markers, argument), dohu)| FreeModifierSyntax::Vocative {
-                vocative_markers,
-                argument,
-                dohu,
+            |((((vocative_markers, free_modifiers), argument), dohu), dohu_free_modifiers)| {
+                FreeModifierSyntax::Vocative {
+                    vocative_markers,
+                    free_modifiers,
+                    argument,
+                    dohu,
+                    dohu_free_modifiers,
+                }
             },
         )
         .boxed()
@@ -6923,15 +7042,26 @@ fn free_modifier_tree(free_modifier: FreeModifierSyntax) -> SyntaxValue {
     match free_modifier {
         FreeModifierSyntax::Sei {
             sei,
+            leading_free_modifiers,
             terms,
             cu,
+            cu_free_modifiers,
             relation,
             sehu,
+            sehu_free_modifiers,
         } => node(
             "SeiFree",
             vec![
                 field("sei", word_value(sei)),
-                field("leadingFreeModifiers", nil()),
+                field(
+                    "leadingFreeModifiers",
+                    list(
+                        leading_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field(
                     "terms",
                     if terms.is_empty() {
@@ -6941,10 +7071,26 @@ fn free_modifier_tree(free_modifier: FreeModifierSyntax) -> SyntaxValue {
                     },
                 ),
                 field("cu", maybe_word(cu)),
-                field("cuFreeModifiers", nil()),
+                field(
+                    "cuFreeModifiers",
+                    list(
+                        cu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field("relation", relation_tree(relation)),
                 field("sehu", maybe_word(sehu)),
-                field("sehuFreeModifiers", nil()),
+                field(
+                    "sehuFreeModifiers",
+                    list(
+                        sehu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         FreeModifierSyntax::To {
@@ -6974,20 +7120,34 @@ fn free_modifier_tree(free_modifier: FreeModifierSyntax) -> SyntaxValue {
                 ),
             ],
         ),
-        FreeModifierSyntax::Xi { xi, expression } => node(
+        FreeModifierSyntax::Xi {
+            xi,
+            free_modifiers,
+            expression,
+        } => node(
             "XiFree",
             vec![
                 field("xi", word_value(xi)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("mathExpression", math_expression_tree(expression)),
             ],
         ),
-        FreeModifierSyntax::Mai { number, mai } => node(
+        FreeModifierSyntax::Mai {
+            number,
+            mai,
+            free_modifiers,
+        } => node(
             "MaiFree",
             vec![
                 field("number", nonempty_number_words(number)),
                 field("mai", word_value(mai)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         FreeModifierSyntax::Soi {
@@ -7025,8 +7185,10 @@ fn free_modifier_tree(free_modifier: FreeModifierSyntax) -> SyntaxValue {
         ),
         FreeModifierSyntax::Vocative {
             vocative_markers,
+            free_modifiers,
             argument,
             dohu,
+            dohu_free_modifiers,
         } => node(
             "VocativeFree",
             vec![
@@ -7039,13 +7201,24 @@ fn free_modifier_tree(free_modifier: FreeModifierSyntax) -> SyntaxValue {
                             .collect(),
                     ),
                 ),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field(
                     "argument",
                     argument.map_or_else(nothing, |argument| just(argument_tree(argument))),
                 ),
                 field("dohu", maybe_word(dohu)),
-                field("dohuFreeModifiers", nil()),
+                field(
+                    "dohuFreeModifiers",
+                    list(
+                        dohu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
     }
