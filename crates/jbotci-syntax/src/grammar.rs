@@ -2373,7 +2373,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let tagged_term_start = modal_forethought_connective()
         .rewind()
         .not()
-        .ignore_then(tense_modal());
+        .ignore_then(leading_term_tag_tense_modal());
     let tagged_term_before_tag =
         tagged_term_start
             .clone()
@@ -6456,6 +6456,141 @@ fn combine_composite_tense_modals(parts: Vec<TenseModalSyntax>) -> TenseModalSyn
         cuhe,
         connectives,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
+    let pu_before_nahe = cmavo_of("PU", &["pu", "ca", "ba"])
+        .then(cmavo("nai").or_not())
+        .then(
+            cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+                .rewind()
+                .ignored(),
+        )
+        .map(|((pu, nai), _)| {
+            let mut leaves = vec![pu.clone()];
+            leaves.extend(nai.clone());
+            TenseModalSyntax::Composite {
+                leaves,
+                time: Some(TimeTenseSyntax {
+                    direction: vec![pu],
+                    distance: None,
+                    interval: None,
+                    nai,
+                }),
+                space: None,
+                nahe: None,
+                interval: None,
+                zaho: Vec::new(),
+                caha: None,
+                ki: None,
+                cuhe: None,
+                connectives: Vec::new(),
+            }
+        });
+    let zaho_property = cmavo_of(
+        "ZAhO",
+        &[
+            "ba'o", "ca'o", "co'a", "co'i", "co'u", "de'a", "di'a", "mo'u", "pu'o", "za'o",
+        ],
+    )
+    .then(cmavo("nai").or_not())
+    .map(|(zaho, nai)| {
+        let mut leaves = vec![zaho.clone()];
+        leaves.extend(nai);
+        TenseModalSyntax::Composite {
+            leaves,
+            time: None,
+            space: None,
+            nahe: None,
+            interval: None,
+            zaho: vec![zaho],
+            caha: None,
+            ki: None,
+            cuhe: None,
+            connectives: Vec::new(),
+        }
+    });
+    let numbered_interval = pa_word()
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .then(cmavo_of("ROI", &["roi", "re'u"]))
+        .then(cmavo("nai").or_not())
+        .map(|((number, roi_or_tahe), nai)| {
+            let mut leaves = number.clone();
+            leaves.push(roi_or_tahe.clone());
+            leaves.extend(nai.clone());
+            TenseModalSyntax::Composite {
+                leaves,
+                time: None,
+                space: None,
+                nahe: None,
+                interval: Some(IntervalTenseSyntax {
+                    number,
+                    roi_or_tahe,
+                    nai,
+                }),
+                zaho: Vec::new(),
+                caha: None,
+                ki: None,
+                cuhe: None,
+                connectives: Vec::new(),
+            }
+        });
+    let tahe_interval = cmavo_of("TAhE", &["di'i", "na'o", "ru'i", "ta'e"])
+        .then(cmavo("nai").or_not())
+        .map(|(roi_or_tahe, nai)| {
+            let mut leaves = vec![roi_or_tahe.clone()];
+            leaves.extend(nai.clone());
+            TenseModalSyntax::Composite {
+                leaves,
+                time: None,
+                space: None,
+                nahe: None,
+                interval: Some(IntervalTenseSyntax {
+                    number: Vec::new(),
+                    roi_or_tahe,
+                    nai,
+                }),
+                zaho: Vec::new(),
+                caha: None,
+                ki: None,
+                cuhe: None,
+                connectives: Vec::new(),
+            }
+        });
+    let property_split_follower = choice((
+        cmavo_of("PU", &["pu", "ca", "ba"]).ignored(),
+        cmavo_of("ZI", &["zi", "za", "zu"]).ignored(),
+        cmavo_of("ZEhA", &["ze'i", "ze'a", "ze'u", "ze'e"]).ignored(),
+        cmavo_of("VA", &["vi", "va", "vu"]).ignored(),
+        cmavo_of(
+            "FAhA",
+            &[
+                "be'a", "du'a", "vu'a", "ne'u", "ca'u", "ri'u", "zu'a", "ga'u", "ni'a", "ti'a",
+                "ru'u", "re'o", "te'e", "bu'u", "ne'a", "pa'o", "ne'i", "fa'a", "to'o", "zo'a",
+                "zo'i", "ze'o",
+            ],
+        )
+        .ignored(),
+        cmavo_of("CAhA", CAHA_WORDS).ignored(),
+        cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+            .then(cmavo_of("CAhA", CAHA_WORDS))
+            .ignored(),
+        simple_tense_modal().ignored(),
+        fiho_tense_modal().ignored(),
+    ));
+    let leading_interval_property = choice((zaho_property, numbered_interval, tahe_interval))
+        .then(property_split_follower.rewind());
+
+    choice((
+        pu_before_nahe,
+        leading_interval_property.map(|(tense_modal, _)| tense_modal),
+        tense_modal(),
+    ))
+    .boxed()
 }
 
 #[requires(true)]
