@@ -4501,6 +4501,7 @@ where
             choice((
                 cmavo("ra'o").ignored(),
                 cmavo("be").ignored(),
+                pa_word().ignored(),
                 free_modifier.clone().ignored(),
             ))
             .rewind()
@@ -4584,8 +4585,8 @@ where
             ke_unit.clone(),
             moi_unit.clone(),
             nuha_unit.clone(),
-            goha_unit.clone(),
             word_unit.clone(),
+            goha_unit.clone(),
         )))
         .map(
             |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
@@ -5105,6 +5106,7 @@ where
                 choice((
                     cmavo("ra'o").ignored(),
                     cmavo("be").ignored(),
+                    pa_word().ignored(),
                     free_modifier.clone().ignored(),
                 ))
                 .rewind()
@@ -5226,8 +5228,8 @@ where
             .then(choice((
                 ke_unit.clone(),
                 moi_unit.clone(),
-                goha_unit.clone(),
                 word_unit.clone(),
+                goha_unit.clone(),
             )))
             .map(
                 |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
