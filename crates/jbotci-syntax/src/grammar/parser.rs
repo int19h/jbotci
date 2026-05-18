@@ -10,6 +10,23 @@ struct LeadingIStatementSyntax {
     free_modifiers: Vec<FreeModifierSyntax>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+enum TermContinuationSyntax {
+    Pehe {
+        tails: Vec<(
+            WordWithModifiers,
+            Vec<FreeModifierSyntax>,
+            ConnectiveSyntax,
+            TermSyntax,
+        )>,
+    },
+    Connected {
+        tails: Vec<(ConnectiveSyntax, TermSyntax)>,
+    },
+    None,
+}
+
 #[requires(true)]
 #[ensures(ret.clone().free_modifiers().len() >= old(free_modifiers.len()))]
 fn attach_tense_modal_free_modifiers(
@@ -563,20 +580,35 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 )
             })
             .boxed();
-        let pehe_term = term2
+        let pehe_continuation = cmavo("pe'e")
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(statement_connective())
+            .then(term2.clone())
+            .map(|(((pehe, free_modifiers), connective), trailing_term)| {
+                (pehe, free_modifiers, connective, trailing_term)
+            })
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .map(|tails| TermContinuationSyntax::Pehe { tails });
+        let connected_continuation =
+            connective_with_free_modifiers(term_connective(), free_modifier.clone())
+                .then(term2.clone())
+                .repeated()
+                .at_least(1)
+                .collect::<Vec<_>>()
+                .map(|tails| TermContinuationSyntax::Connected { tails });
+        term2
             .clone()
-            .then(
-                cmavo("pe'e")
-                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                    .then(statement_connective())
-                    .then(term2.clone())
-                    .repeated()
-                    .collect::<Vec<_>>(),
-            )
-            .map(|(leading_term, pehe_tails)| {
-                pehe_tails.into_iter().fold(
+            .then(choice((
+                pehe_continuation,
+                connected_continuation,
+                empty().to(TermContinuationSyntax::None),
+            )))
+            .map(|(leading_term, continuation)| match continuation {
+                TermContinuationSyntax::Pehe { tails } => tails.into_iter().fold(
                     leading_term,
-                    |leading_term, (((pehe, free_modifiers), connective), trailing_term)| {
+                    |leading_term, (pehe, free_modifiers, connective, trailing_term)| {
                         TermSyntax::Pehe {
                             leading_terms: vec![leading_term],
                             pehe,
@@ -585,31 +617,18 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                             trailing_terms: vec![trailing_term],
                         }
                     },
-                )
+                ),
+                TermContinuationSyntax::Connected { tails } => tails.into_iter().fold(
+                    leading_term,
+                    |leading_term, (connective, trailing_term)| TermSyntax::Connected {
+                        leading_terms: vec![leading_term],
+                        connective,
+                        trailing_terms: vec![trailing_term],
+                    },
+                ),
+                TermContinuationSyntax::None => leading_term,
             })
-            .boxed();
-        let connected_term = term2
-            .clone()
-            .then(
-                connective_with_free_modifiers(argument_connective(), free_modifier.clone())
-                    .then(term2.clone())
-                    .repeated()
-                    .at_least(1)
-                    .collect::<Vec<_>>(),
-            )
-            .map(|(first, tails)| {
-                tails
-                    .into_iter()
-                    .fold(first, |leading_term, (connective, trailing_term)| {
-                        TermSyntax::Connected {
-                            leading_terms: vec![leading_term],
-                            connective,
-                            trailing_terms: vec![trailing_term],
-                        }
-                    })
-            })
-            .boxed();
-        choice((pehe_term, connected_term, term2)).boxed()
+            .boxed()
     };
     term.define(term_body.boxed());
     let tail_term = term.clone();
@@ -2826,31 +2845,6 @@ where
             },
         );
 
-    let tense_tagged_argument = tense_modal()
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(argument.clone())
-        .map(|((tense_modal, free_modifiers), inner_argument)| {
-            let tag_words = tense_modal.clone().words();
-            ArgumentSyntax::Tagged {
-                tag_words,
-                tag_tense_modal: Some(tense_modal),
-                tag_fa: None,
-                free_modifiers,
-                inner_argument: Box::new(inner_argument),
-            }
-        });
-    let fa_tagged_argument = cmavo_of("FA", FA_WORDS)
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(argument.clone())
-        .map(
-            |((fa, free_modifiers), inner_argument)| ArgumentSyntax::Tagged {
-                tag_words: vec![fa.clone()],
-                tag_tense_modal: None,
-                tag_fa: Some(fa),
-                free_modifiers,
-                inner_argument: Box::new(inner_argument),
-            },
-        );
     let nahe_bo_argument = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
         .then(cmavo("bo"))
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -2958,8 +2952,6 @@ where
     ))
     .boxed();
     let tagged_or_negated_argument_core = choice((
-        tense_tagged_argument,
-        fa_tagged_argument,
         nahe_bo_argument,
         nahe_bo_term_wrapper,
         nahe_argument,
@@ -3067,11 +3059,6 @@ where
             })
             .boxed()
     });
-    let argument_connective_before_bare_na_term = argument_connective()
-        .then(na_cmavo())
-        .then(cmavo("ku").rewind().not())
-        .rewind()
-        .ignored();
     let afterthought_argument_tail =
         connective_with_free_modifiers(argument_connective(), free_modifier.clone())
             .then(argument3.clone())
@@ -3079,10 +3066,9 @@ where
     let argument2 = argument3
         .clone()
         .then(
-            argument_connective_before_bare_na_term
+            afterthought_argument_tail
                 .clone()
-                .not()
-                .ignore_then(afterthought_argument_tail.clone().rewind())
+                .rewind()
                 .ignore_then(afterthought_argument_tail)
                 .repeated()
                 .collect::<Vec<_>>(),
@@ -3111,10 +3097,9 @@ where
     let argument1 = argument2
         .clone()
         .then(
-            argument_connective_before_bare_na_term
+            argument_ke_tail
                 .clone()
-                .not()
-                .ignore_then(argument_ke_tail.clone().rewind())
+                .rewind()
                 .ignore_then(argument_ke_tail)
                 .or_not(),
         )
@@ -3719,38 +3704,69 @@ fn goi_relative_clause<'tokens, A>(
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
-    let tense_elided_argument = tense_modal()
+    let tagged_tail = argument
+        .clone()
+        .map(|argument| (Some(argument), None, Vec::new()))
+        .or(cmavo("ku")
+            .or_not()
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|(maybe_ku, free_modifiers)| (None, maybe_ku, free_modifiers)))
+        .boxed();
+    let tense_tagged_argument = tense_modal()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(cmavo("ku").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(tagged_tail.clone())
         .map(
-            |(((tense_modal, mut free_modifiers), maybe_ku), trailing_free_modifiers)| {
-                free_modifiers.extend(trailing_free_modifiers);
-                ArgumentSyntax::Zohe {
-                    tag_words: tense_modal.words(),
-                    maybe_ku,
-                    free_modifiers,
+            |(
+                (tense_modal, mut tag_free_modifiers),
+                (argument, maybe_ku, trailing_free_modifiers),
+            )| {
+                let tag_words = tense_modal.clone().leaf_words();
+                tag_free_modifiers.extend(tense_modal.clone().free_modifiers());
+                if let Some(argument) = argument {
+                    ArgumentSyntax::Tagged {
+                        tag_words,
+                        tag_tense_modal: Some(tense_modal),
+                        tag_fa: None,
+                        free_modifiers: tag_free_modifiers,
+                        inner_argument: Box::new(argument),
+                    }
+                } else {
+                    tag_free_modifiers.extend(trailing_free_modifiers);
+                    ArgumentSyntax::Zohe {
+                        tag_words,
+                        maybe_ku,
+                        free_modifiers: tag_free_modifiers,
+                    }
                 }
             },
         );
-    let fa_elided_argument = cmavo_of("FA", FA_WORDS)
+    let fa_tagged_argument = cmavo_of("FA", FA_WORDS)
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(cmavo("ku").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(tagged_tail)
         .map(
-            |(((fa, mut free_modifiers), maybe_ku), trailing_free_modifiers)| {
-                free_modifiers.extend(trailing_free_modifiers);
-                ArgumentSyntax::Zohe {
-                    tag_words: vec![fa],
-                    maybe_ku,
-                    free_modifiers,
+            |((fa, mut fa_free_modifiers), (argument, maybe_ku, trailing_free_modifiers))| {
+                if let Some(argument) = argument {
+                    ArgumentSyntax::Tagged {
+                        tag_words: vec![fa.clone()],
+                        tag_tense_modal: None,
+                        tag_fa: Some(fa),
+                        free_modifiers: fa_free_modifiers,
+                        inner_argument: Box::new(argument),
+                    }
+                } else {
+                    fa_free_modifiers.extend(trailing_free_modifiers);
+                    ArgumentSyntax::Zohe {
+                        tag_words: vec![fa],
+                        maybe_ku,
+                        free_modifiers: fa_free_modifiers,
+                    }
                 }
             },
         );
     let argument_base = argument
         .clone()
-        .or(tense_elided_argument)
-        .or(fa_elided_argument)
+        .or(tense_tagged_argument)
+        .or(fa_tagged_argument)
         .or(na_ku_argument_parser(free_modifier.clone()))
         .boxed();
 
@@ -4082,6 +4098,18 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 #[ensures(true)]
 fn operand_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     choice((joik_connective(), ek_connective(), jek_connective())).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn term_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    choice((
+        joik_connective(),
+        jek_connective(),
+        ek_connective(),
+        vuhu_nonlogical_connective(),
+    ))
+    .boxed()
 }
 
 #[requires(true)]
