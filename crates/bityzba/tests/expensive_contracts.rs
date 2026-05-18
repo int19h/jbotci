@@ -10,7 +10,7 @@ trait ExpensiveMapper {
     fn map(&self, value: i32) -> i32;
 }
 
-#[expensive_invariant(self.value % 2 == 0, "expensive type invariant")]
+#[expensive_invariant(self.value.is_multiple_of(2), "expensive type invariant")]
 struct ExpensiveEven {
     value: usize,
 }

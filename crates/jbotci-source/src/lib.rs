@@ -29,10 +29,7 @@ impl LineColumn {
         if column == 0 {
             return Err(SourceLocationError::ZeroColumn);
         }
-        Ok(Self::from_data(data!(LineColumn {
-            line: line,
-            column: column,
-        })))
+        Ok(Self::from_data(data!(LineColumn { line, column })))
     }
 }
 
@@ -78,11 +75,11 @@ impl SourceSpan {
             });
         }
         Ok(Self::from_data(data!(SourceSpan {
-            source_id: source_id,
-            byte_start: byte_start,
-            byte_end: byte_end,
-            char_start: char_start,
-            char_end: char_end,
+            source_id,
+            byte_start,
+            byte_end,
+            char_start,
+            char_end,
             start: None,
             end: None,
         })))

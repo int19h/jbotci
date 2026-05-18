@@ -97,7 +97,6 @@ fn gl_issue_18() {
     assert_eq!(1, euclidean(3, 4));
 }
 
-#[expect(clippy::assertions_on_constants)]
 #[test]
 fn gl_issue_41() {
     use bityzba::requires;

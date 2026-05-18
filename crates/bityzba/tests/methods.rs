@@ -12,7 +12,7 @@ mod mirai_assertion_mocks;
 #[test]
 fn methods() {
     fn is_even(x: usize) -> bool {
-        x % 2 == 0
+        x.is_multiple_of(2)
     }
 
     struct EvenAdder {
@@ -65,7 +65,7 @@ fn methods() {
 #[test]
 fn impl_invariant() {
     fn is_even(x: usize) -> bool {
-        x % 2 == 0
+        x.is_multiple_of(2)
     }
 
     struct EvenAdder {

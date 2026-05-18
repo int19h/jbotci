@@ -60,10 +60,7 @@ impl CustomSpan {
         if start > end {
             return Err("inverted span");
         }
-        Ok(Self::from_data(data!(CustomSpan {
-            start: start,
-            end: end,
-        })))
+        Ok(Self::from_data(data!(CustomSpan { start, end })))
     }
 }
 

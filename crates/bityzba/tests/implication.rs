@@ -21,7 +21,7 @@ fn test_ret_implication() {
 
 #[test]
 fn test_ret_implication_old() {
-    #[ensures(old(*x) % 2 == 0 -> *x % 2 == 0)]
+    #[ensures(old(*x).is_multiple_of(2) -> (*x).is_multiple_of(2))]
     #[ensures(old(*x) % 2 == 1 -> *x % 2 == 1)]
     fn incr(x: &mut usize) {
         *x += 2;

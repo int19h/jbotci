@@ -19,11 +19,11 @@ pub(crate) fn data(input: TokenStream) -> TokenStream {
         return expression.into_token_stream();
     }
 
-    if let Ok(mut expression) = syn::parse2::<ExprCall>(input.clone()) {
-        if let Expr::Path(path) = expression.func.as_mut() {
-            rewrite_path_to_data_type(&mut path.path);
-            return expression.into_token_stream();
-        }
+    if let Ok(mut expression) = syn::parse2::<ExprCall>(input.clone())
+        && let Expr::Path(path) = expression.func.as_mut()
+    {
+        rewrite_path_to_data_type(&mut path.path);
+        return expression.into_token_stream();
     }
 
     if let Ok(mut expression) = syn::parse2::<ExprPath>(input.clone()) {

@@ -192,7 +192,7 @@ pub(crate) fn generate(
 
         if mode == ContractMode::LogOnly {
             result.extend(quote::quote_spanned! { span=>
-                #[allow(clippy::nonminimal_bool)]
+                #[allow(clippy::assertions_on_constants, clippy::nonminimal_bool)]
                 {
                     if !(#exec_expr) {
                         log::error!("{}", #format_args);
@@ -203,7 +203,7 @@ pub(crate) fn generate(
 
         if let Some(assert_macro) = get_assert_macro(ctype, mode, span) {
             result.extend(quote::quote_spanned! { span=>
-                #[allow(clippy::nonminimal_bool)] {
+                #[allow(clippy::assertions_on_constants, clippy::nonminimal_bool)] {
                     #assert_macro!(#exec_expr, "{}", #format_args);
                 }
             });
@@ -337,12 +337,12 @@ pub(crate) fn generate(
         let mut impl_detector = ImplDetector { found_impl: false };
         visit_return_type(&mut impl_detector, &func.function.sig.output);
 
-        if !impl_detector.found_impl {
-            if let ReturnType::Type(.., ref return_type) = func.function.sig.output {
-                break 'blk quote::quote! {
-                    let ret: #return_type = 'run: #block;
-                };
-            }
+        if !impl_detector.found_impl
+            && let ReturnType::Type(.., ref return_type) = func.function.sig.output
+        {
+            break 'blk quote::quote! {
+                let ret: #return_type = 'run: #block;
+            };
         }
 
         quote::quote! {
