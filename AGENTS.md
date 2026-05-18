@@ -1,8 +1,27 @@
 # Project repo
 
+jbotci ("Lojban tool") is intended to be a "swiss army knife" of Lojban in a single self-contained binary. Thus we want to compile it as a static no-deps binary for Linux, and as close as we can get to that for macOS and Windows (the old repo has that for Haskell, you can use it as a baseline but bear in mind that some things are the way they are because of Haskell toolchain limitations that may not apply to Rust so always think about how idiomatic Rust would approach the same problem first). We will eventually use Dioxus for the web part but the initial goal is to get CLI fully functional.
+
 The project is hosted at https://codeberg.org/int_19h/jbotci/
 
 Use token in ~/git/.codeberg/jbotci.token to access it using forjego-cli to browse or create issues.
+
+
+# Porting guide
+
+We're going to be working on jbotci v1.
+
+You can find jbotci v0 in ~/git/jbotci.v0. It is written in Haskell. There's ~/git/jbotci.v0/AGENTS.md that describes some of the things in that repo, but note that this file is *not* to be treated as your guidance, only as reference material. Only the AGENTS.md in this repo is your guidance when working on things in this repo.
+
+jbotci v1 is aiming to be a Rust port of everything that is in jbotci v0.
+
+Our end goal is full feature parity, but we will build it up gradually, although accounting for future requirements when designing current architecture (meaning that e.g. the core libraries should account for being used in a wasm environment for a web SPA in the future).
+
+Unlike the Haskell codebase, we want to separate the CLI app from the web app (the latter including API endpoints for MCP and Discord). jbotci will be the CLI app, and jbotci-server will be the web app. Shared code - parser, semantics etc - will be in shared crates.
+
+We also eventually want to package jbotci as a pure GUI app for iOS, Android, macOS, and Linux. Dioxus should take care of most of this, but do bear this in mind when it comes to repo organization.
+
+~/git/jbotci.0 is your own private copy of the original codebase so you can go wild there and change the code as you see fit as part of the porting work, e.g. to add the test export scripts. It's already on a separate branch so that whatever you do, you can always just revert to main or compare to it. 
 
 
 # Coding style
