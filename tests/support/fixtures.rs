@@ -37,10 +37,10 @@ pub struct TestCase {
 }
 
 impl TestCase {
-    #[ensures(ret -> !self.id.is_empty())]
-    #[expensive_ensures(ret -> self.dialect_definition().is_ok())]
-    #[expensive_ensures(ret -> self.validate_xfail_metadata().is_ok())]
     #[requires(true)]
+    #[ensures(ret -> !self.id.is_empty())]
+    #[ensures(ret -> self.validate_xfail_metadata().is_ok())]
+    #[expensive_ensures(ret -> self.dialect_definition().is_ok())]
     pub fn is_valid_fixture_metadata(&self) -> bool {
         !self.id.is_empty()
             && self
