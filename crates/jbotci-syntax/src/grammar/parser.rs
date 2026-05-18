@@ -3127,39 +3127,21 @@ where
                     free_modifiers: Vec::new(),
                 }),
                 data!(WordLike::ZoiQuote {
-                    zoi,
+                    zoi: _,
                     opening_delimiter,
                     quoted_text,
                     closing_delimiter,
                     ..
-                }) => {
-                    let opening_delimiter = base_word_from_record((**opening_delimiter).clone());
-                    let closing_delimiter = base_word_from_record((**closing_delimiter).clone());
-                    let quoted_text = source_text(source, quoted_text);
-                    if word_record_text_matches(zoi, "la'o") {
-                        Ok(ArgumentSyntax::Quote {
-                            quote: QuoteSyntax::Laho {
-                                laho: word.clone(),
-                                opening_delimiter,
-                                closing_delimiter,
-                                quoted_text,
-                                free_modifiers: Vec::new(),
-                            },
-                            free_modifiers: Vec::new(),
-                        })
-                    } else {
-                        Ok(ArgumentSyntax::Quote {
-                            quote: QuoteSyntax::Zoi {
-                                zoi: word.clone(),
-                                opening_delimiter,
-                                closing_delimiter,
-                                quoted_text,
-                                free_modifiers: Vec::new(),
-                            },
-                            free_modifiers: Vec::new(),
-                        })
-                    }
-                }
+                }) => Ok(ArgumentSyntax::Quote {
+                    quote: QuoteSyntax::Zoi {
+                        zoi: word.clone(),
+                        opening_delimiter: base_word_from_record((**opening_delimiter).clone()),
+                        closing_delimiter: base_word_from_record((**closing_delimiter).clone()),
+                        quoted_text: source_text(source, quoted_text),
+                        free_modifiers: Vec::new(),
+                    },
+                    free_modifiers: Vec::new(),
+                }),
                 data!(WordLike::LohuQuote {
                     quoted_words,
                     lehu,

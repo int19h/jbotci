@@ -759,6 +759,9 @@ enum QuoteSyntax {
         quoted_text: String,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
+    // v0 exposes this constructor in the Quote ADT, but current v0 grammar
+    // classifies morphology-level LAhO quotes as ZoiQuote.
+    #[allow(dead_code)]
     Laho {
         laho: WordWithModifiers,
         opening_delimiter: WordWithModifiers,
