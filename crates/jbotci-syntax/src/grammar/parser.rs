@@ -310,8 +310,11 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         .then(free_modifier.clone().repeated().collect::<Vec<_>>());
     let tagged_term_before_tag = tagged_term_start.clone().then(tense_modal().rewind()).map(
         |((tense_modal, free_modifiers), _)| TermSyntax::Tagged {
-            tense_modal: Some(tense_modal),
-            free_modifiers,
+            tense_modal: Some(attach_tense_modal_free_modifiers(
+                tense_modal,
+                free_modifiers,
+            )),
+            free_modifiers: Vec::new(),
             argument: implicit_zohe_argument(),
         },
     );
@@ -328,8 +331,11 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         )
         .map(
             |(((tense_modal, free_modifiers), _), argument)| TermSyntax::Tagged {
-                tense_modal: Some(tense_modal),
-                free_modifiers,
+                tense_modal: Some(attach_tense_modal_free_modifiers(
+                    tense_modal,
+                    free_modifiers,
+                )),
+                free_modifiers: Vec::new(),
                 argument,
             },
         );
