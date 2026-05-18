@@ -1086,11 +1086,12 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             StatementSyntax::Fragment(FragmentSyntax::BeiLink { bei_only_links })
         });
 
-    let math_expression_fragment = quantifier().map(|quantifier| {
-        StatementSyntax::Fragment(FragmentSyntax::MathExpression {
-            math_expression: MathExpressionSyntax::Number(quantifier),
-        })
-    });
+    let math_expression_fragment =
+        quantifier_with_free_modifiers(quantifier(), free_modifier.clone()).map(|quantifier| {
+            StatementSyntax::Fragment(FragmentSyntax::MathExpression {
+                math_expression: MathExpressionSyntax::Number(quantifier),
+            })
+        });
 
     let relation_fragment = relation
         .clone()
@@ -2410,7 +2411,10 @@ where
             ],
             argument => vec![ArgumentTailElementSyntax::Argument(Box::new(argument))],
         });
-    let contextual_quantifier = quantifier_with_context(argument.clone(), relation.clone());
+    let contextual_quantifier = quantifier_with_free_modifiers(
+        quantifier_with_context(argument.clone(), relation.clone()),
+        free_modifier.clone(),
+    );
     let descriptor_relative_clauses =
         relative_clauses(argument.clone(), subsentence, free_modifier.clone())
             .or_not()
@@ -2585,7 +2589,10 @@ where
             },
         );
 
-    let contextual_quantifier = quantifier_with_context(argument.clone(), relation.clone());
+    let contextual_quantifier = quantifier_with_free_modifiers(
+        quantifier_with_context(argument.clone(), relation.clone()),
+        free_modifier.clone(),
+    );
     let descriptor_tail = argument_tail_with(
         argument.clone(),
         relation.clone(),
@@ -3225,6 +3232,66 @@ where
             veho_free_modifiers: Vec::new(),
         });
     choice((vei_quantifier, number_quantifier())).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantifier_with_free_modifiers<'tokens, Q, F>(
+    quantifier: Q,
+    free_modifier: F,
+) -> BoxedParser<'tokens, QuantifierSyntax>
+where
+    Q: Parser<'tokens, ParserInput<'tokens>, QuantifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
+    quantifier
+        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .map(|(quantifier, free_modifiers)| {
+            attach_quantifier_free_modifiers(quantifier, free_modifiers)
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_quantifier_free_modifiers(
+    quantifier: QuantifierSyntax,
+    free_modifiers: Vec<FreeModifierSyntax>,
+) -> QuantifierSyntax {
+    match quantifier {
+        QuantifierSyntax::Number {
+            number,
+            boi,
+            free_modifiers: mut existing_free_modifiers,
+        } => {
+            existing_free_modifiers.extend(free_modifiers);
+            QuantifierSyntax::Number {
+                number,
+                boi,
+                free_modifiers: existing_free_modifiers,
+            }
+        }
+        QuantifierSyntax::Vei {
+            vei,
+            free_modifiers: mut existing_free_modifiers,
+            math_expression,
+            veho,
+            veho_free_modifiers,
+        } => {
+            existing_free_modifiers.extend(free_modifiers);
+            QuantifierSyntax::Vei {
+                vei,
+                free_modifiers: existing_free_modifiers,
+                math_expression,
+                veho,
+                veho_free_modifiers,
+            }
+        }
+    }
 }
 
 #[requires(true)]
