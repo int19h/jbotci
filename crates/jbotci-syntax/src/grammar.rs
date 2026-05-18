@@ -609,6 +609,16 @@ struct GoiRelativeClauseSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+struct SelbriRelativeClauseSyntax {
+    nohoi: WordWithModifiers,
+    leading_free_modifiers: Vec<FreeModifierSyntax>,
+    relation: RelationSyntax,
+    kuhoi: Option<WordWithModifiers>,
+    trailing_free_modifiers: Vec<FreeModifierSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
 enum QuoteSyntax {
     Lu {
         lu: WordWithModifiers,
@@ -1070,6 +1080,10 @@ enum RelationUnitSyntax {
         leading_unit: Box<RelationUnitSyntax>,
         connective: ConnectiveSyntax,
         trailing_unit: Box<RelationUnitSyntax>,
+    },
+    SelbriRelativeClause {
+        base: Box<RelationUnitSyntax>,
+        selbri_relative_clauses: Vec<SelbriRelativeClauseSyntax>,
     },
     Wrapped {
         relation: RelationSyntax,
@@ -2513,6 +2527,23 @@ impl GoiRelativeClauseSyntax {
     }
 }
 
+impl SelbriRelativeClauseSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(self) -> Vec<WordWithModifiers> {
+        let mut words = vec![self.nohoi];
+        for free_modifier in self.leading_free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        words.extend(self.relation.words());
+        words.extend(self.kuhoi);
+        for free_modifier in self.trailing_free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        words
+    }
+}
+
 impl RelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
@@ -3047,6 +3078,16 @@ impl RelationUnitSyntax {
                 let mut words = leading_unit.words();
                 words.extend(connective.words());
                 words.extend(trailing_unit.words());
+                words
+            }
+            RelationUnitSyntax::SelbriRelativeClause {
+                base,
+                selbri_relative_clauses,
+            } => {
+                let mut words = base.words();
+                for selbri_relative_clause in selbri_relative_clauses {
+                    words.extend(selbri_relative_clause.words());
+                }
                 words
             }
             RelationUnitSyntax::Wrapped { relation } => relation.words(),
@@ -7538,6 +7579,23 @@ where
     ))
     .boxed();
     let be_link = be_link_parser(argument.clone(), free_modifier.clone());
+    let selbri_relative_clause = cmavo("no'oi")
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(relation.clone())
+        .then(cmavo("ku'oi").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |((((nohoi, leading_free_modifiers), relation), kuhoi), trailing_free_modifiers)| {
+                SelbriRelativeClauseSyntax {
+                    nohoi,
+                    leading_free_modifiers,
+                    relation,
+                    kuhoi,
+                    trailing_free_modifiers,
+                }
+            },
+        )
+        .boxed();
 
     let linked_unit_from = |base_unit: BoxedParser<'tokens, RelationUnitSyntax>| {
         base_unit
@@ -7567,6 +7625,22 @@ where
                         beho_free_modifiers,
                     }
                 })
+            })
+            .then(
+                selbri_relative_clause
+                    .clone()
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(linked_unit, selbri_relative_clauses)| {
+                if selbri_relative_clauses.is_empty() {
+                    linked_unit
+                } else {
+                    RelationUnitSyntax::SelbriRelativeClause {
+                        base: Box::new(linked_unit),
+                        selbri_relative_clauses,
+                    }
+                }
             })
             .boxed()
     };
@@ -8003,6 +8077,26 @@ where
                 },
             );
         let be_link = be_link_parser(argument.clone(), free_modifier.clone());
+        let selbri_relative_clause = cmavo("no'oi")
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(inner_relation.clone())
+            .then(cmavo("ku'oi").or_not())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(
+                |(
+                    (((nohoi, leading_free_modifiers), relation), kuhoi),
+                    trailing_free_modifiers,
+                )| {
+                    SelbriRelativeClauseSyntax {
+                        nohoi,
+                        leading_free_modifiers,
+                        relation,
+                        kuhoi,
+                        trailing_free_modifiers,
+                    }
+                },
+            )
+            .boxed();
 
         let base_unit = choice((
             goha_raho_unit.clone(),
@@ -8070,6 +8164,22 @@ where
                             beho_free_modifiers,
                         }
                     })
+                })
+                .then(
+                    selbri_relative_clause
+                        .clone()
+                        .repeated()
+                        .collect::<Vec<_>>(),
+                )
+                .map(|(linked_unit, selbri_relative_clauses)| {
+                    if selbri_relative_clauses.is_empty() {
+                        linked_unit
+                    } else {
+                        RelationUnitSyntax::SelbriRelativeClause {
+                            base: Box::new(linked_unit),
+                            selbri_relative_clauses,
+                        }
+                    }
                 })
                 .boxed()
         };
@@ -11728,6 +11838,39 @@ fn relative_clause_tree(relative_clause: RelativeClauseSyntax) -> SyntaxValue {
 
 #[requires(true)]
 #[ensures(true)]
+fn selbri_relative_clause_tree(relative_clause: SelbriRelativeClauseSyntax) -> SyntaxValue {
+    node(
+        "SelbriRelativeClause",
+        vec![
+            field("nohoi", word_value(relative_clause.nohoi)),
+            field(
+                "leadingFreeModifiers",
+                list(
+                    relative_clause
+                        .leading_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
+            field("relation", relation_tree(relative_clause.relation)),
+            field("kuhoi", maybe_word(relative_clause.kuhoi)),
+            field(
+                "trailingFreeModifiers",
+                list(
+                    relative_clause
+                        .trailing_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn quote_tree(quote: QuoteSyntax) -> SyntaxValue {
     match quote {
         QuoteSyntax::Lu {
@@ -13109,6 +13252,24 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
                 field("leadingUnit", relation_unit_tree(*leading_unit)),
                 field("connective", connective_tree(connective)),
                 field("trailingUnit", relation_unit_tree(*trailing_unit)),
+            ],
+        ),
+        RelationUnitSyntax::SelbriRelativeClause {
+            base,
+            selbri_relative_clauses,
+        } => node(
+            "SelbriRelativeClauseRelationUnit",
+            vec![
+                field("base", relation_unit_tree(*base)),
+                field(
+                    "selbriRelativeClauses",
+                    list(
+                        selbri_relative_clauses
+                            .into_iter()
+                            .map(selbri_relative_clause_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         RelationUnitSyntax::Wrapped { relation } => node(
