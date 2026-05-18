@@ -2599,16 +2599,29 @@ fn quantifier_tree(quantifier: QuantifierSyntax) -> SyntaxValue {
         ),
         QuantifierSyntax::Vei {
             vei,
+            free_modifiers,
             math_expression,
             veho,
+            veho_free_modifiers,
         } => node(
             "VeiQuantifier",
             vec![
                 field("vei", word_value(vei)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("mathExpression", math_expression_tree(*math_expression)),
                 field("veho", maybe_word(veho)),
-                field("vehoFreeModifiers", nil()),
+                field(
+                    "vehoFreeModifiers",
+                    list(
+                        veho_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
     }
@@ -2635,16 +2648,29 @@ fn quantifier_expression_tree(quantifier: QuantifierSyntax) -> SyntaxValue {
         ),
         QuantifierSyntax::Vei {
             vei,
+            free_modifiers,
             math_expression,
             veho,
+            veho_free_modifiers,
         } => node(
             "VeiExpression",
             vec![
                 field("vei", word_value(vei)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("innerExpression", math_expression_tree(*math_expression)),
                 field("veho", maybe_word(veho)),
-                field("vehoFreeModifiers", nil()),
+                field(
+                    "vehoFreeModifiers",
+                    list(
+                        veho_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
     }
@@ -2655,26 +2681,46 @@ fn quantifier_expression_tree(quantifier: QuantifierSyntax) -> SyntaxValue {
 fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
     match expression {
         MathExpressionSyntax::Number(quantifier) => quantifier_expression_tree(quantifier),
-        MathExpressionSyntax::Letter { letter, boi } => node(
+        MathExpressionSyntax::Letter {
+            letter,
+            boi,
+            free_modifiers,
+        } => node(
             "LetterExpression",
             vec![
                 field("letter", nonempty_letter_words(letter)),
                 field("boi", maybe_word(boi)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         MathExpressionSyntax::Vei {
             vei,
+            free_modifiers,
             inner_expression,
             veho,
+            veho_free_modifiers,
         } => node(
             "VeiExpression",
             vec![
                 field("vei", word_value(vei)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("innerExpression", math_expression_tree(*inner_expression)),
                 field("veho", maybe_word(veho)),
-                field("vehoFreeModifiers", nil()),
+                field(
+                    "vehoFreeModifiers",
+                    list(
+                        veho_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         MathExpressionSyntax::Gek {
@@ -2693,21 +2739,34 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
         ),
         MathExpressionSyntax::Forethought {
             peho,
+            free_modifiers,
             operator,
             operands,
             kuhe,
+            kuhe_free_modifiers,
         } => node(
             "ForethoughtExpression",
             vec![
                 field("peho", maybe_word(peho)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("operator", math_operator_tree(operator)),
                 field(
                     "operands",
                     list(operands.into_iter().map(math_expression_tree).collect()),
                 ),
                 field("kuhe", maybe_word(kuhe)),
-                field("kuheFreeModifiers", nil()),
+                field(
+                    "kuheFreeModifiers",
+                    list(
+                        kuhe_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         MathExpressionSyntax::ReversePolish {
@@ -2735,30 +2794,56 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
         ),
         MathExpressionSyntax::Nihe {
             nihe,
+            free_modifiers,
             relation,
             tehu,
+            tehu_free_modifiers,
         } => node(
             "NiheExpression",
             vec![
                 field("nihe", word_value(nihe)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("relation", relation_tree(relation)),
                 field("tehu", maybe_word(tehu)),
-                field("tehuFreeModifiers", nil()),
+                field(
+                    "tehuFreeModifiers",
+                    list(
+                        tehu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         MathExpressionSyntax::Mohe {
             mohe,
+            free_modifiers,
             argument,
             tehu,
+            tehu_free_modifiers,
         } => node(
             "MoheExpression",
             vec![
                 field("mohe", word_value(mohe)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("argument", argument_tree(*argument)),
                 field("tehu", maybe_word(tehu)),
-                field("tehuFreeModifiers", nil()),
+                field(
+                    "tehuFreeModifiers",
+                    list(
+                        tehu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         MathExpressionSyntax::Johi {
@@ -2790,8 +2875,10 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
         ),
         MathExpressionSyntax::Lahe {
             markers,
+            free_modifiers,
             inner_expression,
             luhu,
+            luhu_free_modifiers,
         } => node(
             "LaheExpression",
             vec![
@@ -2799,10 +2886,21 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
                     "markers",
                     list(markers.into_iter().map(word_value).collect()),
                 ),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("innerExpression", math_expression_tree(*inner_expression)),
                 field("luhu", maybe_word(luhu)),
-                field("luhuFreeModifiers", nil()),
+                field(
+                    "luhuFreeModifiers",
+                    list(
+                        luhu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         MathExpressionSyntax::Connected {
@@ -2832,6 +2930,7 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
         MathExpressionSyntax::Bihe {
             left_expression,
             bihe,
+            free_modifiers,
             operator,
             right_expression,
         } => node(
@@ -2839,8 +2938,40 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
             vec![
                 field("leftExpression", math_expression_tree(*left_expression)),
                 field("bihe", word_value(bihe)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("operator", math_operator_tree(operator)),
+                field("rightExpression", math_expression_tree(*right_expression)),
+            ],
+        ),
+        MathExpressionSyntax::Unary {
+            operator,
+            inner_expression,
+        } => node(
+            "UnaryExpression",
+            vec![
+                field("operator", math_operator_tree(operator)),
+                field("innerExpression", math_expression_tree(*inner_expression)),
+            ],
+        ),
+        MathExpressionSyntax::Bo {
+            left_expression,
+            operator,
+            bo,
+            free_modifiers,
+            right_expression,
+        } => node(
+            "BoExpression",
+            vec![
+                field("leftExpression", math_expression_tree(*left_expression)),
+                field("operator", math_operator_tree(operator)),
+                field("bo", word_value(bo)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("rightExpression", math_expression_tree(*right_expression)),
             ],
         ),
@@ -2851,59 +2982,182 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
 #[ensures(true)]
 fn math_operator_tree(operator: MathOperatorSyntax) -> SyntaxValue {
     match operator {
-        MathOperatorSyntax::Vuhu { vuhu } => node(
+        MathOperatorSyntax::Vuhu {
+            vuhu,
+            free_modifiers,
+        } => node(
             "VuhuOperator",
             vec![
                 field("vuhu", word_value(vuhu)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         MathOperatorSyntax::Maho {
             maho,
+            free_modifiers,
             math_expression,
             tehu,
+            tehu_free_modifiers,
         } => node(
             "MahoOperator",
             vec![
                 field("maho", word_value(maho)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("mathExpression", math_expression_tree(*math_expression)),
                 field("tehu", maybe_word(tehu)),
-                field("tehuFreeModifiers", nil()),
+                field(
+                    "tehuFreeModifiers",
+                    list(
+                        tehu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
-        MathOperatorSyntax::Se { se, inner_operator } => node(
+        MathOperatorSyntax::Se {
+            se,
+            free_modifiers,
+            inner_operator,
+        } => node(
             "SeOperator",
             vec![
                 field("se", word_value(se)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("innerOperator", math_operator_tree(*inner_operator)),
             ],
         ),
         MathOperatorSyntax::Nahe {
             nahe,
+            free_modifiers,
             inner_operator,
         } => node(
             "NaheOperator",
             vec![
                 field("nahe", word_value(nahe)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("innerOperator", math_operator_tree(*inner_operator)),
             ],
         ),
         MathOperatorSyntax::Nahu {
             nahu,
+            free_modifiers,
             relation,
             tehu,
+            tehu_free_modifiers,
         } => node(
             "NahuOperator",
             vec![
                 field("nahu", word_value(nahu)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("relation", relation_tree(relation)),
                 field("tehu", maybe_word(tehu)),
-                field("tehuFreeModifiers", nil()),
+                field(
+                    "tehuFreeModifiers",
+                    list(
+                        tehu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
+        ),
+        MathOperatorSyntax::Ke {
+            ke,
+            ke_free_modifiers,
+            inner_operator,
+            kehe,
+            kehe_free_modifiers,
+        } => node(
+            "KeOperator",
+            vec![
+                field("ke", word_value(ke)),
+                field(
+                    "keFreeModifiers",
+                    list(
+                        ke_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field("innerOperator", math_operator_tree(*inner_operator)),
+                field("kehe", maybe_word(kehe)),
+                field(
+                    "keheFreeModifiers",
+                    list(
+                        kehe_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        MathOperatorSyntax::Bo {
+            left_operator,
+            bo,
+            free_modifiers,
+            right_operator,
+        } => node(
+            "BoOperator",
+            vec![
+                field("leftOperator", math_operator_tree(*left_operator)),
+                field("bo", word_value(bo)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field("rightOperator", math_operator_tree(*right_operator)),
+            ],
+        ),
+        MathOperatorSyntax::Johi {
+            johi,
+            free_modifiers,
+            expressions,
+            tehu,
+            tehu_free_modifiers,
+        } => node(
+            "JohiOperator",
+            vec![
+                field("johi", word_value(johi)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field("expressions", nonempty_math_expressions(expressions)),
+                field("tehu", maybe_word(tehu)),
+                field(
+                    "tehuFreeModifiers",
+                    list(
+                        tehu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        MathOperatorSyntax::Number { number } => node(
+            "NumberOperator",
+            vec![field("number", nonempty_number_words(number))],
         ),
         MathOperatorSyntax::Connected {
             left_operator,

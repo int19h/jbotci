@@ -822,8 +822,10 @@ enum QuantifierSyntax {
     },
     Vei {
         vei: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         math_expression: Box<MathExpressionSyntax>,
         veho: Option<WordWithModifiers>,
+        veho_free_modifiers: Vec<FreeModifierSyntax>,
     },
 }
 
@@ -834,11 +836,14 @@ enum MathExpressionSyntax {
     Letter {
         letter: Vec<WordWithModifiers>,
         boi: Option<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Vei {
         vei: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         inner_expression: Box<MathExpressionSyntax>,
         veho: Option<WordWithModifiers>,
+        veho_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Gek {
         gek: ConnectiveSyntax,
@@ -848,9 +853,11 @@ enum MathExpressionSyntax {
     },
     Forethought {
         peho: Option<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
         operator: MathOperatorSyntax,
         operands: Vec<MathExpressionSyntax>,
         kuhe: Option<WordWithModifiers>,
+        kuhe_free_modifiers: Vec<FreeModifierSyntax>,
     },
     ReversePolish {
         fuha: WordWithModifiers,
@@ -860,13 +867,17 @@ enum MathExpressionSyntax {
     },
     Nihe {
         nihe: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         relation: RelationSyntax,
         tehu: Option<WordWithModifiers>,
+        tehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Mohe {
         mohe: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         argument: Box<ArgumentSyntax>,
         tehu: Option<WordWithModifiers>,
+        tehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Johi {
         johi: WordWithModifiers,
@@ -877,8 +888,10 @@ enum MathExpressionSyntax {
     },
     Lahe {
         markers: Vec<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
         inner_expression: Box<MathExpressionSyntax>,
         luhu: Option<WordWithModifiers>,
+        luhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Connected {
         left_expression: Box<MathExpressionSyntax>,
@@ -893,7 +906,25 @@ enum MathExpressionSyntax {
     Bihe {
         left_expression: Box<MathExpressionSyntax>,
         bihe: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         operator: MathOperatorSyntax,
+        right_expression: Box<MathExpressionSyntax>,
+    },
+    // v0 exposes this constructor in the syntax ADT; the current v0 grammar
+    // mostly materializes prefix operator forms as ForethoughtExpression.
+    #[allow(dead_code)]
+    Unary {
+        operator: MathOperatorSyntax,
+        inner_expression: Box<MathExpressionSyntax>,
+    },
+    // v0 exposes this constructor in the syntax ADT; BO grouping is currently
+    // represented in connected operands while the full rule audit continues.
+    #[allow(dead_code)]
+    Bo {
+        left_expression: Box<MathExpressionSyntax>,
+        operator: MathOperatorSyntax,
+        bo: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         right_expression: Box<MathExpressionSyntax>,
     },
 }
@@ -903,25 +934,64 @@ enum MathExpressionSyntax {
 enum MathOperatorSyntax {
     Vuhu {
         vuhu: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Maho {
         maho: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         math_expression: Box<MathExpressionSyntax>,
         tehu: Option<WordWithModifiers>,
+        tehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Se {
         se: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         inner_operator: Box<MathOperatorSyntax>,
     },
     Nahe {
         nahe: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         inner_operator: Box<MathOperatorSyntax>,
     },
     Nahu {
         nahu: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         relation: RelationSyntax,
         tehu: Option<WordWithModifiers>,
+        tehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
+    // v0 exposes this constructor; parser support is being ported with the
+    // operator precedence rules.
+    #[allow(dead_code)]
+    Ke {
+        ke: WordWithModifiers,
+        ke_free_modifiers: Vec<FreeModifierSyntax>,
+        inner_operator: Box<MathOperatorSyntax>,
+        kehe: Option<WordWithModifiers>,
+        kehe_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    // v0 exposes this constructor; parser support is being ported with the
+    // operator precedence rules.
+    #[allow(dead_code)]
+    Bo {
+        left_operator: Box<MathOperatorSyntax>,
+        bo: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        right_operator: Box<MathOperatorSyntax>,
+    },
+    // v0 exposes this constructor even though current parser branches produce
+    // JohiExpression for the ordinary JOhI operand form.
+    #[allow(dead_code)]
+    Johi {
+        johi: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        expressions: Vec<MathExpressionSyntax>,
+        tehu: Option<WordWithModifiers>,
+        tehu_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    // v0 exposes this constructor for operator slots accepting numeric forms.
+    #[allow(dead_code)]
+    Number { number: Vec<WordWithModifiers> },
     Connected {
         left_operator: Box<MathOperatorSyntax>,
         connective: ConnectiveSyntax,
@@ -2313,17 +2383,33 @@ impl MathExpressionSyntax {
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             MathExpressionSyntax::Number(quantifier) => quantifier.words(),
-            MathExpressionSyntax::Letter { letter, boi } => {
-                [letter, boi.into_iter().collect()].concat()
+            MathExpressionSyntax::Letter {
+                letter,
+                boi,
+                free_modifiers,
+            } => {
+                let mut words = [letter, boi.into_iter().collect()].concat();
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
             }
             MathExpressionSyntax::Vei {
                 vei,
+                free_modifiers,
                 inner_expression,
                 veho,
+                veho_free_modifiers,
             } => {
                 let mut words = vec![vei];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner_expression.words());
                 words.extend(veho);
+                for free_modifier in veho_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             MathExpressionSyntax::Gek {
@@ -2340,16 +2426,24 @@ impl MathExpressionSyntax {
             }
             MathExpressionSyntax::Forethought {
                 peho,
+                free_modifiers,
                 operator,
                 operands,
                 kuhe,
+                kuhe_free_modifiers,
             } => {
                 let mut words = peho.into_iter().collect::<Vec<_>>();
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(operator.words());
                 for operand in operands {
                     words.extend(operand.words());
                 }
                 words.extend(kuhe);
+                for free_modifier in kuhe_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             MathExpressionSyntax::ReversePolish {
@@ -2372,22 +2466,38 @@ impl MathExpressionSyntax {
             }
             MathExpressionSyntax::Nihe {
                 nihe,
+                free_modifiers,
                 relation,
                 tehu,
+                tehu_free_modifiers,
             } => {
                 let mut words = vec![nihe];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(relation.words());
                 words.extend(tehu);
+                for free_modifier in tehu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             MathExpressionSyntax::Mohe {
                 mohe,
+                free_modifiers,
                 argument,
                 tehu,
+                tehu_free_modifiers,
             } => {
                 let mut words = vec![mohe];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(argument.words());
                 words.extend(tehu);
+                for free_modifier in tehu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             MathExpressionSyntax::Johi {
@@ -2412,12 +2522,20 @@ impl MathExpressionSyntax {
             }
             MathExpressionSyntax::Lahe {
                 markers,
+                free_modifiers,
                 inner_expression,
                 luhu,
+                luhu_free_modifiers,
             } => {
                 let mut words = markers;
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner_expression.words());
                 words.extend(luhu);
+                for free_modifier in luhu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             MathExpressionSyntax::Connected {
@@ -2443,12 +2561,40 @@ impl MathExpressionSyntax {
             MathExpressionSyntax::Bihe {
                 left_expression,
                 bihe,
+                free_modifiers,
                 operator,
                 right_expression,
             } => {
                 let mut words = left_expression.words();
                 words.push(bihe);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(operator.words());
+                words.extend(right_expression.words());
+                words
+            }
+            MathExpressionSyntax::Unary {
+                operator,
+                inner_expression,
+            } => {
+                let mut words = operator.words();
+                words.extend(inner_expression.words());
+                words
+            }
+            MathExpressionSyntax::Bo {
+                left_expression,
+                operator,
+                bo,
+                free_modifiers,
+                right_expression,
+            } => {
+                let mut words = left_expression.words();
+                words.extend(operator.words());
+                words.push(bo);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(right_expression.words());
                 words
             }
@@ -3075,12 +3221,20 @@ impl QuantifierSyntax {
             }
             QuantifierSyntax::Vei {
                 vei,
+                free_modifiers,
                 math_expression,
                 veho,
+                veho_free_modifiers,
             } => {
                 let mut words = vec![vei];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(math_expression.words());
                 words.extend(veho);
+                for free_modifier in veho_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
         }
@@ -3092,38 +3246,130 @@ impl MathOperatorSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
-            MathOperatorSyntax::Vuhu { vuhu } => vec![vuhu],
-            MathOperatorSyntax::Maho {
-                maho,
-                math_expression,
-                tehu,
+            MathOperatorSyntax::Vuhu {
+                vuhu,
+                free_modifiers,
             } => {
-                let mut words = vec![maho];
-                words.extend(math_expression.words());
-                words.extend(tehu);
+                let mut words = vec![vuhu];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
-            MathOperatorSyntax::Se { se, inner_operator } => {
+            MathOperatorSyntax::Maho {
+                maho,
+                free_modifiers,
+                math_expression,
+                tehu,
+                tehu_free_modifiers,
+            } => {
+                let mut words = vec![maho];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(math_expression.words());
+                words.extend(tehu);
+                for free_modifier in tehu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            MathOperatorSyntax::Se {
+                se,
+                free_modifiers,
+                inner_operator,
+            } => {
                 let mut words = vec![se];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner_operator.words());
                 words
             }
             MathOperatorSyntax::Nahe {
                 nahe,
+                free_modifiers,
                 inner_operator,
             } => {
                 let mut words = vec![nahe];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner_operator.words());
                 words
             }
             MathOperatorSyntax::Nahu {
                 nahu,
+                free_modifiers,
                 relation,
                 tehu,
+                tehu_free_modifiers,
             } => {
                 let mut words = vec![nahu];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(relation.words());
                 words.extend(tehu);
+                for free_modifier in tehu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            MathOperatorSyntax::Ke {
+                ke,
+                ke_free_modifiers,
+                inner_operator,
+                kehe,
+                kehe_free_modifiers,
+            } => {
+                let mut words = vec![ke];
+                for free_modifier in ke_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(inner_operator.words());
+                words.extend(kehe);
+                for free_modifier in kehe_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            MathOperatorSyntax::Bo {
+                left_operator,
+                bo,
+                free_modifiers,
+                right_operator,
+            } => {
+                let mut words = left_operator.words();
+                words.push(bo);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(right_operator.words());
+                words
+            }
+            MathOperatorSyntax::Johi {
+                johi,
+                free_modifiers,
+                expressions,
+                tehu,
+                tehu_free_modifiers,
+            } => {
+                let mut words = vec![johi];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                for expression in expressions {
+                    words.extend(expression.words());
+                }
+                words.extend(tehu);
+                for free_modifier in tehu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            MathOperatorSyntax::Number { number } => {
+                let words = number;
                 words
             }
             MathOperatorSyntax::Connected {

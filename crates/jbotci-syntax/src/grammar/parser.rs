@@ -1846,22 +1846,30 @@ where
     let number = number_quantifier().map(MathExpressionSyntax::Number);
     let letter = letter_string()
         .then(cmavo("boi").or_not())
-        .map(|(letter, boi)| MathExpressionSyntax::Letter { letter, boi });
+        .map(|(letter, boi)| MathExpressionSyntax::Letter {
+            letter,
+            boi,
+            free_modifiers: Vec::new(),
+        });
     let nihe = cmavo("ni'e")
         .then(relation.clone())
         .then(cmavo("te'u").or_not())
         .map(|((nihe, relation), tehu)| MathExpressionSyntax::Nihe {
             nihe,
+            free_modifiers: Vec::new(),
             relation,
             tehu,
+            tehu_free_modifiers: Vec::new(),
         });
     let mohe = cmavo("mo'e")
         .then(argument)
         .then(cmavo("te'u").or_not())
         .map(|((mohe, argument), tehu)| MathExpressionSyntax::Mohe {
             mohe,
+            free_modifiers: Vec::new(),
             argument: Box::new(argument),
             tehu,
+            tehu_free_modifiers: Vec::new(),
         });
     let no_free_modifiers = empty().to(Vec::<FreeModifierSyntax>::new());
     let johi = cmavo("jo'i")
@@ -1892,8 +1900,10 @@ where
         .map(
             |((vei, inner_expression), veho)| MathExpressionSyntax::Vei {
                 vei,
+                free_modifiers: Vec::new(),
                 inner_expression: Box::new(inner_expression),
                 veho,
+                veho_free_modifiers: Vec::new(),
             },
         );
     let gek = modal_forethought_connective()
@@ -1936,8 +1946,10 @@ where
             .map(
                 |(((nahe, bo), inner_expression), luhu)| MathExpressionSyntax::Lahe {
                     markers: vec![nahe, bo],
+                    free_modifiers: Vec::new(),
                     inner_expression: Box::new(inner_expression),
                     luhu,
+                    luhu_free_modifiers: Vec::new(),
                 },
             );
         let forethought = cmavo("pe'o")
@@ -1954,9 +1966,11 @@ where
             .map(
                 |(((peho, operator), operands), kuhe)| MathExpressionSyntax::Forethought {
                     peho,
+                    free_modifiers: Vec::new(),
                     operator,
                     operands,
                     kuhe,
+                    kuhe_free_modifiers: Vec::new(),
                 },
             );
         choice((math_operand.clone(), lahe, forethought)).boxed()
@@ -2007,6 +2021,7 @@ where
                 Some(((bihe, operator), right_expression)) => MathExpressionSyntax::Bihe {
                     left_expression: Box::new(left_expression),
                     bihe,
+                    free_modifiers: Vec::new(),
                     operator,
                     right_expression: Box::new(right_expression),
                 },
@@ -2068,15 +2083,21 @@ where
     let number = number_quantifier().map(MathExpressionSyntax::Number);
     let letter = letter_string()
         .then(cmavo("boi").or_not())
-        .map(|(letter, boi)| MathExpressionSyntax::Letter { letter, boi });
+        .map(|(letter, boi)| MathExpressionSyntax::Letter {
+            letter,
+            boi,
+            free_modifiers: Vec::new(),
+        });
     let vei = cmavo("vei")
         .then(expression.clone())
         .then(cmavo("ve'o").or_not())
         .map(
             |((vei, inner_expression), veho)| MathExpressionSyntax::Vei {
                 vei,
+                free_modifiers: Vec::new(),
                 inner_expression: Box::new(inner_expression),
                 veho,
+                veho_free_modifiers: Vec::new(),
             },
         );
     let no_free_modifiers = empty().to(Vec::<FreeModifierSyntax>::new());
@@ -2149,9 +2170,11 @@ where
             .map(
                 |(((peho, operator), operands), kuhe)| MathExpressionSyntax::Forethought {
                     peho,
+                    free_modifiers: Vec::new(),
                     operator,
                     operands,
                     kuhe,
+                    kuhe_free_modifiers: Vec::new(),
                 },
             );
         choice((math_operand.clone(), forethought)).boxed()
@@ -2202,6 +2225,7 @@ where
                 Some(((bihe, operator), right_expression)) => MathExpressionSyntax::Bihe {
                     left_expression: Box::new(left_expression),
                     bihe,
+                    free_modifiers: Vec::new(),
                     operator,
                     right_expression: Box::new(right_expression),
                 },
@@ -3006,8 +3030,10 @@ fn quantifier<'tokens>() -> BoxedParser<'tokens, QuantifierSyntax> {
         .then(cmavo("ve'o").or_not())
         .map(|((vei, math_expression), veho)| QuantifierSyntax::Vei {
             vei,
+            free_modifiers: Vec::new(),
             math_expression: Box::new(math_expression),
             veho,
+            veho_free_modifiers: Vec::new(),
         });
     choice((vei_quantifier, number_quantifier())).boxed()
 }
@@ -3027,8 +3053,10 @@ where
         .then(cmavo("ve'o").or_not())
         .map(|((vei, math_expression), veho)| QuantifierSyntax::Vei {
             vei,
+            free_modifiers: Vec::new(),
             math_expression: Box::new(math_expression),
             veho,
+            veho_free_modifiers: Vec::new(),
         });
     choice((vei_quantifier, number_quantifier())).boxed()
 }
@@ -3905,14 +3933,19 @@ where
         + Clone
         + 'tokens,
 {
-    let vuhu = cmavo_of("VUhU", VUHU_WORDS).map(|vuhu| MathOperatorSyntax::Vuhu { vuhu });
+    let vuhu = cmavo_of("VUhU", VUHU_WORDS).map(|vuhu| MathOperatorSyntax::Vuhu {
+        vuhu,
+        free_modifiers: Vec::new(),
+    });
     let maho = cmavo("ma'o")
         .then(expression)
         .then(cmavo("te'u").or_not())
         .map(|((maho, math_expression), tehu)| MathOperatorSyntax::Maho {
             maho,
+            free_modifiers: Vec::new(),
             math_expression: Box::new(math_expression),
             tehu,
+            tehu_free_modifiers: Vec::new(),
         });
     let forethought = guhek_connective()
         .then(operator.clone())
@@ -3963,25 +3996,32 @@ where
         + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
-    let vuhu = cmavo_of("VUhU", VUHU_WORDS).map(|vuhu| MathOperatorSyntax::Vuhu { vuhu });
+    let vuhu = cmavo_of("VUhU", VUHU_WORDS).map(|vuhu| MathOperatorSyntax::Vuhu {
+        vuhu,
+        free_modifiers: Vec::new(),
+    });
     let maho = cmavo("ma'o")
         .then(expression)
         .then(cmavo("te'u").or_not())
         .map(|((maho, math_expression), tehu)| MathOperatorSyntax::Maho {
             maho,
+            free_modifiers: Vec::new(),
             math_expression: Box::new(math_expression),
             tehu,
+            tehu_free_modifiers: Vec::new(),
         });
     let se = cmavo_of("SE", &["se", "te", "ve", "xe"])
         .then(operator.clone())
         .map(|(se, inner_operator)| MathOperatorSyntax::Se {
             se,
+            free_modifiers: Vec::new(),
             inner_operator: Box::new(inner_operator),
         });
     let nahe = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
         .then(operator.clone())
         .map(|(nahe, inner_operator)| MathOperatorSyntax::Nahe {
             nahe,
+            free_modifiers: Vec::new(),
             inner_operator: Box::new(inner_operator),
         });
     let nahu = cmavo("na'u")
@@ -3989,8 +4029,10 @@ where
         .then(cmavo("te'u").or_not())
         .map(|((nahu, relation), tehu)| MathOperatorSyntax::Nahu {
             nahu,
+            free_modifiers: Vec::new(),
             relation,
             tehu,
+            tehu_free_modifiers: Vec::new(),
         });
     let forethought = guhek_connective()
         .then(operator.clone())
