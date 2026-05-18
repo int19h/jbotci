@@ -260,6 +260,10 @@ fn statement_parser<'tokens>(
     let mut subsentence = Recursive::declare();
     let mut free_modifier = Recursive::declare();
     let mut term = Recursive::declare();
+    let term_hierarchy_enabled = options
+        .dialect
+        .features
+        .contains(&DialectFeature::TermHierarchy);
     argument.define(argument_parser_with(
         argument.clone(),
         relation.clone(),
@@ -575,13 +579,21 @@ fn statement_parser<'tokens>(
                 )
             })
             .boxed();
+        let post_bo_argument_gate = if term_hierarchy_enabled {
+            empty().to(()).boxed()
+        } else {
+            argument.clone().rewind().not().boxed()
+        };
         let bo_tail = connective_with_free_modifiers(joik_ek_connective(), free_modifier.clone())
             .then(cmavo("bo"))
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(post_bo_argument_gate)
             .then(simple_term.clone())
-            .map(|(((bo_connective, bo), free_modifiers), trailing_term)| {
-                (Some(bo_connective), None, bo, free_modifiers, trailing_term)
-            });
+            .map(
+                |((((bo_connective, bo), free_modifiers), _), trailing_term)| {
+                    (Some(bo_connective), None, bo, free_modifiers, trailing_term)
+                },
+            );
         let term2 = cehe_term
             .clone()
             .then(bo_tail.repeated().collect::<Vec<_>>())
