@@ -369,6 +369,21 @@ enum TermSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+enum TermWrapperKindSyntax {
+    Lahe,
+    NaheBo,
+    Nahe,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct ArgumentConnectionSyntax {
+    connective: ConnectiveSyntax,
+    argument: Box<ArgumentSyntax>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
 enum ArgumentSyntax {
     Quote {
         quote: QuoteSyntax,
@@ -395,6 +410,25 @@ enum ArgumentSyntax {
         vuho_free_modifiers: Vec<FreeModifierSyntax>,
         relative_clauses: Vec<RelativeClauseSyntax>,
     },
+    Vuho {
+        base_argument: Box<ArgumentSyntax>,
+        vuho_marker: WordWithModifiers,
+        vuho_free_modifiers: Vec<FreeModifierSyntax>,
+        relative_clauses: Vec<RelativeClauseSyntax>,
+        connected_argument: Option<ArgumentConnectionSyntax>,
+    },
+    BridiDescription {
+        lohoi: WordWithModifiers,
+        lohoi_free_modifiers: Vec<FreeModifierSyntax>,
+        subsentence: Box<SubsentenceSyntax>,
+        kuhau: Option<WordWithModifiers>,
+        kuhau_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    NaKu {
+        na: WordWithModifiers,
+        ku: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+    },
     Tagged {
         tag_words: Vec<WordWithModifiers>,
         tag_tense_modal: Option<TenseModalSyntax>,
@@ -407,6 +441,22 @@ enum ArgumentSyntax {
         bo: WordWithModifiers,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_argument: Box<ArgumentSyntax>,
+        luhu: Option<WordWithModifiers>,
+        luhu_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    Nahe {
+        nahe: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        inner_argument: Box<ArgumentSyntax>,
+        luhu: Option<WordWithModifiers>,
+        luhu_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    TermWrapped {
+        term_wrapper_kind: TermWrapperKindSyntax,
+        wrapper: WordWithModifiers,
+        wrapper_bo: Option<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        inner_term: Box<TermSyntax>,
         luhu: Option<WordWithModifiers>,
         luhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
@@ -1955,6 +2005,56 @@ impl ArgumentSyntax {
                 }
                 words
             }
+            ArgumentSyntax::Vuho {
+                base_argument,
+                vuho_marker,
+                vuho_free_modifiers,
+                relative_clauses,
+                connected_argument,
+            } => {
+                let mut words = base_argument.words();
+                words.push(vuho_marker);
+                for free_modifier in vuho_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                for relative_clause in relative_clauses {
+                    words.extend(relative_clause.words());
+                }
+                if let Some(connected_argument) = connected_argument {
+                    words.extend(connected_argument.connective.words());
+                    words.extend(connected_argument.argument.words());
+                }
+                words
+            }
+            ArgumentSyntax::BridiDescription {
+                lohoi,
+                lohoi_free_modifiers,
+                subsentence,
+                kuhau,
+                kuhau_free_modifiers,
+            } => {
+                let mut words = vec![lohoi];
+                for free_modifier in lohoi_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(subsentence.words());
+                words.extend(kuhau);
+                for free_modifier in kuhau_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            ArgumentSyntax::NaKu {
+                na,
+                ku,
+                free_modifiers,
+            } => {
+                let mut words = vec![na, ku];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             ArgumentSyntax::Tagged {
                 tag_words,
                 free_modifiers,
@@ -1981,6 +2081,45 @@ impl ArgumentSyntax {
                     words.extend(free_modifier.words());
                 }
                 words.extend(inner_argument.words());
+                words.extend(luhu);
+                for free_modifier in luhu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            ArgumentSyntax::Nahe {
+                nahe,
+                free_modifiers,
+                inner_argument,
+                luhu,
+                luhu_free_modifiers,
+            } => {
+                let mut words = vec![nahe];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(inner_argument.words());
+                words.extend(luhu);
+                for free_modifier in luhu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            ArgumentSyntax::TermWrapped {
+                wrapper,
+                wrapper_bo,
+                free_modifiers,
+                inner_term,
+                luhu,
+                luhu_free_modifiers,
+                ..
+            } => {
+                let mut words = vec![wrapper];
+                words.extend(wrapper_bo);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(inner_term.words());
                 words.extend(luhu);
                 for free_modifier in luhu_free_modifiers {
                     words.extend(free_modifier.words());
@@ -3130,10 +3269,12 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let mut statement = Recursive::declare();
     let mut subsentence = Recursive::declare();
     let mut free_modifier = Recursive::declare();
+    let mut term = Recursive::declare();
     argument.define(argument_parser_with(
         argument.clone(),
         relation.clone(),
         subsentence.clone(),
+        term.clone(),
         text.clone(),
         free_modifier.clone(),
         source,
@@ -3234,7 +3375,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         bare_na_term,
     ))
     .boxed();
-    let term = recursive(|term| {
+    let term_body = {
+        let term = term.clone();
         let gek_nuhi_termset = cmavo("nu'i")
             .or_not()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -3345,8 +3487,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     },
                 )
             })
-    })
-    .boxed();
+    };
+    term.define(term_body.boxed());
     let tail_term = term.clone();
     let cu = cmavo("cu");
     let basic_predicate = recursive(|basic_predicate| {
@@ -4737,12 +4879,13 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn argument_parser_with<'tokens, A, R, T, F>(
+fn argument_parser_with<'tokens, A, R, S, T, F>(
     argument: A,
     relation: R,
     subsentence: impl Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
     + Clone
     + 'tokens,
+    single_term: S,
     text: T,
     free_modifier: F,
     source: Option<&'tokens str>,
@@ -4750,6 +4893,7 @@ fn argument_parser_with<'tokens, A, R, T, F>(
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    S: Parser<'tokens, ParserInput<'tokens>, TermSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     T: Parser<'tokens, ParserInput<'tokens>, TextSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
         + Clone
@@ -4817,6 +4961,25 @@ where
                 luhu_free_modifiers,
             },
         );
+    let lahe_term_wrapper = lahe_cmavo()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(single_term.clone())
+        .then(cmavo("lu'u").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |((((wrapper, free_modifiers), inner_term), luhu), luhu_free_modifiers)| {
+                ArgumentSyntax::TermWrapped {
+                    term_wrapper_kind: TermWrapperKindSyntax::Lahe,
+                    wrapper,
+                    wrapper_bo: None,
+                    free_modifiers,
+                    inner_term: Box::new(inner_term),
+                    luhu,
+                    luhu_free_modifiers,
+                }
+            },
+        )
+        .boxed();
 
     let name = la_cmavo()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -5010,21 +5173,127 @@ where
                 }
             },
         );
+    let nahe_bo_term_wrapper = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+        .then(cmavo("bo"))
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(single_term.clone())
+        .then(cmavo("lu'u").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(
+                ((((wrapper, wrapper_bo), free_modifiers), inner_term), luhu),
+                luhu_free_modifiers,
+            )| {
+                ArgumentSyntax::TermWrapped {
+                    term_wrapper_kind: TermWrapperKindSyntax::NaheBo,
+                    wrapper,
+                    wrapper_bo: Some(wrapper_bo),
+                    free_modifiers,
+                    inner_term: Box::new(inner_term),
+                    luhu,
+                    luhu_free_modifiers,
+                }
+            },
+        )
+        .boxed();
+    let nahe_argument = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+        .then(cmavo("bo").rewind().not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(argument.clone())
+        .then(cmavo("lu'u").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(((((nahe, _), free_modifiers), inner_argument), luhu), luhu_free_modifiers)| {
+                ArgumentSyntax::Nahe {
+                    nahe,
+                    free_modifiers,
+                    inner_argument: Box::new(inner_argument),
+                    luhu,
+                    luhu_free_modifiers,
+                }
+            },
+        )
+        .boxed();
+    let nahe_term_wrapper = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+        .then(cmavo("bo").rewind().not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(single_term.clone())
+        .then(cmavo("lu'u").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(((((wrapper, _), free_modifiers), inner_term), luhu), luhu_free_modifiers)| {
+                ArgumentSyntax::TermWrapped {
+                    term_wrapper_kind: TermWrapperKindSyntax::Nahe,
+                    wrapper,
+                    wrapper_bo: None,
+                    free_modifiers,
+                    inner_term: Box::new(inner_term),
+                    luhu,
+                    luhu_free_modifiers,
+                }
+            },
+        )
+        .boxed();
+    let bridi_description = cmavo_of("LOhOI", &["lo'oi", "mau'a", "xau'a"])
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(subsentence.clone())
+        .then(cmavo("ku'au").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |((((lohoi, lohoi_free_modifiers), subsentence), kuhau), kuhau_free_modifiers)| {
+                ArgumentSyntax::BridiDescription {
+                    lohoi,
+                    lohoi_free_modifiers,
+                    subsentence: Box::new(subsentence),
+                    kuhau,
+                    kuhau_free_modifiers,
+                }
+            },
+        )
+        .boxed();
+    let na_ku_argument = na_cmavo()
+        .then(cmavo("ku"))
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|((na, ku), free_modifiers)| ArgumentSyntax::NaKu {
+            na,
+            ku,
+            free_modifiers,
+        })
+        .boxed();
 
-    let unquantified_base_argument_core = choice((
+    let quoted_or_simple_argument_core = choice((
         quote,
         math_expression,
         letter,
         lahe,
+        lahe_term_wrapper,
         name,
+        bridi_description,
+    ))
+    .boxed();
+    let tagged_or_negated_argument_core = choice((
         tense_tagged_argument,
         fa_tagged_argument,
         nahe_bo_argument,
+        nahe_bo_term_wrapper,
+        nahe_argument,
+        nahe_term_wrapper,
+        na_ku_argument,
+    ))
+    .boxed();
+    let descriptor_argument_core = choice((
         descriptor_with_outer_quantifier,
         descriptor_with_gadri,
         descriptor_without_gadri,
         koha,
-    ));
+    ))
+    .boxed();
+    let unquantified_base_argument_core = choice((
+        quoted_or_simple_argument_core,
+        tagged_or_negated_argument_core,
+        descriptor_argument_core,
+    ))
+    .boxed();
     let base_relative_clauses =
         relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone())
             .or_not()
@@ -5175,22 +5444,39 @@ where
             cmavo("vu'o")
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .then(
-                    relative_clauses(argument, subsentence, free_modifier.clone())
+                    relative_clauses(argument.clone(), subsentence, free_modifier.clone())
                         .or_not()
                         .map(Option::unwrap_or_default),
+                )
+                .then(
+                    argument_connective()
+                        .then(argument)
+                        .map(|(connective, argument)| ArgumentConnectionSyntax {
+                            connective,
+                            argument: Box::new(argument),
+                        })
+                        .or_not(),
                 )
                 .or_not(),
         )
         .map(|(base_argument, vuho_attachment)| {
-            if let Some(((vuho, vuho_free_modifiers), relative_clauses)) = vuho_attachment {
-                if relative_clauses.is_empty() {
-                    base_argument
-                } else {
+            if let Some((((vuho, vuho_free_modifiers), relative_clauses), connected_argument)) =
+                vuho_attachment
+            {
+                if !relative_clauses.is_empty() && connected_argument.is_none() {
                     ArgumentSyntax::RelativeClause {
                         base_argument: Box::new(base_argument),
                         vuho: Some(vuho),
                         vuho_free_modifiers,
                         relative_clauses,
+                    }
+                } else {
+                    ArgumentSyntax::Vuho {
+                        base_argument: Box::new(base_argument),
+                        vuho_marker: vuho,
+                        vuho_free_modifiers,
+                        relative_clauses,
+                        connected_argument,
                     }
                 }
             } else {
@@ -9698,6 +9984,16 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
 
 #[requires(true)]
 #[ensures(true)]
+fn term_wrapper_kind_tree(kind: TermWrapperKindSyntax) -> SyntaxValue {
+    match kind {
+        TermWrapperKindSyntax::Lahe => node("LaheTermWrapper", Vec::new()),
+        TermWrapperKindSyntax::NaheBo => node("NaheBoTermWrapper", Vec::new()),
+        TermWrapperKindSyntax::Nahe => node("NaheTermWrapper", Vec::new()),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
     match argument {
         ArgumentSyntax::Quote { quote } => node(
@@ -9799,6 +10095,96 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
                 ),
             ],
         ),
+        ArgumentSyntax::Vuho {
+            base_argument,
+            vuho_marker,
+            vuho_free_modifiers,
+            relative_clauses,
+            connected_argument,
+        } => node(
+            "VuhoArgument",
+            vec![
+                field("baseArgument", argument_tree(*base_argument)),
+                field("vuhoMarker", word_value(vuho_marker)),
+                field(
+                    "vuhoFreeModifiers",
+                    list(
+                        vuho_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field(
+                    "relativeClauses",
+                    list(
+                        relative_clauses
+                            .into_iter()
+                            .map(relative_clause_tree)
+                            .collect(),
+                    ),
+                ),
+                field(
+                    "connectedArgument",
+                    connected_argument.map_or_else(nothing, |connected_argument| {
+                        just(node(
+                            "(,)",
+                            vec![
+                                unnamed_field(connective_tree(connected_argument.connective)),
+                                unnamed_field(argument_tree(*connected_argument.argument)),
+                            ],
+                        ))
+                    }),
+                ),
+            ],
+        ),
+        ArgumentSyntax::BridiDescription {
+            lohoi,
+            lohoi_free_modifiers,
+            subsentence,
+            kuhau,
+            kuhau_free_modifiers,
+        } => node(
+            "BridiDescriptionArgument",
+            vec![
+                field("lohoi", word_value(lohoi)),
+                field(
+                    "lohoiFreeModifiers",
+                    list(
+                        lohoi_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field("subsentence", subsentence_tree(*subsentence)),
+                field("kuhau", maybe_word(kuhau)),
+                field(
+                    "kuhauFreeModifiers",
+                    list(
+                        kuhau_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        ArgumentSyntax::NaKu {
+            na,
+            ku,
+            free_modifiers,
+        } => node(
+            "NaKuArgument",
+            vec![
+                field("na", word_value(na)),
+                field("ku", word_value(ku)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+            ],
+        ),
         ArgumentSyntax::Tagged {
             tag_words,
             tag_tense_modal,
@@ -9842,6 +10228,64 @@ fn argument_tree(argument: ArgumentSyntax) -> SyntaxValue {
                     list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
                 ),
                 field("innerArgument", argument_tree(*inner_argument)),
+                field("luhu", maybe_word(luhu)),
+                field(
+                    "luhuFreeModifiers",
+                    list(
+                        luhu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        ArgumentSyntax::Nahe {
+            nahe,
+            free_modifiers,
+            inner_argument,
+            luhu,
+            luhu_free_modifiers,
+        } => node(
+            "NaheArgument",
+            vec![
+                field("nahe", word_value(nahe)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field("innerArgument", argument_tree(*inner_argument)),
+                field("luhu", maybe_word(luhu)),
+                field(
+                    "luhuFreeModifiers",
+                    list(
+                        luhu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        ArgumentSyntax::TermWrapped {
+            term_wrapper_kind,
+            wrapper,
+            wrapper_bo,
+            free_modifiers,
+            inner_term,
+            luhu,
+            luhu_free_modifiers,
+        } => node(
+            "TermWrappedArgument",
+            vec![
+                field("termWrapperKind", term_wrapper_kind_tree(term_wrapper_kind)),
+                field("wrapper", word_value(wrapper)),
+                field("wrapperBo", maybe_word(wrapper_bo)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field("innerTerm", term_tree(*inner_term)),
                 field("luhu", maybe_word(luhu)),
                 field(
                     "luhuFreeModifiers",
