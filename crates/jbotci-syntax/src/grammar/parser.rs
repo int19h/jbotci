@@ -1964,6 +1964,7 @@ where
 {
     let number = number_quantifier().map(MathExpressionSyntax::Number);
     let letter = letter_string()
+        .then_ignore(cmavo_of("MOI", MOI_WORDS).rewind().not())
         .then(cmavo("boi").or_not())
         .map(|(letter, boi)| MathExpressionSyntax::Letter {
             letter,
@@ -2201,6 +2202,7 @@ where
 {
     let number = number_quantifier().map(MathExpressionSyntax::Number);
     let letter = letter_string()
+        .then_ignore(cmavo_of("MOI", MOI_WORDS).rewind().not())
         .then(cmavo("boi").or_not())
         .map(|(letter, boi)| MathExpressionSyntax::Letter {
             letter,
@@ -2520,6 +2522,8 @@ where
         );
 
     let letter = letter_string()
+        .then_ignore(cmavo_of("MOI", MOI_WORDS).rewind().not())
+        .then_ignore(cmavo_of("MAI", MAI_WORDS).rewind().not())
         .then(cmavo("boi").or_not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(
@@ -4704,14 +4708,43 @@ where
             },
         );
 
+    let jai_inner_unit = recursive(|jai_inner_unit| {
+        let se_inner_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(jai_inner_unit.clone())
+            .map(
+                |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
+                    se,
+                    free_modifiers,
+                    inner_unit: Box::new(inner_unit),
+                },
+            );
+        let nahe_inner_unit = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(jai_inner_unit.clone())
+            .map(
+                |((nahe, free_modifiers), inner_unit)| RelationUnitSyntax::Nahe {
+                    nahe,
+                    free_modifiers,
+                    inner_unit: Box::new(inner_unit),
+                },
+            );
+        choice((
+            se_inner_unit,
+            nahe_inner_unit,
+            ke_unit.clone(),
+            moi_unit.clone(),
+            nuha_unit.clone(),
+            goha_unit.clone(),
+            word_unit.clone(),
+        ))
+    })
+    .boxed();
+
     let jai_unit = cmavo("jai")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(tense_modal().or_not())
-        .then(choice((
-            se_unit.clone(),
-            goha_unit.clone(),
-            word_unit.clone(),
-        )))
+        .then(jai_inner_unit)
         .map(
             |(((jai, free_modifiers), tense_modal), inner_unit)| RelationUnitSyntax::Jai {
                 jai,
@@ -5343,11 +5376,56 @@ where
                 )
         })
         .boxed();
+        let jai_inner_unit = recursive(|jai_inner_unit| {
+            let se_inner_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(jai_inner_unit.clone())
+                .map(
+                    |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
+                        se,
+                        free_modifiers,
+                        inner_unit: Box::new(inner_unit),
+                    },
+                );
+            let nahe_inner_unit = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(jai_inner_unit.clone())
+                .map(
+                    |((nahe, free_modifiers), inner_unit)| RelationUnitSyntax::Nahe {
+                        nahe,
+                        free_modifiers,
+                        inner_unit: Box::new(inner_unit),
+                    },
+                );
+            choice((
+                se_inner_unit,
+                nahe_inner_unit,
+                ke_unit.clone(),
+                moi_unit.clone(),
+                nuha_unit.clone(),
+                goha_unit.clone(),
+                word_unit.clone(),
+            ))
+        })
+        .boxed();
+        let jai_unit = cmavo("jai")
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(tense_modal().or_not())
+            .then(jai_inner_unit)
+            .map(
+                |(((jai, free_modifiers), tense_modal), inner_unit)| RelationUnitSyntax::Jai {
+                    jai,
+                    free_modifiers,
+                    tense_modal,
+                    inner_unit: Box::new(inner_unit),
+                },
+            );
         let nahe_unit = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(choice((
                 ke_unit.clone(),
                 moi_unit.clone(),
+                jai_unit.clone(),
                 se_unit.clone(),
                 goha_unit.clone(),
                 word_unit.clone(),
@@ -5390,6 +5468,7 @@ where
             luhei_unit.clone(),
             se_abstraction_unit.clone(),
             abstraction_subsentence_unit.clone(),
+            jai_unit.clone(),
             nahe_unit.clone(),
             se_unit.clone(),
             ke_unit.clone(),
@@ -5409,6 +5488,7 @@ where
             luhei_unit.clone(),
             se_abstraction_unit,
             abstraction_subsentence_unit,
+            jai_unit,
             nahe_unit.clone(),
             se_unit.clone(),
             ke_unit.clone(),
@@ -6039,7 +6119,12 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             free_modifiers: Vec::new(),
         }
     });
-    let numbered_interval = number_words()
+    let numbered_interval_start = number_words()
+        .then(cmavo_of("ROI", ROI_WORDS))
+        .rewind()
+        .ignored();
+    let numbered_interval = numbered_interval_start
+        .ignore_then(number_words())
         .then(cmavo_of("ROI", ROI_WORDS))
         .then(cmavo("nai").or_not())
         .map(|((number, roi_or_tahe), nai)| {
@@ -6121,7 +6206,12 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 free_modifiers: Vec::new(),
             }
         });
+    let fehe_numbered_interval_start = number_words()
+        .then(cmavo_of("ROI", ROI_WORDS))
+        .rewind()
+        .ignored();
     let fehe_numbered_interval = cmavo("fe'e")
+        .then_ignore(fehe_numbered_interval_start)
         .then(number_words())
         .then(cmavo_of("ROI", ROI_WORDS))
         .then(cmavo("nai").or_not())
@@ -6560,7 +6650,12 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
                 free_modifiers: Vec::new(),
             }
         });
-    let numbered_interval = number_words()
+    let numbered_interval_start = number_words()
+        .then(cmavo_of("ROI", ROI_WORDS))
+        .rewind()
+        .ignored();
+    let numbered_interval = numbered_interval_start
+        .ignore_then(number_words())
         .then(cmavo_of("ROI", ROI_WORDS))
         .then(cmavo("nai").or_not())
         .map(|((number, roi_or_tahe), nai)| {
