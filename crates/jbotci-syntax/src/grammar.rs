@@ -687,6 +687,7 @@ enum RelationSyntax {
     },
     Na {
         na: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         inner_relation: Box<RelationSyntax>,
     },
     Base {
@@ -694,6 +695,7 @@ enum RelationSyntax {
     },
     Se {
         se: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         inner_relation: Box<RelationSyntax>,
     },
     Ke {
@@ -848,6 +850,7 @@ enum RelationUnitSyntax {
     },
     Se {
         se: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         inner_unit: Box<RelationUnitSyntax>,
     },
     Ke {
@@ -858,6 +861,7 @@ enum RelationUnitSyntax {
     },
     Nahe {
         nahe: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         inner_unit: Box<RelationUnitSyntax>,
     },
     Bo {
@@ -2163,14 +2167,28 @@ impl RelationSyntax {
                 words.extend(trailing_relation.words());
                 words
             }
-            RelationSyntax::Na { na, inner_relation } => {
+            RelationSyntax::Na {
+                na,
+                free_modifiers,
+                inner_relation,
+            } => {
                 let mut words = vec![na];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner_relation.words());
                 words
             }
             RelationSyntax::Base { word } => vec![word],
-            RelationSyntax::Se { se, inner_relation } => {
+            RelationSyntax::Se {
+                se,
+                free_modifiers,
+                inner_relation,
+            } => {
                 let mut words = vec![se];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner_relation.words());
                 words
             }
@@ -2238,8 +2256,15 @@ impl RelationUnitSyntax {
                 }
                 words
             }
-            RelationUnitSyntax::Se { se, inner_unit } => {
+            RelationUnitSyntax::Se {
+                se,
+                free_modifiers,
+                inner_unit,
+            } => {
                 let mut words = vec![se];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner_unit.words());
                 words
             }
@@ -2251,8 +2276,15 @@ impl RelationUnitSyntax {
                 words.extend(kehe);
                 words
             }
-            RelationUnitSyntax::Nahe { nahe, inner_unit } => {
+            RelationUnitSyntax::Nahe {
+                nahe,
+                free_modifiers,
+                inner_unit,
+            } => {
                 let mut words = vec![nahe];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(inner_unit.words());
                 words
             }
@@ -5398,6 +5430,7 @@ where
         });
 
     let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(choice((
             ke_unit.clone(),
             moi_unit.clone(),
@@ -5405,10 +5438,13 @@ where
             goha_unit.clone(),
             word_unit.clone(),
         )))
-        .map(|(se, inner_unit)| RelationUnitSyntax::Se {
-            se,
-            inner_unit: Box::new(inner_unit),
-        });
+        .map(
+            |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
+                se,
+                free_modifiers,
+                inner_unit: Box::new(inner_unit),
+            },
+        );
 
     let wrapped_tense_unit = tense_modal()
         .then(relation_units_inner(
@@ -5426,6 +5462,7 @@ where
         );
 
     let nahe_unit = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(choice((
             wrapped_tense_unit,
             ke_unit.clone(),
@@ -5434,10 +5471,13 @@ where
             goha_unit.clone(),
             word_unit.clone(),
         )))
-        .map(|(nahe, inner_unit)| RelationUnitSyntax::Nahe {
-            nahe,
-            inner_unit: Box::new(inner_unit),
-        });
+        .map(
+            |((nahe, free_modifiers), inner_unit)| RelationUnitSyntax::Nahe {
+                nahe,
+                free_modifiers,
+                inner_unit: Box::new(inner_unit),
+            },
+        );
 
     let jai_unit = cmavo("jai")
         .then(tense_modal().or_not())
@@ -5473,11 +5513,15 @@ where
         .boxed();
 
     let se_abstraction_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(abstraction_subsentence_unit.clone())
-        .map(|(se, inner_unit)| RelationUnitSyntax::Se {
-            se,
-            inner_unit: Box::new(inner_unit),
-        });
+        .map(
+            |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
+                se,
+                free_modifiers,
+                inner_unit: Box::new(inner_unit),
+            },
+        );
 
     let base_unit = choice((
         goha_raho_unit.clone(),
@@ -5683,11 +5727,15 @@ where
             )
         });
     let na_relation = na_cmavo()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(relation)
-        .map(|(na, inner_relation)| RelationSyntax::Na {
-            na,
-            inner_relation: Box::new(inner_relation),
-        });
+        .map(
+            |((na, free_modifiers), inner_relation)| RelationSyntax::Na {
+                na,
+                free_modifiers,
+                inner_relation: Box::new(inner_relation),
+            },
+        );
     let co_relation = recursive(|co_relation| {
         connected_relation
             .clone()
@@ -5835,11 +5883,15 @@ where
             )
             .boxed();
         let se_abstraction_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(abstraction_subsentence_unit.clone())
-            .map(|(se, inner_unit)| RelationUnitSyntax::Se {
-                se,
-                inner_unit: Box::new(inner_unit),
-            });
+            .map(
+                |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
+                    se,
+                    free_modifiers,
+                    inner_unit: Box::new(inner_unit),
+                },
+            );
         let ke_unit = cmavo("ke")
             .then(inner_relation.clone())
             .then(cmavo("ke'e").or_not())
@@ -5850,17 +5902,22 @@ where
                 kehe,
             });
         let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(choice((
                 ke_unit.clone(),
                 moi_unit.clone(),
                 goha_unit.clone(),
                 word_unit.clone(),
             )))
-            .map(|(se, inner_unit)| RelationUnitSyntax::Se {
-                se,
-                inner_unit: Box::new(inner_unit),
-            });
+            .map(
+                |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
+                    se,
+                    free_modifiers,
+                    inner_unit: Box::new(inner_unit),
+                },
+            );
         let nahe_unit = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(choice((
                 ke_unit.clone(),
                 moi_unit.clone(),
@@ -5868,10 +5925,13 @@ where
                 goha_unit.clone(),
                 word_unit.clone(),
             )))
-            .map(|(nahe, inner_unit)| RelationUnitSyntax::Nahe {
-                nahe,
-                inner_unit: Box::new(inner_unit),
-            });
+            .map(
+                |((nahe, free_modifiers), inner_unit)| RelationUnitSyntax::Nahe {
+                    nahe,
+                    free_modifiers,
+                    inner_unit: Box::new(inner_unit),
+                },
+            );
         let be_link = be_link_parser(argument.clone(), free_modifier.clone());
 
         let base_unit = choice((
@@ -6081,8 +6141,15 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
         [RelationUnitSyntax::Word { .. } | RelationUnitSyntax::Goha { .. }] => {
             RelationSyntax::Compound { units }
         }
-        [RelationUnitSyntax::Se { se, inner_unit }] => RelationSyntax::Se {
+        [
+            RelationUnitSyntax::Se {
+                se,
+                free_modifiers,
+                inner_unit,
+            },
+        ] => RelationSyntax::Se {
             se: se.clone(),
+            free_modifiers: free_modifiers.clone(),
             inner_relation: Box::new(relation_unit_to_relation(inner_unit.as_ref())),
         },
         [
@@ -6145,8 +6212,13 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
             raho: None,
             free_modifiers,
         } if free_modifiers.is_empty() => RelationSyntax::Base { word: goha.clone() },
-        RelationUnitSyntax::Se { se, inner_unit } => RelationSyntax::Se {
+        RelationUnitSyntax::Se {
+            se,
+            free_modifiers,
+            inner_unit,
+        } => RelationSyntax::Se {
             se: se.clone(),
+            free_modifiers: free_modifiers.clone(),
             inner_relation: Box::new(relation_unit_to_relation(inner_unit)),
         },
         RelationUnitSyntax::Ke {
@@ -6219,6 +6291,7 @@ fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         .then(word_unit.clone())
         .map(|(se, inner_unit)| RelationUnitSyntax::Se {
             se,
+            free_modifiers: Vec::new(),
             inner_unit: Box::new(inner_unit),
         });
     let relation = choice((se_unit, word_unit))
@@ -9328,22 +9401,36 @@ fn relation_tree(relation: RelationSyntax) -> SyntaxValue {
                 field("trailingRelation", relation_tree(*trailing_relation)),
             ],
         ),
-        RelationSyntax::Na { na, inner_relation } => node(
+        RelationSyntax::Na {
+            na,
+            free_modifiers,
+            inner_relation,
+        } => node(
             "NaRelation",
             vec![
                 field("na", word_value(na)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("innerRelation", relation_tree(*inner_relation)),
             ],
         ),
         RelationSyntax::Base { word } => {
             node("BaseRelation", vec![field("word", word_value(word))])
         }
-        RelationSyntax::Se { se, inner_relation } => node(
+        RelationSyntax::Se {
+            se,
+            free_modifiers,
+            inner_relation,
+        } => node(
             "SeRelation",
             vec![
                 field("se", word_value(se)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("innerRelation", relation_tree(*inner_relation)),
             ],
         ),
@@ -9906,11 +9993,18 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
                 ),
             ],
         ),
-        RelationUnitSyntax::Se { se, inner_unit } => node(
+        RelationUnitSyntax::Se {
+            se,
+            free_modifiers,
+            inner_unit,
+        } => node(
             "SeRelationUnit",
             vec![
                 field("se", word_value(se)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("innerUnit", relation_unit_tree(*inner_unit)),
             ],
         ),
@@ -9934,11 +10028,18 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
                 field("keheFreeModifiers", nil()),
             ],
         ),
-        RelationUnitSyntax::Nahe { nahe, inner_unit } => node(
+        RelationUnitSyntax::Nahe {
+            nahe,
+            free_modifiers,
+            inner_unit,
+        } => node(
             "NaheRelationUnit",
             vec![
                 field("nahe", word_value(nahe)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("innerUnit", relation_unit_tree(*inner_unit)),
             ],
         ),
