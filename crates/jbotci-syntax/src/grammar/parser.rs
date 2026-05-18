@@ -1175,6 +1175,67 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         simple_statement_after_i_connective.clone(),
     ));
 
+    let pending_i_connective = cmavo("i")
+        .then(statement_connective())
+        .then(cmavo("i").rewind())
+        .map(|((i, connective), _)| (i, connective))
+        .boxed();
+    let chained_i_connective_statement_tail = pending_i_connective
+        .clone()
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .then(
+            cmavo("i")
+                .then(statement_connective())
+                .then(
+                    tense_modal_with_free_modifiers
+                        .clone()
+                        .or_not()
+                        .then(cmavo("bo"))
+                        .or_not(),
+                )
+                .then(simple_statement_after_i_connective.clone()),
+        )
+        .map(
+            |(pending, (((i, connective), tag_bo), trailing_statement))| {
+                let (first_i, pending_words) = pending.into_iter().enumerate().fold(
+                    (None, Vec::new()),
+                    |(first_i, mut pending_words), (index, (pending_i, pending_connective))| {
+                        let first_i = first_i.or_else(|| Some(pending_i.clone()));
+                        if index > 0 {
+                            pending_words.push(pending_i);
+                        }
+                        pending_words.extend(pending_connective.cmavo);
+                        (first_i, pending_words)
+                    },
+                );
+                let connective = tag_bo.map_or(connective.clone(), |(tense_modal, bo)| {
+                    let mut cmavo = connective.cmavo;
+                    if let Some(tense_modal) = tense_modal {
+                        cmavo.extend(tense_modal.words());
+                    }
+                    cmavo.push(bo);
+                    ConnectiveSyntax {
+                        kind: connective.kind,
+                        se: connective.se,
+                        nahe: connective.nahe,
+                        na: connective.na,
+                        cmavo,
+                        nai: connective.nai,
+                        free_modifiers: connective.free_modifiers,
+                    }
+                });
+                let connective =
+                    prepend_connective_words([pending_words, vec![i]].concat(), connective);
+                (
+                    false,
+                    first_i.expect("at least one pending i connective is parsed"),
+                    connective,
+                    trailing_statement,
+                )
+            },
+        );
     let i_connective_statement_tail = cmavo("i")
         .then(statement_connective())
         .then(
@@ -1227,6 +1288,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             )
         });
     let connected_statement_tail = choice((
+        chained_i_connective_statement_tail,
         i_connective_statement_tail,
         i_bo_statement_tail,
         statement_connective()
@@ -1307,7 +1369,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         statement: Some(statement),
     });
 
-    let i_connective_tag_bo = statement_connective()
+    let i_connective_tag_bo = standard_statement_connective()
         .or_not()
         .then(
             tense_modal_with_free_modifiers
@@ -1451,7 +1513,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             modal_forethought_connective()
                 .rewind()
                 .not()
-                .ignore_then(statement_connective())
+                .ignore_then(standard_statement_connective())
                 .or_not(),
         )
         .then(leading_i_statement.repeated().collect::<Vec<_>>())
@@ -2060,7 +2122,7 @@ where
     let math_operand = math_operand_atom
         .clone()
         .then(
-            argument_connective()
+            operand_connective()
                 .then(math_operand_atom)
                 .repeated()
                 .collect::<Vec<_>>(),
@@ -2278,7 +2340,7 @@ where
     let math_operand = math_operand_atom
         .clone()
         .then(
-            argument_connective()
+            operand_connective()
                 .then(math_operand_atom)
                 .repeated()
                 .collect::<Vec<_>>(),
@@ -3005,11 +3067,23 @@ where
             })
             .boxed()
     });
+    let argument_connective_before_bare_na_term = argument_connective()
+        .then(na_cmavo())
+        .then(cmavo("ku").rewind().not())
+        .rewind()
+        .ignored();
+    let afterthought_argument_tail =
+        connective_with_free_modifiers(argument_connective(), free_modifier.clone())
+            .then(argument3.clone())
+            .boxed();
     let argument2 = argument3
         .clone()
         .then(
-            connective_with_free_modifiers(argument_connective(), free_modifier.clone())
-                .then(argument3.clone())
+            argument_connective_before_bare_na_term
+                .clone()
+                .not()
+                .ignore_then(afterthought_argument_tail.clone().rewind())
+                .ignore_then(afterthought_argument_tail)
                 .repeated()
                 .collect::<Vec<_>>(),
         )
@@ -3025,16 +3099,23 @@ where
         })
         .boxed();
 
+    let argument_ke_tail =
+        connective_with_free_modifiers(argument_connective(), free_modifier.clone())
+            .then(tense_modal().or_not())
+            .then(cmavo("ke"))
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(argument.clone())
+            .then(cmavo("ke'e").or_not())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .boxed();
     let argument1 = argument2
         .clone()
         .then(
-            connective_with_free_modifiers(argument_connective(), free_modifier.clone())
-                .then(tense_modal().or_not())
-                .then(cmavo("ke"))
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .then(argument.clone())
-                .then(cmavo("ke'e").or_not())
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            argument_connective_before_bare_na_term
+                .clone()
+                .not()
+                .ignore_then(argument_ke_tail.clone().rewind())
+                .ignore_then(argument_ke_tail)
                 .or_not(),
         )
         .map(|(leading_argument, ke_tail)| {
@@ -3992,8 +4073,15 @@ fn argument_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
                     free_modifiers: Vec::new(),
                 },
             ),
+        vuhu_nonlogical_connective(),
     ))
     .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn operand_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    choice((joik_connective(), ek_connective(), jek_connective())).boxed()
 }
 
 #[requires(true)]
@@ -4011,6 +4099,22 @@ fn ek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
             na,
             cmavo: vec![cmavo],
             nai,
+            free_modifiers: Vec::new(),
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vuhu_nonlogical_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    cmavo_of("VUhU", VUHU_WORDS)
+        .map(|cmavo| ConnectiveSyntax {
+            kind: ConnectiveKind::NonLogical,
+            se: None,
+            nahe: None,
+            na: None,
+            cmavo: vec![cmavo],
+            nai: None,
             free_modifiers: Vec::new(),
         })
         .boxed()
@@ -4065,6 +4169,25 @@ fn append_connective_words(
 ) -> ConnectiveSyntax {
     let mut cmavo = connective.cmavo;
     cmavo.extend(words);
+    ConnectiveSyntax {
+        kind: connective.kind,
+        se: connective.se,
+        nahe: connective.nahe,
+        na: connective.na,
+        cmavo,
+        nai: connective.nai,
+        free_modifiers: connective.free_modifiers,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.cmavo.len() >= old(words.len()))]
+fn prepend_connective_words(
+    words: Vec<WordWithModifiers>,
+    connective: ConnectiveSyntax,
+) -> ConnectiveSyntax {
+    let mut cmavo = words;
+    cmavo.extend(connective.cmavo);
     ConnectiveSyntax {
         kind: connective.kind,
         se: connective.se,
@@ -4165,14 +4288,32 @@ fn connective_tense_modal_leaves(connective: ConnectiveSyntax) -> Vec<WordWithMo
 
 #[requires(true)]
 #[ensures(true)]
-fn statement_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+fn standard_statement_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     choice((joik_connective(), jek_connective())).boxed()
 }
 
 #[requires(true)]
 #[ensures(true)]
+fn statement_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    choice((
+        joik_connective(),
+        jek_connective(),
+        ek_connective(),
+        vuhu_nonlogical_connective(),
+    ))
+    .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn relation_afterthought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
-    choice((joik_connective(), jek_connective(), ek_connective())).boxed()
+    choice((
+        joik_connective(),
+        jek_connective(),
+        ek_connective(),
+        vuhu_nonlogical_connective(),
+    ))
+    .boxed()
 }
 
 #[requires(true)]
@@ -4550,6 +4691,12 @@ where
         + Clone
         + 'tokens,
 {
+    let tense_modal_with_free_modifiers = tense_modal()
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|(tense_modal, free_modifiers)| {
+            attach_tense_modal_free_modifiers(tense_modal, free_modifiers)
+        })
+        .boxed();
     let me_argument = argument
         .clone()
         .or(letter_string().map(|letter| ArgumentSyntax::Letter {
@@ -4688,7 +4835,7 @@ where
         );
     let xohi_unit = cmavo("xo'i")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(tense_modal())
+        .then(tense_modal_with_free_modifiers.clone())
         .map(|((xohi, free_modifiers), tag)| RelationUnitSyntax::Xohi {
             xohi,
             free_modifiers,
@@ -4763,7 +4910,8 @@ where
     })
     .boxed();
 
-    let wrapped_tense_unit = tense_modal()
+    let wrapped_tense_unit = tense_modal_with_free_modifiers
+        .clone()
         .then(relation_units_inner(
             argument.clone(),
             subsentence.clone(),
@@ -4820,7 +4968,7 @@ where
 
     let jai_unit = cmavo("jai")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(tense_modal().or_not())
+        .then(tense_modal_with_free_modifiers.clone().or_not())
         .then(jai_inner_unit)
         .map(
             |(((jai, free_modifiers), tense_modal), inner_unit)| RelationUnitSyntax::Jai {
@@ -5218,13 +5366,12 @@ where
     });
 
     let untagged_relation = choice((na_relation, co_relation)).boxed();
-    let tagged_relation =
-        tense_modal()
-            .then(untagged_relation.clone())
-            .map(|(tense_modal, inner_relation)| RelationSyntax::TenseModal {
-                tense_modal,
-                inner_relation: Box::new(inner_relation),
-            });
+    let tagged_relation = tense_modal_with_free_modifiers
+        .then(untagged_relation.clone())
+        .map(|(tense_modal, inner_relation)| RelationSyntax::TenseModal {
+            tense_modal,
+            inner_relation: Box::new(inner_relation),
+        });
 
     choice((tagged_relation, untagged_relation)).boxed()
 }
