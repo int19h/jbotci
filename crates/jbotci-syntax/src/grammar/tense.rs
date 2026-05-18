@@ -5,7 +5,7 @@ use super::ast::{
     FihoModalSyntax, FreeModifierSyntax, IntervalTenseSyntax, SimpleTenseModalSyntax,
     SpaceTenseSyntax, TenseModalSyntax, TimeTenseSyntax,
 };
-use super::tokens::{BAI_WORDS, CAHA_WORDS, FA_WORDS, ROI_WORDS, cmavo_text_matches};
+use super::tokens::{BAI_WORDS, CAHA_WORDS, FA_WORDS, ROI_WORDS, ZAHO_WORDS, cmavo_text_matches};
 
 #[requires(true)]
 #[ensures(matches!(ret, TenseModalSyntax::Composite { .. }))]
@@ -39,12 +39,7 @@ pub(super) fn tense_modal_from_leaves(
             cuhe = Some(leaf.clone());
         } else if cmavo_matches_any(leaf, CAHA_WORDS) {
             caha = Some(leaf.clone());
-        } else if cmavo_matches_any(
-            leaf,
-            &[
-                "ba'o", "ca'o", "co'a", "co'i", "co'u", "de'a", "di'a", "mo'u", "pu'o", "za'o",
-            ],
-        ) {
+        } else if cmavo_matches_any(leaf, ZAHO_WORDS) {
             zaho.push(leaf.clone());
         } else if cmavo_matches_any(leaf, &["pu", "ca", "ba"]) {
             time_direction.push(leaf.clone());

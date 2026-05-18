@@ -6157,12 +6157,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             }
         });
     let fehe_zaho = cmavo("fe'e")
-        .then(cmavo_of(
-            "ZAhO",
-            &[
-                "ba'o", "ca'o", "co'a", "co'i", "co'u", "de'a", "di'a", "mo'u", "pu'o", "za'o",
-            ],
-        ))
+        .then(cmavo_of("ZAhO", ZAHO_WORDS))
         .then(cmavo("nai").or_not())
         .map(|((fehe, zaho), nai)| {
             let mut leaves = vec![fehe.clone(), zaho.clone()];
@@ -6240,31 +6235,26 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         connectives: Vec::new(),
         free_modifiers: Vec::new(),
     });
-    let zaho = cmavo_of(
-        "ZAhO",
-        &[
-            "ba'o", "ca'o", "co'a", "co'i", "co'u", "de'a", "di'a", "mo'u", "pu'o", "za'o",
-        ],
-    )
-    .then(cmavo("nai").or_not())
-    .map(|(zaho, nai)| {
-        let mut leaves = vec![zaho.clone()];
-        leaves.extend(nai);
-        TenseModalSyntax::Composite {
-            leaves,
-            time: None,
-            space: None,
-            simple: None,
-            interval: None,
-            zaho: vec![zaho],
-            caha: None,
-            ki: None,
-            cuhe: None,
-            fiho: Vec::new(),
-            connectives: Vec::new(),
-            free_modifiers: Vec::new(),
-        }
-    });
+    let zaho = cmavo_of("ZAhO", ZAHO_WORDS)
+        .then(cmavo("nai").or_not())
+        .map(|(zaho, nai)| {
+            let mut leaves = vec![zaho.clone()];
+            leaves.extend(nai);
+            TenseModalSyntax::Composite {
+                leaves,
+                time: None,
+                space: None,
+                simple: None,
+                interval: None,
+                zaho: vec![zaho],
+                caha: None,
+                ki: None,
+                cuhe: None,
+                fiho: Vec::new(),
+                connectives: Vec::new(),
+                free_modifiers: Vec::new(),
+            }
+        });
     let ki = cmavo("ki").map(|ki| TenseModalSyntax::Composite {
         leaves: vec![ki.clone()],
         time: None,
@@ -6550,31 +6540,26 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
                 free_modifiers: Vec::new(),
             }
         });
-    let zaho_property = cmavo_of(
-        "ZAhO",
-        &[
-            "ba'o", "ca'o", "co'a", "co'i", "co'u", "de'a", "di'a", "mo'u", "pu'o", "za'o",
-        ],
-    )
-    .then(cmavo("nai").or_not())
-    .map(|(zaho, nai)| {
-        let mut leaves = vec![zaho.clone()];
-        leaves.extend(nai);
-        TenseModalSyntax::Composite {
-            leaves,
-            time: None,
-            space: None,
-            simple: None,
-            interval: None,
-            zaho: vec![zaho],
-            caha: None,
-            ki: None,
-            cuhe: None,
-            fiho: Vec::new(),
-            connectives: Vec::new(),
-            free_modifiers: Vec::new(),
-        }
-    });
+    let zaho_property = cmavo_of("ZAhO", ZAHO_WORDS)
+        .then(cmavo("nai").or_not())
+        .map(|(zaho, nai)| {
+            let mut leaves = vec![zaho.clone()];
+            leaves.extend(nai);
+            TenseModalSyntax::Composite {
+                leaves,
+                time: None,
+                space: None,
+                simple: None,
+                interval: None,
+                zaho: vec![zaho],
+                caha: None,
+                ki: None,
+                cuhe: None,
+                fiho: Vec::new(),
+                connectives: Vec::new(),
+                free_modifiers: Vec::new(),
+            }
+        });
     let numbered_interval = number_words()
         .then(cmavo_of("ROI", ROI_WORDS))
         .then(cmavo("nai").or_not())
@@ -6773,13 +6758,7 @@ fn tense_modal_atom<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             free_modifiers: Vec::new(),
         }),
         fiho_tense_modal(),
-        cmavo_of(
-            "ZAhO",
-            &[
-                "ba'o", "ca'o", "co'a", "co'i", "co'u", "de'a", "di'a", "mo'u", "pu'o", "za'o",
-            ],
-        )
-        .map(|word| TenseModalSyntax::Zaho {
+        cmavo_of("ZAhO", ZAHO_WORDS).map(|word| TenseModalSyntax::Zaho {
             words: vec![word],
             free_modifiers: Vec::new(),
         }),

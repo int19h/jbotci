@@ -43,6 +43,10 @@ pub(super) const GOHA_WORDS: &[&str] = &[
     "co'e",
 ];
 pub(super) const ROI_WORDS: &[&str] = &["roi", "re'u", "mu'ei", "va'ei", "ba'oi", "de'ei", "xu'au"];
+pub(super) const ZAHO_WORDS: &[&str] = &[
+    "ba'o", "ca'o", "co'a", "co'i", "co'u", "de'a", "di'a", "mo'u", "pu'o", "za'o", "co'a'a",
+    "co'au'a", "co'u'a", "sau'a", "xa'o", "xo'u",
+];
 pub(super) const FA_WORDS: &[&str] = &["fa", "fe", "fi", "fo", "fu", "fai", "fi'a"];
 pub(super) const UI_WORDS: &[&str] = &[
     "i'a", "ie", "a'e", "u'i", "i'o", "i'e", "a'a", "ia", "o'i", "o'e", "e'e", "oi", "uo", "e'i",
