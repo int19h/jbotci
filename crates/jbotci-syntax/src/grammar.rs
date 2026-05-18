@@ -254,9 +254,13 @@ enum FragmentSyntax {
     },
     BeLink {
         be: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         fa: Option<WordWithModifiers>,
-        first_argument: Box<ArgumentSyntax>,
+        fa_free_modifiers: Vec<FreeModifierSyntax>,
+        first_argument: Option<ArgumentSyntax>,
+        bei_links: Vec<BeiLinkSyntax>,
         beho: Option<WordWithModifiers>,
+        beho_free_modifiers: Vec<FreeModifierSyntax>,
     },
     RelativeClause {
         relative_clauses: Vec<GoiRelativeClauseSyntax>,
@@ -501,8 +505,31 @@ struct ConnectiveSyntax {
 #[invariant(true)]
 struct BeiLinkSyntax {
     bei: WordWithModifiers,
+    bei_free_modifiers: Vec<FreeModifierSyntax>,
     fa: Option<WordWithModifiers>,
+    fa_free_modifiers: Vec<FreeModifierSyntax>,
     argument: Option<ArgumentSyntax>,
+}
+
+#[invariant(self.fa.is_none() || self.argument.is_some(), "lifted FA link tags must have an argument")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LinkArgumentSyntax {
+    fa: Option<WordWithModifiers>,
+    fa_free_modifiers: Vec<FreeModifierSyntax>,
+    argument: Option<ArgumentSyntax>,
+}
+
+#[invariant(self.fa.is_none() || self.first_argument.is_some(), "lifted FA link tags must have an argument")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BeLinkSyntax {
+    be: WordWithModifiers,
+    free_modifiers: Vec<FreeModifierSyntax>,
+    fa: Option<WordWithModifiers>,
+    fa_free_modifiers: Vec<FreeModifierSyntax>,
+    first_argument: Option<ArgumentSyntax>,
+    bei_links: Vec<BeiLinkSyntax>,
+    beho: Option<WordWithModifiers>,
+    beho_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -852,10 +879,24 @@ enum RelationUnitSyntax {
     Be {
         base: Box<RelationUnitSyntax>,
         be: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         fa: Option<WordWithModifiers>,
+        fa_free_modifiers: Vec<FreeModifierSyntax>,
         first_argument: Option<ArgumentSyntax>,
         bei_links: Vec<BeiLinkSyntax>,
         beho: Option<WordWithModifiers>,
+        beho_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    PreposedBe {
+        be: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        fa: Option<WordWithModifiers>,
+        fa_free_modifiers: Vec<FreeModifierSyntax>,
+        first_argument: Option<ArgumentSyntax>,
+        bei_links: Vec<BeiLinkSyntax>,
+        beho: Option<WordWithModifiers>,
+        beho_free_modifiers: Vec<FreeModifierSyntax>,
+        base: Box<RelationUnitSyntax>,
     },
     Abstraction {
         abstraction: AbstractionSyntax,
@@ -1333,14 +1374,30 @@ impl FragmentSyntax {
             FragmentSyntax::Gihek { connective } => connective.words(),
             FragmentSyntax::BeLink {
                 be,
+                free_modifiers,
                 fa,
+                fa_free_modifiers,
                 first_argument,
+                bei_links,
                 beho,
+                beho_free_modifiers,
             } => {
                 let mut words = vec![be];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(fa);
-                words.extend(first_argument.words());
+                for free_modifier in fa_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                if let Some(first_argument) = first_argument {
+                    words.extend(first_argument.words());
+                }
+                words.extend(bei_links.into_iter().flat_map(BeiLinkSyntax::words));
                 words.extend(beho);
+                for free_modifier in beho_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             FragmentSyntax::RelativeClause { relative_clauses } => relative_clauses
@@ -1937,7 +1994,13 @@ impl BeiLinkSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         let mut words = vec![self.bei];
+        for free_modifier in self.bei_free_modifiers {
+            words.extend(free_modifier.words());
+        }
         words.extend(self.fa);
+        for free_modifier in self.fa_free_modifiers {
+            words.extend(free_modifier.words());
+        }
         if let Some(argument) = self.argument {
             words.extend(argument.words());
         }
@@ -2223,19 +2286,61 @@ impl RelationUnitSyntax {
             RelationUnitSyntax::Be {
                 base,
                 be,
+                free_modifiers,
                 fa,
+                fa_free_modifiers,
                 first_argument,
                 bei_links,
                 beho,
+                beho_free_modifiers,
             } => {
                 let mut words = base.words();
                 words.push(be);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(fa);
+                for free_modifier in fa_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 if let Some(first_argument) = first_argument {
                     words.extend(first_argument.words());
                 }
                 words.extend(bei_links.into_iter().flat_map(BeiLinkSyntax::words));
                 words.extend(beho);
+                for free_modifier in beho_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            RelationUnitSyntax::PreposedBe {
+                be,
+                free_modifiers,
+                fa,
+                fa_free_modifiers,
+                first_argument,
+                bei_links,
+                beho,
+                beho_free_modifiers,
+                base,
+            } => {
+                let mut words = vec![be];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(fa);
+                for free_modifier in fa_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                if let Some(first_argument) = first_argument {
+                    words.extend(first_argument.words());
+                }
+                words.extend(bei_links.into_iter().flat_map(BeiLinkSyntax::words));
+                words.extend(beho);
+                for free_modifier in beho_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(base.words());
                 words
             }
             RelationUnitSyntax::Abstraction { abstraction } => abstraction.words(),
@@ -2885,18 +2990,31 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let gihek_fragment = predicate_tail_connective()
         .map(|connective| StatementSyntax::Fragment(FragmentSyntax::Gihek { connective }));
 
-    let be_link_fragment = cmavo("be")
-        .then(cmavo_of("FA", FA_WORDS).or_not())
-        .then(argument.clone())
-        .then(cmavo("be'o").or_not())
-        .map(|(((be, fa), first_argument), beho)| {
+    let be_link_fragment = be_link_parser(argument.clone(), free_modifier.clone()).map(|link| {
+        let data!(BeLinkSyntax {
+            be,
+            free_modifiers,
+            fa,
+            fa_free_modifiers,
+            first_argument,
+            bei_links,
+            beho,
+            beho_free_modifiers,
+        }) = link.into_data();
+
+        {
             StatementSyntax::Fragment(FragmentSyntax::BeLink {
                 be,
+                free_modifiers,
                 fa,
-                first_argument: Box::new(first_argument),
+                fa_free_modifiers,
+                first_argument,
+                bei_links,
                 beho,
+                beho_free_modifiers,
             })
-        });
+        }
+    });
 
     let math_expression_fragment = number_quantifier().map(|quantifier| {
         if let QuantifierSyntax::Number { number, boi, .. } = quantifier {
@@ -5348,33 +5466,63 @@ where
         word_unit.clone(),
     ))
     .boxed();
-    let bei_link = bei_link(argument.clone());
-    let be_link = cmavo("be")
-        .then(cmavo_of("FA", FA_WORDS).or_not())
-        .then(argument.clone().or_not())
-        .then(bei_link.repeated().collect::<Vec<_>>())
-        .then(cmavo("be'o").or_not())
-        .map(|((((be, fa), first_argument), bei_links), beho)| {
-            (be, fa, first_argument, bei_links, beho)
-        });
+    let be_link = be_link_parser(argument.clone(), free_modifier.clone());
 
     let linked_unit_from = |base_unit: BoxedParser<'tokens, RelationUnitSyntax>| {
         base_unit
             .then(be_link.clone().or_not())
             .map(|(base, be_link)| {
-                be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
-                    RelationUnitSyntax::Be {
-                        base: Box::new(base),
+                be_link.map_or(base.clone(), |link| {
+                    let data!(BeLinkSyntax {
                         be,
+                        free_modifiers,
                         fa,
+                        fa_free_modifiers,
                         first_argument,
                         bei_links,
                         beho,
+                        beho_free_modifiers,
+                    }) = link.into_data();
+
+                    RelationUnitSyntax::Be {
+                        base: Box::new(base),
+                        be,
+                        free_modifiers,
+                        fa,
+                        fa_free_modifiers,
+                        first_argument,
+                        bei_links,
+                        beho,
+                        beho_free_modifiers,
                     }
                 })
             })
             .boxed()
     };
+    let preposed_unit = be_link.clone().then(base_unit.clone()).map(|(link, base)| {
+        let data!(BeLinkSyntax {
+            be,
+            free_modifiers,
+            fa,
+            fa_free_modifiers,
+            first_argument,
+            bei_links,
+            beho,
+            beho_free_modifiers,
+        }) = link.into_data();
+
+        RelationUnitSyntax::PreposedBe {
+            be,
+            free_modifiers,
+            fa,
+            fa_free_modifiers,
+            first_argument,
+            bei_links,
+            beho,
+            beho_free_modifiers,
+            base: Box::new(base),
+        }
+    });
     let linked_unit = linked_unit_from(base_unit);
     let linked_unit_for_cei = linked_unit_from(base_unit_for_cei);
     let cei_unit = linked_unit_for_cei
@@ -5416,7 +5564,13 @@ where
                     },
                 },
             );
-        let atom_unit = choice((guha_unit, cei_unit.clone(), linked_unit.clone())).boxed();
+        let atom_unit = choice((
+            guha_unit,
+            preposed_unit.clone(),
+            cei_unit.clone(),
+            linked_unit.clone(),
+        ))
+        .boxed();
         let connected_bo_tail = statement_connective()
             .then(tense_modal().or_not())
             .then(cmavo("bo"))
@@ -5679,15 +5833,7 @@ where
                 nahe,
                 inner_unit: Box::new(inner_unit),
             });
-        let bei_link = bei_link(argument.clone());
-        let be_link = cmavo("be")
-            .then(cmavo_of("FA", FA_WORDS).or_not())
-            .then(argument.clone().or_not())
-            .then(bei_link.repeated().collect::<Vec<_>>())
-            .then(cmavo("be'o").or_not())
-            .map(|((((be, fa), first_argument), bei_links), beho)| {
-                (be, fa, first_argument, bei_links, beho)
-            });
+        let be_link = be_link_parser(argument.clone(), free_modifier.clone());
 
         let base_unit = choice((
             goha_raho_unit.clone(),
@@ -5723,19 +5869,57 @@ where
             base_unit
                 .then(be_link.clone().or_not())
                 .map(|(base, be_link)| {
-                    be_link.map_or(base.clone(), |(be, fa, first_argument, bei_links, beho)| {
-                        RelationUnitSyntax::Be {
-                            base: Box::new(base),
+                    be_link.map_or(base.clone(), |link| {
+                        let data!(BeLinkSyntax {
                             be,
+                            free_modifiers,
                             fa,
+                            fa_free_modifiers,
                             first_argument,
                             bei_links,
                             beho,
+                            beho_free_modifiers,
+                        }) = link.into_data();
+
+                        RelationUnitSyntax::Be {
+                            base: Box::new(base),
+                            be,
+                            free_modifiers,
+                            fa,
+                            fa_free_modifiers,
+                            first_argument,
+                            bei_links,
+                            beho,
+                            beho_free_modifiers,
                         }
                     })
                 })
                 .boxed()
         };
+        let preposed_unit = be_link.clone().then(base_unit.clone()).map(|(link, base)| {
+            let data!(BeLinkSyntax {
+                be,
+                free_modifiers,
+                fa,
+                fa_free_modifiers,
+                first_argument,
+                bei_links,
+                beho,
+                beho_free_modifiers,
+            }) = link.into_data();
+
+            RelationUnitSyntax::PreposedBe {
+                be,
+                free_modifiers,
+                fa,
+                fa_free_modifiers,
+                first_argument,
+                bei_links,
+                beho,
+                beho_free_modifiers,
+                base: Box::new(base),
+            }
+        });
         let linked_unit = linked_unit_from(base_unit);
         let linked_unit_for_cei = linked_unit_from(base_unit_for_cei);
         let cei_unit = linked_unit_for_cei
@@ -5778,7 +5962,13 @@ where
                         },
                     }
                 });
-            let atom_unit = choice((guha_unit, cei_unit.clone(), linked_unit.clone())).boxed();
+            let atom_unit = choice((
+                guha_unit,
+                preposed_unit.clone(),
+                cei_unit.clone(),
+                linked_unit.clone(),
+            ))
+            .boxed();
             let connected_bo_tail = statement_connective()
                 .then(tense_modal().or_not())
                 .then(cmavo("bo"))
@@ -7616,20 +7806,46 @@ fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
         ),
         FragmentSyntax::BeLink {
             be,
+            free_modifiers,
             fa,
+            fa_free_modifiers,
             first_argument,
+            bei_links,
             beho,
+            beho_free_modifiers,
         } => node(
             "BeLinkFragment",
             vec![
                 field("be", word_value(be)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("fa", maybe_word(fa)),
-                field("faFreeModifiers", nil()),
-                field("firstArgument", just(argument_tree(*first_argument))),
-                field("beiLinks", nil()),
+                field(
+                    "faFreeModifiers",
+                    list(
+                        fa_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field("firstArgument", maybe_argument(first_argument)),
+                field(
+                    "beiLinks",
+                    list(bei_links.into_iter().map(bei_link_tree).collect()),
+                ),
                 field("beho", maybe_word(beho)),
-                field("behoFreeModifiers", nil()),
+                field(
+                    "behoFreeModifiers",
+                    list(
+                        beho_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         FragmentSyntax::RelativeClause { relative_clauses } => node(
@@ -9732,25 +9948,93 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
         RelationUnitSyntax::Be {
             base,
             be,
+            free_modifiers,
             fa,
+            fa_free_modifiers,
             first_argument,
             bei_links,
             beho,
+            beho_free_modifiers,
         } => node(
             "BeRelationUnit",
             vec![
                 field("base", relation_unit_tree(*base)),
                 field("be", word_value(be)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("fa", maybe_word(fa)),
-                field("faFreeModifiers", nil()),
+                field(
+                    "faFreeModifiers",
+                    list(
+                        fa_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field("firstArgument", maybe_argument(first_argument)),
                 field(
                     "beiLinks",
                     list(bei_links.into_iter().map(bei_link_tree).collect()),
                 ),
                 field("beho", maybe_word(beho)),
-                field("behoFreeModifiers", nil()),
+                field(
+                    "behoFreeModifiers",
+                    list(
+                        beho_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        RelationUnitSyntax::PreposedBe {
+            be,
+            free_modifiers,
+            fa,
+            fa_free_modifiers,
+            first_argument,
+            bei_links,
+            beho,
+            beho_free_modifiers,
+            base,
+        } => node(
+            "PreposedBeRelationUnit",
+            vec![
+                field("be", word_value(be)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field("fa", maybe_word(fa)),
+                field(
+                    "faFreeModifiers",
+                    list(
+                        fa_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field("firstArgument", maybe_argument(first_argument)),
+                field(
+                    "beiLinks",
+                    list(bei_links.into_iter().map(bei_link_tree).collect()),
+                ),
+                field("beho", maybe_word(beho)),
+                field(
+                    "behoFreeModifiers",
+                    list(
+                        beho_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field("base", relation_unit_tree(*base)),
             ],
         ),
         RelationUnitSyntax::Abstraction { abstraction } => node(
@@ -9879,14 +10163,152 @@ fn cei_assignment_tree(assignment: CeiAssignmentSyntax) -> SyntaxValue {
 
 #[requires(true)]
 #[ensures(true)]
-fn bei_link<'tokens, A>(argument: A) -> BoxedParser<'tokens, BeiLinkSyntax>
+fn link_argument_parser<'tokens, A, F>(
+    argument: A,
+    free_modifier: F,
+) -> BoxedParser<'tokens, LinkArgumentSyntax>
 where
     A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
 {
+    let fa_tail = argument
+        .clone()
+        .map(|argument| (Some(argument), None, Vec::new()))
+        .or(cmavo("ku")
+            .or_not()
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|(maybe_ku, free_modifiers)| (None, maybe_ku, free_modifiers)));
+    let fa_link_argument = cmavo_of("FA", FA_WORDS)
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(fa_tail)
+        .map(
+            |((fa, mut fa_free_modifiers), (argument, maybe_ku, trailing_free_modifiers))| {
+                if let Some(argument) = argument {
+                    new!(LinkArgumentSyntax {
+                        fa: Some(fa),
+                        fa_free_modifiers,
+                        argument: Some(argument),
+                    })
+                } else {
+                    fa_free_modifiers.extend(trailing_free_modifiers);
+                    new!(LinkArgumentSyntax {
+                        fa: None,
+                        fa_free_modifiers: Vec::new(),
+                        argument: Some(ArgumentSyntax::Zohe {
+                            tag_words: vec![fa],
+                            maybe_ku,
+                            free_modifiers: fa_free_modifiers,
+                        }),
+                    })
+                }
+            },
+        );
+    let plain_argument = argument.map(|argument| {
+        new!(LinkArgumentSyntax {
+            fa: None,
+            fa_free_modifiers: Vec::new(),
+            argument: Some(argument),
+        })
+    });
+
+    choice((fa_link_argument, plain_argument)).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn empty_link_argument() -> LinkArgumentSyntax {
+    new!(LinkArgumentSyntax {
+        fa: None,
+        fa_free_modifiers: Vec::new(),
+        argument: None,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn be_link_parser<'tokens, A, F>(
+    argument: A,
+    free_modifier: F,
+) -> BoxedParser<'tokens, BeLinkSyntax>
+where
+    A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
+    let link_argument = link_argument_parser(argument.clone(), free_modifier.clone())
+        .or_not()
+        .map(|link_argument| link_argument.unwrap_or_else(empty_link_argument));
+
+    cmavo("be")
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(link_argument)
+        .then(
+            bei_link_parser(argument, free_modifier.clone())
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .then(cmavo("be'o").or_not())
+        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .map(
+            |(((((be, free_modifiers), link_argument), bei_links), beho), beho_free_modifiers)| {
+                let data!(LinkArgumentSyntax {
+                    fa,
+                    fa_free_modifiers,
+                    argument,
+                }) = link_argument.into_data();
+
+                new!(BeLinkSyntax {
+                    be,
+                    free_modifiers,
+                    fa,
+                    fa_free_modifiers,
+                    first_argument: argument,
+                    bei_links,
+                    beho,
+                    beho_free_modifiers,
+                })
+            },
+        )
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bei_link_parser<'tokens, A, F>(
+    argument: A,
+    free_modifier: F,
+) -> BoxedParser<'tokens, BeiLinkSyntax>
+where
+    A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
+    let link_argument = link_argument_parser(argument, free_modifier.clone())
+        .or_not()
+        .map(|link_argument| link_argument.unwrap_or_else(empty_link_argument));
+
     cmavo("bei")
-        .then(cmavo_of("FA", FA_WORDS).or_not())
-        .then(argument.or_not())
-        .map(|((bei, fa), argument)| BeiLinkSyntax { bei, fa, argument })
+        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .then(link_argument)
+        .map(|((bei, bei_free_modifiers), link_argument)| {
+            let data!(LinkArgumentSyntax {
+                fa,
+                fa_free_modifiers,
+                argument,
+            }) = link_argument.into_data();
+
+            BeiLinkSyntax {
+                bei,
+                bei_free_modifiers,
+                fa,
+                fa_free_modifiers,
+                argument,
+            }
+        })
         .boxed()
 }
 
@@ -9909,9 +10331,25 @@ fn bei_link_tree(link: BeiLinkSyntax) -> SyntaxValue {
         "BeiLink",
         vec![
             field("bei", word_value(link.bei)),
-            field("beiFreeModifiers", nil()),
+            field(
+                "beiFreeModifiers",
+                list(
+                    link.bei_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
             field("fa", maybe_word(link.fa)),
-            field("faFreeModifiers", nil()),
+            field(
+                "faFreeModifiers",
+                list(
+                    link.fa_free_modifiers
+                        .into_iter()
+                        .map(free_modifier_tree)
+                        .collect(),
+                ),
+            ),
             field("argument", maybe_argument(link.argument)),
         ],
     )
