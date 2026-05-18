@@ -74,7 +74,8 @@ pub(crate) fn classify_word_with_options(
         return None;
     }
 
-    let blocks_brivla = options.enforce_cgv_ban && contains_cgv(&text_chars(normalized_word));
+    let normalized_chars = text_chars(normalized_word);
+    let blocks_brivla = blocks_word_shape(&normalized_chars, options);
 
     if !blocks_brivla && is_gismu(&stripped) {
         return Some((
@@ -400,13 +401,58 @@ pub(crate) fn is_cmevla_with_options(normalized: &str, options: &MorphologyOptio
     let chars = text_chars(normalized);
     chars.last().is_some_and(|last| is_consonant(*last))
         && chars.first().is_some_and(|first| *first != '\'')
+        && !blocks_word_shape(&chars, options)
         && !has_vowel_hiatus(&chars)
-        && (!options.enforce_cgv_ban || !contains_cgv(&chars))
         && chars.iter().all(|value| {
             is_consonant(*value)
                 || is_vowel(*value)
                 || matches!(*value, 'y' | 'ý' | '\'' | ',' | '0'..='9')
         })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn blocks_word_shape(chars: &[char], options: &MorphologyOptions) -> bool {
+    has_invalid_apostrophe(chars)
+        || has_geminated_consonant(chars)
+        || has_y_hiatus(chars)
+        || (options.enforce_cgv_ban && contains_cgv(chars))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_invalid_apostrophe(chars: &[char]) -> bool {
+    chars.iter().enumerate().any(|(index, value)| {
+        *value == '\''
+            && (!previous_non_comma(chars, index)
+                .is_some_and(|(_, previous)| can_precede_apostrophe(previous))
+                || !starts_with_nucleus(chars, index + 1))
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn can_precede_apostrophe(value: char) -> bool {
+    is_vowel(value) || is_y(value) || matches!(value, 'ĭ' | 'ŭ')
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_geminated_consonant(chars: &[char]) -> bool {
+    chars.iter().enumerate().any(|(index, value)| {
+        is_consonant(*value)
+            && next_non_comma_index(chars, index + 1).is_some_and(|next| chars[next] == *value)
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_y_hiatus(chars: &[char]) -> bool {
+    chars.iter().enumerate().any(|(index, value)| {
+        is_y(*value)
+            && next_non_comma_index(chars, index + 1)
+                .is_some_and(|next| !is_y(chars[next]) && starts_with_nucleus(chars, next))
+    })
 }
 
 #[requires(true)]

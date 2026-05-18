@@ -732,6 +732,9 @@ impl<'a> Segmenter<'a> {
     #[requires(start <= end && end <= self.chars.len())]
     #[ensures(true)]
     fn candidate_starts_with_supported_word(&self, start: usize, end: usize) -> bool {
+        if self.first_invalid_word_char(start, end).is_some() {
+            return false;
+        }
         let raw = self.slice(start, end);
         let normalized = crate::segment::normalize_word_with_options(raw, self.options);
         crate::segment::classify_word_with_options(raw, &normalized, self.options).is_some()
@@ -1351,6 +1354,10 @@ fn text_chars(text: &str) -> Vec<char> {
 #[requires(start <= chars.len())]
 #[ensures(true)]
 fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
+    let mut start = start;
+    while chars.get(start) == Some(&',') {
+        start += 1;
+    }
     if start >= chars.len() {
         return false;
     }
