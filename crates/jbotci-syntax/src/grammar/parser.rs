@@ -4621,22 +4621,26 @@ where
             },
         );
 
-    let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(choice((
-            ke_unit.clone(),
-            moi_unit.clone(),
-            nuha_unit.clone(),
-            word_unit.clone(),
-            goha_unit.clone(),
-        )))
-        .map(
-            |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
-                se,
-                free_modifiers,
-                inner_unit: Box::new(inner_unit),
-            },
-        );
+    let se_unit = recursive(|se_unit| {
+        cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(choice((
+                ke_unit.clone(),
+                moi_unit.clone(),
+                nuha_unit.clone(),
+                se_unit,
+                word_unit.clone(),
+                goha_unit.clone(),
+            )))
+            .map(
+                |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
+                    se,
+                    free_modifiers,
+                    inner_unit: Box::new(inner_unit),
+                },
+            )
+    })
+    .boxed();
 
     let wrapped_tense_unit = tense_modal()
         .then(relation_units_inner(
@@ -5265,21 +5269,26 @@ where
                     }
                 },
             );
-        let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(choice((
-                ke_unit.clone(),
-                moi_unit.clone(),
-                word_unit.clone(),
-                goha_unit.clone(),
-            )))
-            .map(
-                |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
-                    se,
-                    free_modifiers,
-                    inner_unit: Box::new(inner_unit),
-                },
-            );
+        let se_unit = recursive(|se_unit| {
+            cmavo_of("SE", &["se", "te", "ve", "xe"])
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(choice((
+                    ke_unit.clone(),
+                    moi_unit.clone(),
+                    nuha_unit.clone(),
+                    se_unit,
+                    word_unit.clone(),
+                    goha_unit.clone(),
+                )))
+                .map(
+                    |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
+                        se,
+                        free_modifiers,
+                        inner_unit: Box::new(inner_unit),
+                    },
+                )
+        })
+        .boxed();
         let nahe_unit = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(choice((
