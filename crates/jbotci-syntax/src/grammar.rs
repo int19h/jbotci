@@ -3197,7 +3197,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
 
     let i_connective_tag_bo = statement_connective()
         .or_not()
-        .then(tense_modal().then(cmavo("bo")).or_not())
+        .then(tense_modal().or_not().then(cmavo("bo")).or_not())
         .map(|(connective, tag_bo)| match (connective, tag_bo) {
             (None, None) => None,
             (Some(connective), None) => Some(connective),
@@ -3215,7 +3215,9 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                         )
                     },
                 );
-                cmavo.extend(tense_modal.words());
+                if let Some(tense_modal) = tense_modal {
+                    cmavo.extend(tense_modal.words());
+                }
                 cmavo.push(bo);
                 Some(ConnectiveSyntax {
                     kind,
