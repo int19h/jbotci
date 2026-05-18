@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use chumsky::error::Rich;
 use chumsky::prelude::*;
 use chumsky::span::SimpleSpan;
@@ -521,8 +521,8 @@ impl<'a> Segmenter<'a> {
         Ok(())
     }
 
-    #[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(end, _, start)| *end <= *start)))]
     #[requires(true)]
+    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(end, _, start)| *end <= *start)))]
     fn find_zoi_close(
         &mut self,
         opening_delimiter: &Word,

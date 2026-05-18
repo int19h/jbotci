@@ -3,9 +3,7 @@ use std::process::{Command as ProcessCommand, ExitStatus};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
-use bityzba::{
-    contract_trait, data, ensures, expensive_ensures, expensive_requires, invariant, requires,
-};
+use bityzba::{contract_trait, data, ensures, expensive_requires, invariant, requires};
 use clap::{Args, Parser, Subcommand};
 use jbotci_morphology::{
     MorphologyOptions, WordWithModifiers, segment_words_with_modifiers_with_options_and_source_id,
@@ -241,7 +239,7 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
     Ok(())
 }
 
-#[expensive_requires(profile.is_valid())]
+#[requires(profile.is_valid())]
 #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.total_results() == summary.selected_fixtures * profile.facets.len()))]
 fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
     root: &Path,
@@ -295,8 +293,8 @@ const FIXTURE_WORKER_STACK_SIZE: usize = 32 * 1024 * 1024;
 const DEFAULT_TEST_JOBS: usize = 16;
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
 #[requires(true)]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
 fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
     let mut profile = match &args.profile {
         Some(name) => load_profile(&args.root, name)

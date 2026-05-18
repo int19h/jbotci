@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use bityzba::{data, expensive_ensures, expensive_requires, invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 use chumsky::Boxed;
 use chumsky::error::{Rich, RichReason};
 use chumsky::input::MappedInput;
@@ -251,6 +251,10 @@ enum StatementSyntax {
 enum FragmentSyntax {
     Gihek {
         connective: ConnectiveSyntax,
+    },
+    Other {
+        words: Vec<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     BeLink {
         be: WordWithModifiers,
@@ -1372,6 +1376,16 @@ impl FragmentSyntax {
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
             FragmentSyntax::Gihek { connective } => connective.words(),
+            FragmentSyntax::Other {
+                words,
+                free_modifiers,
+            } => {
+                let mut all_words = words;
+                for free_modifier in free_modifiers {
+                    all_words.extend(free_modifier.words());
+                }
+                all_words
+            }
             FragmentSyntax::BeLink {
                 be,
                 free_modifiers,
@@ -2990,6 +3004,40 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let gihek_fragment = predicate_tail_connective()
         .map(|connective| StatementSyntax::Fragment(FragmentSyntax::Gihek { connective }));
 
+    let multiple_na_fragment = na_cmavo()
+        .then(na_cmavo())
+        .then(na_cmavo().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo_of("JA", &["je'i", "ja", "je", "jo", "ju"])
+                .rewind()
+                .not(),
+        )
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|((((first_na, second_na), rest_na), _), free_modifiers)| {
+            let mut words = vec![first_na, second_na];
+            words.extend(rest_na);
+            StatementSyntax::Fragment(FragmentSyntax::Other {
+                words,
+                free_modifiers,
+            })
+        });
+    let single_na_fragment_blocker = choice((
+        cmavo("ku").ignored(),
+        na_cmavo().ignored(),
+        cmavo_of("JA", &["je'i", "ja", "je", "jo", "ju"]).ignored(),
+        argument_connective().ignored(),
+        predicate_tail_connective().ignored(),
+    ));
+    let single_na_fragment = na_cmavo()
+        .then(single_na_fragment_blocker.rewind().not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|((na, _), free_modifiers)| {
+            StatementSyntax::Fragment(FragmentSyntax::Other {
+                words: vec![na],
+                free_modifiers,
+            })
+        });
+
     let be_link_fragment = be_link_parser(argument.clone(), free_modifier.clone()).map(|link| {
         let data!(BeLinkSyntax {
             be,
@@ -3061,6 +3109,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         gihek_fragment,
         be_link_fragment,
         relative_clause_fragment,
+        multiple_na_fragment,
+        single_na_fragment,
         term_fragment,
         math_expression_fragment,
         relation_fragment,
@@ -6016,7 +6066,7 @@ where
     .boxed()
 }
 
-#[expensive_requires(!units.is_empty(), "relation unit sequences must be non-empty")]
+#[requires(!units.is_empty(), "relation unit sequences must be non-empty")]
 #[ensures(true)]
 fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
     match units.as_slice() {
@@ -7796,6 +7846,22 @@ fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
             vec![
                 field("connective", connective_tree(connective)),
                 field("freeModifiers", nil()),
+            ],
+        ),
+        FragmentSyntax::Other {
+            words,
+            free_modifiers,
+        } => node(
+            "OtherFragment",
+            vec![
+                field(
+                    "otherWords",
+                    list(words.into_iter().map(word_value).collect()),
+                ),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         FragmentSyntax::BeLink {
@@ -10575,8 +10641,8 @@ fn list(items: Vec<SyntaxValue>) -> SyntaxValue {
     })
 }
 
-#[expensive_ensures(ret.iter().all(|token| token.span.start <= token.span.end))]
 #[requires(true)]
+#[ensures(ret.iter().all(|token| token.span.start <= token.span.end))]
 fn spanned_tokens(words: &[WordWithModifiers]) -> Vec<SpannedToken> {
     words
         .iter()
@@ -10591,8 +10657,8 @@ fn spanned_tokens(words: &[WordWithModifiers]) -> Vec<SpannedToken> {
         .collect()
 }
 
-#[expensive_ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 fn word_byte_range(word: &WordWithModifiers) -> Option<Range<usize>> {
     match word.as_data() {
         data!(WordWithModifiers::BaseWord { word_like }) => word_like_byte_range(word_like),
@@ -10618,8 +10684,8 @@ fn word_byte_range(word: &WordWithModifiers) -> Option<Range<usize>> {
     }
 }
 
-#[expensive_ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
     match word_like.as_data() {
         data!(WordLike::Bare { word }) => Some(word.span.byte_start..word.span.byte_end),
@@ -10645,8 +10711,8 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
     }
 }
 
-#[expensive_ensures(matches!(ret, SyntaxError::Parse { ref reason, .. } if !reason.is_empty()) || !matches!(ret, SyntaxError::Parse { .. }))]
 #[requires(true)]
+#[ensures(matches!(ret, SyntaxError::Parse { ref reason, .. } if !reason.is_empty()) || !matches!(ret, SyntaxError::Parse { .. }))]
 fn syntax_error(errors: Vec<Rich<'_, WordWithModifiers, Span>>) -> SyntaxError {
     let Some(error) = errors.into_iter().next() else {
         return SyntaxError::Parse {

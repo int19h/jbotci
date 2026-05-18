@@ -1064,7 +1064,7 @@ pub fn load_profiles(
 }
 
 #[requires(!name.is_empty(), "fixture profile names must not be empty")]
-#[expensive_ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
 pub fn load_profile(
     fixtures_root: impl AsRef<Path>,
     name: &str,
