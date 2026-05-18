@@ -1114,6 +1114,30 @@ enum RelationUnitSyntax {
         moi_marker: Option<WordWithModifiers>,
         moi_free_modifiers: Vec<FreeModifierSyntax>,
     },
+    Mehoi {
+        mehoi: WordWithModifiers,
+        quoted_text: String,
+        free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    Gohoi {
+        gohoi: WordWithModifiers,
+        quoted_text: String,
+        free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    Muhoi {
+        muhoi: WordWithModifiers,
+        opening_delimiter: WordWithModifiers,
+        closing_delimiter: WordWithModifiers,
+        quoted_text: String,
+        free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    Luhei {
+        luhei: WordWithModifiers,
+        luhei_free_modifiers: Vec<FreeModifierSyntax>,
+        text: TextSyntax,
+        liau: Option<WordWithModifiers>,
+        liau_free_modifiers: Vec<FreeModifierSyntax>,
+    },
     Moi {
         number: Vec<WordWithModifiers>,
         moi: WordWithModifiers,
@@ -3127,6 +3151,59 @@ impl RelationUnitSyntax {
                 }
                 words
             }
+            RelationUnitSyntax::Mehoi {
+                mehoi,
+                free_modifiers,
+                ..
+            } => {
+                let mut words = vec![mehoi];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            RelationUnitSyntax::Gohoi {
+                gohoi,
+                free_modifiers,
+                ..
+            } => {
+                let mut words = vec![gohoi];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            RelationUnitSyntax::Muhoi {
+                muhoi,
+                opening_delimiter,
+                closing_delimiter,
+                free_modifiers,
+                ..
+            } => {
+                let mut words = vec![muhoi, opening_delimiter, closing_delimiter];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            RelationUnitSyntax::Luhei {
+                luhei,
+                luhei_free_modifiers,
+                text,
+                liau,
+                liau_free_modifiers,
+            } => {
+                let mut words = vec![luhei];
+                for free_modifier in luhei_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words.extend(text.words());
+                words.extend(liau);
+                for free_modifier in liau_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             RelationUnitSyntax::Moi {
                 number,
                 moi,
@@ -3537,7 +3614,9 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         argument.clone(),
         relation.clone(),
         subsentence.clone(),
+        text.clone(),
         free_modifier.clone(),
+        source,
     ));
 
     let argument_term = argument.clone().map(TermSyntax::Argument);
@@ -7041,13 +7120,110 @@ where
         .boxed()
 }
 
+#[requires(!marker_text.is_empty())]
+#[ensures(true)]
+fn single_word_quoted_relation_unit<'tokens, F>(
+    marker_text: &'static str,
+    source: Option<&'tokens str>,
+    free_modifier: F,
+    build: fn(WordWithModifiers, String, Vec<FreeModifierSyntax>) -> RelationUnitSyntax,
+) -> BoxedParser<'tokens, RelationUnitSyntax>
+where
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
+    any()
+        .try_map(move |word: WordWithModifiers, span| {
+            let Some(word_like) = quote_word_like(&word) else {
+                return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+            };
+            let data!(WordLike::SingleWordQuote {
+                marker,
+                quoted_text,
+            }) = word_like.as_data()
+            else {
+                return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+            };
+            if word_record_text_matches(marker, marker_text) {
+                Ok((word.clone(), source_text(source, quoted_text)))
+            } else {
+                Err(Rich::custom(span, format!("expected {marker_text} quote")))
+            }
+        })
+        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .map(move |((word, quoted_text), free_modifiers)| build(word, quoted_text, free_modifiers))
+        .boxed()
+}
+
+#[requires(!marker_text.is_empty())]
+#[ensures(true)]
+fn delimited_quoted_relation_unit<'tokens, F>(
+    marker_text: &'static str,
+    source: Option<&'tokens str>,
+    free_modifier: F,
+    build: fn(
+        WordWithModifiers,
+        WordWithModifiers,
+        WordWithModifiers,
+        String,
+        Vec<FreeModifierSyntax>,
+    ) -> RelationUnitSyntax,
+) -> BoxedParser<'tokens, RelationUnitSyntax>
+where
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
+    any()
+        .try_map(move |word: WordWithModifiers, span| {
+            let Some(word_like) = quote_word_like(&word) else {
+                return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+            };
+            let data!(WordLike::ZoiQuote {
+                zoi,
+                opening_delimiter,
+                quoted_text,
+                closing_delimiter,
+            }) = word_like.as_data()
+            else {
+                return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+            };
+            if word_record_text_matches(zoi, marker_text) {
+                Ok((
+                    word.clone(),
+                    base_word_from_record((**opening_delimiter).clone()),
+                    base_word_from_record((**closing_delimiter).clone()),
+                    source_text(source, quoted_text),
+                ))
+            } else {
+                Err(Rich::custom(span, format!("expected {marker_text} quote")))
+            }
+        })
+        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .map(
+            move |((word, opening_delimiter, closing_delimiter, quoted_text), free_modifiers)| {
+                build(
+                    word,
+                    opening_delimiter,
+                    closing_delimiter,
+                    quoted_text,
+                    free_modifiers,
+                )
+            },
+        )
+        .boxed()
+}
+
 #[requires(true)]
 #[ensures(true)]
-fn relation_parser_with<'tokens, P, R, S, F>(
+fn relation_parser_with<'tokens, P, R, S, T, F>(
     argument: P,
     relation: R,
     subsentence: S,
+    text: T,
     free_modifier: F,
+    source: Option<&'tokens str>,
 ) -> BoxedParser<'tokens, RelationSyntax>
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
@@ -7055,6 +7231,7 @@ where
     S: Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
         + Clone
         + 'tokens,
+    T: Parser<'tokens, ParserInput<'tokens>, TextSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
         + Clone
         + 'tokens,
@@ -7080,6 +7257,57 @@ where
                 moi_free_modifiers,
             },
         );
+    let mehoi_unit = single_word_quoted_relation_unit(
+        "me'oi",
+        source,
+        free_modifier.clone(),
+        |mehoi, quoted_text, free_modifiers| RelationUnitSyntax::Mehoi {
+            mehoi,
+            quoted_text,
+            free_modifiers,
+        },
+    );
+    let gohoi_unit = single_word_quoted_relation_unit(
+        "go'oi",
+        source,
+        free_modifier.clone(),
+        |gohoi, quoted_text, free_modifiers| RelationUnitSyntax::Gohoi {
+            gohoi,
+            quoted_text,
+            free_modifiers,
+        },
+    );
+    let muhoi_unit = delimited_quoted_relation_unit(
+        "mu'oi",
+        source,
+        free_modifier.clone(),
+        |muhoi, opening_delimiter, closing_delimiter, quoted_text, free_modifiers| {
+            RelationUnitSyntax::Muhoi {
+                muhoi,
+                opening_delimiter,
+                closing_delimiter,
+                quoted_text,
+                free_modifiers,
+            }
+        },
+    );
+    let luhei_unit = cmavo("lu'ei")
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(text.clone())
+        .then(cmavo("li'au").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |((((luhei, luhei_free_modifiers), text), liau), liau_free_modifiers)| {
+                RelationUnitSyntax::Luhei {
+                    luhei,
+                    luhei_free_modifiers,
+                    text,
+                    liau,
+                    liau_free_modifiers,
+                }
+            },
+        )
+        .boxed();
 
     let brivla_word_unit = brivla_relation_word()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -7150,7 +7378,9 @@ where
         .then(relation_units_inner(
             argument.clone(),
             subsentence.clone(),
+            text.clone(),
             free_modifier.clone(),
+            source,
         ))
         .then(cmavo("ke'e").or_not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -7188,7 +7418,9 @@ where
         .then(relation_units_inner(
             argument.clone(),
             subsentence.clone(),
+            text.clone(),
             free_modifier.clone(),
+            source,
         ))
         .map(
             |(tense_modal, inner_relation)| RelationUnitSyntax::Wrapped {
@@ -7268,6 +7500,10 @@ where
     let base_unit = choice((
         goha_raho_unit.clone(),
         me_unit.clone(),
+        mehoi_unit.clone(),
+        gohoi_unit.clone(),
+        muhoi_unit.clone(),
+        luhei_unit.clone(),
         se_abstraction_unit.clone(),
         abstraction_subsentence_unit.clone(),
         jai_unit.clone(),
@@ -7284,6 +7520,10 @@ where
     let base_unit_for_cei = choice((
         goha_raho_unit.clone(),
         me_unit.clone(),
+        mehoi_unit.clone(),
+        gohoi_unit.clone(),
+        muhoi_unit.clone(),
+        luhei_unit.clone(),
         se_abstraction_unit.clone(),
         abstraction_subsentence_unit.clone(),
         jai_unit.clone(),
@@ -7529,16 +7769,19 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn relation_units_inner<'tokens, P, S, F>(
+fn relation_units_inner<'tokens, P, S, T, F>(
     argument: P,
     subsentence: S,
+    text: T,
     free_modifier: F,
+    source: Option<&'tokens str>,
 ) -> BoxedParser<'tokens, RelationSyntax>
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     S: Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
         + Clone
         + 'tokens,
+    T: Parser<'tokens, ParserInput<'tokens>, TextSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
         + Clone
         + 'tokens,
@@ -7568,6 +7811,57 @@ where
                     moi_free_modifiers,
                 },
             );
+        let mehoi_unit = single_word_quoted_relation_unit(
+            "me'oi",
+            source,
+            free_modifier.clone(),
+            |mehoi, quoted_text, free_modifiers| RelationUnitSyntax::Mehoi {
+                mehoi,
+                quoted_text,
+                free_modifiers,
+            },
+        );
+        let gohoi_unit = single_word_quoted_relation_unit(
+            "go'oi",
+            source,
+            free_modifier.clone(),
+            |gohoi, quoted_text, free_modifiers| RelationUnitSyntax::Gohoi {
+                gohoi,
+                quoted_text,
+                free_modifiers,
+            },
+        );
+        let muhoi_unit = delimited_quoted_relation_unit(
+            "mu'oi",
+            source,
+            free_modifier.clone(),
+            |muhoi, opening_delimiter, closing_delimiter, quoted_text, free_modifiers| {
+                RelationUnitSyntax::Muhoi {
+                    muhoi,
+                    opening_delimiter,
+                    closing_delimiter,
+                    quoted_text,
+                    free_modifiers,
+                }
+            },
+        );
+        let luhei_unit = cmavo("lu'ei")
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(text.clone())
+            .then(cmavo("li'au").or_not())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(
+                |((((luhei, luhei_free_modifiers), text), liau), liau_free_modifiers)| {
+                    RelationUnitSyntax::Luhei {
+                        luhei,
+                        luhei_free_modifiers,
+                        text,
+                        liau,
+                        liau_free_modifiers,
+                    }
+                },
+            )
+            .boxed();
         let brivla_word_unit = brivla_relation_word()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(|(word, free_modifiers)| RelationUnitSyntax::Word {
@@ -7713,6 +8007,10 @@ where
         let base_unit = choice((
             goha_raho_unit.clone(),
             me_unit.clone(),
+            mehoi_unit.clone(),
+            gohoi_unit.clone(),
+            muhoi_unit.clone(),
+            luhei_unit.clone(),
             se_abstraction_unit.clone(),
             abstraction_subsentence_unit.clone(),
             nahe_unit.clone(),
@@ -7728,6 +8026,10 @@ where
         let base_unit_for_cei = choice((
             goha_raho_unit.clone(),
             me_unit.clone(),
+            mehoi_unit.clone(),
+            gohoi_unit.clone(),
+            muhoi_unit.clone(),
+            luhei_unit.clone(),
             se_abstraction_unit,
             abstraction_subsentence_unit,
             nahe_unit.clone(),
@@ -12967,6 +13269,87 @@ fn relation_unit_tree(unit: RelationUnitSyntax) -> SyntaxValue {
                     "moiFreeModifiers",
                     list(
                         moi_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        RelationUnitSyntax::Mehoi {
+            mehoi,
+            quoted_text,
+            free_modifiers,
+        } => node(
+            "MehoiRelationUnit",
+            vec![
+                field("mehoi", word_value(mehoi)),
+                field("quotedText", SyntaxValue::text(quoted_text)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+            ],
+        ),
+        RelationUnitSyntax::Gohoi {
+            gohoi,
+            quoted_text,
+            free_modifiers,
+        } => node(
+            "GohoiRelationUnit",
+            vec![
+                field("gohoi", word_value(gohoi)),
+                field("quotedText", SyntaxValue::text(quoted_text)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+            ],
+        ),
+        RelationUnitSyntax::Muhoi {
+            muhoi,
+            opening_delimiter,
+            closing_delimiter,
+            quoted_text,
+            free_modifiers,
+        } => node(
+            "MuhoiRelationUnit",
+            vec![
+                field("muhoi", word_value(muhoi)),
+                field("openingDelimiter", word_value(opening_delimiter)),
+                field("closingDelimiter", word_value(closing_delimiter)),
+                field("quotedText", SyntaxValue::text(quoted_text)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+            ],
+        ),
+        RelationUnitSyntax::Luhei {
+            luhei,
+            luhei_free_modifiers,
+            text,
+            liau,
+            liau_free_modifiers,
+        } => node(
+            "LuheiRelationUnit",
+            vec![
+                field("luhei", word_value(luhei)),
+                field(
+                    "luheiFreeModifiers",
+                    list(
+                        luhei_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+                field("text", lojban_text_tree(text)),
+                field("liau", maybe_word(liau)),
+                field(
+                    "liauFreeModifiers",
+                    list(
+                        liau_free_modifiers
                             .into_iter()
                             .map(free_modifier_tree)
                             .collect(),
