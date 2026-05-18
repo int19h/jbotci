@@ -634,6 +634,13 @@ enum QuoteSyntax {
         quoted_text: String,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
+    Laho {
+        laho: WordWithModifiers,
+        opening_delimiter: WordWithModifiers,
+        closing_delimiter: WordWithModifiers,
+        quoted_text: String,
+        free_modifiers: Vec<FreeModifierSyntax>,
+    },
     Lohu {
         lohu: WordWithModifiers,
         quoted_words: Vec<WordWithModifiers>,
@@ -2598,6 +2605,19 @@ impl QuoteSyntax {
                 ..
             } => {
                 let mut words = vec![zoi, opening_delimiter, closing_delimiter];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            QuoteSyntax::Laho {
+                laho,
+                opening_delimiter,
+                closing_delimiter,
+                free_modifiers,
+                ..
+            } => {
+                let mut words = vec![laho, opening_delimiter, closing_delimiter];
                 for free_modifier in free_modifiers {
                     words.extend(free_modifier.words());
                 }
@@ -6057,19 +6077,37 @@ where
                     },
                 }),
                 data!(WordLike::ZoiQuote {
+                    zoi,
                     opening_delimiter,
                     quoted_text,
                     closing_delimiter,
                     ..
-                }) => Ok(ArgumentSyntax::Quote {
-                    quote: QuoteSyntax::Zoi {
-                        zoi: word.clone(),
-                        opening_delimiter: base_word_from_record((**opening_delimiter).clone()),
-                        closing_delimiter: base_word_from_record((**closing_delimiter).clone()),
-                        quoted_text: source_text(source, quoted_text),
-                        free_modifiers: Vec::new(),
-                    },
-                }),
+                }) => {
+                    let opening_delimiter = base_word_from_record((**opening_delimiter).clone());
+                    let closing_delimiter = base_word_from_record((**closing_delimiter).clone());
+                    let quoted_text = source_text(source, quoted_text);
+                    if word_record_text_matches(zoi, "la'o") {
+                        Ok(ArgumentSyntax::Quote {
+                            quote: QuoteSyntax::Laho {
+                                laho: word.clone(),
+                                opening_delimiter,
+                                closing_delimiter,
+                                quoted_text,
+                                free_modifiers: Vec::new(),
+                            },
+                        })
+                    } else {
+                        Ok(ArgumentSyntax::Quote {
+                            quote: QuoteSyntax::Zoi {
+                                zoi: word.clone(),
+                                opening_delimiter,
+                                closing_delimiter,
+                                quoted_text,
+                                free_modifiers: Vec::new(),
+                            },
+                        })
+                    }
+                }
                 data!(WordLike::LohuQuote {
                     quoted_words,
                     lehu,
@@ -6179,6 +6217,19 @@ fn quote_with_free_modifiers(
             ..
         } => QuoteSyntax::Zoi {
             zoi,
+            opening_delimiter,
+            closing_delimiter,
+            quoted_text,
+            free_modifiers,
+        },
+        QuoteSyntax::Laho {
+            laho,
+            opening_delimiter,
+            closing_delimiter,
+            quoted_text,
+            ..
+        } => QuoteSyntax::Laho {
+            laho,
             opening_delimiter,
             closing_delimiter,
             quoted_text,
@@ -11444,6 +11495,25 @@ fn quote_tree(quote: QuoteSyntax) -> SyntaxValue {
             "ZoiQuote",
             vec![
                 field("zoi", word_value(zoi)),
+                field("openingDelimiter", word_value(opening_delimiter)),
+                field("closingDelimiter", word_value(closing_delimiter)),
+                field("quotedText", SyntaxValue::text(quoted_text)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+            ],
+        ),
+        QuoteSyntax::Laho {
+            laho,
+            opening_delimiter,
+            closing_delimiter,
+            quoted_text,
+            free_modifiers,
+        } => node(
+            "LahoQuote",
+            vec![
+                field("laho", word_value(laho)),
                 field("openingDelimiter", word_value(opening_delimiter)),
                 field("closingDelimiter", word_value(closing_delimiter)),
                 field("quotedText", SyntaxValue::text(quoted_text)),
