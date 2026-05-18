@@ -1847,7 +1847,7 @@ where
         + Clone
         + 'tokens,
 {
-    let empty_parenthetical = cmavo("to")
+    let empty_parenthetical = cmavo_of("TO", &["to'i", "to"])
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(cmavo("toi"))
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -1861,7 +1861,7 @@ where
             },
         );
 
-    let nonempty_parenthetical = cmavo("to")
+    let nonempty_parenthetical = cmavo_of("TO", &["to'i", "to"])
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(text)
         .then(
@@ -4823,9 +4823,11 @@ where
             moi,
             free_modifiers,
         });
+    let contextual_math_operator =
+        math_parser_pair_with_context(argument.clone(), relation.clone(), free_modifier.clone()).1;
     let nuha_unit = cmavo("nu'a")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(math_operator())
+        .then(contextual_math_operator)
         .map(
             |((nuha, free_modifiers), math_operator)| RelationUnitSyntax::Nuha {
                 nuha,
