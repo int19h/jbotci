@@ -4550,9 +4550,16 @@ where
         + Clone
         + 'tokens,
 {
+    let me_argument = argument
+        .clone()
+        .or(letter_string().map(|letter| ArgumentSyntax::Letter {
+            letter,
+            boi: None,
+            boi_free_modifiers: Vec::new(),
+        }));
     let me_unit = cmavo("me")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(argument.clone())
+        .then(me_argument)
         .then(cmavo("me'u").or_not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(cmavo_of("MOI", MOI_WORDS).or_not())
@@ -5215,9 +5222,17 @@ where
         + 'tokens,
 {
     recursive(|inner_relation| {
+        let me_argument =
+            argument
+                .clone()
+                .or(letter_string().map(|letter| ArgumentSyntax::Letter {
+                    letter,
+                    boi: None,
+                    boi_free_modifiers: Vec::new(),
+                }));
         let me_unit = cmavo("me")
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(argument.clone())
+            .then(me_argument)
             .then(cmavo("me'u").or_not())
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(cmavo_of("MOI", MOI_WORDS).or_not())
