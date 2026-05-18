@@ -437,25 +437,30 @@ enum QuoteSyntax {
         free_modifiers: Vec<FreeModifierSyntax>,
         text: TextSyntax,
         lihu: Option<WordWithModifiers>,
+        lihu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Zo {
         zo: WordWithModifiers,
         word: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     ZohOi {
         zohoi: WordWithModifiers,
         quoted_text: String,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Zoi {
         zoi: WordWithModifiers,
         opening_delimiter: WordWithModifiers,
         closing_delimiter: WordWithModifiers,
         quoted_text: String,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Lohu {
         lohu: WordWithModifiers,
         quoted_words: Vec<WordWithModifiers>,
         lehu: WordWithModifiers,
+        lehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
 }
 
@@ -1729,6 +1734,7 @@ impl QuoteSyntax {
                 free_modifiers,
                 text,
                 lihu,
+                lihu_free_modifiers,
             } => {
                 let mut words = vec![lu];
                 for free_modifier in free_modifiers {
@@ -1736,21 +1742,58 @@ impl QuoteSyntax {
                 }
                 words.extend(text.words());
                 words.extend(lihu);
+                for free_modifier in lihu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
-            QuoteSyntax::Zo { zo, word } => vec![zo, word],
-            QuoteSyntax::ZohOi { zohoi, .. } => vec![zohoi],
+            QuoteSyntax::Zo {
+                zo,
+                word,
+                free_modifiers,
+            } => {
+                let mut words = vec![zo, word];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            QuoteSyntax::ZohOi {
+                zohoi,
+                free_modifiers,
+                ..
+            } => {
+                let mut words = vec![zohoi];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             QuoteSyntax::Zoi {
                 zoi,
                 opening_delimiter,
                 closing_delimiter,
+                free_modifiers,
                 ..
-            } => vec![zoi, opening_delimiter, closing_delimiter],
+            } => {
+                let mut words = vec![zoi, opening_delimiter, closing_delimiter];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             QuoteSyntax::Lohu {
                 lohu,
                 quoted_words,
                 lehu,
-            } => [vec![lohu], quoted_words, vec![lehu]].concat(),
+                lehu_free_modifiers,
+            } => {
+                let mut words = [vec![lohu], quoted_words, vec![lehu]].concat();
+                for free_modifier in lehu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
         }
     }
 }
@@ -3434,7 +3477,7 @@ where
         + Clone
         + 'tokens,
 {
-    let quote = quote_argument(source, text);
+    let quote = quote_argument(source, text, free_modifier.clone());
 
     let math_expression = cmavo_of("LI", &["li", "me'o"])
         .then(math_expression_body_with_context(
@@ -3972,82 +4015,171 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn quote_argument<'tokens, T>(
+fn quote_argument<'tokens, T, F>(
     source: Option<&'tokens str>,
     text: T,
+    free_modifier: F,
 ) -> BoxedParser<'tokens, ArgumentSyntax>
 where
     T: Parser<'tokens, ParserInput<'tokens>, TextSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
 {
-    let compound_quote = any().try_map(move |word: WordWithModifiers, span| {
-        let Some(word_like) = quote_word_like(&word) else {
-            return Err(Rich::custom(span, "expected quote"));
-        };
+    let compound_quote = any()
+        .try_map(move |word: WordWithModifiers, span| {
+            let Some(word_like) = quote_word_like(&word) else {
+                return Err(Rich::custom(span, "expected quote"));
+            };
 
-        match word_like.as_data() {
-            data!(WordLike::ZoQuote { word: quoted, .. }) => Ok(ArgumentSyntax::Quote {
-                quote: QuoteSyntax::Zo {
-                    zo: word.clone(),
-                    word: base_word_from_record((**quoted).clone()),
-                },
-            }),
-            data!(WordLike::ZoiQuote {
-                opening_delimiter,
-                quoted_text,
-                closing_delimiter,
-                ..
-            }) => Ok(ArgumentSyntax::Quote {
-                quote: QuoteSyntax::Zoi {
-                    zoi: word.clone(),
-                    opening_delimiter: base_word_from_record((**opening_delimiter).clone()),
-                    closing_delimiter: base_word_from_record((**closing_delimiter).clone()),
-                    quoted_text: source_text(source, quoted_text),
-                },
-            }),
-            data!(WordLike::LohuQuote {
-                quoted_words,
-                lehu,
-                ..
-            }) => Ok(ArgumentSyntax::Quote {
-                quote: QuoteSyntax::Lohu {
-                    lohu: word.clone(),
-                    quoted_words: quoted_words
-                        .iter()
-                        .cloned()
-                        .map(base_word_from_record)
-                        .collect(),
-                    lehu: base_word_from_record((**lehu).clone()),
-                },
-            }),
-            data!(WordLike::SingleWordQuote {
-                marker: _,
-                quoted_text,
-            }) => Ok(ArgumentSyntax::Quote {
-                quote: QuoteSyntax::ZohOi {
-                    zohoi: word.clone(),
-                    quoted_text: source_text(source, quoted_text),
-                },
-            }),
-            _ => Err(Rich::custom(span, "expected quote")),
-        }
-    });
+            match word_like.as_data() {
+                data!(WordLike::ZoQuote { word: quoted, .. }) => Ok(ArgumentSyntax::Quote {
+                    quote: QuoteSyntax::Zo {
+                        zo: word.clone(),
+                        word: base_word_from_record((**quoted).clone()),
+                        free_modifiers: Vec::new(),
+                    },
+                }),
+                data!(WordLike::ZoiQuote {
+                    opening_delimiter,
+                    quoted_text,
+                    closing_delimiter,
+                    ..
+                }) => Ok(ArgumentSyntax::Quote {
+                    quote: QuoteSyntax::Zoi {
+                        zoi: word.clone(),
+                        opening_delimiter: base_word_from_record((**opening_delimiter).clone()),
+                        closing_delimiter: base_word_from_record((**closing_delimiter).clone()),
+                        quoted_text: source_text(source, quoted_text),
+                        free_modifiers: Vec::new(),
+                    },
+                }),
+                data!(WordLike::LohuQuote {
+                    quoted_words,
+                    lehu,
+                    ..
+                }) => Ok(ArgumentSyntax::Quote {
+                    quote: QuoteSyntax::Lohu {
+                        lohu: word.clone(),
+                        quoted_words: quoted_words
+                            .iter()
+                            .cloned()
+                            .map(base_word_from_record)
+                            .collect(),
+                        lehu: base_word_from_record((**lehu).clone()),
+                        lehu_free_modifiers: Vec::new(),
+                    },
+                }),
+                data!(WordLike::SingleWordQuote {
+                    marker: _,
+                    quoted_text,
+                }) => Ok(ArgumentSyntax::Quote {
+                    quote: QuoteSyntax::ZohOi {
+                        zohoi: word.clone(),
+                        quoted_text: source_text(source, quoted_text),
+                        free_modifiers: Vec::new(),
+                    },
+                }),
+                _ => Err(Rich::custom(span, "expected quote")),
+            }
+        })
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|(argument, free_modifiers)| attach_quote_free_modifiers(argument, free_modifiers));
 
     let lu_quote = cmavo("lu")
-        .then(simple_vocative_free().repeated().collect::<Vec<_>>())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(text)
         .then(cmavo("li'u").or_not())
+        .then(free_modifier.repeated().collect::<Vec<_>>())
         .map(
-            |(((lu, free_modifiers), text), lihu)| ArgumentSyntax::Quote {
+            |((((lu, free_modifiers), text), lihu), lihu_free_modifiers)| ArgumentSyntax::Quote {
                 quote: QuoteSyntax::Lu {
                     lu,
                     free_modifiers,
                     text,
                     lihu,
+                    lihu_free_modifiers,
                 },
             },
         );
 
     choice((compound_quote, lu_quote)).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_quote_free_modifiers(
+    argument: ArgumentSyntax,
+    free_modifiers: Vec<FreeModifierSyntax>,
+) -> ArgumentSyntax {
+    match argument {
+        ArgumentSyntax::Quote { quote } => ArgumentSyntax::Quote {
+            quote: quote_with_free_modifiers(quote, free_modifiers),
+        },
+        other => other,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quote_with_free_modifiers(
+    quote: QuoteSyntax,
+    free_modifiers: Vec<FreeModifierSyntax>,
+) -> QuoteSyntax {
+    match quote {
+        QuoteSyntax::Lu {
+            lu,
+            free_modifiers: mut leading_free_modifiers,
+            text,
+            lihu,
+            lihu_free_modifiers,
+        } => {
+            leading_free_modifiers.extend(free_modifiers);
+            QuoteSyntax::Lu {
+                lu,
+                free_modifiers: leading_free_modifiers,
+                text,
+                lihu,
+                lihu_free_modifiers,
+            }
+        }
+        QuoteSyntax::Zo { zo, word, .. } => QuoteSyntax::Zo {
+            zo,
+            word,
+            free_modifiers,
+        },
+        QuoteSyntax::ZohOi {
+            zohoi, quoted_text, ..
+        } => QuoteSyntax::ZohOi {
+            zohoi,
+            quoted_text,
+            free_modifiers,
+        },
+        QuoteSyntax::Zoi {
+            zoi,
+            opening_delimiter,
+            closing_delimiter,
+            quoted_text,
+            ..
+        } => QuoteSyntax::Zoi {
+            zoi,
+            opening_delimiter,
+            closing_delimiter,
+            quoted_text,
+            free_modifiers,
+        },
+        QuoteSyntax::Lohu {
+            lohu,
+            quoted_words,
+            lehu,
+            ..
+        } => QuoteSyntax::Lohu {
+            lohu,
+            quoted_words,
+            lehu,
+            lehu_free_modifiers: free_modifiers,
+        },
+    }
 }
 
 #[requires(true)]
@@ -7845,6 +7977,7 @@ fn quote_tree(quote: QuoteSyntax) -> SyntaxValue {
             free_modifiers,
             text,
             lihu,
+            lihu_free_modifiers,
         } => node(
             "LuQuote",
             vec![
@@ -7855,23 +7988,45 @@ fn quote_tree(quote: QuoteSyntax) -> SyntaxValue {
                 ),
                 field("text", lojban_text_tree(text)),
                 field("lihu", maybe_word(lihu)),
-                field("lihuFreeModifiers", nil()),
+                field(
+                    "lihuFreeModifiers",
+                    list(
+                        lihu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
-        QuoteSyntax::Zo { zo, word } => node(
+        QuoteSyntax::Zo {
+            zo,
+            word,
+            free_modifiers,
+        } => node(
             "ZoQuote",
             vec![
                 field("zo", word_value(zo)),
                 field("word", word_value(word)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
-        QuoteSyntax::ZohOi { zohoi, quoted_text } => node(
+        QuoteSyntax::ZohOi {
+            zohoi,
+            quoted_text,
+            free_modifiers,
+        } => node(
             "ZohOiQuote",
             vec![
                 field("zohoi", word_value(zohoi)),
                 field("quotedText", SyntaxValue::text(quoted_text)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         QuoteSyntax::Zoi {
@@ -7879,6 +8034,7 @@ fn quote_tree(quote: QuoteSyntax) -> SyntaxValue {
             opening_delimiter,
             closing_delimiter,
             quoted_text,
+            free_modifiers,
         } => node(
             "ZoiQuote",
             vec![
@@ -7886,13 +8042,17 @@ fn quote_tree(quote: QuoteSyntax) -> SyntaxValue {
                 field("openingDelimiter", word_value(opening_delimiter)),
                 field("closingDelimiter", word_value(closing_delimiter)),
                 field("quotedText", SyntaxValue::text(quoted_text)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         QuoteSyntax::Lohu {
             lohu,
             quoted_words,
             lehu,
+            lehu_free_modifiers,
         } => node(
             "LohuQuote",
             vec![
@@ -7902,7 +8062,15 @@ fn quote_tree(quote: QuoteSyntax) -> SyntaxValue {
                     list(quoted_words.into_iter().map(word_value).collect()),
                 ),
                 field("lehu", word_value(lehu)),
-                field("lehuFreeModifiers", nil()),
+                field(
+                    "lehuFreeModifiers",
+                    list(
+                        lehu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
     }
