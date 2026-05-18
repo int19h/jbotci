@@ -5907,7 +5907,26 @@ fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             free_modifiers: Vec::new(),
             inner_unit: Box::new(inner_unit),
         });
-    let relation = choice((se_unit, word_unit))
+    let simple_unit = choice((se_unit, word_unit)).boxed();
+    let bo_unit = recursive(|bo_unit| {
+        simple_unit
+            .clone()
+            .then(cmavo("bo").then(bo_unit).or_not())
+            .map(|(leading_unit, bo_tail)| {
+                bo_tail.map_or(leading_unit.clone(), |(bo, trailing_unit)| {
+                    RelationUnitSyntax::Bo {
+                        leading_unit: Box::new(leading_unit),
+                        bo_connective: None,
+                        bo_tense_modal: None,
+                        bo,
+                        free_modifiers: Vec::new(),
+                        trailing_unit: Box::new(trailing_unit),
+                    }
+                })
+            })
+    })
+    .boxed();
+    let relation = bo_unit
         .repeated()
         .at_least(1)
         .collect::<Vec<_>>()
