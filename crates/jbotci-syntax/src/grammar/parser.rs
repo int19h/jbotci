@@ -1,3 +1,4 @@
+use super::tense::*;
 use super::tokens::*;
 use super::*;
 
@@ -5779,6 +5780,33 @@ fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
 
 #[requires(true)]
 #[ensures(true)]
+fn flat_tag_chunk_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
+    let prefixes = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
+        .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
+        .map(|(nahe, se)| {
+            let mut leaves = vec![nahe];
+            leaves.extend(se);
+            leaves
+        })
+        .or(cmavo_of("SE", &["se", "te", "ve", "xe"]).map(|se| vec![se]));
+    let atom = choice((
+        cmavo_of("FA", FA_WORDS).map(|fa| vec![fa]),
+        simple_tense_modal().map(|tense_modal| tense_modal.leaf_words()),
+        composite_tense_modal().map(|tense_modal| tense_modal.leaf_words()),
+    ));
+
+    prefixes
+        .then(atom)
+        .map(|(mut prefix_leaves, atom_leaves)| {
+            prefix_leaves.extend(atom_leaves);
+            tense_modal_from_leaves(prefix_leaves, Vec::new())
+        })
+        .or(cmavo_of("FA", FA_WORDS).map(|fa| tense_modal_from_leaves(vec![fa], Vec::new())))
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
     let pu = cmavo_of("PU", &["pu", "ca", "ba"])
         .then(cmavo("nai").or_not())
@@ -6697,6 +6725,7 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             free_modifiers: Vec::new(),
         }),
         simple_tense_modal(),
+        flat_tag_chunk_tense_modal(),
         cmavo("ki").map(|ki| TenseModalSyntax::Ki {
             ki,
             free_modifiers: Vec::new(),
@@ -6733,18 +6762,7 @@ fn simple_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
     let simple_atom = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
         .or_not()
         .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
-        .then(cmavo_of(
-            "BAI",
-            &[
-                "du'o", "si'u", "zau", "ki'i", "du'i", "cu'u", "tu'i", "ti'u", "di'o", "ji'u",
-                "ri'a", "ni'i", "mu'i", "ki'u", "va'u", "koi", "ca'i", "ta'i", "pu'e", "ja'i",
-                "kai", "bai", "fi'e", "de'i", "ci'o", "mau", "mu'u", "ri'i", "ra'i", "ka'a",
-                "pa'u", "pa'a", "le'a", "ku'u", "tai", "bau", "ma'i", "ci'e", "fau", "po'i", "cau",
-                "ma'e", "ci'u", "ra'a", "pu'a", "li'e", "la'u", "ba'i", "ka'i", "sau", "fa'e",
-                "be'i", "ti'i", "ja'e", "ga'a", "va'o", "ji'o", "me'a", "do'e", "ji'e", "pi'o",
-                "gau", "zu'e", "me'e", "rai",
-            ],
-        ))
+        .then(cmavo_of("BAI", BAI_WORDS))
         .then(cmavo("nai").or_not())
         .then(cmavo("ki").or_not())
         .map(|((((nahe, se), bai), nai), ki)| TenseModalSyntax::Simple {

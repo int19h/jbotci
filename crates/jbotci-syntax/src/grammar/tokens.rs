@@ -24,6 +24,14 @@ pub(super) const MAI_WORDS: &[&str] = &["mo'o", "mai"];
 pub(super) const LAU_WORDS: &[&str] = &["lau", "tau", "zai", "ce'a"];
 pub(super) const CAI_WORDS: &[&str] = &["pei", "cai", "cu'i", "sai", "ru'e"];
 pub(super) const CAHA_WORDS: &[&str] = &["ca'a", "pu'i", "nu'o", "ka'e", "bi'ai"];
+pub(super) const BAI_WORDS: &[&str] = &[
+    "du'o", "si'u", "zau", "ki'i", "du'i", "cu'u", "tu'i", "ti'u", "di'o", "ji'u", "ri'a", "ni'i",
+    "mu'i", "ki'u", "va'u", "koi", "ca'i", "ta'i", "pu'e", "ja'i", "kai", "bai", "fi'e", "de'i",
+    "ci'o", "mau", "mu'u", "ri'i", "ra'i", "ka'a", "pa'u", "pa'a", "le'a", "ku'u", "tai", "bau",
+    "ma'i", "ci'e", "fau", "po'i", "cau", "ma'e", "ci'u", "ra'a", "pu'a", "li'e", "la'u", "ba'i",
+    "ka'i", "sau", "fa'e", "be'i", "ti'i", "ja'e", "ga'a", "va'o", "ji'o", "me'a", "do'e", "ji'e",
+    "pi'o", "gau", "zu'e", "me'e", "rai",
+];
 pub(super) const KOHA_WORDS: &[&str] = &[
     "da'u", "da'e", "di'u", "di'e", "de'u", "de'e", "dei", "do'i", "mi'o", "ma'a", "mi'a", "do'o",
     "ko'a", "fo'u", "ko'e", "ko'i", "ko'o", "ko'u", "fo'a", "fo'e", "fo'i", "fo'o", "vo'a", "vo'e",

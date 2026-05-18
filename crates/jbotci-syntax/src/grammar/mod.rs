@@ -18,6 +18,7 @@ mod ast;
 use ast::*;
 mod parser;
 mod render;
+mod tense;
 mod tokens;
 
 type Span = SimpleSpan;
