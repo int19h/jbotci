@@ -611,6 +611,13 @@ enum MathExpressionSyntax {
         argument: Box<ArgumentSyntax>,
         tehu: Option<WordWithModifiers>,
     },
+    Johi {
+        johi: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        expressions: Vec<MathExpressionSyntax>,
+        tehu: Option<WordWithModifiers>,
+        tehu_free_modifiers: Vec<FreeModifierSyntax>,
+    },
     Lahe {
         markers: Vec<WordWithModifiers>,
         inner_expression: Box<MathExpressionSyntax>,
@@ -1629,6 +1636,26 @@ impl MathExpressionSyntax {
                 let mut words = vec![mohe];
                 words.extend(argument.words());
                 words.extend(tehu);
+                words
+            }
+            MathExpressionSyntax::Johi {
+                johi,
+                free_modifiers,
+                expressions,
+                tehu,
+                tehu_free_modifiers,
+            } => {
+                let mut words = vec![johi];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                for expression in expressions {
+                    words.extend(expression.words());
+                }
+                words.extend(tehu);
+                for free_modifier in tehu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             MathExpressionSyntax::Lahe {
@@ -3579,6 +3606,29 @@ where
             argument: Box::new(argument),
             tehu,
         });
+    let no_free_modifiers = empty().to(Vec::<FreeModifierSyntax>::new());
+    let johi = cmavo("jo'i")
+        .then(no_free_modifiers.clone())
+        .then(
+            expression
+                .clone()
+                .repeated()
+                .at_least(1)
+                .collect::<Vec<_>>(),
+        )
+        .then(cmavo("te'u").or_not())
+        .then(no_free_modifiers)
+        .map(
+            |((((johi, free_modifiers), expressions), tehu), tehu_free_modifiers)| {
+                MathExpressionSyntax::Johi {
+                    johi,
+                    free_modifiers,
+                    expressions,
+                    tehu,
+                    tehu_free_modifiers,
+                }
+            },
+        );
     let vei = cmavo("vei")
         .then(expression.clone())
         .then(cmavo("ve'o").or_not())
@@ -3601,7 +3651,7 @@ where
                 right_expression: Box::new(right_expression),
             },
         );
-    let math_operand_atom = choice((gek, vei, nihe, mohe, number, letter)).boxed();
+    let math_operand_atom = choice((gek, vei, nihe, mohe, johi, number, letter)).boxed();
     let math_operand = math_operand_atom
         .clone()
         .then(
@@ -3772,6 +3822,29 @@ where
                 veho,
             },
         );
+    let no_free_modifiers = empty().to(Vec::<FreeModifierSyntax>::new());
+    let johi = cmavo("jo'i")
+        .then(no_free_modifiers.clone())
+        .then(
+            expression
+                .clone()
+                .repeated()
+                .at_least(1)
+                .collect::<Vec<_>>(),
+        )
+        .then(cmavo("te'u").or_not())
+        .then(no_free_modifiers)
+        .map(
+            |((((johi, free_modifiers), expressions), tehu), tehu_free_modifiers)| {
+                MathExpressionSyntax::Johi {
+                    johi,
+                    free_modifiers,
+                    expressions,
+                    tehu,
+                    tehu_free_modifiers,
+                }
+            },
+        );
     let gek = modal_forethought_connective()
         .then(expression.clone())
         .then(gik_connective())
@@ -3784,7 +3857,7 @@ where
                 right_expression: Box::new(right_expression),
             },
         );
-    let math_operand_atom = choice((gek, vei, number, letter)).boxed();
+    let math_operand_atom = choice((gek, vei, johi, number, letter)).boxed();
     let math_operand = math_operand_atom
         .clone()
         .then(
@@ -9215,6 +9288,33 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
                 field("tehuFreeModifiers", nil()),
             ],
         ),
+        MathExpressionSyntax::Johi {
+            johi,
+            free_modifiers,
+            expressions,
+            tehu,
+            tehu_free_modifiers,
+        } => node(
+            "JohiExpression",
+            vec![
+                field("johi", word_value(johi)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field("expressions", nonempty_math_expressions(expressions)),
+                field("tehu", maybe_word(tehu)),
+                field(
+                    "tehuFreeModifiers",
+                    list(
+                        tehu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
         MathExpressionSyntax::Lahe {
             markers,
             inner_expression,
@@ -9935,6 +10035,21 @@ fn nonempty_letter_words(words: Vec<WordWithModifiers>) -> SyntaxValue {
 #[ensures(true)]
 fn nonempty_number_words(words: Vec<WordWithModifiers>) -> SyntaxValue {
     let mut rendered = words.into_iter().map(word_value).collect::<Vec<_>>();
+    if rendered.len() <= 1 {
+        return plain_list(rendered);
+    }
+
+    let tail = rendered.split_off(1);
+    plain_list(vec![rendered.remove(0), list(tail)])
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn nonempty_math_expressions(expressions: Vec<MathExpressionSyntax>) -> SyntaxValue {
+    let mut rendered = expressions
+        .into_iter()
+        .map(math_expression_tree)
+        .collect::<Vec<_>>();
     if rendered.len() <= 1 {
         return plain_list(rendered);
     }
