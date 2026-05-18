@@ -512,7 +512,13 @@ fn normalize_cll_brackets(text: &str) -> String {
 #[ensures(true)]
 fn normalize_cll_bracket_char(ch: char) -> Option<char> {
     match ch {
-        '.' | '\u{0306}' => None,
+        '.' | '-' | '\u{0306}' => None,
+        'á' | 'à' | 'Á' | 'À' => Some('a'),
+        'é' | 'è' | 'É' | 'È' => Some('e'),
+        'í' | 'ì' | 'Í' | 'Ì' => Some('i'),
+        'ó' | 'ò' | 'Ó' | 'Ò' => Some('o'),
+        'ú' | 'ù' | 'Ú' | 'Ù' => Some('u'),
+        'ý' | 'ỳ' | 'Ý' | 'Ỳ' => Some('y'),
         'ĭ' | 'Ĭ' => Some('i'),
         'ŭ' | 'Ŭ' => Some('u'),
         other => Some(other),
