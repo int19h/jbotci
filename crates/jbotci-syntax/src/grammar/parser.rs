@@ -1032,7 +1032,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 free_modifiers,
             })
         });
-    let gihek_fragment = predicate_tail_connective()
+    let gihek_fragment = gihek_connective()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(connective, free_modifiers)| {
             StatementSyntax::Fragment(FragmentSyntax::Gihek {
@@ -1175,16 +1175,16 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         predicate,
         tuhe_statement,
         prenex_fragment,
-        ek_fragment,
-        gihek_fragment,
-        be_link_fragment,
-        bei_link_fragment,
-        relative_clause_fragment,
+        relation_fragment,
         multiple_na_fragment,
         single_na_fragment,
         term_fragment,
+        ek_fragment,
+        gihek_fragment,
         math_expression_fragment,
-        relation_fragment,
+        relative_clause_fragment,
+        bei_link_fragment,
+        be_link_fragment,
     ))
     .boxed();
 
@@ -4539,8 +4539,8 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
-    let gihek = na_cmavo()
+fn gihek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
+    na_cmavo()
         .or_not()
         .then(cmavo_of("SE", &["se", "te", "ve", "xe"]).or_not())
         .then(cmavo_of("GIhA", &["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"]))
@@ -4554,10 +4554,15 @@ fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax
             nai,
             free_modifiers: Vec::new(),
         })
-        .boxed();
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     let experimental = relation_afterthought_connective()
         .map(|connective| connective_with_kind(connective, ConnectiveKind::PredicateTail));
-    choice((gihek, experimental)).boxed()
+    choice((gihek_connective(), experimental)).boxed()
 }
 
 #[requires(true)]
