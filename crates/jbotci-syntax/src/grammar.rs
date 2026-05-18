@@ -526,6 +526,7 @@ enum QuantifierSyntax {
     Number {
         number: Vec<WordWithModifiers>,
         boi: Option<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Vei {
         vei: WordWithModifiers,
@@ -1940,8 +1941,16 @@ impl QuantifierSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
-            QuantifierSyntax::Number { number, boi } => {
-                [number, boi.into_iter().collect()].concat()
+            QuantifierSyntax::Number {
+                number,
+                boi,
+                free_modifiers,
+            } => {
+                let mut words = [number, boi.into_iter().collect()].concat();
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
             }
             QuantifierSyntax::Vei {
                 vei,
@@ -2850,7 +2859,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         });
 
     let math_expression_fragment = number_quantifier().map(|quantifier| {
-        if let QuantifierSyntax::Number { number, boi } = quantifier {
+        if let QuantifierSyntax::Number { number, boi, .. } = quantifier {
             StatementSyntax::Fragment(FragmentSyntax::MathExpression { number, boi })
         } else {
             unreachable!("number_quantifier returns Number")
@@ -4158,7 +4167,11 @@ where
 fn number_quantifier<'tokens>() -> BoxedParser<'tokens, QuantifierSyntax> {
     number_words()
         .then(cmavo("boi").or_not())
-        .map(|(number, boi)| QuantifierSyntax::Number { number, boi })
+        .map(|(number, boi)| QuantifierSyntax::Number {
+            number,
+            boi,
+            free_modifiers: Vec::new(),
+        })
         .boxed()
 }
 
@@ -4458,12 +4471,16 @@ where
         + Clone
         + 'tokens,
 {
-    let number_or_letter =
-        number_or_letter_words()
-            .then(cmavo("boi").or_not())
-            .map(|(number, boi)| {
-                MathExpressionSyntax::Number(QuantifierSyntax::Number { number, boi })
-            });
+    let number_or_letter = number_or_letter_words()
+        .then(cmavo("boi").or_not())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|((number, boi), free_modifiers)| {
+            MathExpressionSyntax::Number(QuantifierSyntax::Number {
+                number,
+                boi,
+                free_modifiers,
+            })
+        });
     let xi_expression = choice((number_or_letter, math_expression_body()));
 
     cmavo_of("XI", &["xi", "te'ai"])
@@ -8612,12 +8629,19 @@ fn argument_tail_element_tree(element: ArgumentTailElementSyntax) -> SyntaxValue
 #[ensures(true)]
 fn quantifier_tree(quantifier: QuantifierSyntax) -> SyntaxValue {
     match quantifier {
-        QuantifierSyntax::Number { number, boi } => node(
+        QuantifierSyntax::Number {
+            number,
+            boi,
+            free_modifiers,
+        } => node(
             "NumberQuantifier",
             vec![
                 field("number", nonempty_number_words(number)),
                 field("boi", maybe_word(boi)),
-                field("boiFreeModifiers", nil()),
+                field(
+                    "boiFreeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         QuantifierSyntax::Vei {
@@ -8641,12 +8665,19 @@ fn quantifier_tree(quantifier: QuantifierSyntax) -> SyntaxValue {
 #[ensures(true)]
 fn quantifier_expression_tree(quantifier: QuantifierSyntax) -> SyntaxValue {
     match quantifier {
-        QuantifierSyntax::Number { number, boi } => node(
+        QuantifierSyntax::Number {
+            number,
+            boi,
+            free_modifiers,
+        } => node(
             "NumberExpression",
             vec![
                 field("number", nonempty_number_words(number)),
                 field("boi", maybe_word(boi)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         QuantifierSyntax::Vei {
