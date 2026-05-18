@@ -34,6 +34,25 @@ fn expensive_trait_contracts_are_disabled_without_feature() {
     let _ = new!(ExpensiveEven { value: 3 });
 }
 
+#[cfg(not(feature = "expensive_contracts"))]
+#[test]
+fn disabled_expensive_old_capture_is_typechecked_but_not_evaluated() {
+    fn panic_if_called() -> bool {
+        panic!("disabled expensive old() capture was evaluated");
+    }
+
+    #[expensive_ensures(old(panic_if_called()))]
+    fn no_op() {}
+
+    #[expensive_ensures(old(value.clone()).len() == ret.len())]
+    fn consume(value: String) -> String {
+        value
+    }
+
+    no_op();
+    assert_eq!(consume(String::from("abc")), "abc");
+}
+
 #[cfg(feature = "expensive_contracts")]
 #[test]
 #[should_panic(expected = "expensive trait precondition")]

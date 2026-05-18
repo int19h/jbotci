@@ -130,12 +130,14 @@ pub(crate) struct Contract {
     pub(crate) mode: ContractMode,
     pub(crate) assertions: Vec<Expr>,
     pub(crate) streams: Vec<TokenStream>,
+    pub(crate) old_assertions: Vec<Vec<codegen::OldExpr>>,
     pub(crate) desc: Option<String>,
 }
 
 impl Contract {
     pub(crate) fn from_toks(ty: ContractType, mode: ContractMode, toks: TokenStream) -> Self {
         let (assertions, streams, desc) = parse::parse_attributes(toks);
+        let old_assertions = (0..assertions.len()).map(|_| Vec::new()).collect();
 
         let span = Span::call_site();
 
@@ -145,6 +147,7 @@ impl Contract {
             mode,
             assertions,
             streams,
+            old_assertions,
             desc,
         }
     }
@@ -232,8 +235,8 @@ impl FuncWithContracts {
     /// Generates the resulting tokens including all contract-checks
     pub(crate) fn generate(mut self) -> TokenStream {
         let doc_attrs = doc::generate_attributes(&self.contracts);
-        let olds = codegen::extract_old_calls(&mut self.contracts);
+        codegen::extract_old_calls(&mut self.contracts);
 
-        codegen::generate(self, doc_attrs, olds)
+        codegen::generate(self, doc_attrs)
     }
 }

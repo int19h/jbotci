@@ -1,0 +1,11 @@
+error[E0599]: no method named `no_such_method` found for type `i32` in the current scope
+ --> tests/ui/fail/expensive_contract_typechecked.rs:3:28
+  |
+3 | #[expensive_requires(value.no_such_method())]
+  |                            ^^^^^^^^^^^^^^ method not found in `i32`
+
+error[E0599]: no method named `no_such_method` found for type `i32` in the current scope
+ --> tests/ui/fail/expensive_contract_typechecked.rs:6:25
+  |
+6 | #[expensive_ensures(ret.no_such_method())]
+  |                         ^^^^^^^^^^^^^^ method not found in `i32`

@@ -14,6 +14,7 @@ use syn::{
 use crate::implementation::{Contract, ContractMode, ContractType, FuncWithContracts};
 
 /// Substitution for `old()` expressions.
+#[derive(Debug, Clone)]
 pub(crate) struct OldExpr {
     /// Name of the variable binder.
     pub(crate) name: String,
@@ -24,7 +25,7 @@ pub(crate) struct OldExpr {
 /// Extract calls to the pseudo-function `old()` in post-conditions,
 /// which evaluates an expression in a context *before* the
 /// to-be-checked-function is executed.
-pub(crate) fn extract_old_calls(contracts: &mut [Contract]) -> Vec<OldExpr> {
+pub(crate) fn extract_old_calls(contracts: &mut [Contract]) {
     struct OldExtractor {
         last_id: usize,
         olds: Vec<OldExpr>,
@@ -92,22 +93,27 @@ pub(crate) fn extract_old_calls(contracts: &mut [Contract]) -> Vec<OldExpr> {
         }
     }
 
-    let mut extractor = OldExtractor {
-        last_id: 0,
-        olds: vec![],
-    };
+    let mut last_id = 0;
 
     for contract in contracts {
         if contract.ty != ContractType::Ensures {
             continue;
         }
 
-        for assertion in &mut contract.assertions {
+        for (assertion, old_exprs) in contract
+            .assertions
+            .iter_mut()
+            .zip(contract.old_assertions.iter_mut())
+        {
+            let mut extractor = OldExtractor {
+                last_id,
+                olds: vec![],
+            };
             extractor.visit_expr_mut(assertion);
+            last_id = extractor.last_id;
+            *old_exprs = extractor.olds;
         }
     }
-
-    extractor.olds
 }
 
 fn get_assert_macro(
@@ -169,12 +175,108 @@ fn get_assert_macro(
     }
 }
 
+fn old_ident(old: &OldExpr) -> Ident {
+    Ident::new(&old.name, old.expr.span())
+}
+
+fn old_marker_ident(old: &OldExpr) -> Ident {
+    Ident::new(&format!("{}_marker", old.name), old.expr.span())
+}
+
+fn expensive_old_binding(old: &OldExpr, previous_expensive_olds: &[OldExpr]) -> TokenStream {
+    let span = old.expr.span();
+    let old_name = old_ident(old);
+    let marker_name = old_marker_ident(old);
+    let expr = &old.expr;
+
+    let previous_old_bindings = previous_expensive_olds.iter().map(|previous| {
+        let previous_name = old_ident(previous);
+        let previous_marker_name = old_marker_ident(previous);
+        let previous_span = previous.expr.span();
+
+        quote::quote_spanned! { previous_span=>
+            let #previous_name =
+                __bityzba_expensive_contract_old_value(#previous_marker_name);
+        }
+    });
+
+    quote::quote_spanned! { span=>
+        #[cfg(feature = "expensive_contracts")]
+        let #old_name = #expr;
+
+        #[cfg(not(feature = "expensive_contracts"))]
+        let #marker_name = {
+            fn __bityzba_expensive_contract_old_marker<
+                T,
+                F: ::core::ops::FnOnce() -> T,
+            >(
+                _: F,
+            ) -> ::core::marker::PhantomData<T> {
+                ::core::marker::PhantomData
+            }
+
+            fn __bityzba_expensive_contract_old_value<T>(
+                _: ::core::marker::PhantomData<T>,
+            ) -> T {
+                loop {}
+            }
+
+            let marker;
+            if false {
+                #(#previous_old_bindings)*
+                marker = __bityzba_expensive_contract_old_marker(|| #expr);
+            } else {
+                marker = ::core::marker::PhantomData;
+            }
+            marker
+        };
+    }
+}
+
+fn expensive_typecheck(exec_expr: &Expr, old_exprs: &[OldExpr]) -> TokenStream {
+    let span = exec_expr.span();
+
+    let old_value_fn = if old_exprs.is_empty() {
+        TokenStream::new()
+    } else {
+        quote::quote_spanned! { span=>
+            fn __bityzba_expensive_contract_old_value<T>(
+                _: ::core::marker::PhantomData<T>,
+            ) -> T {
+                loop {}
+            }
+        }
+    };
+
+    let old_bindings = old_exprs.iter().map(|old| {
+        let name = old_ident(old);
+        let marker_name = old_marker_ident(old);
+        let span = old.expr.span();
+
+        quote::quote_spanned! { span=>
+            let #name = __bityzba_expensive_contract_old_value(#marker_name);
+        }
+    });
+
+    quote::quote_spanned! { span=>
+        #[allow(
+            clippy::assertions_on_constants,
+            clippy::nonminimal_bool,
+            unreachable_code,
+            unused_variables
+        )]
+        {
+            #old_value_fn
+            if false {
+                #(#old_bindings)*
+                let _: bool = #exec_expr;
+            }
+        }
+    }
+}
+
 /// Generate the resulting code for this function by inserting assertions.
-pub(crate) fn generate(
-    mut func: FuncWithContracts,
-    docs: Vec<Attribute>,
-    olds: Vec<OldExpr>,
-) -> TokenStream {
+pub(crate) fn generate(mut func: FuncWithContracts, docs: Vec<Attribute>) -> TokenStream {
     let func_name = func.function.sig.ident.to_string();
 
     // creates an assertion appropriate for the current mode
@@ -182,6 +284,7 @@ pub(crate) fn generate(
                           ctype: ContractType,
                           display: TokenStream,
                           exec_expr: &Expr,
+                          old_exprs: &[OldExpr],
                           desc: &str| {
         let span = display.span();
         let mut result = TokenStream::new();
@@ -216,9 +319,15 @@ pub(crate) fn generate(
               }
             }
         } else if mode == ContractMode::Expensive {
+            let typecheck = expensive_typecheck(exec_expr, old_exprs);
+
             quote::quote_spanned! { span=>
               #[cfg(feature = "expensive_contracts")] {
                 #result
+              }
+
+              #[cfg(not(feature = "expensive_contracts"))] {
+                #typecheck
               }
             }
         } else {
@@ -258,6 +367,7 @@ pub(crate) fn generate(
                         ContractType::Requires,
                         display.clone(),
                         expr,
+                        &[],
                         &desc.clone(),
                     )
                 })
@@ -288,7 +398,8 @@ pub(crate) fn generate(
             c.assertions
                 .iter()
                 .zip(c.streams.iter())
-                .map(move |(expr, display)| {
+                .zip(c.old_assertions.iter())
+                .map(move |((expr, display), old_exprs)| {
                     let mode = c.mode.final_mode();
 
                     make_assertion(
@@ -296,6 +407,7 @@ pub(crate) fn generate(
                         ContractType::Ensures,
                         display.clone(),
                         expr,
+                        old_exprs,
                         &desc.clone(),
                     )
                 })
@@ -308,19 +420,28 @@ pub(crate) fn generate(
 
     let olds = {
         let mut toks = TokenStream::new();
+        let mut previous_expensive_olds = Vec::new();
 
-        for old in olds {
-            let span = old.expr.span();
+        for contract in &func.contracts {
+            let mode = contract.mode.final_mode();
 
-            let name = syn::Ident::new(&old.name, span);
+            for old_exprs in &contract.old_assertions {
+                for old in old_exprs {
+                    let span = old.expr.span();
 
-            let expr = old.expr;
+                    if mode == ContractMode::Expensive {
+                        toks.extend(expensive_old_binding(old, &previous_expensive_olds));
+                        previous_expensive_olds.push(old.clone());
+                    } else {
+                        let name = syn::Ident::new(&old.name, span);
+                        let expr = &old.expr;
 
-            let binding = quote::quote_spanned! { span=>
-                let #name = #expr;
-            };
-
-            toks.extend(Some(binding));
+                        toks.extend(quote::quote_spanned! { span=>
+                            let #name = #expr;
+                        });
+                    }
+                }
+            }
         }
 
         toks
