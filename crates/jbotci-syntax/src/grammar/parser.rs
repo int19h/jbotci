@@ -4822,6 +4822,16 @@ where
                 inner_unit: Box::new(inner_unit),
             },
         );
+    let se_jai_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(jai_unit.clone())
+        .map(
+            |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
+                se,
+                free_modifiers,
+                inner_unit: Box::new(inner_unit),
+            },
+        );
 
     let nahe_unit = recursive(|nahe_unit| {
         cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
@@ -4904,6 +4914,7 @@ where
         luhei_unit.clone(),
         se_abstraction_unit.clone(),
         abstraction_subsentence_unit.clone(),
+        se_jai_unit.clone(),
         jai_unit.clone(),
         nahe_unit.clone(),
         se_unit.clone(),
@@ -4924,6 +4935,7 @@ where
         luhei_unit.clone(),
         se_abstraction_unit.clone(),
         abstraction_subsentence_unit.clone(),
+        se_jai_unit,
         jai_unit.clone(),
         nahe_unit.clone(),
         se_unit.clone(),
@@ -5502,6 +5514,16 @@ where
                     inner_unit: Box::new(inner_unit),
                 },
             );
+        let se_jai_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(jai_unit.clone())
+            .map(
+                |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
+                    se,
+                    free_modifiers,
+                    inner_unit: Box::new(inner_unit),
+                },
+            );
         let nahe_unit = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(choice((
@@ -5550,6 +5572,7 @@ where
             luhei_unit.clone(),
             se_abstraction_unit.clone(),
             abstraction_subsentence_unit.clone(),
+            se_jai_unit.clone(),
             jai_unit.clone(),
             nahe_unit.clone(),
             se_unit.clone(),
@@ -5570,6 +5593,7 @@ where
             luhei_unit.clone(),
             se_abstraction_unit,
             abstraction_subsentence_unit,
+            se_jai_unit,
             jai_unit,
             nahe_unit.clone(),
             se_unit.clone(),
@@ -5951,41 +5975,54 @@ fn relation_to_empty_predicate(relation: RelationSyntax) -> PredicateSyntax {
 #[requires(true)]
 #[ensures(true)]
 fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
-    let word_unit = relation_word().map(|word| RelationUnitSyntax::Word {
-        word,
-        free_modifiers: Vec::new(),
-    });
-    let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
-        .then(word_unit.clone())
-        .map(|(se, inner_unit)| RelationUnitSyntax::Se {
-            se,
+    let relation = recursive(|relation| {
+        let word_unit = relation_word().map(|word| RelationUnitSyntax::Word {
+            word,
             free_modifiers: Vec::new(),
-            inner_unit: Box::new(inner_unit),
         });
-    let simple_unit = choice((se_unit, word_unit)).boxed();
-    let bo_unit = recursive(|bo_unit| {
-        simple_unit
-            .clone()
-            .then(cmavo("bo").then(bo_unit).or_not())
-            .map(|(leading_unit, bo_tail)| {
-                bo_tail.map_or(leading_unit.clone(), |(bo, trailing_unit)| {
-                    RelationUnitSyntax::Bo {
-                        leading_unit: Box::new(leading_unit),
-                        bo_connective: None,
-                        bo_tense_modal: None,
-                        bo,
-                        free_modifiers: Vec::new(),
-                        trailing_unit: Box::new(trailing_unit),
-                    }
+        let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
+            .then(word_unit.clone())
+            .map(|(se, inner_unit)| RelationUnitSyntax::Se {
+                se,
+                free_modifiers: Vec::new(),
+                inner_unit: Box::new(inner_unit),
+            });
+        let ke_unit = cmavo("ke")
+            .then(relation.clone())
+            .then(cmavo("ke'e").or_not())
+            .map(|((ke, relation), kehe)| RelationUnitSyntax::Ke {
+                ke_tense_modal: None,
+                ke,
+                ke_free_modifiers: Vec::new(),
+                relation,
+                kehe,
+                kehe_free_modifiers: Vec::new(),
+            });
+        let simple_unit = choice((ke_unit, se_unit, word_unit)).boxed();
+        let bo_unit = recursive(|bo_unit| {
+            simple_unit
+                .clone()
+                .then(cmavo("bo").then(bo_unit).or_not())
+                .map(|(leading_unit, bo_tail)| {
+                    bo_tail.map_or(leading_unit.clone(), |(bo, trailing_unit)| {
+                        RelationUnitSyntax::Bo {
+                            leading_unit: Box::new(leading_unit),
+                            bo_connective: None,
+                            bo_tense_modal: None,
+                            bo,
+                            free_modifiers: Vec::new(),
+                            trailing_unit: Box::new(trailing_unit),
+                        }
+                    })
                 })
-            })
-    })
-    .boxed();
-    let relation = bo_unit
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<_>>()
-        .map(relation_from_units);
+        })
+        .boxed();
+        bo_unit
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .map(relation_from_units)
+    });
 
     cmavo("fi'o")
         .then(relation)
