@@ -1,5 +1,13 @@
 use super::*;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct LeadingIStatementSyntax {
+    i: WordWithModifiers,
+    connective: Option<ConnectiveSyntax>,
+    free_modifiers: Vec<FreeModifierSyntax>,
+}
+
 #[requires(true)]
 #[ensures(ret.clone().free_modifiers().len() >= old(free_modifiers.len()))]
 fn attach_tense_modal_free_modifiers(
@@ -1339,42 +1347,57 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             }
         });
 
+    let leading_i_statement = cmavo("i")
+        .then(i_connective_tag_bo.clone())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |((i, connective), free_modifiers)| LeadingIStatementSyntax {
+                i,
+                connective,
+                free_modifiers,
+            },
+        );
+
     let following_statement = cmavo("i")
-        .then(i_connective_tag_bo)
+        .then_ignore(statement_connective().rewind().not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(statement.clone().or_not())
         .map(
-            |(((i, connective), free_modifiers), statement)| ParagraphStatementSyntax {
+            |((i, free_modifiers), statement)| ParagraphStatementSyntax {
                 i: Some(i),
-                connective,
+                connective: None,
                 free_modifiers,
                 statement,
             },
         );
+    let trailing_ijek_statement = cmavo("i")
+        .then(statement_connective())
+        .map(|(i, connective)| ParagraphStatementSyntax {
+            i: None,
+            connective: None,
+            free_modifiers: Vec::new(),
+            statement: Some(StatementSyntax::Fragment(FragmentSyntax::Ijek {
+                i,
+                connective,
+            })),
+        });
 
     let paragraph_without_niho = initial_statement
         .clone()
         .then(following_statement.clone().repeated().collect::<Vec<_>>())
-        .map(|(initial, following)| {
+        .then(trailing_ijek_statement.repeated().collect::<Vec<_>>())
+        .map(|((initial, following), trailing_ijek)| {
             build_paragraph(
                 None,
                 Vec::new(),
                 Vec::new(),
-                std::iter::once(initial).chain(following).collect(),
+                std::iter::once(initial)
+                    .chain(following)
+                    .chain(trailing_ijek)
+                    .collect(),
             )
         });
-    let paragraph_starting_with_i = following_statement
-        .clone()
-        .then(following_statement.clone().repeated().collect::<Vec<_>>())
-        .map(|(initial, following)| {
-            build_paragraph(
-                None,
-                Vec::new(),
-                Vec::new(),
-                std::iter::once(initial).chain(following).collect(),
-            )
-        });
-    let paragraph = choice((paragraph_without_niho, paragraph_starting_with_i)).boxed();
+    let paragraph = paragraph_without_niho.boxed();
     let paragraph_with_niho = cmavo_of("NIhO", &["ni'o", "no'i"])
         .repeated()
         .at_least(1)
@@ -1420,28 +1443,128 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 .ignore_then(statement_connective())
                 .or_not(),
         )
+        .then(leading_i_statement.repeated().collect::<Vec<_>>())
         .then(paragraphs)
         .map(
             |(
                 (
-                    (((leading_nai, leading_cmevla), leading_indicators), leading_free_modifiers),
-                    leading_connective,
+                    (
+                        (
+                            ((leading_nai, leading_cmevla), leading_indicators),
+                            leading_free_modifiers,
+                        ),
+                        leading_connective,
+                    ),
+                    leading_i_statements,
                 ),
                 paragraphs,
             )| {
-                TextSyntax {
+                let text = TextSyntax {
                     leading_nai,
                     leading_cmevla,
                     leading_indicators,
                     leading_free_modifiers,
                     leading_connective,
                     paragraphs,
-                }
+                };
+                leading_i_statements
+                    .into_iter()
+                    .rev()
+                    .fold(text, |text, leading_i_statement| {
+                        prepend_i_with_free_modifier(leading_i_statement, text)
+                    })
             },
         );
 
     text.define(text_body);
     text.then_ignore(end()).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn prepend_i_with_free_modifier(
+    marker: LeadingIStatementSyntax,
+    mut text: TextSyntax,
+) -> TextSyntax {
+    if text.paragraphs.is_empty() {
+        text.paragraphs.push(ParagraphSyntax {
+            i: None,
+            niho: Vec::new(),
+            free_modifiers: Vec::new(),
+            statements: vec![ParagraphStatementSyntax {
+                i: Some(marker.i),
+                connective: marker.connective,
+                free_modifiers: marker.free_modifiers,
+                statement: None,
+            }],
+        });
+        return text;
+    }
+
+    let mut paragraph = text.paragraphs.remove(0);
+    if paragraph.niho.is_empty() {
+        paragraph.statements = prepend_i_to_niho_free_paragraph_statements(
+            marker,
+            std::mem::take(&mut paragraph.statements),
+        );
+    } else {
+        paragraph.i = Some(marker.i);
+        paragraph.statements = attach_i_connective_to_niho_paragraph_statements(
+            marker.connective,
+            marker.free_modifiers,
+            std::mem::take(&mut paragraph.statements),
+        );
+    }
+    text.paragraphs.insert(0, paragraph);
+    text
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn prepend_i_to_niho_free_paragraph_statements(
+    marker: LeadingIStatementSyntax,
+    mut statements: Vec<ParagraphStatementSyntax>,
+) -> Vec<ParagraphStatementSyntax> {
+    let new_statement = ParagraphStatementSyntax {
+        i: Some(marker.i),
+        connective: marker.connective,
+        free_modifiers: marker.free_modifiers,
+        statement: None,
+    };
+    let Some(first) = statements.first_mut() else {
+        return vec![new_statement];
+    };
+    if first.i.is_some() {
+        statements.insert(0, new_statement);
+        return statements;
+    }
+
+    first.i = new_statement.i;
+    first.connective = new_statement.connective;
+    first.free_modifiers = new_statement.free_modifiers;
+    statements
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_i_connective_to_niho_paragraph_statements(
+    connective: Option<ConnectiveSyntax>,
+    free_modifiers: Vec<FreeModifierSyntax>,
+    mut statements: Vec<ParagraphStatementSyntax>,
+) -> Vec<ParagraphStatementSyntax> {
+    let Some(first) = statements.first_mut() else {
+        return vec![ParagraphStatementSyntax {
+            i: None,
+            connective,
+            free_modifiers,
+            statement: None,
+        }];
+    };
+    first.connective = connective;
+    let mut combined_free_modifiers = free_modifiers;
+    combined_free_modifiers.append(&mut first.free_modifiers);
+    first.free_modifiers = combined_free_modifiers;
+    statements
 }
 
 #[requires(true)]
