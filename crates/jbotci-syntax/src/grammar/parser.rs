@@ -1356,6 +1356,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
 
     statement.define(iau_statement_body);
     free_modifier.define(choice((
+        replacement_free(free_modifier.clone()),
         mai_free(free_modifier.clone()),
         xi_free(free_modifier.clone()),
         sei_free(term.clone(), relation.clone(), free_modifier.clone()),
@@ -1775,6 +1776,80 @@ where
         });
 
     choice((empty_parenthetical, nonempty_parenthetical)).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn replacement_free<'tokens, F>(free_modifier: F) -> BoxedParser<'tokens, FreeModifierSyntax>
+where
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
+    let full_replacement = cmavo("lo'ai")
+        .then(raw_words_until(&["sa'ai", "le'ai"]))
+        .then(cmavo("sa'ai").or_not())
+        .then(raw_words_until(&["le'ai"]))
+        .then(cmavo("le'ai"))
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(((((lohai, old_words), sahai), new_words), lehai), free_modifiers)| {
+                FreeModifierSyntax::Replacement {
+                    lohai: Some(lohai),
+                    old_words,
+                    sahai,
+                    new_words,
+                    lehai,
+                    free_modifiers,
+                }
+            },
+        );
+    let new_only_replacement = cmavo("sa'ai")
+        .then(raw_words_until(&["le'ai"]))
+        .then(cmavo("le'ai"))
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(
+            |(((sahai, new_words), lehai), free_modifiers)| FreeModifierSyntax::Replacement {
+                lohai: None,
+                old_words: Vec::new(),
+                sahai: Some(sahai),
+                new_words,
+                lehai,
+                free_modifiers,
+            },
+        );
+    let close_only_replacement = cmavo("le'ai")
+        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .map(|(lehai, free_modifiers)| FreeModifierSyntax::Replacement {
+            lohai: None,
+            old_words: Vec::new(),
+            sahai: None,
+            new_words: Vec::new(),
+            lehai,
+            free_modifiers,
+        });
+
+    choice((
+        full_replacement,
+        new_only_replacement,
+        close_only_replacement,
+    ))
+    .boxed()
+}
+
+#[requires(!terminators.is_empty())]
+#[ensures(true)]
+fn raw_words_until<'tokens>(
+    terminators: &'static [&'static str],
+) -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
+    token_matching("replacement word", move |word| {
+        !terminators
+            .iter()
+            .any(|terminator| cmavo_text_matches(word, terminator))
+    })
+    .repeated()
+    .collect::<Vec<_>>()
+    .boxed()
 }
 
 #[requires(true)]

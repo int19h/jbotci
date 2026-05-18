@@ -248,6 +248,14 @@ enum FreeModifierSyntax {
         dohu: Option<WordWithModifiers>,
         dohu_free_modifiers: Vec<FreeModifierSyntax>,
     },
+    Replacement {
+        lohai: Option<WordWithModifiers>,
+        old_words: Vec<WordWithModifiers>,
+        sahai: Option<WordWithModifiers>,
+        new_words: Vec<WordWithModifiers>,
+        lehai: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1741,6 +1749,24 @@ impl FreeModifierSyntax {
                 }
                 words.extend(dohu);
                 for free_modifier in dohu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            FreeModifierSyntax::Replacement {
+                lohai,
+                old_words,
+                sahai,
+                new_words,
+                lehai,
+                free_modifiers,
+            } => {
+                let mut words = lohai.into_iter().collect::<Vec<_>>();
+                words.extend(old_words);
+                words.extend(sahai);
+                words.extend(new_words);
+                words.push(lehai);
+                for free_modifier in free_modifiers {
                     words.extend(free_modifier.words());
                 }
                 words

@@ -307,6 +307,33 @@ fn free_modifier_tree(free_modifier: FreeModifierSyntax) -> SyntaxValue {
                 ),
             ],
         ),
+        FreeModifierSyntax::Replacement {
+            lohai,
+            old_words,
+            sahai,
+            new_words,
+            lehai,
+            free_modifiers,
+        } => node(
+            "ReplacementFree",
+            vec![
+                field("lohai", maybe_word(lohai)),
+                field(
+                    "oldWords",
+                    list(old_words.into_iter().map(word_value).collect()),
+                ),
+                field("sahai", maybe_word(sahai)),
+                field(
+                    "newWords",
+                    list(new_words.into_iter().map(word_value).collect()),
+                ),
+                field("lehai", word_value(lehai)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+            ],
+        ),
     }
 }
 
