@@ -5115,6 +5115,7 @@ where
             wrapped_tense_unit,
             ke_unit.clone(),
             moi_unit.clone(),
+            se_unit.clone(),
             goha_unit.clone(),
             word_unit.clone(),
         )))
@@ -5493,6 +5494,7 @@ where
             .then(choice((
                 ke_unit.clone(),
                 moi_unit.clone(),
+                se_unit.clone(),
                 goha_unit.clone(),
                 word_unit.clone(),
             )))
