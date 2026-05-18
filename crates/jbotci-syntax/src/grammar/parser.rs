@@ -6796,6 +6796,87 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
                 free_modifiers: Vec::new(),
             }
         });
+    let zi_before_zi = cmavo_of("ZI", &["zi", "za", "zu"])
+        .then(cmavo_of("ZI", &["zi", "za", "zu"]).rewind())
+        .map(|(zi, _)| TenseModalSyntax::Composite {
+            leaves: vec![zi.clone()],
+            time: Some(TimeTenseSyntax {
+                direction: Vec::new(),
+                distance: Some(zi),
+                interval: None,
+                nai: None,
+            }),
+            space: None,
+            simple: None,
+            interval: None,
+            zaho: Vec::new(),
+            caha: None,
+            ki: None,
+            cuhe: None,
+            fiho: Vec::new(),
+            connectives: Vec::new(),
+            free_modifiers: Vec::new(),
+        });
+    let va_before_va = cmavo_of("VA", &["vi", "va", "vu"])
+        .then(cmavo_of("VA", &["vi", "va", "vu"]).rewind())
+        .map(|(va, _)| TenseModalSyntax::Composite {
+            leaves: vec![va.clone()],
+            time: None,
+            space: Some(SpaceTenseSyntax {
+                direction: Vec::new(),
+                distance: vec![va],
+                interval: Vec::new(),
+                dimensions: Vec::new(),
+                mohi: None,
+                fehe: None,
+            }),
+            simple: None,
+            interval: None,
+            zaho: Vec::new(),
+            caha: None,
+            ki: None,
+            cuhe: None,
+            fiho: Vec::new(),
+            connectives: Vec::new(),
+            free_modifiers: Vec::new(),
+        });
+    let mohi_before_mohi = cmavo("mo'i")
+        .then(cmavo_of(
+            "FAhA",
+            &[
+                "be'a", "du'a", "vu'a", "ne'u", "ca'u", "ri'u", "zu'a", "ga'u", "ni'a", "ti'a",
+                "ru'u", "re'o", "te'e", "bu'u", "ne'a", "pa'o", "ne'i", "fa'a", "to'o", "zo'a",
+                "zo'i", "ze'o",
+            ],
+        ))
+        .then(cmavo("nai").or_not())
+        .then(cmavo_of("VA", &["vi", "va", "vu"]).or_not())
+        .then(cmavo("mo'i").rewind())
+        .map(|((((mohi, direction), nai), distance), _)| {
+            let mut leaves = vec![mohi.clone(), direction.clone()];
+            leaves.extend(nai);
+            TenseModalSyntax::Composite {
+                leaves,
+                time: None,
+                space: Some(SpaceTenseSyntax {
+                    direction: vec![direction],
+                    distance: distance.into_iter().collect(),
+                    interval: Vec::new(),
+                    dimensions: Vec::new(),
+                    mohi: Some(mohi),
+                    fehe: None,
+                }),
+                simple: None,
+                interval: None,
+                zaho: Vec::new(),
+                caha: None,
+                ki: None,
+                cuhe: None,
+                fiho: Vec::new(),
+                connectives: Vec::new(),
+                free_modifiers: Vec::new(),
+            }
+        });
     let zaho_property = cmavo_of("ZAhO", ZAHO_WORDS)
         .then(cmavo("nai").or_not())
         .map(|(zaho, nai)| {
@@ -6893,6 +6974,9 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
     choice((
         pu_before_nahe,
         pu_distance_before_tag,
+        zi_before_zi,
+        va_before_va,
+        mohi_before_mohi,
         caha_before_tag,
         leading_interval_property.map(|(tense_modal, _)| tense_modal),
         tense_modal(),

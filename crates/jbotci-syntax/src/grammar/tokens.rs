@@ -6,6 +6,7 @@ use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_morphology::{
     Word, WordKind, WordLike, WordLikeData, WordWithModifiers, WordWithModifiersData,
+    strip_diacritics,
 };
 use jbotci_source::SourceSpan;
 
@@ -342,15 +343,7 @@ pub(super) fn word_record_text_matches(word: &jbotci_morphology::Word, expected:
 #[requires(!expected.is_empty())]
 #[ensures(true)]
 pub(super) fn phonemes_match_syntax_text(actual: &str, expected: &str) -> bool {
-    actual == expected
-        || actual
-            .chars()
-            .map(|ch| match ch {
-                'ĭ' => 'i',
-                'ŭ' => 'u',
-                ch => ch,
-            })
-            .eq(expected.chars())
+    actual == expected || strip_diacritics(actual) == expected
 }
 
 #[requires(true)]
