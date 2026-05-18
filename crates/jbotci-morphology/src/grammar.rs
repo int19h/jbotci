@@ -669,7 +669,7 @@ impl<'a> Segmenter<'a> {
                     self.slice(start, prefix_end),
                     self.options,
                 ))?;
-            if self.cmavo_boundary_ok(prefix_end, end) {
+            if self.cmavo_boundary_ok(start, prefix_end, end) {
                 Some(CmavoPrefix {
                     end: prefix_end,
                     phonemes,
@@ -708,20 +708,32 @@ impl<'a> Segmenter<'a> {
                 self.options,
             ))
             .is_some()
-                && self.cmavo_boundary_ok(prefix_end, end)
+                && self.cmavo_boundary_ok(start, prefix_end, end)
         })
     }
 
-    #[requires(prefix_end <= candidate_end && candidate_end <= self.chars.len())]
+    #[requires(prefix_start <= prefix_end && prefix_end <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
-    fn cmavo_boundary_ok(&self, prefix_end: usize, candidate_end: usize) -> bool {
+    fn cmavo_boundary_ok(
+        &self,
+        prefix_start: usize,
+        prefix_end: usize,
+        candidate_end: usize,
+    ) -> bool {
         if prefix_end == candidate_end {
             return true;
         }
+        let prefix = crate::segment::normalize_word_with_options(
+            self.slice(prefix_start, prefix_end),
+            self.options,
+        );
         let remainder = crate::segment::normalize_word_with_options(
             self.slice(prefix_end, candidate_end),
             self.options,
         );
+        if boundary_repeats_diphthong_semivowel(&prefix, &remainder) {
+            return false;
+        }
         !starts_with_nucleus(&text_chars(&remainder), 0)
             && self.candidate_starts_with_supported_word(prefix_end, candidate_end)
     }
@@ -741,7 +753,7 @@ impl<'a> Segmenter<'a> {
                     self.options,
                 ))
                 .is_some()
-                    && self.cmavo_boundary_ok(prefix_end, end)
+                    && self.cmavo_boundary_ok(start, prefix_end, end)
             })
     }
 
@@ -1348,6 +1360,45 @@ fn text_chars(text: &str) -> Vec<char> {
     text.chars().collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn boundary_repeats_diphthong_semivowel(prefix: &str, remainder: &str) -> bool {
+    let prefix_chars = text_chars(prefix);
+    let remainder_chars = text_chars(remainder);
+    let Some(next_index) = next_non_comma_index(&remainder_chars, 0) else {
+        return false;
+    };
+    let Some((last_index, last)) = previous_non_comma(&prefix_chars, prefix_chars.len()) else {
+        return false;
+    };
+    let semivowel = match base_vowel(last) {
+        Some('i') => 'ĭ',
+        Some('u') => 'ŭ',
+        _ => return false,
+    };
+    if !matches_diphthong_semivowel(remainder_chars[next_index], semivowel) {
+        return false;
+    }
+    previous_non_comma(&prefix_chars, last_index).is_some_and(|(_, previous)| {
+        matches!(
+            (base_vowel(previous), semivowel),
+            (Some('a'), 'ĭ') | (Some('e'), 'ĭ') | (Some('o'), 'ĭ') | (Some('a'), 'ŭ')
+        )
+    })
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|(found, _)| *found < old(index) && *found < chars.len()))]
+fn previous_non_comma(chars: &[char], mut index: usize) -> Option<(usize, char)> {
+    while index > 0 {
+        index -= 1;
+        if chars[index] != ',' {
+            return Some((index, chars[index]));
+        }
+    }
+    None
+}
+
 #[requires(start <= chars.len())]
 #[ensures(true)]
 fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
@@ -1372,10 +1423,34 @@ fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
         _ => return None,
     };
     let end = start + 2;
+    if next_non_comma_index(chars, end)
+        .is_some_and(|next| matches_diphthong_semivowel(chars[next], semivowel))
+    {
+        return None;
+    }
     if starts_with_nucleus(chars, end) {
         return None;
     }
     Some((format!("{}{}", normalize_vowel(first), semivowel), end))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn matches_diphthong_semivowel(value: char, semivowel: char) -> bool {
+    match semivowel {
+        'ĭ' => matches!(value, 'i' | 'í' | 'ĭ'),
+        'ŭ' => matches!(value, 'u' | 'ú' | 'ŭ'),
+        _ => false,
+    }
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.is_none_or(|found| found >= index && found < chars.len()))]
+fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<usize> {
+    while chars.get(index) == Some(&',') {
+        index += 1;
+    }
+    (index < chars.len()).then_some(index)
 }
 
 #[requires(start <= chars.len())]

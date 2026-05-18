@@ -338,10 +338,25 @@ fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
         _ => return None,
     };
     let end = start + 2;
+    if next_non_comma_index(chars, end)
+        .is_some_and(|next| matches_diphthong_semivowel(chars[next], semivowel))
+    {
+        return None;
+    }
     if starts_with_nucleus(chars, end) {
         return None;
     }
     Some((format!("{}{}", normalize_vowel(first), semivowel), end))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn matches_diphthong_semivowel(value: char, semivowel: char) -> bool {
+    match semivowel {
+        'ĭ' => matches!(value, 'i' | 'í' | 'ĭ'),
+        'ŭ' => matches!(value, 'u' | 'ú' | 'ŭ'),
+        _ => false,
+    }
 }
 
 #[requires(start <= chars.len())]
