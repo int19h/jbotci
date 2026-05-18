@@ -16,7 +16,7 @@ use jbotci_syntax::{
 };
 use rayon::prelude::*;
 
-#[path = "../../tests/support/fixtures.rs"]
+#[path = "../../tests/support/fixtures/mod.rs"]
 mod fixtures;
 
 use fixtures::{
