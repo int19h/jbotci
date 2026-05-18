@@ -1741,7 +1741,7 @@ where
         + Clone
         + 'tokens,
 {
-    cmavo_of("SEI", &["sei", "ti'o"])
+    cmavo_of("SEI", &["sei", "ti'o", "xoi"])
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(term.repeated().collect::<Vec<_>>())
         .then(
