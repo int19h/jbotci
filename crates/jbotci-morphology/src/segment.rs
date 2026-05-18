@@ -1044,16 +1044,295 @@ fn is_fuhivla_shape_slice(chars: &[char], start: usize, end: usize) -> bool {
     {
         return false;
     }
-    let slice = &chars[start..end];
-    if rafsi_string_slice(chars, start, end) || slinkuhi_slice(chars, start, end) {
+    if rafsi_string_slice(chars, start, end)
+        || slinkuhi_slice(chars, start, end)
+        || invalid_initial_rafsi_continuation(chars, start, end)
+        || invalid_vowel_initial_fuhivla_shape(chars, start, end)
+    {
         return false;
     }
     if !starts_with_valid_word_onset(chars, start) {
         return false;
     }
+    let slice = &chars[start..end];
     slice.iter().any(|value| is_consonant(*value))
         && has_consonant_cluster(slice)
         && !is_cmavo_slice(chars, start, end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn invalid_initial_rafsi_continuation(chars: &[char], start: usize, end: usize) -> bool {
+    let prefix_end = cvc_rafsi_end(chars, start).or_else(|| ccv_rafsi_end(chars, start));
+    let Some(prefix_end) = prefix_end else {
+        return false;
+    };
+    bad_lujvo_prefix_continuation(chars, prefix_end, end)
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn bad_lujvo_prefix_continuation(chars: &[char], index: usize, end: usize) -> bool {
+    if index >= end {
+        return false;
+    }
+    if chars[index] == 'r' {
+        return starts_t_l(chars, index + 1, end) || starts_n_liquid(chars, index + 1, end);
+    }
+    starts_affricate_liquid(chars, index, end)
+        || starts_jr_vowel(chars, index, end)
+        || starts_consonantal_then_forbidden_initial(chars, index, end)
+        || starts_gn_vowel(chars, index, end)
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn starts_forbidden_initial_pair(chars: &[char], index: usize, end: usize) -> bool {
+    index + 1 < end
+        && is_consonant(chars[index])
+        && is_consonant(chars[index + 1])
+        && !is_fast_initial_pair_chars(chars[index], chars[index + 1])
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn starts_n_liquid(chars: &[char], index: usize, end: usize) -> bool {
+    index + 1 < end && chars[index] == 'n' && is_liquid(chars[index + 1])
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn starts_t_l(chars: &[char], index: usize, end: usize) -> bool {
+    index + 1 < end && chars[index] == 't' && chars[index + 1] == 'l'
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn starts_affricate_liquid(chars: &[char], index: usize, end: usize) -> bool {
+    index + 2 < end
+        && matches!(
+            (chars[index], chars[index + 1]),
+            ('d', 'j' | 'z') | ('t', 'c' | 's')
+        )
+        && is_liquid(chars[index + 2])
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn starts_jr_vowel(chars: &[char], index: usize, end: usize) -> bool {
+    index + 2 < end && chars[index] == 'j' && chars[index + 1] == 'r' && is_vowel(chars[index + 2])
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn starts_consonantal_then_forbidden_initial(chars: &[char], index: usize, end: usize) -> bool {
+    index + 3 < end
+        && is_consonant(chars[index])
+        && is_syllabic(chars[index + 1])
+        && starts_forbidden_initial_pair(chars, index + 2, end)
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn starts_gn_vowel(chars: &[char], index: usize, end: usize) -> bool {
+    index + 2 < end && chars[index] == 'g' && chars[index + 1] == 'n' && is_vowel(chars[index + 2])
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn invalid_vowel_initial_fuhivla_shape(chars: &[char], start: usize, end: usize) -> bool {
+    chars
+        .get(start)
+        .is_some_and(|value| is_vowel(*value) || matches!(value, 'ĭ' | 'ŭ'))
+        && !parse_fuhivla_shape(chars, start, end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn parse_fuhivla_shape(chars: &[char], start: usize, end: usize) -> bool {
+    brivla_head_ends_for_fuhivla(chars, start, end)
+        .into_iter()
+        .any(|head_end| {
+            stressed_syllable_ends_for_fuhivla(chars, head_end, end)
+                .into_iter()
+                .any(|stressed_end| consonantal_chain_then_final(chars, stressed_end, end))
+        })
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(ret.iter().all(|head_end| *head_end >= start && *head_end <= end))]
+fn brivla_head_ends_for_fuhivla(chars: &[char], start: usize, end: usize) -> Vec<usize> {
+    if chars.get(start) == Some(&'\'') || !starts_with_onset(chars, start) {
+        return Vec::new();
+    }
+    let mut ends = vec![start];
+    let mut stack = vec![start];
+    while let Some(index) = stack.pop() {
+        for syllable_end in unstressed_syllable_ends_for_fuhivla(chars, index, end) {
+            if syllable_end > index && !ends.contains(&syllable_end) {
+                ends.push(syllable_end);
+                stack.push(syllable_end);
+            }
+        }
+    }
+    ends.sort_unstable();
+    ends
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
+fn unstressed_syllable_ends_for_fuhivla(chars: &[char], index: usize, end: usize) -> Vec<usize> {
+    let mut ends: Vec<usize> = syllable_ends(chars, index, end)
+        .into_iter()
+        .filter(|syllable_end| {
+            !syllable_has_explicit_stress(chars, index, *syllable_end)
+                && !consonantal_chain_then_final(chars, *syllable_end, end)
+        })
+        .collect();
+    ends.extend(consonantal_syllable_ends(chars, index, end));
+    ends.sort_unstable();
+    ends.dedup();
+    ends
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
+fn stressed_syllable_ends_for_fuhivla(chars: &[char], index: usize, end: usize) -> Vec<usize> {
+    syllable_ends(chars, index, end)
+        .into_iter()
+        .filter(|syllable_end| {
+            syllable_has_explicit_stress(chars, index, *syllable_end)
+                || consonantal_chain_then_final(chars, *syllable_end, end)
+        })
+        .collect()
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn consonantal_chain_then_final(chars: &[char], index: usize, end: usize) -> bool {
+    if final_syllable_slice(chars, index, end) {
+        return true;
+    }
+    consonantal_syllable_ends(chars, index, end)
+        .into_iter()
+        .any(|next| next > index && consonantal_chain_then_final(chars, next, end))
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn final_syllable_slice(chars: &[char], start: usize, end: usize) -> bool {
+    brivla_onset_ends(chars, start)
+        .into_iter()
+        .filter(|onset_end| !chars.get(*onset_end).is_some_and(|value| is_y(*value)))
+        .any(|onset_end| {
+            parse_nuclei(chars, onset_end)
+                .into_iter()
+                .any(|(_, nucleus_end)| {
+                    nucleus_end == end && !syllable_has_explicit_stress(chars, start, end)
+                })
+        })
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
+fn syllable_ends(chars: &[char], index: usize, end: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    for onset_end in brivla_onset_ends(chars, index) {
+        if chars.get(onset_end).is_some_and(|value| is_y(*value)) {
+            continue;
+        }
+        for (_, nucleus_end) in parse_nuclei(chars, onset_end) {
+            if nucleus_end <= end {
+                ends.push(nucleus_end);
+                ends.extend(coda_ends(chars, nucleus_end, end));
+            }
+        }
+    }
+    ends.sort_unstable();
+    ends.dedup();
+    ends
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
+fn consonantal_syllable_ends(chars: &[char], index: usize, end: usize) -> Vec<usize> {
+    if index >= end
+        || !is_consonant(chars[index])
+        || !chars
+            .get(index + 1)
+            .is_some_and(|value| is_syllabic(*value))
+    {
+        return Vec::new();
+    }
+    coda_ends(chars, index + 1, end)
+        .into_iter()
+        .filter(|coda_end| *coda_end > index + 1)
+        .collect()
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(ret.iter().all(|coda_end| *coda_end >= index && *coda_end <= end))]
+fn coda_ends(chars: &[char], index: usize, end: usize) -> Vec<usize> {
+    let mut ends = vec![index];
+    if index < end
+        && is_consonant(chars[index])
+        && !starts_any_syllable(chars, index, end)
+        && starts_any_syllable(chars, index + 1, end)
+    {
+        ends.push(index + 1);
+    }
+    ends
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn starts_any_syllable(chars: &[char], index: usize, end: usize) -> bool {
+    if index >= end {
+        return false;
+    }
+    if !consonantal_syllable_ends(chars, index, end).is_empty() {
+        return true;
+    }
+    brivla_onset_ends(chars, index)
+        .into_iter()
+        .filter(|onset_end| !chars.get(*onset_end).is_some_and(|value| is_y(*value)))
+        .any(|onset_end| {
+            parse_nuclei(chars, onset_end)
+                .into_iter()
+                .any(|(_, nucleus_end)| nucleus_end <= end)
+        })
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|onset_end| *onset_end >= index && *onset_end <= chars.len()))]
+fn brivla_onset_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends: Vec<usize> = parse_onsets(chars, index)
+        .into_iter()
+        .map(|(_, end)| end)
+        .collect();
+    if chars.get(index) == Some(&'\'') {
+        ends.push(index + 1);
+    }
+    ends.sort_unstable_by(|left, right| right.cmp(left));
+    ends.dedup();
+    ends
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn syllable_has_explicit_stress(chars: &[char], start: usize, end: usize) -> bool {
+    chars[start..end].iter().any(|value| {
+        matches!(
+            value,
+            'á' | 'é' | 'í' | 'ó' | 'ú' | 'Á' | 'É' | 'Í' | 'Ó' | 'Ú'
+        )
+    })
+}
+
+#[requires(true)]
+#[ensures(ret == matches!(value, 'l' | 'm' | 'n' | 'r'))]
+fn is_syllabic(value: char) -> bool {
+    matches!(value, 'l' | 'm' | 'n' | 'r')
 }
 
 #[requires(true)]
@@ -1071,6 +1350,9 @@ fn has_vowel_hiatus(chars: &[char]) -> bool {
         if !is_vowel(chars[index]) {
             continue;
         }
+        if starts_repeated_glide_diphthong_sequence(chars, index) {
+            return true;
+        }
         if starts_glide(chars, index) {
             continue;
         }
@@ -1085,6 +1367,37 @@ fn has_vowel_hiatus(chars: &[char]) -> bool {
         }
     }
     false
+}
+
+#[requires(start <= chars.len())]
+#[ensures(ret.is_none_or(|(_, end)| end > start && end <= chars.len()))]
+fn raw_diphthong_end(chars: &[char], start: usize) -> Option<(char, usize)> {
+    let first = base_vowel(*chars.get(start)?)?;
+    let second = *chars.get(start + 1)?;
+    let semivowel = match (first, second) {
+        ('a', 'i' | 'í' | 'ĭ') | ('e', 'i' | 'í' | 'ĭ') | ('o', 'i' | 'í' | 'ĭ') => 'ĭ',
+        ('a', 'u' | 'ú' | 'ŭ') => 'ŭ',
+        _ => return None,
+    };
+    Some((semivowel, start + 2))
+}
+
+#[requires(index <= chars.len())]
+#[ensures(true)]
+fn starts_repeated_glide_diphthong_sequence(chars: &[char], index: usize) -> bool {
+    let semivowel = match chars.get(index).copied() {
+        Some('i' | 'í' | 'ĭ') => 'ĭ',
+        Some('u' | 'ú' | 'ŭ') => 'ŭ',
+        _ => return false,
+    };
+    next_non_comma_index(chars, index + 1)
+        .and_then(|nucleus_start| raw_diphthong_end(chars, nucleus_start))
+        .and_then(|(diphthong_semivowel, diphthong_end)| {
+            (diphthong_semivowel == semivowel)
+                .then(|| next_non_comma_index(chars, diphthong_end))
+                .flatten()
+        })
+        .is_some_and(|next| matches_diphthong_semivowel(chars[next], semivowel))
 }
 
 #[requires(index <= chars.len())]
