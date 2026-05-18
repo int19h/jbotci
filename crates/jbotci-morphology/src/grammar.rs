@@ -199,6 +199,13 @@ impl<'a> Segmenter<'a> {
             return Err(self.invalid_at(start, "", "expected Lojban word"));
         }
         let raw = self.slice(start, end);
+        if let Some((invalid_index, invalid_char)) = self.first_invalid_word_char(start, end) {
+            return Err(self.invalid_at(
+                invalid_index,
+                &invalid_char.to_string(),
+                "unsupported character in Lojban word",
+            ));
+        }
         let normalized = crate::segment::normalize_word_with_options(raw, self.options);
         if normalized.is_empty() {
             return Err(self.invalid_at(start, raw, "no valid morphology characters"));
@@ -674,6 +681,18 @@ impl<'a> Segmenter<'a> {
                 None
             }
         })
+    }
+
+    #[requires(start <= end && end <= self.chars.len())]
+    #[ensures(ret.is_none_or(|(index, _)| index >= start && index < end))]
+    fn first_invalid_word_char(&self, start: usize, end: usize) -> Option<(usize, char)> {
+        self.chars[start..end]
+            .iter()
+            .enumerate()
+            .find_map(|(offset, source_char)| {
+                (!crate::segment::is_normalizable_word_char(source_char.value, self.options))
+                    .then_some((start + offset, source_char.value))
+            })
     }
 
     #[requires(start <= end && end <= self.chars.len())]

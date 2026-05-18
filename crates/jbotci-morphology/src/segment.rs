@@ -52,6 +52,12 @@ pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions
         .collect()
 }
 
+#[requires(true)]
+#[ensures(ret == normalize_char(value, options).is_some())]
+pub(crate) fn is_normalizable_word_char(value: char, options: &MorphologyOptions) -> bool {
+    normalize_char(value, options).is_some()
+}
+
 #[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
 #[requires(true)]
 pub(crate) fn classify_word_with_options(
@@ -68,21 +74,23 @@ pub(crate) fn classify_word_with_options(
         return None;
     }
 
-    if is_gismu(&stripped) {
+    let blocks_brivla = options.enforce_cgv_ban && contains_cgv(&text_chars(normalized_word));
+
+    if !blocks_brivla && is_gismu(&stripped) {
         return Some((
             WordKind::Gismu,
             canonicalize_brivla_phonemes(normalized_word),
         ));
     }
 
-    if is_lujvo(&stripped) {
+    if !blocks_brivla && is_lujvo(&stripped) {
         return Some((
             WordKind::Lujvo,
             canonicalize_brivla_phonemes(normalized_word),
         ));
     }
 
-    if is_fuhivla_shape(&stripped) {
+    if !blocks_brivla && is_fuhivla_shape(&stripped) {
         return Some((
             WordKind::Fuhivla,
             canonicalize_brivla_phonemes(normalized_word),
