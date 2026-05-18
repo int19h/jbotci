@@ -313,26 +313,33 @@ enum FragmentSyntax {
 enum TermSyntax {
     NuhiTermset {
         nuhi: WordWithModifiers,
+        nuhi_free_modifiers: Vec<FreeModifierSyntax>,
         termset: Vec<TermSyntax>,
         nuhu: Option<WordWithModifiers>,
+        nuhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     GekNuhiTermset {
         m_nuhi: Option<WordWithModifiers>,
+        nuhi_free_modifiers: Vec<FreeModifierSyntax>,
         gek: ConnectiveSyntax,
         terms: Vec<TermSyntax>,
         nuhu: Option<WordWithModifiers>,
+        nuhu_free_modifiers: Vec<FreeModifierSyntax>,
         gik: ConnectiveSyntax,
         gik_terms: Vec<TermSyntax>,
         gik_nuhu: Option<WordWithModifiers>,
+        gik_nuhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Cehe {
         leading_terms: Vec<TermSyntax>,
         cehe: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         trailing_terms: Vec<TermSyntax>,
     },
     Pehe {
         leading_terms: Vec<TermSyntax>,
         pehe: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
         connective: ConnectiveSyntax,
         trailing_terms: Vec<TermSyntax>,
     },
@@ -347,13 +354,15 @@ enum TermSyntax {
     NaKu {
         na: WordWithModifiers,
         na_ku: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
     },
     BareNa {
         na: WordWithModifiers,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Tagged {
-        tense_modal: TenseModalSyntax,
+        tense_modal: Option<TenseModalSyntax>,
+        free_modifiers: Vec<FreeModifierSyntax>,
         argument: ArgumentSyntax,
     },
 }
@@ -1576,41 +1585,62 @@ impl TermSyntax {
         match self {
             TermSyntax::NuhiTermset {
                 nuhi,
+                nuhi_free_modifiers,
                 termset,
                 nuhu,
+                nuhu_free_modifiers,
             } => {
                 let mut words = vec![nuhi];
+                for free_modifier in nuhi_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 for term in termset {
                     words.extend(term.words());
                 }
                 words.extend(nuhu);
+                for free_modifier in nuhu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             TermSyntax::GekNuhiTermset {
                 m_nuhi,
+                nuhi_free_modifiers,
                 gek,
                 terms,
                 nuhu,
+                nuhu_free_modifiers,
                 gik,
                 gik_terms,
                 gik_nuhu,
+                gik_nuhu_free_modifiers,
             } => {
                 let mut words = m_nuhi.into_iter().collect::<Vec<_>>();
+                for free_modifier in nuhi_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(gek.words());
                 for term in terms {
                     words.extend(term.words());
                 }
                 words.extend(nuhu);
+                for free_modifier in nuhu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(gik.words());
                 for term in gik_terms {
                     words.extend(term.words());
                 }
                 words.extend(gik_nuhu);
+                for free_modifier in gik_nuhu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             TermSyntax::Cehe {
                 leading_terms,
                 cehe,
+                free_modifiers,
                 trailing_terms,
             } => {
                 let mut words = Vec::new();
@@ -1618,6 +1648,9 @@ impl TermSyntax {
                     words.extend(term.words());
                 }
                 words.push(cehe);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 for term in trailing_terms {
                     words.extend(term.words());
                 }
@@ -1626,6 +1659,7 @@ impl TermSyntax {
             TermSyntax::Pehe {
                 leading_terms,
                 pehe,
+                free_modifiers,
                 connective,
                 trailing_terms,
             } => {
@@ -1634,6 +1668,9 @@ impl TermSyntax {
                     words.extend(term.words());
                 }
                 words.push(pehe);
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(connective.words());
                 for term in trailing_terms {
                     words.extend(term.words());
@@ -1659,7 +1696,17 @@ impl TermSyntax {
                 }
                 words
             }
-            TermSyntax::NaKu { na, na_ku } => vec![na, na_ku],
+            TermSyntax::NaKu {
+                na,
+                na_ku,
+                free_modifiers,
+            } => {
+                let mut words = vec![na, na_ku];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
             TermSyntax::BareNa { na, free_modifiers } => {
                 let mut words = vec![na];
                 for free_modifier in free_modifiers {
@@ -1669,9 +1716,16 @@ impl TermSyntax {
             }
             TermSyntax::Tagged {
                 tense_modal,
+                free_modifiers,
                 argument,
             } => {
-                let mut words = tense_modal.words();
+                let mut words = tense_modal
+                    .into_iter()
+                    .flat_map(TenseModalSyntax::words)
+                    .collect::<Vec<_>>();
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words.extend(argument.words());
                 words
             }
@@ -3041,7 +3095,12 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         });
     let na_ku_term = na_cmavo()
         .then(cmavo("ku"))
-        .map(|(na, na_ku)| TermSyntax::NaKu { na, na_ku });
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|((na, na_ku), free_modifiers)| TermSyntax::NaKu {
+            na,
+            na_ku,
+            free_modifiers,
+        });
     let bare_na_term_blocker = choice((
         relation.clone().ignored(),
         modal_forethought_connective().ignored(),
@@ -3059,21 +3118,18 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(bare_na_term_blocker.rewind().not())
         .map(|((na, free_modifiers), _)| TermSyntax::BareNa { na, free_modifiers });
-    let tagged_term_start = modal_forethought_connective().rewind().not().ignore_then(
-        leading_term_tag_tense_modal()
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .map(|(tense_modal, free_modifiers)| {
-                attach_tense_modal_free_modifiers(tense_modal, free_modifiers)
-            }),
+    let tagged_term_start = modal_forethought_connective()
+        .rewind()
+        .not()
+        .ignore_then(leading_term_tag_tense_modal())
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>());
+    let tagged_term_before_tag = tagged_term_start.clone().then(tense_modal().rewind()).map(
+        |((tense_modal, free_modifiers), _)| TermSyntax::Tagged {
+            tense_modal: Some(tense_modal),
+            free_modifiers,
+            argument: implicit_zohe_argument(),
+        },
     );
-    let tagged_term_before_tag =
-        tagged_term_start
-            .clone()
-            .then(tense_modal().rewind())
-            .map(|(tense_modal, _)| TermSyntax::Tagged {
-                tense_modal,
-                argument: implicit_zohe_argument(),
-            });
     let tagged_term_before_non_relation = tagged_term_start
         .then(relation.clone().rewind().not())
         .then(
@@ -3085,10 +3141,13 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     free_modifiers: Vec::new(),
                 })),
         )
-        .map(|((tense_modal, _), argument)| TermSyntax::Tagged {
-            tense_modal,
-            argument,
-        });
+        .map(
+            |(((tense_modal, free_modifiers), _), argument)| TermSyntax::Tagged {
+                tense_modal: Some(tense_modal),
+                free_modifiers,
+                argument,
+            },
+        );
     let tagged_term = choice((tagged_term_before_tag, tagged_term_before_non_relation));
     let base_simple_term = choice((
         fa_term,
@@ -3101,39 +3160,69 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let term = recursive(|term| {
         let gek_nuhi_termset = cmavo("nu'i")
             .or_not()
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(modal_forethought_connective())
             .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
             .then(cmavo("nu'u").or_not())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(gik_connective())
             .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
             .then(cmavo("nu'u").or_not())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(
-                |((((((m_nuhi, gek), terms), nuhu), gik), gik_terms), gik_nuhu)| {
+                |(
+                    (
+                        (
+                            (
+                                (
+                                    ((((m_nuhi, nuhi_free_modifiers), gek), terms), nuhu),
+                                    nuhu_free_modifiers,
+                                ),
+                                gik,
+                            ),
+                            gik_terms,
+                        ),
+                        gik_nuhu,
+                    ),
+                    gik_nuhu_free_modifiers,
+                )| {
                     TermSyntax::GekNuhiTermset {
                         m_nuhi,
+                        nuhi_free_modifiers,
                         gek,
                         terms,
                         nuhu,
+                        nuhu_free_modifiers,
                         gik,
                         gik_terms,
                         gik_nuhu,
+                        gik_nuhu_free_modifiers,
                     }
                 },
             );
         let nuhi_termset = cmavo("nu'i")
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
             .then(cmavo("nu'u").or_not())
-            .map(|((nuhi, termset), nuhu)| TermSyntax::NuhiTermset {
-                nuhi,
-                termset,
-                nuhu,
-            });
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(
+                |((((nuhi, nuhi_free_modifiers), termset), nuhu), nuhu_free_modifiers)| {
+                    TermSyntax::NuhiTermset {
+                        nuhi,
+                        nuhi_free_modifiers,
+                        termset,
+                        nuhu,
+                        nuhu_free_modifiers,
+                    }
+                },
+            );
         let simple_term =
             choice((base_simple_term.clone(), gek_nuhi_termset, nuhi_termset)).boxed();
         let term2 = simple_term
             .clone()
             .then(
                 cmavo("ce'e")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                     .then(
                         simple_term
                             .clone()
@@ -3144,19 +3233,22 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                     .or_not(),
             )
             .map(|(leading_term, cehe_tail)| {
-                cehe_tail.map_or(leading_term.clone(), |(cehe, trailing_terms)| {
-                    TermSyntax::Cehe {
+                cehe_tail.map_or(
+                    leading_term.clone(),
+                    |((cehe, free_modifiers), trailing_terms)| TermSyntax::Cehe {
                         leading_terms: vec![leading_term],
                         cehe,
+                        free_modifiers,
                         trailing_terms,
-                    }
-                })
+                    },
+                )
             })
             .boxed();
         term2
             .clone()
             .then(
                 cmavo("pe'e")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                     .then(statement_connective())
                     .then(term2.clone())
                     .repeated()
@@ -3165,11 +3257,14 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             .map(|(leading_term, pehe_tails)| {
                 pehe_tails.into_iter().fold(
                     leading_term,
-                    |leading_term, ((pehe, connective), trailing_term)| TermSyntax::Pehe {
-                        leading_terms: vec![leading_term],
-                        pehe,
-                        connective,
-                        trailing_terms: vec![trailing_term],
+                    |leading_term, (((pehe, free_modifiers), connective), trailing_term)| {
+                        TermSyntax::Pehe {
+                            leading_terms: vec![leading_term],
+                            pehe,
+                            free_modifiers,
+                            connective,
+                            trailing_terms: vec![trailing_term],
+                        }
                     },
                 )
             })
@@ -3220,7 +3315,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             .clone()
             .then(cmavo("ke").rewind())
             .map(|(tense_modal, _)| TermSyntax::Tagged {
-                tense_modal,
+                tense_modal: Some(tense_modal),
+                free_modifiers: Vec::new(),
                 argument: implicit_zohe_argument(),
             });
         let non_grouped_gek_term = cmavo("ke").rewind().not().ignore_then(term.clone());
@@ -9259,50 +9355,96 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
     match term {
         TermSyntax::NuhiTermset {
             nuhi,
+            nuhi_free_modifiers,
             termset,
             nuhu,
+            nuhu_free_modifiers,
         } => node(
             "NuhiTermset",
             vec![
                 field("nuhi", word_value(nuhi)),
-                field("nuhiFreeModifiers", nil()),
+                field(
+                    "nuhiFreeModifiers",
+                    list(
+                        nuhi_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field(
                     "termset",
                     list(termset.into_iter().map(term_tree).collect()),
                 ),
                 field("nuhu", maybe_word(nuhu)),
-                field("nuhuFreeModifiers", nil()),
+                field(
+                    "nuhuFreeModifiers",
+                    list(
+                        nuhu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         TermSyntax::GekNuhiTermset {
             m_nuhi,
+            nuhi_free_modifiers,
             gek,
             terms,
             nuhu,
+            nuhu_free_modifiers,
             gik,
             gik_terms,
             gik_nuhu,
+            gik_nuhu_free_modifiers,
         } => node(
             "GekNuhiTermset",
             vec![
                 field("mNuhi", maybe_word(m_nuhi)),
-                field("nuhiFreeModifiers", nil()),
+                field(
+                    "nuhiFreeModifiers",
+                    list(
+                        nuhi_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field("gek", connective_tree(gek)),
                 field("terms", list(terms.into_iter().map(term_tree).collect())),
                 field("nuhu", maybe_word(nuhu)),
-                field("nuhuFreeModifiers", nil()),
+                field(
+                    "nuhuFreeModifiers",
+                    list(
+                        nuhu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
                 field("gik", connective_tree(gik)),
                 field(
                     "gikTerms",
                     list(gik_terms.into_iter().map(term_tree).collect()),
                 ),
                 field("gikNuhu", maybe_word(gik_nuhu)),
-                field("gikNuhuFreeModifiers", nil()),
+                field(
+                    "gikNuhuFreeModifiers",
+                    list(
+                        gik_nuhu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         TermSyntax::Cehe {
             leading_terms,
             cehe,
+            free_modifiers,
             trailing_terms,
         } => node(
             "CeheTerm",
@@ -9312,7 +9454,10 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
                     list(leading_terms.into_iter().map(term_tree).collect()),
                 ),
                 field("cehe", word_value(cehe)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field(
                     "trailingTerms",
                     list(trailing_terms.into_iter().map(term_tree).collect()),
@@ -9322,6 +9467,7 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
         TermSyntax::Pehe {
             leading_terms,
             pehe,
+            free_modifiers,
             connective,
             trailing_terms,
         } => node(
@@ -9332,7 +9478,10 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
                     list(leading_terms.into_iter().map(term_tree).collect()),
                 ),
                 field("pehe", word_value(pehe)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("connective", connective_tree(connective)),
                 field(
                     "trailingTerms",
@@ -9371,12 +9520,19 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
                 ),
             ],
         ),
-        TermSyntax::NaKu { na, na_ku } => node(
+        TermSyntax::NaKu {
+            na,
+            na_ku,
+            free_modifiers,
+        } => node(
             "NaKuTerm",
             vec![
                 field("na", word_value(na)),
                 field("naKu", word_value(na_ku)),
-                field("freeModifiers", nil()),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
             ],
         ),
         TermSyntax::BareNa { na, free_modifiers } => node(
@@ -9391,12 +9547,20 @@ fn term_tree(term: TermSyntax) -> SyntaxValue {
         ),
         TermSyntax::Tagged {
             tense_modal,
+            free_modifiers,
             argument,
         } => node(
             "TaggedTerm",
             vec![
-                field("tenseModal", just(tense_modal_tree(tense_modal))),
-                field("freeModifiers", nil()),
+                field(
+                    "tenseModal",
+                    tense_modal
+                        .map_or_else(nothing, |tense_modal| just(tense_modal_tree(tense_modal))),
+                ),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
                 field("argument", argument_tree(argument)),
             ],
         ),
