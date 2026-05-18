@@ -303,6 +303,12 @@ enum PredicateStatementContinuationMarkerSyntax {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 enum FragmentSyntax {
+    // v0 exposes this constructor even though the current grammar produces
+    // TermFragment for parsed standalone arguments.
+    #[allow(dead_code)]
+    Argument {
+        argument: ArgumentSyntax,
+    },
     Ek {
         connective: ConnectiveSyntax,
         free_modifiers: Vec<FreeModifierSyntax>,
@@ -314,6 +320,25 @@ enum FragmentSyntax {
     Other {
         words: Vec<WordWithModifiers>,
         free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    // v0 exposes this constructor for a fragment shape that is currently parsed
+    // through VocativeFree when it appears in source text.
+    #[allow(dead_code)]
+    Vocative {
+        vocative_markers: Vec<WordWithModifiers>,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        vocative_argument: Option<ArgumentSyntax>,
+        dohu: Option<WordWithModifiers>,
+        dohu_free_modifiers: Vec<FreeModifierSyntax>,
+    },
+    Ijek {
+        i: WordWithModifiers,
+        connective: ConnectiveSyntax,
+    },
+    Prenex {
+        terms: Vec<TermSyntax>,
+        zohu: WordWithModifiers,
+        zohu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     BeLink {
         be: WordWithModifiers,
@@ -332,12 +357,12 @@ enum FragmentSyntax {
         relative_clauses: Vec<RelativeClauseSyntax>,
     },
     MathExpression {
-        number: Vec<WordWithModifiers>,
-        boi: Option<WordWithModifiers>,
+        math_expression: MathExpressionSyntax,
     },
     Term {
         terms: Vec<TermSyntax>,
         vau: Option<WordWithModifiers>,
+        vau_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Relation {
         relation: RelationSyntax,
@@ -1804,6 +1829,7 @@ impl FragmentSyntax {
     #[ensures(true)]
     fn words(self) -> Vec<WordWithModifiers> {
         match self {
+            FragmentSyntax::Argument { argument } => argument.words(),
             FragmentSyntax::Ek {
                 connective,
                 free_modifiers,
@@ -1827,6 +1853,46 @@ impl FragmentSyntax {
                     all_words.extend(free_modifier.words());
                 }
                 all_words
+            }
+            FragmentSyntax::Vocative {
+                vocative_markers,
+                free_modifiers,
+                vocative_argument,
+                dohu,
+                dohu_free_modifiers,
+            } => {
+                let mut words = vocative_markers;
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                if let Some(vocative_argument) = vocative_argument {
+                    words.extend(vocative_argument.words());
+                }
+                words.extend(dohu);
+                for free_modifier in dohu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
+            }
+            FragmentSyntax::Ijek { i, connective } => {
+                let mut words = vec![i];
+                words.extend(connective.words());
+                words
+            }
+            FragmentSyntax::Prenex {
+                terms,
+                zohu,
+                zohu_free_modifiers,
+            } => {
+                let mut words = terms
+                    .into_iter()
+                    .flat_map(TermSyntax::words)
+                    .collect::<Vec<_>>();
+                words.push(zohu);
+                for free_modifier in zohu_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                words
             }
             FragmentSyntax::BeLink {
                 be,
@@ -1864,15 +1930,20 @@ impl FragmentSyntax {
                 .into_iter()
                 .flat_map(RelativeClauseSyntax::words)
                 .collect(),
-            FragmentSyntax::MathExpression { number, boi } => {
-                [number, boi.into_iter().collect()].concat()
-            }
-            FragmentSyntax::Term { terms, vau } => {
+            FragmentSyntax::MathExpression { math_expression } => math_expression.words(),
+            FragmentSyntax::Term {
+                terms,
+                vau,
+                vau_free_modifiers,
+            } => {
                 let mut words = Vec::new();
                 for term in terms {
                     words.extend(term.words());
                 }
                 words.extend(vau);
+                for free_modifier in vau_free_modifiers {
+                    words.extend(free_modifier.words());
+                }
                 words
             }
             FragmentSyntax::Relation { relation } => relation.words(),
@@ -4536,7 +4607,14 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         .at_least(1)
         .collect::<Vec<_>>()
         .then(cmavo("vau").or_not())
-        .map(|(terms, vau)| StatementSyntax::Fragment(FragmentSyntax::Term { terms, vau }));
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|((terms, vau), vau_free_modifiers)| {
+            StatementSyntax::Fragment(FragmentSyntax::Term {
+                terms,
+                vau,
+                vau_free_modifiers,
+            })
+        });
 
     let relative_clause_fragment =
         relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone()).map(
@@ -4628,17 +4706,29 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
             StatementSyntax::Fragment(FragmentSyntax::BeiLink { bei_only_links })
         });
 
-    let math_expression_fragment = number_quantifier().map(|quantifier| {
-        if let QuantifierSyntax::Number { number, boi, .. } = quantifier {
-            StatementSyntax::Fragment(FragmentSyntax::MathExpression { number, boi })
-        } else {
-            unreachable!("number_quantifier returns Number")
-        }
+    let math_expression_fragment = quantifier().map(|quantifier| {
+        StatementSyntax::Fragment(FragmentSyntax::MathExpression {
+            math_expression: MathExpressionSyntax::Number(quantifier),
+        })
     });
 
     let relation_fragment = relation
         .clone()
         .map(|relation| StatementSyntax::Fragment(FragmentSyntax::Relation { relation }));
+
+    let prenex_fragment = term
+        .clone()
+        .repeated()
+        .collect::<Vec<_>>()
+        .then(cmavo("zo'u"))
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .map(|((terms, zohu), zohu_free_modifiers)| {
+            StatementSyntax::Fragment(FragmentSyntax::Prenex {
+                terms,
+                zohu,
+                zohu_free_modifiers,
+            })
+        });
 
     let prenex_statement = term
         .clone()
@@ -4681,6 +4771,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let simple_statement_after_i_connective = choice((
         predicate,
         tuhe_statement,
+        prenex_fragment,
         ek_fragment,
         gihek_fragment,
         be_link_fragment,
@@ -4897,20 +4988,24 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
     let paragraph_without_niho = initial_statement
         .clone()
         .then(following_statement.clone().repeated().collect::<Vec<_>>())
-        .map(|(initial, following)| ParagraphSyntax {
-            i: None,
-            niho: Vec::new(),
-            free_modifiers: Vec::new(),
-            statements: std::iter::once(initial).chain(following).collect(),
+        .map(|(initial, following)| {
+            build_paragraph(
+                None,
+                Vec::new(),
+                Vec::new(),
+                std::iter::once(initial).chain(following).collect(),
+            )
         });
     let paragraph_starting_with_i = following_statement
         .clone()
         .then(following_statement.clone().repeated().collect::<Vec<_>>())
-        .map(|(initial, following)| ParagraphSyntax {
-            i: None,
-            niho: Vec::new(),
-            free_modifiers: Vec::new(),
-            statements: std::iter::once(initial).chain(following).collect(),
+        .map(|(initial, following)| {
+            build_paragraph(
+                None,
+                Vec::new(),
+                Vec::new(),
+                std::iter::once(initial).chain(following).collect(),
+            )
         });
     let paragraph = choice((paragraph_without_niho, paragraph_starting_with_i)).boxed();
     let paragraph_with_niho = cmavo_of("NIhO", &["ni'o", "no'i"])
@@ -4929,12 +5024,7 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
                 }
                 paragraph
             }
-            None => ParagraphSyntax {
-                i: None,
-                niho,
-                free_modifiers,
-                statements: Vec::new(),
-            },
+            None => build_paragraph(None, niho, free_modifiers, Vec::new()),
         })
         .boxed();
     let paragraphs = choice((
@@ -4985,6 +5075,55 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
 
     text.define(text_body);
     text.then_ignore(end()).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_paragraph(
+    i: Option<WordWithModifiers>,
+    niho: Vec<WordWithModifiers>,
+    free_modifiers: Vec<FreeModifierSyntax>,
+    statements: Vec<ParagraphStatementSyntax>,
+) -> ParagraphSyntax {
+    ParagraphSyntax {
+        i,
+        niho,
+        free_modifiers,
+        statements: normalize_trailing_ijek_fragment(statements),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_trailing_ijek_fragment(
+    mut statements: Vec<ParagraphStatementSyntax>,
+) -> Vec<ParagraphStatementSyntax> {
+    let Some(last) = statements.pop() else {
+        return statements;
+    };
+    match last {
+        ParagraphStatementSyntax {
+            i: Some(i),
+            connective: Some(connective),
+            free_modifiers,
+            statement: None,
+        } if free_modifiers.is_empty() => {
+            statements.push(ParagraphStatementSyntax {
+                i: None,
+                connective: None,
+                free_modifiers: Vec::new(),
+                statement: Some(StatementSyntax::Fragment(FragmentSyntax::Ijek {
+                    i,
+                    connective,
+                })),
+            });
+            statements
+        }
+        other => {
+            statements.push(other);
+            statements
+        }
+    }
 }
 
 #[requires(true)]
@@ -10601,6 +10740,10 @@ fn predicate_statement_continuation_marker_tree(
 #[ensures(true)]
 fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
     match fragment {
+        FragmentSyntax::Argument { argument } => node(
+            "ArgumentFragment",
+            vec![field("argument", argument_tree(argument))],
+        ),
         FragmentSyntax::Ek {
             connective,
             free_modifiers,
@@ -10640,6 +10783,72 @@ fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
                 field(
                     "freeModifiers",
                     list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+            ],
+        ),
+        FragmentSyntax::Vocative {
+            vocative_markers,
+            free_modifiers,
+            vocative_argument,
+            dohu,
+            dohu_free_modifiers,
+        } => node(
+            "VocativeFragment",
+            vec![
+                field(
+                    "vocativeMarkers",
+                    list(
+                        vocative_markers
+                            .into_iter()
+                            .map(vocative_marker_value)
+                            .collect(),
+                    ),
+                ),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field(
+                    "vocativeArgument",
+                    vocative_argument
+                        .map_or_else(nothing, |argument| just(argument_tree(argument))),
+                ),
+                field("dohu", maybe_word(dohu)),
+                field(
+                    "dohuFreeModifiers",
+                    list(
+                        dohu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
+            ],
+        ),
+        FragmentSyntax::Ijek { i, connective } => node(
+            "IjekFragment",
+            vec![
+                field("i", word_value(i)),
+                field("connective", connective_tree(connective)),
+            ],
+        ),
+        FragmentSyntax::Prenex {
+            terms,
+            zohu,
+            zohu_free_modifiers,
+        } => node(
+            "PrenexFragment",
+            vec![
+                field("terms", list(terms.into_iter().map(term_tree).collect())),
+                field("zohu", word_value(zohu)),
+                field(
+                    "zohuFreeModifiers",
+                    list(
+                        zohu_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
                 ),
             ],
         ),
@@ -10706,26 +10915,31 @@ fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
                 ),
             )],
         ),
-        FragmentSyntax::MathExpression { number, boi } => node(
+        FragmentSyntax::MathExpression { math_expression } => node(
             "MathExpressionFragment",
             vec![field(
                 "mathExpression",
-                node(
-                    "NumberExpression",
-                    vec![
-                        field("number", nonempty_number_words(number)),
-                        field("boi", maybe_word(boi)),
-                        field("freeModifiers", nil()),
-                    ],
-                ),
+                math_expression_tree(math_expression),
             )],
         ),
-        FragmentSyntax::Term { terms, vau } => node(
+        FragmentSyntax::Term {
+            terms,
+            vau,
+            vau_free_modifiers,
+        } => node(
             "TermFragment",
             vec![
                 field("terms", list(terms.into_iter().map(term_tree).collect())),
                 field("vau", maybe_word(vau)),
-                field("vauFreeModifiers", nil()),
+                field(
+                    "vauFreeModifiers",
+                    list(
+                        vau_free_modifiers
+                            .into_iter()
+                            .map(free_modifier_tree)
+                            .collect(),
+                    ),
+                ),
             ],
         ),
         FragmentSyntax::Relation { relation } => node(
