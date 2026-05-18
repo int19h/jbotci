@@ -267,7 +267,7 @@ enum FragmentSyntax {
         beho_free_modifiers: Vec<FreeModifierSyntax>,
     },
     RelativeClause {
-        relative_clauses: Vec<GoiRelativeClauseSyntax>,
+        relative_clauses: Vec<RelativeClauseSyntax>,
     },
     MathExpression {
         number: Vec<WordWithModifiers>,
@@ -1427,7 +1427,7 @@ impl FragmentSyntax {
             }
             FragmentSyntax::RelativeClause { relative_clauses } => relative_clauses
                 .into_iter()
-                .flat_map(GoiRelativeClauseSyntax::words)
+                .flat_map(RelativeClauseSyntax::words)
                 .collect(),
             FragmentSyntax::MathExpression { number, boi } => {
                 [number, boi.into_iter().collect()].concat()
@@ -3053,11 +3053,8 @@ fn statement_parser<'tokens>(source: Option<&'tokens str>) -> BoxedParser<'token
         .then(cmavo("vau").or_not())
         .map(|(terms, vau)| StatementSyntax::Fragment(FragmentSyntax::Term { terms, vau }));
 
-    let relative_clause_fragment = goi_relative_clause(argument.clone())
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<_>>()
-        .map(|relative_clauses| {
+    let relative_clause_fragment =
+        relative_clauses(argument.clone(), subsentence.clone()).map(|relative_clauses| {
             StatementSyntax::Fragment(FragmentSyntax::RelativeClause { relative_clauses })
         });
     let gihek_fragment = predicate_tail_connective()
@@ -8056,7 +8053,7 @@ fn fragment_tree(fragment: FragmentSyntax) -> SyntaxValue {
                 list(
                     relative_clauses
                         .into_iter()
-                        .map(goi_relative_clause_tree)
+                        .map(relative_clause_tree)
                         .collect(),
                 ),
             )],

@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use bityzba::{ensures, expensive_ensures, invariant, new, requires};
+use bityzba::{ensures, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -123,8 +123,13 @@ pub enum CmavoDialectEntry {
 }
 
 impl CmavoDialectEntry {
-    #[expensive_ensures(ret -> self.normalized_words().iter().all(|word| is_normalized_cmavo(word)))]
     #[requires(true)]
+    #[ensures(ret -> match self {
+        Self::Swap { left, right } => is_normalized_cmavo(left) && is_normalized_cmavo(right),
+        Self::Expansion { source, replacement } => is_normalized_cmavo(source)
+            && !replacement.is_empty()
+            && replacement.iter().all(|word| is_normalized_cmavo(word)),
+    })]
     pub fn is_valid(&self) -> bool {
         match self {
             Self::Swap { left, right } => is_normalized_cmavo(left) && is_normalized_cmavo(right),
@@ -136,21 +141,6 @@ impl CmavoDialectEntry {
                     && !replacement.is_empty()
                     && replacement.iter().all(|word| is_normalized_cmavo(word))
             }
-        }
-    }
-
-    #[cfg_attr(not(feature = "expensive_contracts"), allow(dead_code))]
-    #[requires(true)]
-    #[ensures(true)]
-    fn normalized_words(&self) -> Vec<&str> {
-        match self {
-            Self::Swap { left, right } => vec![left, right],
-            Self::Expansion {
-                source,
-                replacement,
-            } => std::iter::once(source.as_str())
-                .chain(replacement.iter().map(String::as_str))
-                .collect(),
         }
     }
 }
@@ -477,8 +467,8 @@ fn collect_entry_words(tokens: &[DialectToken]) -> (Vec<String>, &[DialectToken]
     (words, &tokens[index..])
 }
 
-#[expensive_ensures(ret.iter().all(|entry| match entry { DialectDefinitionEntry::Cmavo(entry) => entry.is_valid(), DialectDefinitionEntry::Feature(_, feature) => DialectFeature::all().contains(feature) }))]
 #[requires(true)]
+#[ensures(ret.iter().all(|entry| match entry { DialectDefinitionEntry::Cmavo(entry) => entry.is_valid(), DialectDefinitionEntry::Feature(_, feature) => DialectFeature::all().contains(feature) }))]
 fn dialect_definition_entries(definition: &DialectDefinition) -> Vec<DialectDefinitionEntry> {
     definition
         .features
