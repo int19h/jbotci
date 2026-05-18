@@ -5909,7 +5909,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         }
     });
     let numbered_interval = number_words()
-        .then(cmavo_of("ROI", &["roi", "re'u"]))
+        .then(cmavo_of("ROI", ROI_WORDS))
         .then(cmavo("nai").or_not())
         .map(|((number, roi_or_tahe), nai)| {
             let mut leaves = number.clone();
@@ -5992,7 +5992,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         });
     let fehe_numbered_interval = cmavo("fe'e")
         .then(number_words())
-        .then(cmavo_of("ROI", &["roi", "re'u"]))
+        .then(cmavo_of("ROI", ROI_WORDS))
         .then(cmavo("nai").or_not())
         .map(|(((fehe, number), roi_or_tahe), nai)| {
             let mut leaves = vec![fehe.clone()];
@@ -6461,7 +6461,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
         }
     });
     let numbered_interval = number_words()
-        .then(cmavo_of("ROI", &["roi", "re'u"]))
+        .then(cmavo_of("ROI", ROI_WORDS))
         .then(cmavo("nai").or_not())
         .map(|((number, roi_or_tahe), nai)| {
             let mut leaves = number.clone();
@@ -6643,8 +6643,7 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             .at_least(1)
             .collect::<Vec<_>>()
             .then(
-                cmavo_of("ROI", &["roi", "re'u"])
-                    .or(cmavo_of("TAhE", &["di'i", "na'o", "ru'i", "ta'e"])),
+                cmavo_of("ROI", ROI_WORDS).or(cmavo_of("TAhE", &["di'i", "na'o", "ru'i", "ta'e"])),
             )
             .then(cmavo("nai").or_not())
             .map(|((number, roi_or_tahe), nai)| TenseModalSyntax::Interval {
