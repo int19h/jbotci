@@ -3919,12 +3919,6 @@ where
             koha,
             free_modifiers,
         });
-    let zohe = cmavo("ku").map(|ku| ArgumentSyntax::Zohe {
-        tag_words: Vec::new(),
-        maybe_ku: Some(ku),
-        free_modifiers: Vec::new(),
-    });
-
     let lahe = lahe_cmavo()
         .then(
             relative_clauses(argument.clone(), subsentence.clone())
@@ -4126,7 +4120,6 @@ where
         descriptor_with_outer_quantifier,
         descriptor_with_gadri,
         descriptor_without_gadri,
-        zohe,
         koha,
     ));
     let base_relative_clauses = relative_clauses(argument.clone(), subsentence.clone())
