@@ -559,6 +559,12 @@ enum MathExpressionSyntax {
         operands: Vec<MathExpressionSyntax>,
         kuhe: Option<WordWithModifiers>,
     },
+    ReversePolish {
+        fuha: WordWithModifiers,
+        free_modifiers: Vec<FreeModifierSyntax>,
+        operands: Vec<MathExpressionSyntax>,
+        operators: Vec<MathOperatorSyntax>,
+    },
     Nihe {
         nihe: WordWithModifiers,
         relation: RelationSyntax,
@@ -1487,6 +1493,24 @@ impl MathExpressionSyntax {
                     words.extend(operand.words());
                 }
                 words.extend(kuhe);
+                words
+            }
+            MathExpressionSyntax::ReversePolish {
+                fuha,
+                free_modifiers,
+                operands,
+                operators,
+            } => {
+                let mut words = vec![fuha];
+                for free_modifier in free_modifiers {
+                    words.extend(free_modifier.words());
+                }
+                for operand in operands {
+                    words.extend(operand.words());
+                }
+                for operator in operators {
+                    words.extend(operator.words());
+                }
                 words
             }
             MathExpressionSyntax::Nihe {
@@ -3349,6 +3373,38 @@ where
             );
         choice((math_operand.clone(), lahe, forethought)).boxed()
     });
+    let reverse_polish_parts = recursive(|reverse_polish_parts| {
+        math_operand
+            .clone()
+            .then(
+                reverse_polish_parts
+                    .clone()
+                    .then(operator.clone())
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(first_operand, tails)| {
+                let mut operands = vec![first_operand];
+                let mut operators = Vec::new();
+                for ((mut tail_operands, mut tail_operators), operator) in tails {
+                    operands.append(&mut tail_operands);
+                    operators.append(&mut tail_operators);
+                    operators.push(operator);
+                }
+                (operands, operators)
+            })
+    });
+    let reverse_polish =
+        cmavo("fu'a")
+            .then(reverse_polish_parts)
+            .map(
+                |(fuha, (operands, operators))| MathExpressionSyntax::ReversePolish {
+                    fuha,
+                    free_modifiers: Vec::new(),
+                    operands,
+                    operators,
+                },
+            );
     let math_expression1 = recursive(|math_expression1| {
         math_expression2
             .clone()
@@ -3368,7 +3424,7 @@ where
                 },
             })
     });
-    math_expression1
+    let infix_expression = math_expression1
         .clone()
         .then(
             operator
@@ -3386,7 +3442,9 @@ where
                 },
             )
         })
-        .boxed()
+        .boxed();
+
+    choice((infix_expression, reverse_polish)).boxed()
 }
 
 #[requires(true)]
@@ -3487,6 +3545,38 @@ where
             );
         choice((math_operand.clone(), forethought)).boxed()
     });
+    let reverse_polish_parts = recursive(|reverse_polish_parts| {
+        math_operand
+            .clone()
+            .then(
+                reverse_polish_parts
+                    .clone()
+                    .then(operator.clone())
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(first_operand, tails)| {
+                let mut operands = vec![first_operand];
+                let mut operators = Vec::new();
+                for ((mut tail_operands, mut tail_operators), operator) in tails {
+                    operands.append(&mut tail_operands);
+                    operators.append(&mut tail_operators);
+                    operators.push(operator);
+                }
+                (operands, operators)
+            })
+    });
+    let reverse_polish =
+        cmavo("fu'a")
+            .then(reverse_polish_parts)
+            .map(
+                |(fuha, (operands, operators))| MathExpressionSyntax::ReversePolish {
+                    fuha,
+                    free_modifiers: Vec::new(),
+                    operands,
+                    operators,
+                },
+            );
     let math_expression1 = recursive(|math_expression1| {
         math_expression2
             .clone()
@@ -3506,7 +3596,7 @@ where
                 },
             })
     });
-    math_expression1
+    let infix_expression = math_expression1
         .clone()
         .then(
             operator
@@ -3524,7 +3614,9 @@ where
                 },
             )
         })
-        .boxed()
+        .boxed();
+
+    choice((infix_expression, reverse_polish)).boxed()
 }
 
 #[requires(true)]
@@ -8606,6 +8698,29 @@ fn math_expression_tree(expression: MathExpressionSyntax) -> SyntaxValue {
                 ),
                 field("kuhe", maybe_word(kuhe)),
                 field("kuheFreeModifiers", nil()),
+            ],
+        ),
+        MathExpressionSyntax::ReversePolish {
+            fuha,
+            free_modifiers,
+            operands,
+            operators,
+        } => node(
+            "ReversePolishExpression",
+            vec![
+                field("fuha", word_value(fuha)),
+                field(
+                    "freeModifiers",
+                    list(free_modifiers.into_iter().map(free_modifier_tree).collect()),
+                ),
+                field(
+                    "operands",
+                    list(operands.into_iter().map(math_expression_tree).collect()),
+                ),
+                field(
+                    "operators",
+                    list(operators.into_iter().map(math_operator_tree).collect()),
+                ),
             ],
         ),
         MathExpressionSyntax::Nihe {
