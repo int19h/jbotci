@@ -218,16 +218,16 @@ fn expensive_old_binding(old: &OldExpr, previous_expensive_olds: &[OldExpr]) -> 
             fn __bityzba_expensive_contract_old_value<T>(
                 _: ::core::marker::PhantomData<T>,
             ) -> T {
-                loop {}
+                panic!("disabled expensive contract old() value was evaluated")
             }
 
-            let marker;
-            if false {
+            #[allow(clippy::redundant_closure)]
+            let marker = if false {
                 #(#previous_old_bindings)*
-                marker = __bityzba_expensive_contract_old_marker(|| #expr);
+                __bityzba_expensive_contract_old_marker(|| #expr)
             } else {
-                marker = ::core::marker::PhantomData;
-            }
+                ::core::marker::PhantomData
+            };
             marker
         };
     }
@@ -243,7 +243,7 @@ fn expensive_typecheck(exec_expr: &Expr, old_exprs: &[OldExpr]) -> TokenStream {
             fn __bityzba_expensive_contract_old_value<T>(
                 _: ::core::marker::PhantomData<T>,
             ) -> T {
-                loop {}
+                panic!("disabled expensive contract old() value was evaluated")
             }
         }
     };
