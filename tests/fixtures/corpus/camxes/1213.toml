@@ -9,9 +9,34 @@ entry-id = "1213"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "me", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
-    { kind = "base-word", word_like = { kind = "zoi-quote", zoi = { kind = "cmavo", phonemes = "la'o", span = { source_id = "<fixture>", byte_start = 3, byte_end = 7, char_start = 3, char_end = 7 } }, opening_delimiter = { kind = "cmavo", phonemes = "ly", span = { source_id = "<fixture>", byte_start = 8, byte_end = 10, char_start = 8, char_end = 10 } }, quoted_text = { source_id = "<fixture>", byte_start = 12, byte_end = 21, char_start = 12, char_end = 21 }, closing_delimiter = { kind = "cmavo", phonemes = "ly", span = { source_id = "<fixture>", byte_start = 23, byte_end = 25, char_start = 23, char_end = 25 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "la'o", span = { source_id = "<fixture>", byte_start = 28, byte_end = 32, char_start = 28, char_end = 32 } } } },
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "me",
+        span = [0, 2]
+    }},
+    {ZoiQuote = {
+        closing_delimiter = {
+            kind = "cmavo",
+            phonemes = "ly",
+            span = [23, 25]
+        },
+        opening_delimiter = {
+            kind = "cmavo",
+            phonemes = "ly",
+            span = [8, 10]
+        },
+        quoted_text = [12, 21],
+        zoi = {
+            kind = "cmavo",
+            phonemes = "la'o",
+            span = [3, 7]
+        }
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "la'o",
+        span = [28, 32]
+    }},
 ]
 
 [expectations.syntax]

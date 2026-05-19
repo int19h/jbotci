@@ -1,69 +1,12 @@
 use bityzba::{data, ensures, requires};
 
-use crate::{Word, WordLike, WordLikeData, WordWithModifiers, WordWithModifiersData};
-
-#[requires(true)]
-#[ensures(true)]
-pub fn word_with_modifiers_syntax_eq(left: &WordWithModifiers, right: &WordWithModifiers) -> bool {
-    match (left.as_data(), right.as_data()) {
-        (
-            data!(WordWithModifiers::BaseWord { word_like: left }),
-            data!(WordWithModifiers::BaseWord { word_like: right }),
-        ) => word_like_syntax_eq(left, right),
-        (
-            data!(WordWithModifiers::StandaloneIndicator {
-                indicator: left_indicator,
-                nai: left_nai,
-            }),
-            data!(WordWithModifiers::StandaloneIndicator {
-                indicator: right_indicator,
-                nai: right_nai,
-            }),
-        ) => {
-            word_syntax_eq(left_indicator, right_indicator)
-                && optional_word_syntax_eq(left_nai.as_deref(), right_nai.as_deref())
-        }
-        (
-            data!(WordWithModifiers::Emphasized {
-                bahe: left_bahe,
-                word_like: left_word_like,
-            }),
-            data!(WordWithModifiers::Emphasized {
-                bahe: right_bahe,
-                word_like: right_word_like,
-            }),
-        ) => {
-            word_syntax_eq(left_bahe, right_bahe)
-                && word_like_syntax_eq(left_word_like, right_word_like)
-        }
-        (
-            data!(WordWithModifiers::WithIndicator {
-                base: left_base,
-                indicator: left_indicator,
-                nai: left_nai,
-            }),
-            data!(WordWithModifiers::WithIndicator {
-                base: right_base,
-                indicator: right_indicator,
-                nai: right_nai,
-            }),
-        ) => {
-            word_with_modifiers_syntax_eq(left_base, right_base)
-                && word_syntax_eq(left_indicator, right_indicator)
-                && optional_word_syntax_eq(left_nai.as_deref(), right_nai.as_deref())
-        }
-        (data!(WordWithModifiers::NotEof), data!(WordWithModifiers::NotEof)) => true,
-        _ => false,
-    }
-}
+use crate::{Word, WordLike, WordLikeData};
 
 #[requires(true)]
 #[ensures(true)]
 pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
     match (left.as_data(), right.as_data()) {
-        (data!(WordLike::Bare { word: left }), data!(WordLike::Bare { word: right })) => {
-            word_syntax_eq(left, right)
-        }
+        (data!(WordLike::Bare(left)), data!(WordLike::Bare(right))) => word_syntax_eq(left, right),
         (
             data!(WordLike::ZoQuote {
                 zo: left_zo,
@@ -163,16 +106,6 @@ pub fn word_syntax_eq(left: &Word, right: &Word) -> bool {
 #[requires(true)]
 pub fn strip_diacritics(text: &str) -> String {
     text.chars().filter_map(strip_diacritic).collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn optional_word_syntax_eq(left: Option<&Word>, right: Option<&Word>) -> bool {
-    match (left, right) {
-        (None, None) => true,
-        (Some(left), Some(right)) => word_syntax_eq(left, right),
-        _ => false,
-    }
 }
 
 #[requires(true)]

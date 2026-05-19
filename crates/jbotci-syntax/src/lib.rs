@@ -2,14 +2,161 @@
 
 mod grammar;
 
-use bityzba::{data, expensive_invariant, invariant, new, requires};
+use std::fmt;
+
+use bityzba::{data, invariant, new, requires};
 use jbotci_dialect::DialectDefinition;
-use jbotci_morphology::{WordWithModifiers, word_with_modifiers_syntax_eq};
+use jbotci_morphology::{Word, WordLike};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub mod ast {
     pub use crate::grammar::ast::*;
+}
+use ast::TextSyntax;
+
+#[invariant(indicator_data_is_valid(self.as_data()))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Indicator {
+    pub indicator: Box<Word>,
+    pub nai: Option<Box<Word>>,
+}
+
+impl Indicator {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn new(indicator: Word, nai: Option<Word>) -> Self {
+        new!(Indicator {
+            indicator: Box::new(indicator),
+            nai: nai.map(Box::new),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn words(&self) -> Vec<WordWithModifiers> {
+        let mut words = vec![WordWithModifiers::bare(WordLike::bare(
+            (*self.indicator).clone(),
+        ))];
+        if let Some(nai) = &self.nai {
+            words.push(WordWithModifiers::bare(WordLike::bare((**nai).clone())));
+        }
+        words
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn indicator_data_is_valid(indicator: &IndicatorData) -> bool {
+    is_indicator_word(&indicator.indicator)
+        && indicator
+            .nai
+            .as_deref()
+            .is_none_or(|nai| nai.is_cmavo_text("nai"))
+}
+
+#[invariant(word_with_modifiers_data_is_valid(self.as_data()))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WordWithModifiers {
+    Bare(Box<WordLike>),
+    Emphasized {
+        bahe: Box<Word>,
+        word_like: Box<WordLike>,
+    },
+    WithIndicator {
+        base: Box<WordWithModifiers>,
+        indicator: Box<Word>,
+        nai: Option<Box<Word>>,
+    },
+}
+
+impl WordWithModifiers {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn bare(word_like: WordLike) -> Self {
+        new!(WordWithModifiers::Bare(Box::new(word_like)))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn emphasized(bahe: Word, word_like: WordLike) -> Self {
+        new!(WordWithModifiers::Emphasized {
+            bahe: Box::new(bahe),
+            word_like: Box::new(word_like),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn with_indicator(base: WordWithModifiers, indicator: Word, nai: Option<Word>) -> Self {
+        new!(WordWithModifiers::WithIndicator {
+            base: Box::new(base),
+            indicator: Box::new(indicator),
+            nai: nai.map(Box::new),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn word_like(&self) -> Option<&WordLike> {
+        match self.as_data() {
+            data!(WordWithModifiers::Bare(word_like))
+            | data!(WordWithModifiers::Emphasized { word_like, .. }) => Some(word_like),
+            data!(WordWithModifiers::WithIndicator { base, .. }) => base.word_like(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visible_word(&self) -> Option<&Word> {
+        self.word_like().and_then(WordLike::visible_base_word)
+    }
+}
+
+impl fmt::Display for WordWithModifiers {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.as_data() {
+            data!(WordWithModifiers::Bare(word_like)) => write!(f, "{word_like}"),
+            data!(WordWithModifiers::Emphasized { bahe, word_like }) => {
+                write!(f, "{bahe}-{word_like}")
+            }
+            data!(WordWithModifiers::WithIndicator {
+                base,
+                indicator,
+                nai,
+            }) => {
+                write!(f, "{base}-{indicator}")?;
+                if let Some(nai) = nai {
+                    write!(f, "-{nai}")?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_with_modifiers_data_is_valid(word: &WordWithModifiersData) -> bool {
+    match word {
+        data!(WordWithModifiers::Bare(..)) => true,
+        data!(WordWithModifiers::Emphasized { bahe, .. }) => bahe.selmaho() == Some("BAhE"),
+        data!(WordWithModifiers::WithIndicator { indicator, nai, .. }) => {
+            is_indicator_word(indicator)
+                && nai.as_deref().is_none_or(|nai| nai.is_cmavo_text("nai"))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_indicator_word(word: &Word) -> bool {
+    word.kind == jbotci_morphology::WordKind::Cmavo
+        && (crate::grammar::tokens::UI_WORDS.contains(&word.canonical_phonemes().as_str())
+            || crate::grammar::tokens::CAI_WORDS.contains(&word.canonical_phonemes().as_str())
+            || word.canonical_phonemes() == "y")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -35,18 +182,18 @@ impl ParseOptions {
     }
 }
 
-#[expensive_invariant(lojban_text_data_is_valid(self.as_data()))]
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LojbanText {
     pub leading_nai: Vec<WordWithModifiers>,
     pub leading_cmevla: Vec<WordWithModifiers>,
-    pub leading_indicators: Vec<WordWithModifiers>,
+    pub leading_indicators: Vec<Indicator>,
     pub leading_free_modifiers: Vec<FreeModifier>,
     pub leading_connective: Option<Connective>,
     pub paragraphs: Vec<Paragraph>,
 }
 
-#[expensive_invariant(paragraph_data_is_valid(self.as_data()))]
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Paragraph {
     pub i: Option<WordWithModifiers>,
@@ -55,7 +202,7 @@ pub struct Paragraph {
     pub statements: Vec<ParagraphStatement>,
 }
 
-#[expensive_invariant(paragraph_statement_data_is_valid(self.as_data()))]
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParagraphStatement {
     pub i: Option<WordWithModifiers>,
@@ -64,7 +211,7 @@ pub struct ParagraphStatement {
     pub statement: Option<Statement>,
 }
 
-#[expensive_invariant(statement_data_is_valid(self.as_data()))]
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum Statement {
@@ -76,17 +223,17 @@ impl Statement {
     #[requires(true)]
     #[ensures(true)]
     pub fn fragment(fragment: Fragment) -> Self {
-        new!(Statement::Fragment { fragment: fragment })
+        Statement::Fragment { fragment }
     }
 
     #[requires(true)]
     #[ensures(true)]
     pub fn placeholder() -> Self {
-        new!(Statement::Placeholder)
+        Statement::Placeholder
     }
 }
 
-#[expensive_invariant(fragment_data_is_valid(self.as_data()))]
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum Fragment {
@@ -97,11 +244,11 @@ impl Fragment {
     #[requires(true)]
     #[ensures(true)]
     pub fn other(words: Vec<WordWithModifiers>) -> Self {
-        new!(Fragment::Other { words: words })
+        Fragment::Other { words }
     }
 }
 
-#[expensive_invariant(free_modifier_data_is_valid(self.as_data()))]
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum FreeModifier {
@@ -112,11 +259,11 @@ impl FreeModifier {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(words: Vec<WordWithModifiers>) -> Self {
-        new!(FreeModifier::Words { words: words })
+        FreeModifier::Words { words }
     }
 }
 
-#[expensive_invariant(connective_data_is_valid(self.as_data()))]
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum Connective {
@@ -127,7 +274,7 @@ impl Connective {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(words: Vec<WordWithModifiers>) -> Self {
-        new!(Connective::Words { words: words })
+        Connective::Words { words }
     }
 }
 
@@ -142,26 +289,23 @@ pub enum SyntaxError {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn parse_text(
-    words: &[WordWithModifiers],
-    options: &ParseOptions,
-) -> Result<LojbanText, SyntaxError> {
+pub fn parse_text(words: &[WordLike], options: &ParseOptions) -> Result<LojbanText, SyntaxError> {
     grammar::parse_text(words, options)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_raw_text(
-    words: &[WordWithModifiers],
+    words: &[WordLike],
     options: &ParseOptions,
 ) -> Result<ast::TextSyntax, SyntaxError> {
     grammar::parse_raw_text(words, options)
 }
 
-#[expensive_invariant(syntax_parse_data_is_valid(self.as_data()))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[invariant(syntax_parse_data_is_valid(self.as_data()))]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SyntaxParse {
-    pub parse_tree: SyntaxValue,
+    pub parse_tree: TextSyntax,
     #[serde(default)]
     pub warnings: Vec<SyntaxWarning>,
 }
@@ -195,14 +339,14 @@ impl SyntaxWarning {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn parse_syntax_tree(words: &[WordWithModifiers]) -> Result<SyntaxParse, SyntaxError> {
+pub fn parse_syntax_tree(words: &[WordLike]) -> Result<SyntaxParse, SyntaxError> {
     parse_syntax_tree_with_options(words, &ParseOptions::default())
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_syntax_tree_with_options(
-    words: &[WordWithModifiers],
+    words: &[WordLike],
     options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
     grammar::parse_syntax_tree(words, options)
@@ -211,245 +355,19 @@ pub fn parse_syntax_tree_with_options(
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_syntax_tree_with_source_and_options(
-    words: &[WordWithModifiers],
+    words: &[WordLike],
     source: &str,
     options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
     grammar::parse_syntax_tree_with_source(words, Some(source), options)
 }
 
-/// Lossless fixture representation for v0 syntax trees.
-///
-/// The parser port will eventually use the strongly typed parse-tree structs
-/// directly. Until then, v0 exports syntax expectations as constructor records:
-/// every node has a constructor name and an ordered field list. This preserves
-/// record field order and avoids treating the tree as an opaque string.
-#[expensive_invariant(syntax_tree_data_is_valid(self.as_data()))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SyntaxTree {
-    pub root: SyntaxValue,
-}
-
-#[invariant(!self.constructor.is_empty(), "syntax constructor must not be empty")]
-#[expensive_invariant(syntax_node_data_is_valid(self.as_data()))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SyntaxNode {
-    pub constructor: String,
-    #[serde(default)]
-    pub fields: Vec<SyntaxField>,
-}
-
-#[invariant(self.name.as_ref().is_none_or(|name| !name.is_empty()), "syntax field name must not be empty")]
-#[expensive_invariant(syntax_field_data_is_valid(self.as_data()))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SyntaxField {
-    #[serde(default)]
-    pub name: Option<String>,
-    pub value: SyntaxValue,
-}
-
-#[expensive_invariant(syntax_value_data_is_valid(self.as_data()))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
-pub enum SyntaxValue {
-    Null,
-    Bool { value: bool },
-    Integer { value: i64 },
-    Text { value: String },
-    List { items: Vec<SyntaxValue> },
-    Node { node: Box<SyntaxNode> },
-    Word { word: Box<WordWithModifiers> },
-    Json { value: serde_json::Value },
-}
-
-impl SyntaxValue {
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn null() -> Self {
-        new!(SyntaxValue::Null)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn r#bool(value: bool) -> Self {
-        new!(SyntaxValue::Bool { value: value })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn integer(value: i64) -> Self {
-        new!(SyntaxValue::Integer { value: value })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn text(value: impl Into<String>) -> Self {
-        new!(SyntaxValue::Text {
-            value: value.into(),
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn list(items: Vec<SyntaxValue>) -> Self {
-        new!(SyntaxValue::List { items: items })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn node(constructor: impl Into<String>, fields: Vec<SyntaxField>) -> Self {
-        new!(SyntaxValue::Node {
-            node: Box::new(new!(SyntaxNode {
-                constructor: constructor.into(),
-                fields: fields,
-            })),
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn word(word: WordWithModifiers) -> Self {
-        new!(SyntaxValue::Word {
-            word: Box::new(word),
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn json(value: serde_json::Value) -> Self {
-        new!(SyntaxValue::Json { value: value })
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn syntax_values_equivalent(left: &SyntaxValue, right: &SyntaxValue) -> bool {
-    match (left.as_data(), right.as_data()) {
-        (data!(SyntaxValue::Null), data!(SyntaxValue::Null)) => true,
-        (data!(SyntaxValue::Bool { value: left }), data!(SyntaxValue::Bool { value: right })) => {
-            left == right
-        }
-        (
-            data!(SyntaxValue::Integer { value: left }),
-            data!(SyntaxValue::Integer { value: right }),
-        ) => left == right,
-        (data!(SyntaxValue::Text { value: left }), data!(SyntaxValue::Text { value: right })) => {
-            left == right
-        }
-        (data!(SyntaxValue::List { items: left }), data!(SyntaxValue::List { items: right })) => {
-            left.len() == right.len()
-                && left
-                    .iter()
-                    .zip(right.iter())
-                    .all(|(left, right)| syntax_values_equivalent(left, right))
-        }
-        (data!(SyntaxValue::Node { node: left }), data!(SyntaxValue::Node { node: right })) => {
-            left.constructor == right.constructor
-                && left.fields.len() == right.fields.len()
-                && left
-                    .fields
-                    .iter()
-                    .zip(right.fields.iter())
-                    .all(|(left, right)| {
-                        left.name == right.name
-                            && syntax_values_equivalent(&left.value, &right.value)
-                    })
-        }
-        (data!(SyntaxValue::Word { word: left }), data!(SyntaxValue::Word { word: right })) => {
-            word_with_modifiers_syntax_eq(left, right)
-        }
-        (data!(SyntaxValue::Json { value: left }), data!(SyntaxValue::Json { value: right })) => {
-            left == right
-        }
-        _ => false,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn lojban_text_data_is_valid(data: &LojbanTextData) -> bool {
-    data.leading_free_modifiers
-        .iter()
-        .all(|modifier| free_modifier_data_is_valid(modifier.as_data()))
-        && data
-            .leading_connective
-            .as_ref()
-            .is_none_or(|connective| connective_data_is_valid(connective.as_data()))
-        && data
-            .paragraphs
-            .iter()
-            .all(|paragraph| paragraph_data_is_valid(paragraph.as_data()))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn paragraph_data_is_valid(data: &ParagraphData) -> bool {
-    data.free_modifiers
-        .iter()
-        .all(|modifier| free_modifier_data_is_valid(modifier.as_data()))
-        && data
-            .statements
-            .iter()
-            .all(|statement| paragraph_statement_data_is_valid(statement.as_data()))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn paragraph_statement_data_is_valid(data: &ParagraphStatementData) -> bool {
-    data.connective
-        .as_ref()
-        .is_none_or(|connective| connective_data_is_valid(connective.as_data()))
-        && data
-            .free_modifiers
-            .iter()
-            .all(|modifier| free_modifier_data_is_valid(modifier.as_data()))
-        && data
-            .statement
-            .as_ref()
-            .is_none_or(|statement| statement_data_is_valid(statement.as_data()))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn statement_data_is_valid(data: &StatementData) -> bool {
-    match data {
-        data!(Statement::Fragment { fragment }) => fragment_data_is_valid(fragment.as_data()),
-        data!(Statement::Placeholder) => true,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn fragment_data_is_valid(data: &FragmentData) -> bool {
-    match data {
-        data!(Fragment::Other { words: _ }) => true,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn free_modifier_data_is_valid(data: &FreeModifierData) -> bool {
-    match data {
-        data!(FreeModifier::Words { words: _ }) => true,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn connective_data_is_valid(data: &ConnectiveData) -> bool {
-    match data {
-        data!(Connective::Words { words: _ }) => true,
-    }
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn syntax_parse_data_is_valid(data: &SyntaxParseData) -> bool {
-    syntax_value_data_is_valid(data.parse_tree.as_data())
-        && data
-            .warnings
-            .iter()
-            .all(|warning| syntax_warning_data_is_valid(warning.as_data()))
+    data.warnings
+        .iter()
+        .all(|warning| syntax_warning_data_is_valid(warning.as_data()))
 }
 
 #[requires(true)]
@@ -457,90 +375,5 @@ fn syntax_parse_data_is_valid(data: &SyntaxParseData) -> bool {
 fn syntax_warning_data_is_valid(data: &SyntaxWarningData) -> bool {
     match data {
         data!(SyntaxWarning::ExperimentalConstruct { construct, .. }) => !construct.is_empty(),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_tree_data_is_valid(data: &SyntaxTreeData) -> bool {
-    syntax_value_data_is_valid(data.root.as_data())
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_node_data_is_valid(data: &SyntaxNodeData) -> bool {
-    data.fields
-        .iter()
-        .all(|field| syntax_field_data_is_valid(field.as_data()))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_field_data_is_valid(data: &SyntaxFieldData) -> bool {
-    syntax_value_data_is_valid(data.value.as_data())
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_value_data_is_valid(data: &SyntaxValueData) -> bool {
-    match data {
-        data!(SyntaxValue::Null)
-        | data!(SyntaxValue::Bool { .. })
-        | data!(SyntaxValue::Integer { .. })
-        | data!(SyntaxValue::Text { .. })
-        | data!(SyntaxValue::Word { .. })
-        | data!(SyntaxValue::Json { .. }) => true,
-        data!(SyntaxValue::List { items }) => items
-            .iter()
-            .all(|item| syntax_value_data_is_valid(item.as_data())),
-        data!(SyntaxValue::Node { node }) => syntax_node_data_is_valid(node.as_data()),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use bityzba::{requires, try_new};
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn syntax_value_validity_rejects_empty_constructor() {
-        let error = try_new!(SyntaxNode {
-            constructor: String::new(),
-            fields: Vec::new(),
-        })
-        .expect_err("empty constructor should violate syntax node invariant");
-
-        assert!(
-            error
-                .to_string()
-                .contains("syntax constructor must not be empty")
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn syntax_field_rejects_empty_name() {
-        let error = try_new!(SyntaxField {
-            name: Some(String::new()),
-            value: SyntaxValue::null(),
-        })
-        .expect_err("empty field name should violate syntax field invariant");
-
-        assert!(
-            error
-                .to_string()
-                .contains("syntax field name must not be empty")
-        );
-    }
-
-    #[test]
-    #[should_panic]
-    #[requires(true)]
-    #[ensures(true)]
-    fn syntax_node_constructor_contract_is_reported() {
-        let _ = SyntaxValue::node("", Vec::new());
     }
 }

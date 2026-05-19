@@ -763,9 +763,7 @@ fn statement_parser<'tokens>(
                         free_modifiers,
                     },
                 );
-                let gek_tail3 = gek_sentence
-                    .clone()
-                    .map(|gek_sentence| PredicateTail3Syntax::GekSentence { gek_sentence });
+                let gek_tail3 = gek_sentence.clone().map(PredicateTail3Syntax::GekSentence);
                 let bo_continuation = predicate_tail_connective()
                     .then(tense_modal_with_free_modifiers.clone().or_not())
                     .then(cmavo("bo"))
@@ -1072,7 +1070,7 @@ fn statement_parser<'tokens>(
     let relative_clause_fragment =
         relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone()).map(
             |relative_clauses| {
-                StatementSyntax::Fragment(FragmentSyntax::RelativeClause { relative_clauses })
+                StatementSyntax::Fragment(FragmentSyntax::RelativeClause(relative_clauses))
             },
         );
     let ek_fragment = ek_connective()
@@ -1155,20 +1153,18 @@ fn statement_parser<'tokens>(
         .repeated()
         .at_least(1)
         .collect::<Vec<_>>()
-        .map(|bei_only_links| {
-            StatementSyntax::Fragment(FragmentSyntax::BeiLink { bei_only_links })
-        });
+        .map(|bei_only_links| StatementSyntax::Fragment(FragmentSyntax::BeiLink(bei_only_links)));
 
     let math_expression_fragment =
         quantifier_with_free_modifiers(quantifier(), free_modifier.clone()).map(|quantifier| {
-            StatementSyntax::Fragment(FragmentSyntax::MathExpression {
-                math_expression: MathExpressionSyntax::Number(quantifier),
-            })
+            StatementSyntax::Fragment(FragmentSyntax::MathExpression(
+                MathExpressionSyntax::Number(quantifier),
+            ))
         });
 
     let relation_fragment = relation
         .clone()
-        .map(|relation| StatementSyntax::Fragment(FragmentSyntax::Relation { relation }));
+        .map(|relation| StatementSyntax::Fragment(FragmentSyntax::Relation(relation)));
 
     let prenex_fragment = term
         .clone()
@@ -1887,7 +1883,7 @@ fn predicate_tail2_has_tail_terms(predicate_tail: &PredicateTail2Syntax) -> bool
 fn predicate_tail3_has_tail_terms(predicate_tail: &PredicateTail3Syntax) -> bool {
     match predicate_tail {
         PredicateTail3Syntax::Relation { terms, .. } => !terms.is_empty(),
-        PredicateTail3Syntax::GekSentence { gek_sentence } => {
+        PredicateTail3Syntax::GekSentence(gek_sentence) => {
             gek_sentence_has_tail_terms(gek_sentence)
         }
     }
@@ -2940,18 +2936,16 @@ where
                 ),
                 ku_free_modifiers,
             )| {
-                ArgumentSyntax::ConnectedDescriptor {
-                    connected_descriptor: ConnectedDescriptorSyntax {
-                        leading_descriptor_head,
-                        connective,
-                        trailing_descriptor_head,
-                        tail_elements,
-                        relation,
-                        relative_clauses,
-                        ku,
-                        ku_free_modifiers,
-                    },
-                }
+                ArgumentSyntax::ConnectedDescriptor(ConnectedDescriptorSyntax {
+                    leading_descriptor_head,
+                    connective,
+                    trailing_descriptor_head,
+                    tail_elements,
+                    relation,
+                    relative_clauses,
+                    ku,
+                    ku_free_modifiers,
+                })
             },
         );
 
@@ -2972,18 +2966,16 @@ where
                 ),
                 ku_free_modifiers,
             )| {
-                ArgumentSyntax::Descriptor {
-                    descriptor: DescriptorSyntax {
-                        descriptor: Some(descriptor),
-                        descriptor_free_modifiers,
-                        outer_quantifier: None,
-                        tail_elements,
-                        relation,
-                        relative_clauses,
-                        ku,
-                        ku_free_modifiers,
-                    },
-                }
+                ArgumentSyntax::Descriptor(DescriptorSyntax {
+                    descriptor: Some(descriptor),
+                    descriptor_free_modifiers,
+                    outer_quantifier: None,
+                    tail_elements,
+                    relation,
+                    relative_clauses,
+                    ku,
+                    ku_free_modifiers,
+                })
             },
         );
     let descriptor_with_outer_quantifier = contextual_quantifier
@@ -3004,18 +2996,16 @@ where
                 ),
                 ku_free_modifiers,
             )| {
-                ArgumentSyntax::Descriptor {
-                    descriptor: DescriptorSyntax {
-                        descriptor: Some(descriptor),
-                        descriptor_free_modifiers,
-                        outer_quantifier: Some(outer_quantifier),
-                        tail_elements,
-                        relation,
-                        relative_clauses,
-                        ku,
-                        ku_free_modifiers,
-                    },
-                }
+                ArgumentSyntax::Descriptor(DescriptorSyntax {
+                    descriptor: Some(descriptor),
+                    descriptor_free_modifiers,
+                    outer_quantifier: Some(outer_quantifier),
+                    tail_elements,
+                    relation,
+                    relative_clauses,
+                    ku,
+                    ku_free_modifiers,
+                })
             },
         );
 
@@ -3028,20 +3018,18 @@ where
                 .or_not()
                 .map(Option::unwrap_or_default),
         )
-        .map(
-            |((quantifier, relation), relative_clauses)| ArgumentSyntax::Descriptor {
-                descriptor: DescriptorSyntax {
-                    descriptor: None,
-                    descriptor_free_modifiers: Vec::new(),
-                    outer_quantifier: None,
-                    tail_elements: vec![quantifier],
-                    relation: Some(relation),
-                    relative_clauses,
-                    ku: None,
-                    ku_free_modifiers: Vec::new(),
-                },
-            },
-        );
+        .map(|((quantifier, relation), relative_clauses)| {
+            ArgumentSyntax::Descriptor(DescriptorSyntax {
+                descriptor: None,
+                descriptor_free_modifiers: Vec::new(),
+                outer_quantifier: None,
+                tail_elements: vec![quantifier],
+                relation: Some(relation),
+                relative_clauses,
+                ku: None,
+                ku_free_modifiers: Vec::new(),
+            })
+        });
 
     let nahe_bo_argument = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
         .then(cmavo("bo"))
@@ -3787,12 +3775,9 @@ fn quote_with_free_modifiers(
 #[ensures(true)]
 fn quote_word_like(word: &WordWithModifiers) -> Option<&WordLike> {
     match word.as_data() {
-        data!(WordWithModifiers::BaseWord { word_like })
+        data!(WordWithModifiers::Bare(word_like))
         | data!(WordWithModifiers::Emphasized { word_like, .. }) => Some(word_like),
         data!(WordWithModifiers::WithIndicator { base, .. }) => quote_word_like(base),
-        data!(WordWithModifiers::StandaloneIndicator { .. }) | data!(WordWithModifiers::NotEof) => {
-            None
-        }
     }
 }
 
@@ -5195,14 +5180,12 @@ where
             free_modifier.clone(),
             source,
         ))
-        .map(
-            |(tense_modal, inner_relation)| RelationUnitSyntax::Wrapped {
-                relation: RelationSyntax::TenseModal {
-                    tense_modal,
-                    inner_relation: Box::new(inner_relation),
-                },
-            },
-        );
+        .map(|(tense_modal, inner_relation)| {
+            RelationUnitSyntax::Wrapped(RelationSyntax::TenseModal {
+                tense_modal,
+                inner_relation: Box::new(inner_relation),
+            })
+        });
 
     let jai_inner_unit = recursive(|jai_inner_unit| {
         let se_inner_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
@@ -5319,8 +5302,8 @@ where
             |(
                 (((((nu, nai), free_modifiers), additional_nu), subsentence), kei),
                 kei_free_modifiers,
-            )| RelationUnitSyntax::Abstraction {
-                abstraction: AbstractionSyntax {
+            )| {
+                RelationUnitSyntax::Abstraction(AbstractionSyntax {
                     nu,
                     nai,
                     free_modifiers,
@@ -5328,7 +5311,7 @@ where
                     subsentence: Box::new(subsentence),
                     kei,
                     kei_free_modifiers,
-                },
+                })
             },
         )
         .boxed();
@@ -5505,18 +5488,16 @@ where
             .then(relation.clone())
             .then(gik_connective_with_free_modifiers(free_modifier.clone()))
             .then(bo_unit.clone())
-            .map(
-                |(((guhek, leading_relation), gik), trailing_unit)| RelationUnitSyntax::Wrapped {
-                    relation: RelationSyntax::Guha {
-                        guhek,
-                        leading_predicate: Box::new(relation_to_empty_predicate(leading_relation)),
-                        gik,
-                        trailing_predicate: Box::new(relation_to_empty_predicate(
-                            relation_unit_to_relation(&trailing_unit),
-                        )),
-                    },
-                },
-            );
+            .map(|(((guhek, leading_relation), gik), trailing_unit)| {
+                RelationUnitSyntax::Wrapped(RelationSyntax::Guha {
+                    guhek,
+                    leading_predicate: Box::new(relation_to_empty_predicate(leading_relation)),
+                    gik,
+                    trailing_predicate: Box::new(relation_to_empty_predicate(
+                        relation_unit_to_relation(&trailing_unit),
+                    )),
+                })
+            });
         let atom_unit = choice((
             guha_unit,
             preposed_unit.clone(),
@@ -5843,8 +5824,8 @@ where
                 |(
                     (((((nu, nai), free_modifiers), additional_nu), subsentence), kei),
                     kei_free_modifiers,
-                )| RelationUnitSyntax::Abstraction {
-                    abstraction: AbstractionSyntax {
+                )| {
+                    RelationUnitSyntax::Abstraction(AbstractionSyntax {
                         nu,
                         nai,
                         free_modifiers,
@@ -5852,7 +5833,7 @@ where
                         subsentence: Box::new(subsentence),
                         kei,
                         kei_free_modifiers,
-                    },
+                    })
                 },
             )
             .boxed();
@@ -6143,18 +6124,14 @@ where
                 .then(gik_connective_with_free_modifiers(free_modifier.clone()))
                 .then(bo_unit.clone())
                 .map(|(((guhek, leading_relation), gik), trailing_unit)| {
-                    RelationUnitSyntax::Wrapped {
-                        relation: RelationSyntax::Guha {
-                            guhek,
-                            leading_predicate: Box::new(relation_to_empty_predicate(
-                                leading_relation,
-                            )),
-                            gik,
-                            trailing_predicate: Box::new(relation_to_empty_predicate(
-                                relation_unit_to_relation(&trailing_unit),
-                            )),
-                        },
-                    }
+                    RelationUnitSyntax::Wrapped(RelationSyntax::Guha {
+                        guhek,
+                        leading_predicate: Box::new(relation_to_empty_predicate(leading_relation)),
+                        gik,
+                        trailing_predicate: Box::new(relation_to_empty_predicate(
+                            relation_unit_to_relation(&trailing_unit),
+                        )),
+                    })
                 });
             let atom_unit = choice((
                 guha_unit,
@@ -6238,16 +6215,16 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
                 word,
                 free_modifiers,
             },
-        ] if free_modifiers.is_empty() => RelationSyntax::Base { word: word.clone() },
+        ] if free_modifiers.is_empty() => RelationSyntax::Base(word.clone()),
         [
             RelationUnitSyntax::Goha {
                 goha,
                 raho: None,
                 free_modifiers,
             },
-        ] if free_modifiers.is_empty() => RelationSyntax::Base { word: goha.clone() },
+        ] if free_modifiers.is_empty() => RelationSyntax::Base(goha.clone()),
         [RelationUnitSyntax::Word { .. } | RelationUnitSyntax::Goha { .. }] => {
-            RelationSyntax::Compound { units }
+            RelationSyntax::Compound(units)
         }
         [
             RelationUnitSyntax::Se {
@@ -6277,9 +6254,9 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
             kehe: kehe.clone(),
             kehe_free_modifiers: kehe_free_modifiers.clone(),
         },
-        [RelationUnitSyntax::Abstraction { abstraction }] => RelationSyntax::Abstraction {
-            abstraction: abstraction.clone(),
-        },
+        [RelationUnitSyntax::Abstraction(abstraction)] => {
+            RelationSyntax::Abstraction(abstraction.clone())
+        }
         [
             RelationUnitSyntax::Bo {
                 leading_unit,
@@ -6308,8 +6285,8 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
             leading_relation: Box::new(relation_unit_to_relation(leading_unit)),
             trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
         },
-        [RelationUnitSyntax::Wrapped { relation }] => relation.clone(),
-        _ => RelationSyntax::Compound { units },
+        [RelationUnitSyntax::Wrapped(relation)] => relation.clone(),
+        _ => RelationSyntax::Compound(units),
     }
 }
 
@@ -6320,12 +6297,12 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
         RelationUnitSyntax::Word {
             word,
             free_modifiers,
-        } if free_modifiers.is_empty() => RelationSyntax::Base { word: word.clone() },
+        } if free_modifiers.is_empty() => RelationSyntax::Base(word.clone()),
         RelationUnitSyntax::Goha {
             goha,
             raho: None,
             free_modifiers,
-        } if free_modifiers.is_empty() => RelationSyntax::Base { word: goha.clone() },
+        } if free_modifiers.is_empty() => RelationSyntax::Base(goha.clone()),
         RelationUnitSyntax::Se {
             se,
             free_modifiers,
@@ -6350,9 +6327,9 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
             kehe: kehe.clone(),
             kehe_free_modifiers: kehe_free_modifiers.clone(),
         },
-        RelationUnitSyntax::Abstraction { abstraction } => RelationSyntax::Abstraction {
-            abstraction: abstraction.clone(),
-        },
+        RelationUnitSyntax::Abstraction(abstraction) => {
+            RelationSyntax::Abstraction(abstraction.clone())
+        }
         RelationUnitSyntax::Bo {
             leading_unit,
             bo_connective,
@@ -6377,10 +6354,8 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
             leading_relation: Box::new(relation_unit_to_relation(leading_unit)),
             trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
         },
-        RelationUnitSyntax::Wrapped { relation } => relation.clone(),
-        unit => RelationSyntax::Compound {
-            units: vec![unit.clone()],
-        },
+        RelationUnitSyntax::Wrapped(relation) => relation.clone(),
+        unit => RelationSyntax::Compound(vec![unit.clone()]),
     }
 }
 

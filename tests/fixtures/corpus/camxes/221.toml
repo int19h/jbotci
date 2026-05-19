@@ -9,10 +9,39 @@ entry-id = "221"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "broda", span = { source_id = "<fixture>", byte_start = 0, byte_end = 5, char_start = 0, char_end = 5 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "co", span = { source_id = "<fixture>", byte_start = 6, byte_end = 8, char_start = 6, char_end = 8 } } } },
-    { kind = "base-word", word_like = { kind = "zoi-quote", zoi = { kind = "cmavo", phonemes = "zoĭ", span = { source_id = "<fixture>", byte_start = 34, byte_end = 37, char_start = 34, char_end = 37 } }, opening_delimiter = { kind = "cmavo", phonemes = "si", span = { source_id = "<fixture>", byte_start = 38, byte_end = 40, char_start = 38, char_end = 40 } }, quoted_text = { source_id = "<fixture>", byte_start = 40, byte_end = 40, char_start = 40, char_end = 40 }, closing_delimiter = { kind = "cmavo", phonemes = "si", span = { source_id = "<fixture>", byte_start = 41, byte_end = 43, char_start = 41, char_end = 43 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "da", span = { source_id = "<fixture>", byte_start = 44, byte_end = 46, char_start = 44, char_end = 46 } } } },
+    {Bare = {
+        kind = "gismu",
+        phonemes = "broda",
+        span = [0, 5]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "co",
+        span = [6, 8]
+    }},
+    {ZoiQuote = {
+        closing_delimiter = {
+            kind = "cmavo",
+            phonemes = "si",
+            span = [41, 43]
+        },
+        opening_delimiter = {
+            kind = "cmavo",
+            phonemes = "si",
+            span = [38, 40]
+        },
+        quoted_text = [40, 40],
+        zoi = {
+            kind = "cmavo",
+            phonemes = "zoĭ",
+            span = [34, 37]
+        }
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "da",
+        span = [44, 46]
+    }},
 ]
 
 [expectations.syntax]

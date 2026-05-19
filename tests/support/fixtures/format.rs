@@ -1,6 +1,7 @@
-use bityzba::{data, requires};
-use jbotci_syntax::{SyntaxValue, SyntaxValueData};
+use bityzba::requires;
+use jbotci_output::compact_json_value;
 use serde::Serialize;
+use serde_json::Value;
 
 use super::{Expectations, Provenance, TestCase};
 
@@ -104,7 +105,10 @@ fn push_expectations_toml(
             output.push_str("words = [\n");
             for word in &morphology.words {
                 output.push_str("    ");
-                output.push_str(&format_toml_value(word)?);
+                let compact = compact_json_value(word).map_err(|error| {
+                    <toml::ser::Error as serde::ser::Error>::custom(error.to_string())
+                })?;
+                output.push_str(&format_compact_toml_value(&compact, 4)?);
                 output.push_str(",\n");
             }
             output.push_str("]\n");
@@ -116,7 +120,10 @@ fn push_expectations_toml(
         push_field(output, "status", &syntax.status)?;
         if let Some(parse_tree) = &syntax.parse_tree {
             output.push_str("parse-tree = ");
-            output.push_str(&format_syntax_value_toml(parse_tree, 0)?);
+            let compact = compact_json_value(parse_tree).map_err(|error| {
+                <toml::ser::Error as serde::ser::Error>::custom(error.to_string())
+            })?;
+            output.push_str(&format_compact_toml_value(&compact, 0)?);
             output.push('\n');
         }
         push_optional_field(output, "error", &syntax.error)?;
@@ -164,130 +171,6 @@ fn push_optional_field<T: Serialize>(
 
 #[requires(true)]
 #[bityzba::ensures(true)]
-fn format_syntax_value_toml(
-    value: &SyntaxValue,
-    indent: usize,
-) -> Result<String, toml::ser::Error> {
-    match value.as_data() {
-        data!(SyntaxValue::Null) => Ok(r#"{ kind = "null" }"#.to_owned()),
-        data!(SyntaxValue::Bool { value }) => {
-            Ok(format!(r#"{{ kind = "bool", value = {value} }}"#))
-        }
-        data!(SyntaxValue::Integer { value }) => {
-            Ok(format!(r#"{{ kind = "integer", value = {value} }}"#))
-        }
-        data!(SyntaxValue::Text { value }) => Ok(format!(
-            r#"{{ kind = "text", value = {} }}"#,
-            format_toml_value(value)?
-        )),
-        data!(SyntaxValue::Word { word }) => Ok(format!(
-            r#"{{ kind = "word", word = {} }}"#,
-            format_toml_value(word.as_ref())?
-        )),
-        data!(SyntaxValue::Json { value }) => Ok(format!(
-            r#"{{ kind = "json", value = {} }}"#,
-            format_toml_value(value)?
-        )),
-        data!(SyntaxValue::List { items }) => format_syntax_list_toml(items, indent),
-        data!(SyntaxValue::Node { node }) => {
-            let child = indent + 4;
-            let field_indent = indent + 8;
-            let mut output = String::new();
-            output.push_str("{\n");
-            output.push_str(&spaces(child));
-            output.push_str(r#"kind = "node","#);
-            output.push('\n');
-            output.push_str(&spaces(child));
-            output.push_str("node = {\n");
-            output.push_str(&spaces(field_indent));
-            output.push_str("constructor = ");
-            output.push_str(&format_toml_value(&node.constructor)?);
-            output.push_str(",\n");
-            output.push_str(&spaces(field_indent));
-            output.push_str("fields = ");
-            output.push_str(&format_syntax_fields_toml(&node.fields, field_indent)?);
-            output.push('\n');
-            output.push_str(&spaces(child));
-            output.push_str("}\n");
-            output.push_str(&spaces(indent));
-            output.push('}');
-            Ok(output)
-        }
-    }
-}
-
-#[requires(true)]
-#[bityzba::ensures(true)]
-fn format_syntax_list_toml(
-    items: &[SyntaxValue],
-    indent: usize,
-) -> Result<String, toml::ser::Error> {
-    if items.is_empty() {
-        return Ok(r#"{ kind = "list", items = [] }"#.to_owned());
-    }
-    let child = indent + 4;
-    let item_indent = indent + 8;
-    let mut output = String::new();
-    output.push_str("{\n");
-    output.push_str(&spaces(child));
-    output.push_str(r#"kind = "list","#);
-    output.push('\n');
-    output.push_str(&spaces(child));
-    output.push_str("items = [\n");
-    for (index, item) in items.iter().enumerate() {
-        output.push_str(&spaces(item_indent));
-        output.push_str(&format_syntax_value_toml(item, item_indent)?);
-        if index + 1 != items.len() {
-            output.push(',');
-        }
-        output.push('\n');
-    }
-    output.push_str(&spaces(child));
-    output.push_str("]\n");
-    output.push_str(&spaces(indent));
-    output.push('}');
-    Ok(output)
-}
-
-#[requires(true)]
-#[bityzba::ensures(true)]
-fn format_syntax_fields_toml(
-    fields: &[jbotci_syntax::SyntaxField],
-    indent: usize,
-) -> Result<String, toml::ser::Error> {
-    if fields.is_empty() {
-        return Ok("[]".to_owned());
-    }
-    let item_indent = indent + 4;
-    let mut output = String::new();
-    output.push_str("[\n");
-    for (index, field) in fields.iter().enumerate() {
-        output.push_str(&spaces(item_indent));
-        output.push_str("{\n");
-        if let Some(name) = &field.name {
-            output.push_str(&spaces(item_indent + 4));
-            output.push_str("name = ");
-            output.push_str(&format_toml_value(name)?);
-            output.push_str(",\n");
-        }
-        output.push_str(&spaces(item_indent + 4));
-        output.push_str("value = ");
-        output.push_str(&format_syntax_value_toml(&field.value, item_indent + 4)?);
-        output.push('\n');
-        output.push_str(&spaces(item_indent));
-        output.push('}');
-        if index + 1 != fields.len() {
-            output.push(',');
-        }
-        output.push('\n');
-    }
-    output.push_str(&spaces(indent));
-    output.push(']');
-    Ok(output)
-}
-
-#[requires(true)]
-#[bityzba::ensures(true)]
 fn format_toml_value<T: Serialize + ?Sized>(value: &T) -> Result<String, toml::ser::Error> {
     let mut output = String::new();
     value.serialize(toml::ser::ValueSerializer::new(&mut output))?;
@@ -295,7 +178,108 @@ fn format_toml_value<T: Serialize + ?Sized>(value: &T) -> Result<String, toml::s
 }
 
 #[requires(true)]
+#[bityzba::ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+fn format_compact_toml_value(value: &Value, indent: usize) -> Result<String, toml::ser::Error> {
+    Ok(match value {
+        Value::Null => "null".to_owned(),
+        Value::Bool(value) => value.to_string(),
+        Value::Number(value) => value.to_string(),
+        Value::String(value) => format_toml_value(value)?,
+        Value::Array(items) => {
+            if items.is_empty() {
+                "[]".to_owned()
+            } else if items.iter().all(is_scalar_json) {
+                let items = items
+                    .iter()
+                    .map(|item| format_compact_toml_value(item, indent))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .join(", ");
+                format!("[{items}]")
+            } else {
+                let child_indent = indent + 4;
+                let pad = " ".repeat(child_indent);
+                let end = " ".repeat(indent);
+                let mut output = String::from("[\n");
+                for item in items {
+                    output.push_str(&pad);
+                    output.push_str(&format_compact_toml_value(item, child_indent)?);
+                    output.push_str(",\n");
+                }
+                output.push_str(&end);
+                output.push(']');
+                output
+            }
+        }
+        Value::Object(object) if is_constructor_object(object) => {
+            let (constructor, payload) = object.iter().next().expect("constructor object has item");
+            let child_indent = indent + 4;
+            let pad = " ".repeat(child_indent);
+            let end = " ".repeat(indent);
+            match payload {
+                Value::Object(fields) if fields.is_empty() => format!("{{{constructor} = {{}} }}"),
+                Value::Object(fields) => {
+                    let mut output = format!("{{{constructor} = {{\n");
+                    for (index, (key, value)) in fields.iter().enumerate() {
+                        output.push_str(&pad);
+                        output.push_str(key);
+                        output.push_str(" = ");
+                        output.push_str(&format_compact_toml_value(value, child_indent)?);
+                        if index + 1 != fields.len() {
+                            output.push(',');
+                        }
+                        output.push('\n');
+                    }
+                    output.push_str(&end);
+                    output.push_str("}}");
+                    output
+                }
+                other => format!(
+                    "{{{constructor} = {} }}",
+                    format_compact_toml_value(other, child_indent)?
+                ),
+            }
+        }
+        Value::Object(object) => {
+            if object.is_empty() {
+                "{}".to_owned()
+            } else {
+                let child_indent = indent + 4;
+                let pad = " ".repeat(child_indent);
+                let end = " ".repeat(indent);
+                let mut output = String::from("{\n");
+                for (index, (key, value)) in object.iter().enumerate() {
+                    output.push_str(&pad);
+                    output.push_str(key);
+                    output.push_str(" = ");
+                    output.push_str(&format_compact_toml_value(value, child_indent)?);
+                    if index + 1 != object.len() {
+                        output.push(',');
+                    }
+                    output.push('\n');
+                }
+                output.push_str(&end);
+                output.push('}');
+                output
+            }
+        }
+    })
+}
+
+#[requires(true)]
 #[bityzba::ensures(true)]
-fn spaces(count: usize) -> String {
-    " ".repeat(count)
+fn is_scalar_json(value: &Value) -> bool {
+    matches!(
+        value,
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_)
+    )
+}
+
+#[requires(true)]
+#[bityzba::ensures(true)]
+fn is_constructor_object(object: &serde_json::Map<String, Value>) -> bool {
+    object.len() == 1
+        && object
+            .keys()
+            .next()
+            .is_some_and(|key| key.chars().next().is_some_and(char::is_uppercase))
 }

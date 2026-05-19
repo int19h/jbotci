@@ -9,11 +9,43 @@ entry-id = "5726"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "standalone-indicator", indicator = { kind = "cmavo", phonemes = "paŭ", span = { source_id = "<fixture>", byte_start = 0, byte_end = 3, char_start = 0, char_end = 3 } }, nai = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 3, byte_end = 6, char_start = 3, char_end = 6 } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 6, byte_end = 9, char_start = 6, char_end = 9 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ma", span = { source_id = "<fixture>", byte_start = 10, byte_end = 12, char_start = 10, char_end = 12 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "smuni", span = { source_id = "<fixture>", byte_start = 13, byte_end = 18, char_start = 13, char_end = 18 } } } },
-    { kind = "base-word", word_like = { kind = "zo-quote", zo = { kind = "cmavo", phonemes = "zo", span = { source_id = "<fixture>", byte_start = 19, byte_end = 21, char_start = 19, char_end = 21 } }, word = { kind = "lujvo", phonemes = "ralcku", span = { source_id = "<fixture>", byte_start = 22, byte_end = 28, char_start = 22, char_end = 28 } } } },
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "paŭ",
+        span = [0, 3]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "naĭ",
+        span = [3, 6]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "naĭ",
+        span = [6, 9]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ma",
+        span = [10, 12]
+    }},
+    {Bare = {
+        kind = "gismu",
+        phonemes = "smuni",
+        span = [13, 18]
+    }},
+    {ZoQuote = {
+        word = {
+            kind = "lujvo",
+            phonemes = "ralcku",
+            span = [22, 28]
+        },
+        zo = {
+            kind = "cmavo",
+            phonemes = "zo",
+            span = [19, 21]
+        }
+    }},
 ]
 
 [expectations.syntax]

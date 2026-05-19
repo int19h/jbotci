@@ -1,7 +1,7 @@
 //! Shared source-location types.
 
 use bityzba::{data, invariant, requires};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 
 /// Stable identifier for an input source.
@@ -41,7 +41,7 @@ impl LineColumn {
 /// responsible for deriving offsets from the same source text.
 #[invariant(self.byte_start <= self.byte_end, "byte range start must not exceed end")]
 #[invariant(self.char_start <= self.char_end, "character range start must not exceed end")]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SourceSpan {
     pub source_id: Option<SourceId>,
     pub byte_start: usize,
@@ -50,6 +50,58 @@ pub struct SourceSpan {
     pub char_end: usize,
     pub start: Option<LineColumn>,
     pub end: Option<LineColumn>,
+}
+
+impl Serialize for SourceSpan {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        [self.char_start, self.char_end].serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for SourceSpan {
+    #[requires(true)]
+    #[ensures(true)]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum EncodedSpan {
+            Compact([usize; 2]),
+            Verbose {
+                source_id: Option<SourceId>,
+                byte_start: usize,
+                byte_end: usize,
+                char_start: usize,
+                char_end: usize,
+                #[allow(dead_code)]
+                start: Option<LineColumn>,
+                #[allow(dead_code)]
+                end: Option<LineColumn>,
+            },
+        }
+
+        match EncodedSpan::deserialize(deserializer)? {
+            EncodedSpan::Compact([char_start, char_end]) => {
+                SourceSpan::new(None, char_start, char_end, char_start, char_end)
+            }
+            EncodedSpan::Verbose {
+                source_id,
+                byte_start,
+                byte_end,
+                char_start,
+                char_end,
+                ..
+            } => SourceSpan::new(source_id, byte_start, byte_end, char_start, char_end),
+        }
+        .map_err(serde::de::Error::custom)
+    }
 }
 
 impl SourceSpan {
@@ -164,7 +216,7 @@ mod tests {
         assert!(
             error
                 .to_string()
-                .contains("byte range start must not exceed end")
+                .contains("byte range end 3 precedes start 4")
         );
     }
 }

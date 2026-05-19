@@ -9,11 +9,38 @@ entry-id = "22203"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "gi'e", span = { source_id = "<fixture>", byte_start = 0, byte_end = 4, char_start = 0, char_end = 4 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "na'e", span = { source_id = "<fixture>", byte_start = 5, byte_end = 9, char_start = 5, char_end = 9 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "me", span = { source_id = "<fixture>", byte_start = 10, byte_end = 12, char_start = 10, char_end = 12 } } } },
-    { kind = "base-word", word_like = { kind = "zo-quote", zo = { kind = "cmavo", phonemes = "zo", span = { source_id = "<fixture>", byte_start = 13, byte_end = 15, char_start = 13, char_end = 15 } }, word = { kind = "cmavo", phonemes = "noĭ", span = { source_id = "<fixture>", byte_start = 16, byte_end = 19, char_start = 16, char_end = 19 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "valsi", span = { source_id = "<fixture>", byte_start = 20, byte_end = 25, char_start = 20, char_end = 25 } } } },
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "gi'e",
+        span = [0, 4]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "na'e",
+        span = [5, 9]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "me",
+        span = [10, 12]
+    }},
+    {ZoQuote = {
+        word = {
+            kind = "cmavo",
+            phonemes = "noĭ",
+            span = [16, 19]
+        },
+        zo = {
+            kind = "cmavo",
+            phonemes = "zo",
+            span = [13, 15]
+        }
+    }},
+    {Bare = {
+        kind = "gismu",
+        phonemes = "valsi",
+        span = [20, 25]
+    }},
 ]
 
 [expectations.syntax]

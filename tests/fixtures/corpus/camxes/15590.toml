@@ -9,10 +9,39 @@ entry-id = "15590"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ra", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "du", span = { source_id = "<fixture>", byte_start = 3, byte_end = 5, char_start = 3, char_end = 5 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 5, byte_end = 8, char_start = 5, char_end = 8 } } } },
-    { kind = "base-word", word_like = { kind = "zoi-quote", zoi = { kind = "cmavo", phonemes = "zoĭ", span = { source_id = "<fixture>", byte_start = 9, byte_end = 12, char_start = 9, char_end = 12 } }, opening_delimiter = { kind = "cmavo", phonemes = "gy", span = { source_id = "<fixture>", byte_start = 13, byte_end = 15, char_start = 13, char_end = 15 } }, quoted_text = { source_id = "<fixture>", byte_start = 17, byte_end = 23, char_start = 17, char_end = 23 }, closing_delimiter = { kind = "cmavo", phonemes = "gy", span = { source_id = "<fixture>", byte_start = 24, byte_end = 26, char_start = 24, char_end = 26 } } } },
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ra",
+        span = [0, 2]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "du",
+        span = [3, 5]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "naĭ",
+        span = [5, 8]
+    }},
+    {ZoiQuote = {
+        closing_delimiter = {
+            kind = "cmavo",
+            phonemes = "gy",
+            span = [24, 26]
+        },
+        opening_delimiter = {
+            kind = "cmavo",
+            phonemes = "gy",
+            span = [13, 15]
+        },
+        quoted_text = [17, 23],
+        zoi = {
+            kind = "cmavo",
+            phonemes = "zoĭ",
+            span = [9, 12]
+        }
+    }},
 ]
 
 [expectations.syntax]

@@ -9,89 +9,33 @@ entry-id = "25"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "emphasized", bahe = { kind = "cmavo", phonemes = "ba'e", span = { source_id = "<fixture>", byte_start = 0, byte_end = 4, char_start = 0, char_end = 4 } }, word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ŭi", span = { source_id = "<fixture>", byte_start = 6, byte_end = 8, char_start = 6, char_end = 8 } } } },
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ba'e",
+        span = [0, 4]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ŭi",
+        span = [6, 8]
+    }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    kind = "node",
-    node = {
-        constructor = "LojbanText",
-        fields = [
-            {
-                name = "leadingNai",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
+    leading_indicators = [
+        {Emphasized = {
+            bahe = {
+                kind = "cmavo",
+                phonemes = "ba'e",
+                span = [0, 4]
             },
-            {
-                name = "leadingCmevla",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingIndicators",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "(:)",
-                        fields = [
-                            {
-                                value = { kind = "word", word = { kind = "emphasized", bahe = { kind = "cmavo", phonemes = "ba'e", span = { source_id = "<fixture>", byte_start = 0, byte_end = 4, char_start = 0, char_end = 4 } }, word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ŭi", span = { source_id = "<fixture>", byte_start = 6, byte_end = 8, char_start = 6, char_end = 8 } } } } }
-                            },
-                            {
-                                value = {
-                                    kind = "node",
-                                    node = {
-                                        constructor = "[]",
-                                        fields = []
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                name = "leadingFreeModifiers",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingConnective",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "Nothing",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "paragraphs",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            }
-        ]
-    }
+            word_like = {Bare = {
+                kind = "cmavo",
+                phonemes = "ŭi",
+                span = [6, 8]
+            }}
+        }},
+    ]
 }

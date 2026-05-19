@@ -9,90 +9,34 @@ entry-id = "19287"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ju'o", span = { source_id = "<fixture>", byte_start = 3, byte_end = 7, char_start = 3, char_end = 7 } } } }, indicator = { kind = "cmavo", phonemes = "ja'o", span = { source_id = "<fixture>", byte_start = 8, byte_end = 12, char_start = 8, char_end = 12 } } },
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ju'o",
+        span = [3, 7]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ja'o",
+        span = [8, 12]
+    }},
 ]
 
 [expectations.syntax]
 status = "failure"
 parse-tree = {
-    kind = "node",
-    node = {
-        constructor = "LojbanText",
-        fields = [
-            {
-                name = "leadingNai",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingCmevla",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingIndicators",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "(:)",
-                        fields = [
-                            {
-                                value = { kind = "word", word = { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ju'o", span = { source_id = "<fixture>", byte_start = 3, byte_end = 7, char_start = 3, char_end = 7 } } } }, indicator = { kind = "cmavo", phonemes = "ja'o", span = { source_id = "<fixture>", byte_start = 8, byte_end = 12, char_start = 8, char_end = 12 } } } }
-                            },
-                            {
-                                value = {
-                                    kind = "node",
-                                    node = {
-                                        constructor = "[]",
-                                        fields = []
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                name = "leadingFreeModifiers",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingConnective",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "Nothing",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "paragraphs",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
+    leading_indicators = [
+        {WithIndicator = {
+            base = {Bare = {
+                kind = "cmavo",
+                phonemes = "ju'o",
+                span = [3, 7]
+            }},
+            indicator = {
+                kind = "cmavo",
+                phonemes = "ja'o",
+                span = [8, 12]
             }
-        ]
-    }
+        }},
+    ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

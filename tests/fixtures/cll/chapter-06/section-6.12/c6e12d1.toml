@@ -18,131 +18,59 @@ brackets = "(djan méris djeĭn ális)"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "djan", span = { source_id = "<fixture>", byte_start = 1, byte_end = 5, char_start = 1, char_end = 5 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "meris", span = { source_id = "<fixture>", byte_start = 8, byte_end = 13, char_start = 8, char_end = 13 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "djeĭn", span = { source_id = "<fixture>", byte_start = 16, byte_end = 21, char_start = 16, char_end = 21 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "alis", span = { source_id = "<fixture>", byte_start = 24, byte_end = 28, char_start = 24, char_end = 28 } } } },
+    {Bare = {
+        kind = "cmevla",
+        phonemes = "djan",
+        span = [1, 5]
+    }},
+    {Bare = {
+        kind = "cmevla",
+        phonemes = "meris",
+        span = [8, 13]
+    }},
+    {Bare = {
+        kind = "cmevla",
+        phonemes = "djeĭn",
+        span = [16, 21]
+    }},
+    {Bare = {
+        kind = "cmevla",
+        phonemes = "alis",
+        span = [24, 28]
+    }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    kind = "node",
-    node = {
-        constructor = "LojbanText",
-        fields = [
-            {
-                name = "leadingNai",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingCmevla",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "(:)",
-                        fields = [
-                            {
-                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "djan", span = { source_id = "<fixture>", byte_start = 1, byte_end = 5, char_start = 1, char_end = 5 } } } } }
-                            },
-                            {
-                                value = {
-                                    kind = "node",
-                                    node = {
-                                        constructor = "(:)",
-                                        fields = [
-                                            {
-                                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "meris", span = { source_id = "<fixture>", byte_start = 8, byte_end = 13, char_start = 8, char_end = 13 } } } } }
-                                            },
-                                            {
-                                                value = {
-                                                    kind = "node",
-                                                    node = {
-                                                        constructor = "(:)",
-                                                        fields = [
-                                                            {
-                                                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "djeĭn", span = { source_id = "<fixture>", byte_start = 16, byte_end = 21, char_start = 16, char_end = 21 } } } } }
-                                                            },
-                                                            {
-                                                                value = {
-                                                                    kind = "node",
-                                                                    node = {
-                                                                        constructor = "(:)",
-                                                                        fields = [
-                                                                            {
-                                                                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "alis", span = { source_id = "<fixture>", byte_start = 24, byte_end = 28, char_start = 24, char_end = 28 } } } } }
-                                                                            },
-                                                                            {
-                                                                                value = {
-                                                                                    kind = "node",
-                                                                                    node = {
-                                                                                        constructor = "[]",
-                                                                                        fields = []
-                                                                                    }
-                                                                                }
-                                                                            }
-                                                                        ]
-                                                                    }
-                                                                }
-                                                            }
-                                                        ]
-                                                    }
-                                                }
-                                            }
-                                        ]
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                name = "leadingIndicators",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingFreeModifiers",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingConnective",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "Nothing",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "paragraphs",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
+    leading_cmevla = [
+        {Bare = {
+            Bare = {
+                kind = "cmevla",
+                phonemes = "djan",
+                span = [1, 5]
             }
-        ]
-    }
+        }},
+        {Bare = {
+            Bare = {
+                kind = "cmevla",
+                phonemes = "meris",
+                span = [8, 13]
+            }
+        }},
+        {Bare = {
+            Bare = {
+                kind = "cmevla",
+                phonemes = "djeĭn",
+                span = [16, 21]
+            }
+        }},
+        {Bare = {
+            Bare = {
+                kind = "cmevla",
+                phonemes = "alis",
+                span = [24, 28]
+            }
+        }},
+    ]
 }

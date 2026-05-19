@@ -9,12 +9,50 @@ entry-id = "20925"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "pa", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "xy", span = { source_id = "<fixture>", byte_start = 3, byte_end = 5, char_start = 3, char_end = 5 } } } },
-    { kind = "base-word", word_like = { kind = "letter", base = { kind = "bare", word = { kind = "cmavo", phonemes = "y", span = { source_id = "<fixture>", byte_start = 6, byte_end = 7, char_start = 6, char_end = 7 } } }, bu = { kind = "cmavo", phonemes = "bu", span = { source_id = "<fixture>", byte_start = 7, byte_end = 9, char_start = 7, char_end = 9 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "du", span = { source_id = "<fixture>", byte_start = 10, byte_end = 12, char_start = 10, char_end = 12 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "vo", span = { source_id = "<fixture>", byte_start = 13, byte_end = 15, char_start = 13, char_end = 15 } } } },
-    { kind = "base-word", word_like = { kind = "letter", base = { kind = "bare", word = { kind = "cmavo", phonemes = "a", span = { source_id = "<fixture>", byte_start = 16, byte_end = 17, char_start = 16, char_end = 17 } } }, bu = { kind = "cmavo", phonemes = "bu", span = { source_id = "<fixture>", byte_start = 17, byte_end = 19, char_start = 17, char_end = 19 } } } },
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "pa",
+        span = [0, 2]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "xy",
+        span = [3, 5]
+    }},
+    {Letter = {
+        base = {Bare = {
+            kind = "cmavo",
+            phonemes = "y",
+            span = [6, 7]
+        }},
+        bu = {
+            kind = "cmavo",
+            phonemes = "bu",
+            span = [7, 9]
+        }
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "du",
+        span = [10, 12]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "vo",
+        span = [13, 15]
+    }},
+    {Letter = {
+        base = {Bare = {
+            kind = "cmavo",
+            phonemes = "a",
+            span = [16, 17]
+        }},
+        bu = {
+            kind = "cmavo",
+            phonemes = "bu",
+            span = [17, 19]
+        }
+    }},
 ]
 
 [expectations.syntax]

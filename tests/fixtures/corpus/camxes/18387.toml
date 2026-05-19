@@ -9,466 +9,86 @@ entry-id = "18387"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ta'a", span = { source_id = "<fixture>", byte_start = 0, byte_end = 4, char_start = 0, char_end = 4 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 4, byte_end = 7, char_start = 4, char_end = 7 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ca", span = { source_id = "<fixture>", byte_start = 8, byte_end = 10, char_start = 8, char_end = 10 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "se", span = { source_id = "<fixture>", byte_start = 11, byte_end = 13, char_start = 11, char_end = 13 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "jibri", span = { source_id = "<fixture>", byte_start = 14, byte_end = 19, char_start = 14, char_end = 19 } } } },
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ta'a",
+        span = [0, 4]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "naĭ",
+        span = [4, 7]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ca",
+        span = [8, 10]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "se",
+        span = [11, 13]
+    }},
+    {Bare = {
+        kind = "gismu",
+        phonemes = "jibri",
+        span = [14, 19]
+    }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    kind = "node",
-    node = {
-        constructor = "LojbanText",
-        fields = [
-            {
-                name = "leadingNai",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingCmevla",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingIndicators",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingFreeModifiers",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "(:)",
-                        fields = [
-                            {
-                                value = {
-                                    kind = "node",
-                                    node = {
-                                        constructor = "VocativeFree",
-                                        fields = [
-                                            {
-                                                name = "vocativeMarkers",
-                                                value = {
-                                                    kind = "node",
-                                                    node = {
-                                                        constructor = "(:)",
-                                                        fields = [
-                                                            {
-                                                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ta'a", span = { source_id = "<fixture>", byte_start = 0, byte_end = 4, char_start = 0, char_end = 4 } } } } }
-                                                            },
-                                                            {
-                                                                value = {
-                                                                    kind = "node",
-                                                                    node = {
-                                                                        constructor = "(:)",
-                                                                        fields = [
-                                                                            {
-                                                                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 4, byte_end = 7, char_start = 4, char_end = 7 } } } } }
-                                                                            },
-                                                                            {
-                                                                                value = {
-                                                                                    kind = "node",
-                                                                                    node = {
-                                                                                        constructor = "[]",
-                                                                                        fields = []
-                                                                                    }
-                                                                                }
-                                                                            }
-                                                                        ]
-                                                                    }
-                                                                }
-                                                            }
-                                                        ]
-                                                    }
-                                                }
-                                            },
-                                            {
-                                                name = "freeModifiers",
-                                                value = {
-                                                    kind = "node",
-                                                    node = {
-                                                        constructor = "[]",
-                                                        fields = []
-                                                    }
-                                                }
-                                            },
-                                            {
-                                                name = "argument",
-                                                value = {
-                                                    kind = "node",
-                                                    node = {
-                                                        constructor = "Just",
-                                                        fields = [
-                                                            {
-                                                                value = {
-                                                                    kind = "node",
-                                                                    node = {
-                                                                        constructor = "RelationVocativeArgument",
-                                                                        fields = [
-                                                                            {
-                                                                                name = "leadingRelativeClauses",
-                                                                                value = {
-                                                                                    kind = "node",
-                                                                                    node = {
-                                                                                        constructor = "[]",
-                                                                                        fields = []
-                                                                                    }
-                                                                                }
-                                                                            },
-                                                                            {
-                                                                                name = "relation",
-                                                                                value = {
-                                                                                    kind = "node",
-                                                                                    node = {
-                                                                                        constructor = "TenseModalRelation",
-                                                                                        fields = [
-                                                                                            {
-                                                                                                name = "tenseModal",
-                                                                                                value = {
-                                                                                                    kind = "node",
-                                                                                                    node = {
-                                                                                                        constructor = "TenseModal",
-                                                                                                        fields = [
-                                                                                                            {
-                                                                                                                name = "leaves",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "(:)",
-                                                                                                                        fields = [
-                                                                                                                            {
-                                                                                                                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ca", span = { source_id = "<fixture>", byte_start = 8, byte_end = 10, char_start = 8, char_end = 10 } } } } }
-                                                                                                                            },
-                                                                                                                            {
-                                                                                                                                value = {
-                                                                                                                                    kind = "node",
-                                                                                                                                    node = {
-                                                                                                                                        constructor = "[]",
-                                                                                                                                        fields = []
-                                                                                                                                    }
-                                                                                                                                }
-                                                                                                                            }
-                                                                                                                        ]
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "time",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "Just",
-                                                                                                                        fields = [
-                                                                                                                            {
-                                                                                                                                value = {
-                                                                                                                                    kind = "node",
-                                                                                                                                    node = {
-                                                                                                                                        constructor = "Time",
-                                                                                                                                        fields = [
-                                                                                                                                            {
-                                                                                                                                                name = "direction",
-                                                                                                                                                value = {
-                                                                                                                                                    kind = "node",
-                                                                                                                                                    node = {
-                                                                                                                                                        constructor = "(:)",
-                                                                                                                                                        fields = [
-                                                                                                                                                            {
-                                                                                                                                                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ca", span = { source_id = "<fixture>", byte_start = 8, byte_end = 10, char_start = 8, char_end = 10 } } } } }
-                                                                                                                                                            },
-                                                                                                                                                            {
-                                                                                                                                                                value = {
-                                                                                                                                                                    kind = "node",
-                                                                                                                                                                    node = {
-                                                                                                                                                                        constructor = "[]",
-                                                                                                                                                                        fields = []
-                                                                                                                                                                    }
-                                                                                                                                                                }
-                                                                                                                                                            }
-                                                                                                                                                        ]
-                                                                                                                                                    }
-                                                                                                                                                }
-                                                                                                                                            },
-                                                                                                                                            {
-                                                                                                                                                name = "distance",
-                                                                                                                                                value = {
-                                                                                                                                                    kind = "node",
-                                                                                                                                                    node = {
-                                                                                                                                                        constructor = "Nothing",
-                                                                                                                                                        fields = []
-                                                                                                                                                    }
-                                                                                                                                                }
-                                                                                                                                            },
-                                                                                                                                            {
-                                                                                                                                                name = "interval",
-                                                                                                                                                value = {
-                                                                                                                                                    kind = "node",
-                                                                                                                                                    node = {
-                                                                                                                                                        constructor = "Nothing",
-                                                                                                                                                        fields = []
-                                                                                                                                                    }
-                                                                                                                                                }
-                                                                                                                                            },
-                                                                                                                                            {
-                                                                                                                                                name = "nai",
-                                                                                                                                                value = {
-                                                                                                                                                    kind = "node",
-                                                                                                                                                    node = {
-                                                                                                                                                        constructor = "Nothing",
-                                                                                                                                                        fields = []
-                                                                                                                                                    }
-                                                                                                                                                }
-                                                                                                                                            }
-                                                                                                                                        ]
-                                                                                                                                    }
-                                                                                                                                }
-                                                                                                                            }
-                                                                                                                        ]
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "space",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "Nothing",
-                                                                                                                        fields = []
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "simple",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "Nothing",
-                                                                                                                        fields = []
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "interval",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "Nothing",
-                                                                                                                        fields = []
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "zaho",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "[]",
-                                                                                                                        fields = []
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "caha",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "Nothing",
-                                                                                                                        fields = []
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "ki",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "Nothing",
-                                                                                                                        fields = []
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "cuhe",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "Nothing",
-                                                                                                                        fields = []
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "fiho",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "[]",
-                                                                                                                        fields = []
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "connectives",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "[]",
-                                                                                                                        fields = []
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "freeModifiers",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "[]",
-                                                                                                                        fields = []
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            }
-                                                                                                        ]
-                                                                                                    }
-                                                                                                }
-                                                                                            },
-                                                                                            {
-                                                                                                name = "innerRelation",
-                                                                                                value = {
-                                                                                                    kind = "node",
-                                                                                                    node = {
-                                                                                                        constructor = "SeRelation",
-                                                                                                        fields = [
-                                                                                                            {
-                                                                                                                name = "se",
-                                                                                                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "se", span = { source_id = "<fixture>", byte_start = 11, byte_end = 13, char_start = 11, char_end = 13 } } } } }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "freeModifiers",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "[]",
-                                                                                                                        fields = []
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
-                                                                                                            {
-                                                                                                                name = "innerRelation",
-                                                                                                                value = {
-                                                                                                                    kind = "node",
-                                                                                                                    node = {
-                                                                                                                        constructor = "BaseRelation",
-                                                                                                                        fields = [
-                                                                                                                            {
-                                                                                                                                name = "word",
-                                                                                                                                value = { kind = "word", word = { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "jibri", span = { source_id = "<fixture>", byte_start = 14, byte_end = 19, char_start = 14, char_end = 19 } } } } }
-                                                                                                                            }
-                                                                                                                        ]
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            }
-                                                                                                        ]
-                                                                                                    }
-                                                                                                }
-                                                                                            }
-                                                                                        ]
-                                                                                    }
-                                                                                }
-                                                                            },
-                                                                            {
-                                                                                name = "trailingRelativeClauses",
-                                                                                value = {
-                                                                                    kind = "node",
-                                                                                    node = {
-                                                                                        constructor = "[]",
-                                                                                        fields = []
-                                                                                    }
-                                                                                }
-                                                                            }
-                                                                        ]
-                                                                    }
-                                                                }
-                                                            }
-                                                        ]
-                                                    }
-                                                }
-                                            },
-                                            {
-                                                name = "dohu",
-                                                value = {
-                                                    kind = "node",
-                                                    node = {
-                                                        constructor = "Nothing",
-                                                        fields = []
-                                                    }
-                                                }
-                                            },
-                                            {
-                                                name = "dohuFreeModifiers",
-                                                value = {
-                                                    kind = "node",
-                                                    node = {
-                                                        constructor = "[]",
-                                                        fields = []
-                                                    }
-                                                }
-                                            }
-                                        ]
-                                    }
-                                }
-                            },
-                            {
-                                value = {
-                                    kind = "node",
-                                    node = {
-                                        constructor = "[]",
-                                        fields = []
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                name = "leadingConnective",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "Nothing",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "paragraphs",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            }
-        ]
-    }
+    leading_free_modifiers = [
+        {VocativeFree = {
+            argument = {RelationVocativeArgument = {
+                relation = {TenseModalRelation = {
+                    inner_relation = {SeRelation = {
+                        inner_relation = {BaseRelation = {
+                            word = {Bare = {
+                                kind = "gismu",
+                                phonemes = "jibri",
+                                span = [14, 19]
+                            }}
+                        }},
+                        se = {Bare = {
+                            kind = "cmavo",
+                            phonemes = "se",
+                            span = [11, 13]
+                        }}
+                    }},
+                    tense_modal = {TenseModal = {
+                        leaves = [
+                            {Bare = {
+                                kind = "cmavo",
+                                phonemes = "ca",
+                                span = [8, 10]
+                            }},
+                        ],
+                        time = {Time = {
+                            direction = [
+                                {Bare = {
+                                    kind = "cmavo",
+                                    phonemes = "ca",
+                                    span = [8, 10]
+                                }},
+                            ]
+                        }}
+                    }}
+                }}
+            }},
+            vocative_markers = [
+                {Bare = {
+                    kind = "cmavo",
+                    phonemes = "ta'a",
+                    span = [0, 4]
+                }},
+                {Bare = {
+                    kind = "cmavo",
+                    phonemes = "naĭ",
+                    span = [4, 7]
+                }},
+            ]
+        }},
+    ]
 }

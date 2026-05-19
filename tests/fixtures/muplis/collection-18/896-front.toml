@@ -15,89 +15,45 @@ brackets = ".a'o-naĭ-caĭ"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "with-indicator", base = { kind = "standalone-indicator", indicator = { kind = "cmavo", phonemes = "a'o", span = { source_id = "<fixture>", byte_start = 1, byte_end = 4, char_start = 1, char_end = 4 } }, nai = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 4, byte_end = 7, char_start = 4, char_end = 7 } } }, indicator = { kind = "cmavo", phonemes = "caĭ", span = { source_id = "<fixture>", byte_start = 7, byte_end = 10, char_start = 7, char_end = 10 } } },
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "a'o",
+        span = [1, 4]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "naĭ",
+        span = [4, 7]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "caĭ",
+        span = [7, 10]
+    }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    kind = "node",
-    node = {
-        constructor = "LojbanText",
-        fields = [
-            {
-                name = "leadingNai",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
+    leading_indicators = [
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "a'o",
+                span = [1, 4]
             },
-            {
-                name = "leadingCmevla",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingIndicators",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "(:)",
-                        fields = [
-                            {
-                                value = { kind = "word", word = { kind = "with-indicator", base = { kind = "standalone-indicator", indicator = { kind = "cmavo", phonemes = "a'o", span = { source_id = "<fixture>", byte_start = 1, byte_end = 4, char_start = 1, char_end = 4 } }, nai = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 4, byte_end = 7, char_start = 4, char_end = 7 } } }, indicator = { kind = "cmavo", phonemes = "caĭ", span = { source_id = "<fixture>", byte_start = 7, byte_end = 10, char_start = 7, char_end = 10 } } } }
-                            },
-                            {
-                                value = {
-                                    kind = "node",
-                                    node = {
-                                        constructor = "[]",
-                                        fields = []
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                name = "leadingFreeModifiers",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingConnective",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "Nothing",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "paragraphs",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
+            nai = {
+                kind = "cmavo",
+                phonemes = "naĭ",
+                span = [4, 7]
             }
-        ]
-    }
+        },
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "caĭ",
+                span = [7, 10]
+            }
+        },
+    ]
 }

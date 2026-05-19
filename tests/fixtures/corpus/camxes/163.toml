@@ -9,9 +9,28 @@ entry-id = "163"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "zo-quote", zo = { kind = "cmavo", phonemes = "zo", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } }, word = { kind = "cmavo", phonemes = "si", span = { source_id = "<fixture>", byte_start = 9, byte_end = 11, char_start = 9, char_end = 11 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "co", span = { source_id = "<fixture>", byte_start = 12, byte_end = 14, char_start = 12, char_end = 14 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "lujvo", phonemes = "nalselmorjyvalsi", span = { source_id = "<fixture>", byte_start = 15, byte_end = 31, char_start = 15, char_end = 31 } } } },
+    {ZoQuote = {
+        word = {
+            kind = "cmavo",
+            phonemes = "si",
+            span = [9, 11]
+        },
+        zo = {
+            kind = "cmavo",
+            phonemes = "zo",
+            span = [0, 2]
+        }
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "co",
+        span = [12, 14]
+    }},
+    {Bare = {
+        kind = "lujvo",
+        phonemes = "nalselmorjyvalsi",
+        span = [15, 31]
+    }},
 ]
 
 [expectations.syntax]

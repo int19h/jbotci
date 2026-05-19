@@ -41,18 +41,16 @@ brackets = "[coi]"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "coi", span = { source_id = "<fixture>", byte_start = 0, byte_end = 3, char_start = 0, char_end = 3 } } } },
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "coi",
+        span = [0, 3]
+    }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    kind = "node",
-    node = {
-        constructor = "LojbanText",
-        fields = []
-    }
-}
+parse-tree = {}
 ```
 
 Every facet is optional so exporters can land expectations incrementally. The

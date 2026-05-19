@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use bityzba::{data, ensures, invariant, new, requires};
 use chumsky::error::Rich;
 use chumsky::prelude::*;
@@ -7,8 +5,8 @@ use chumsky::span::SimpleSpan;
 use jbotci_source::{SourceId, SourceSpan};
 
 use crate::{
-    MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordLikeData, WordWithModifiers,
-    WordWithModifiersData,
+    MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordLikeData, canonicalize_text,
+    visible_selmaho,
 };
 
 type MorphExtra<'src> = extra::Err<Rich<'src, char>>;
@@ -19,10 +17,8 @@ pub(crate) fn segment_words_with_modifiers(
     input: &str,
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
-) -> Result<Vec<WordWithModifiers>, MorphologyError> {
-    Ok(apply_passes(segment_words_with_modifiers_raw(
-        input, options, source_id,
-    )?))
+) -> Result<Vec<WordLike>, MorphologyError> {
+    segment_words_with_modifiers_raw(input, options, source_id)
 }
 
 #[requires(true)]
@@ -31,7 +27,7 @@ pub(crate) fn segment_words_with_modifiers_raw(
     input: &str,
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
-) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+) -> Result<Vec<WordLike>, MorphologyError> {
     parser(input, options.clone(), source_id)
         .parse(input)
         .into_result()
@@ -44,8 +40,8 @@ fn parser<'src>(
     input: &'src str,
     options: MorphologyOptions,
     source_id: Option<SourceId>,
-) -> impl Parser<'src, &'src str, Vec<WordWithModifiers>, MorphExtra<'src>> {
-    custom::<_, &'src str, Vec<WordWithModifiers>, MorphExtra<'src>>(move |inp| {
+) -> impl Parser<'src, &'src str, Vec<WordLike>, MorphExtra<'src>> {
+    custom::<_, &'src str, Vec<WordLike>, MorphExtra<'src>>(move |inp| {
         let before = inp.cursor();
         let start_span: SimpleSpan = inp.span_since(&before);
         match Segmenter::new(input, &options, source_id.clone()).segment_raw() {
@@ -96,7 +92,7 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn segment_raw(mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+    fn segment_raw(mut self) -> Result<Vec<WordLike>, MorphologyError> {
         let mut acc = Vec::new();
         while self.skip_magic_noise(true)? {
             if self.index == self.chars.len() {
@@ -110,7 +106,7 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn next_segment(&mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+    fn next_segment(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
         self.skip_separators();
         if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
             let candidate_end = self.candidate_end(self.index);
@@ -154,8 +150,8 @@ impl<'a> Segmenter<'a> {
     #[ensures(true)]
     fn process_segment(
         &mut self,
-        acc: &mut Vec<WordWithModifiers>,
-        segment: Vec<WordWithModifiers>,
+        acc: &mut Vec<WordLike>,
+        segment: Vec<WordLike>,
     ) -> Result<(), MorphologyError> {
         if segment.len() != 1 {
             for word in segment {
@@ -190,7 +186,7 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn next_plain_word(&mut self) -> Result<WordWithModifiers, MorphologyError> {
+    fn next_plain_word(&mut self) -> Result<WordLike, MorphologyError> {
         self.skip_separators();
         let start = self.index;
         let candidate_end = self.candidate_end(start);
@@ -258,8 +254,8 @@ impl<'a> Segmenter<'a> {
     #[ensures(true)]
     fn zo_quote(
         &mut self,
-        zo_word_with_modifiers: WordWithModifiers,
-    ) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+        zo_word_with_modifiers: WordLike,
+    ) -> Result<Vec<WordLike>, MorphologyError> {
         let after_marker = self.index;
         self.skip_y_words();
         let quoted = match self.next_plain_non_y_word() {
@@ -280,8 +276,8 @@ impl<'a> Segmenter<'a> {
     #[ensures(true)]
     fn zoi_quote(
         &mut self,
-        zoi_word_with_modifiers: WordWithModifiers,
-    ) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+        zoi_word_with_modifiers: WordLike,
+    ) -> Result<Vec<WordLike>, MorphologyError> {
         let after_marker = self.index;
         self.skip_separators();
         let opening_word_with_modifiers = match self.next_plain_word() {
@@ -329,8 +325,8 @@ impl<'a> Segmenter<'a> {
     #[ensures(true)]
     fn single_word_quote(
         &mut self,
-        marker_word_with_modifiers: WordWithModifiers,
-    ) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+        marker_word_with_modifiers: WordLike,
+    ) -> Result<Vec<WordLike>, MorphologyError> {
         let after_marker = self.index;
         self.skip_separators();
         let start = self.index;
@@ -353,8 +349,8 @@ impl<'a> Segmenter<'a> {
     #[ensures(true)]
     fn lohu_quote(
         &mut self,
-        lohu_word_with_modifiers: WordWithModifiers,
-    ) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+        lohu_word_with_modifiers: WordLike,
+    ) -> Result<Vec<WordLike>, MorphologyError> {
         let lohu = extract_word(&lohu_word_with_modifiers)
             .ok_or_else(|| self.invalid_at(self.index, "lo'u", "LOhU must be a single word"))?;
         let mut quoted_words = Vec::new();
@@ -390,8 +386,8 @@ impl<'a> Segmenter<'a> {
     #[ensures(true)]
     fn handle_bu(
         &self,
-        acc: &mut Vec<WordWithModifiers>,
-        bu_word_with_modifiers: WordWithModifiers,
+        acc: &mut Vec<WordLike>,
+        bu_word_with_modifiers: WordLike,
     ) -> Result<(), MorphologyError> {
         let Some(prev) = acc.pop() else {
             return Err(self.invalid_at(self.index, "bu", "bu requires a preceding word"));
@@ -404,14 +400,14 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn handle_si(&self, acc: &mut Vec<WordWithModifiers>) {
+    fn handle_si(&self, acc: &mut Vec<WordLike>) {
         let (_prev, rest) = skip_acc_y(acc);
         *acc = rest;
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn handle_sa(&mut self, acc: &mut Vec<WordWithModifiers>) -> Result<(), MorphologyError> {
+    fn handle_sa(&mut self, acc: &mut Vec<WordLike>) -> Result<(), MorphologyError> {
         let mut sa_count = 1;
         loop {
             self.skip_magic_noise(true)?;
@@ -453,7 +449,7 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn next_sa_base_segment(&mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+    fn next_sa_base_segment(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
         self.skip_separators();
         if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
             let candidate_end = self.candidate_end(self.index);
@@ -487,7 +483,7 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn handle_su(&self, acc: &mut Vec<WordWithModifiers>) {
+    fn handle_su(&self, acc: &mut Vec<WordLike>) {
         *acc = erase_back_to_su_boundary(acc);
     }
 
@@ -495,8 +491,8 @@ impl<'a> Segmenter<'a> {
     #[ensures(true)]
     fn handle_zei(
         &mut self,
-        acc: &mut Vec<WordWithModifiers>,
-        zei_word_with_modifiers: WordWithModifiers,
+        acc: &mut Vec<WordLike>,
+        zei_word_with_modifiers: WordLike,
     ) -> Result<(), MorphologyError> {
         self.skip_y_words();
         let next = self.next_plain_word().ok();
@@ -566,7 +562,7 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn next_plain_non_y_word(&mut self) -> Result<WordWithModifiers, MorphologyError> {
+    fn next_plain_non_y_word(&mut self) -> Result<WordLike, MorphologyError> {
         loop {
             let word = self.next_plain_word()?;
             if !is_y_word(&word) {
@@ -766,7 +762,7 @@ impl<'a> Segmenter<'a> {
         end: usize,
         kind: WordKind,
         phonemes: String,
-    ) -> Result<WordWithModifiers, MorphologyError> {
+    ) -> Result<WordLike, MorphologyError> {
         let span = self.source_span(start, end)?;
         Ok(base_word_like(WordLike::bare(new!(Word {
             kind: kind,
@@ -779,7 +775,7 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn digit_sequence(&mut self) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+    fn digit_sequence(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
         let mut words = Vec::new();
         while self.index < self.chars.len() {
             let start = self.index;
@@ -974,83 +970,36 @@ enum SAMatchTag<'a> {
 
 #[requires(true)]
 #[ensures(true)]
-fn base_word_like(word_like: WordLike) -> WordWithModifiers {
-    WordWithModifiers::base_word(word_like)
+fn base_word_like(word_like: WordLike) -> WordLike {
+    word_like
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn extract_word(word: &WordWithModifiers) -> Option<Word> {
+fn extract_word(word: &WordLike) -> Option<Word> {
     match word.as_data() {
-        data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
-            data!(WordLike::Bare { word }) => Some((**word).clone()),
-            _ => None,
-        },
-        data!(WordWithModifiers::Emphasized { word_like, .. }) => match word_like.as_data() {
-            data!(WordLike::Bare { word }) => Some((**word).clone()),
-            _ => None,
-        },
-        data!(WordWithModifiers::WithIndicator { base, .. }) => extract_word(base),
-        data!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
-            Some((**indicator).clone())
-        }
-        data!(WordWithModifiers::NotEof) => None,
+        data!(WordLike::Bare(word)) => Some((**word).clone()),
+        _ => None,
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn get_word_like(word: &WordWithModifiers) -> WordLike {
-    match word.as_data() {
-        data!(WordWithModifiers::BaseWord { word_like }) => (**word_like).clone(),
-        data!(WordWithModifiers::Emphasized { word_like, .. }) => (**word_like).clone(),
-        data!(WordWithModifiers::WithIndicator { base, .. }) => get_word_like(base),
-        data!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
-            WordLike::bare((**indicator).clone())
-        }
-        data!(WordWithModifiers::NotEof) => WordLike::bare(new!(Word {
-            kind: WordKind::Cmavo,
-            phonemes: String::from("<not-eof>"),
-            span: SourceSpan::new(None, 0, 0, 0, 0).expect("valid empty span"),
-            surface_override: None,
-            dialect_transform: None,
-        })),
-    }
+fn get_word_like(word: &WordLike) -> WordLike {
+    word.clone()
 }
 
 #[requires(!text.is_empty())]
 #[ensures(true)]
-fn is_simple_cmavo_text(word: &WordWithModifiers, text: &str) -> bool {
-    match word.as_data() {
-        data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
-            data!(WordLike::Bare { word }) => {
-                word.kind == WordKind::Cmavo && canonicalize_text(&word.phonemes) == text
-            }
-            _ => false,
-        },
-        data!(WordWithModifiers::Emphasized { word_like, .. }) => match word_like.as_data() {
-            data!(WordLike::Bare { word }) => {
-                word.kind == WordKind::Cmavo && canonicalize_text(&word.phonemes) == text
-            }
-            _ => false,
-        },
-        data!(WordWithModifiers::WithIndicator { base, .. }) => is_simple_cmavo_text(base, text),
-        _ => false,
-    }
+fn is_simple_cmavo_text(word: &WordLike, text: &str) -> bool {
+    word.visible_cmavo_is(text)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn is_y_word(word: &WordWithModifiers) -> bool {
-    match word.as_data() {
-        data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
-            data!(WordLike::Bare { word }) => {
-                word.kind == WordKind::Cmavo && is_y_word_text(&word.phonemes)
-            }
-            _ => false,
-        },
-        _ => false,
-    }
+fn is_y_word(word: &WordLike) -> bool {
+    extract_word(word)
+        .is_some_and(|word| word.kind == WordKind::Cmavo && is_y_word_text(&word.phonemes))
 }
 
 #[requires(true)]
@@ -1058,31 +1007,6 @@ fn is_y_word(word: &WordWithModifiers) -> bool {
 fn is_y_word_text(text: &str) -> bool {
     let canonical = canonicalize_text(text);
     !canonical.is_empty() && canonical.chars().all(|value| value == 'y')
-}
-
-#[ensures(!ret.is_empty() || text.is_empty())]
-#[requires(true)]
-fn canonicalize_text(text: &str) -> String {
-    text.chars()
-        .filter(|value| *value != ',')
-        .flat_map(strip_diacritic)
-        .flat_map(char::to_lowercase)
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn strip_diacritic(value: char) -> Option<char> {
-    Some(match value {
-        'á' | 'à' | 'Á' | 'À' => 'a',
-        'é' | 'è' | 'É' | 'È' => 'e',
-        'í' | 'ì' | 'ĭ' | 'Ĭ' | 'Í' | 'Ì' => 'i',
-        'ó' | 'ò' | 'Ó' | 'Ò' => 'o',
-        'ú' | 'ù' | 'ŭ' | 'Ŭ' | 'Ú' | 'Ù' => 'u',
-        'ý' | 'ỳ' | 'Ý' | 'Ỳ' => 'y',
-        '\u{0301}' | '\u{0300}' | '\u{0306}' => return None,
-        other => other,
-    })
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -1101,7 +1025,7 @@ fn trim_trailing_separator_indices(chars: &[SourceChar], start: usize, end: usiz
 
 #[requires(true)]
 #[ensures(true)]
-fn skip_acc_y(acc: &[WordWithModifiers]) -> (Option<WordWithModifiers>, Vec<WordWithModifiers>) {
+fn skip_acc_y(acc: &[WordLike]) -> (Option<WordLike>, Vec<WordLike>) {
     let mut last_y = None;
     for (index, token) in acc.iter().enumerate().rev() {
         if is_y_word(token) {
@@ -1115,9 +1039,9 @@ fn skip_acc_y(acc: &[WordWithModifiers]) -> (Option<WordWithModifiers>, Vec<Word
 
 #[requires(true)]
 #[ensures(true)]
-fn erase_back_to_su_boundary(acc: &[WordWithModifiers]) -> Vec<WordWithModifiers> {
+fn erase_back_to_su_boundary(acc: &[WordLike]) -> Vec<WordLike> {
     for (index, token) in acc.iter().enumerate().rev() {
-        let selmaho = visible_selmaho(&get_word_like(token));
+        let selmaho = visible_selmaho(token);
         if matches!(selmaho, Some("NIhO" | "LU" | "TUhE" | "TO")) {
             return acc[..index].to_vec();
         }
@@ -1127,12 +1051,9 @@ fn erase_back_to_su_boundary(acc: &[WordWithModifiers]) -> Vec<WordWithModifiers
 
 #[requires(true)]
 #[ensures(true)]
-fn sa_match_tag<'a>(
-    options: &MorphologyOptions,
-    word: &'a WordWithModifiers,
-) -> Option<SAMatchTag<'a>> {
+fn sa_match_tag<'a>(options: &MorphologyOptions, word: &'a WordLike) -> Option<SAMatchTag<'a>> {
     match get_word_like(word).into_data() {
-        data!(WordLike::Bare { word }) => match word.kind {
+        data!(WordLike::Bare(word)) => match word.kind {
             WordKind::Cmavo => {
                 visible_selmaho(&WordLike::bare((*word).clone())).map(SAMatchTag::Selmaho)
             }
@@ -1150,8 +1071,8 @@ fn find_nth_matching_word(
     options: &MorphologyOptions,
     count: usize,
     target: SAMatchTag<'_>,
-    acc: &[WordWithModifiers],
-) -> Option<Vec<WordWithModifiers>> {
+    acc: &[WordLike],
+) -> Option<Vec<WordLike>> {
     let mut remaining = count;
     for (index, token) in acc.iter().enumerate().rev() {
         if sa_match_tag(options, token) == Some(target) {
@@ -1163,196 +1084,6 @@ fn find_nth_matching_word(
     }
     None
 }
-
-#[requires(true)]
-#[ensures(true)]
-fn visible_selmaho(word_like: &WordLike) -> Option<&'static str> {
-    match word_like.as_data() {
-        data!(WordLike::Bare { word }) if word.kind == WordKind::Cmavo => selmaho(&word.phonemes),
-        data!(WordLike::ZoQuote { .. }) => Some("ZO"),
-        data!(WordLike::ZoiQuote { zoi, .. }) => selmaho(&zoi.phonemes),
-        data!(WordLike::LohuQuote { .. }) => Some("LOhU"),
-        data!(WordLike::SingleWordQuote { marker, .. }) => selmaho(&marker.phonemes),
-        data!(WordLike::Letter { .. }) => Some("BU"),
-        data!(WordLike::ZeiLujvo { .. }) => Some("ZEI"),
-        _ => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn selmaho(cmavo: &str) -> Option<&'static str> {
-    match canonicalize_text(cmavo).as_str() {
-        "a" | "e" | "ji" | "o" | "u" => Some("A"),
-        "ba" | "ca" | "pu" => Some("PU"),
-        "ba'e" | "za'e" => Some("BAhE"),
-        "be" => Some("BE"),
-        "bei" => Some("BEI"),
-        "be'o" => Some("BEhO"),
-        "by" | "cy" | "dy" | "fy" | "gy" | "jy" | "ky" | "ly" | "my" | "ny" | "py" | "ry"
-        | "sy" | "ty" | "vy" | "xy" | "y'y" | "zy" => Some("BY"),
-        "cai" | "cu'i" | "pei" | "ru'e" | "sai" => Some("CAI"),
-        "ce'e" => Some("CEhE"),
-        "co" => Some("CO"),
-        "coi" | "co'o" | "je'e" | "ju'i" | "mi'e" | "mu'o" | "ta'a" => Some("COI"),
-        "cu" => Some("CU"),
-        "da" | "de" | "di" | "do" | "fo'a" | "fo'e" | "fo'i" | "fo'o" | "fo'u" | "ko" | "ko'a"
-        | "ko'e" | "ko'i" | "ko'o" | "ko'u" | "ma" | "mi" | "ra" | "ri" | "ru" | "ta" | "ti"
-        | "tu" | "vo'a" | "vo'e" | "vo'i" | "vo'o" | "vo'u" | "zo'e" | "zu'i" => Some("KOhA"),
-        "fa" | "fai" | "fe" | "fi" | "fi'a" | "fo" | "fu" => Some("FA"),
-        "fa'o" => Some("FAhO"),
-        "fu'a" => Some("FUhA"),
-        "ge'a" | "pa'i" | "re'a" | "sa'i" | "sa'o" | "su'i" | "te'a" | "va'a" | "vu'u" | "cu'a"
-        | "de'o" | "fe'a" | "fe'i" | "fu'u" | "ju'u" | "ne'o" | "pi'a" | "pi'i" | "ri'o" => {
-            Some("VUhU")
-        }
-        "goi" | "ne" | "no'u" | "pe" | "po" | "po'e" | "po'u" => Some("GOI"),
-        "i" => Some("I"),
-        "ja" | "je" | "jo" | "ju" => Some("JA"),
-        "jei" | "ka" | "li'i" | "mu'e" | "ni" | "nu" | "pu'u" | "si'o" | "su'u" | "za'i"
-        | "zu'o" => Some("NU"),
-        "jo'i" => Some("JOhI"),
-        "joi" | "ce" | "ce'o" | "fa'u" | "jo'e" | "jo'u" | "ju'e" | "ku'a" | "pi'u" => Some("JOI"),
-        "la" | "lai" | "la'i" => Some("LA"),
-        "le" | "lei" | "le'e" | "le'i" | "lo" | "loi" | "lo'e" | "lo'i" => Some("LE"),
-        "li" | "me'o" => Some("LI"),
-        "la'e" | "lu'a" | "lu'e" | "lu'i" | "lu'o" | "tu'a" | "vu'i" => Some("LAhE"),
-        "li'u" => Some("LIhU"),
-        "lo'o" => Some("LOhO"),
-        "ni'o" => Some("NIhO"),
-        "lu" => Some("LU"),
-        "tu'e" => Some("TUhE"),
-        "to" => Some("TO"),
-        "toi" => Some("TOI"),
-        "zo" | "ma'oi" => Some("ZO"),
-        "zoi" | "la'o" | "mu'oi" => Some("ZOI"),
-        "lo'u" => Some("LOhU"),
-        "le'u" => Some("LEhU"),
-        "bu" => Some("BU"),
-        "zei" => Some("ZEI"),
-        "na" | "ja'a" => Some("NA"),
-        "nai" => Some("NAI"),
-        "na'e" | "je'a" | "no'e" | "to'e" => Some("NAhE"),
-        "noi" | "poi" | "voi" => Some("NOI"),
-        "pa" | "re" | "ci" | "vo" | "mu" | "xa" | "ze" | "bi" | "so" | "no" | "pi" => Some("PA"),
-        "pe'e" => Some("PEhE"),
-        "sa" => Some("SA"),
-        "se" | "te" | "ve" | "xe" => Some("SE"),
-        "si" => Some("SI"),
-        "su" => Some("SU"),
-        "va" | "vi" | "vu" => Some("VA"),
-        "vau" => Some("VAU"),
-        "vei" => Some("VEI"),
-        "ve'o" => Some("VEhO"),
-        "xi" => Some("XI"),
-        "y" => Some("Y"),
-        "za" | "zi" | "zu" => Some("ZI"),
-        "zo'u" => Some("ZOhU"),
-        _ => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn apply_passes(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
-    pass_ui(pass_bahe(words))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn pass_bahe(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
-    let mut reversed: VecDeque<_> = words.into_iter().rev().collect();
-    let mut out = Vec::new();
-    while let Some(word) = reversed.pop_front() {
-        if reversed.front().is_some_and(|next| {
-            is_simple_cmavo_text(next, "ba'e") || is_simple_cmavo_text(next, "za'e")
-        }) && let Some(bahe_token) = reversed.pop_front()
-            && let Some(bahe) = get_modifier_word(&bahe_token)
-        {
-            reversed.push_front(WordWithModifiers::emphasized(bahe, get_word_like(&word)));
-        } else {
-            out.push(word);
-        }
-    }
-    out.reverse();
-    out
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn pass_ui(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
-    let mut out: Vec<WordWithModifiers> = Vec::new();
-    let mut iter = words.into_iter().peekable();
-    while let Some(word) = iter.next() {
-        if is_indicator(&word) {
-            let indicator = get_modifier_word(&word);
-            let nai = if iter
-                .peek()
-                .is_some_and(|next| is_simple_cmavo_text(next, "nai"))
-            {
-                iter.next().and_then(|next| get_modifier_word(&next))
-            } else {
-                None
-            };
-            if let Some(indicator) = indicator {
-                if let Some(prev) = out.pop() {
-                    out.push(WordWithModifiers::with_indicator(prev, indicator, nai));
-                } else if nai.is_some() {
-                    out.push(WordWithModifiers::standalone_indicator(indicator, nai));
-                } else {
-                    out.push(word);
-                }
-            } else {
-                out.push(word);
-            }
-        } else {
-            out.push(word);
-        }
-    }
-    out
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn get_modifier_word(word: &WordWithModifiers) -> Option<Word> {
-    match word.as_data() {
-        data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
-            data!(WordLike::Bare { word }) => Some((**word).clone()),
-            _ => None,
-        },
-        data!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
-            Some((**indicator).clone())
-        }
-        data!(WordWithModifiers::Emphasized { bahe, .. }) => Some((**bahe).clone()),
-        data!(WordWithModifiers::WithIndicator { indicator, .. }) => Some((**indicator).clone()),
-        data!(WordWithModifiers::NotEof) => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_indicator(word: &WordWithModifiers) -> bool {
-    match extract_word(word) {
-        Some(word) if word.kind == WordKind::Cmavo => {
-            INDICATORS.contains(&canonicalize_text(&word.phonemes).as_str())
-                || is_y_word_text(&word.phonemes)
-        }
-        _ => false,
-    }
-}
-
-const INDICATORS: &[&str] = &[
-    "i'a", "ie", "a'e", "u'i", "i'o", "i'e", "a'a", "ia", "o'i", "o'e", "e'e", "oi", "uo", "e'i",
-    "u'o", "au", "ua", "a'i", "i'u", "ii", "u'a", "ui", "a'o", "ai", "a'u", "iu", "ei", "o'o",
-    "e'a", "uu", "o'a", "o'u", "u'u", "e'o", "io", "e'u", "ue", "i'i", "u'e", "ba'a", "ja'o",
-    "ca'e", "su'a", "ti'e", "ka'u", "se'o", "za'a", "pe'i", "ru'a", "ju'a", "ta'o", "ra'u", "li'a",
-    "ba'u", "mu'a", "do'a", "to'u", "va'i", "pa'e", "zu'u", "sa'e", "la'a", "ke'u", "sa'u", "da'i",
-    "je'u", "sa'a", "kau", "ta'u", "na'i", "jo'a", "bi'u", "li'o", "li'oi", "pau", "mi'u", "ku'i",
-    "ji'a", "si'a", "po'o", "pe'a", "ro'i", "ro'e", "ro'o", "ro'u", "ro'a", "re'e", "le'o", "ju'o",
-    "fu'i", "dai", "ga'i", "zo'o", "be'u", "ri'e", "se'i", "se'a", "vu'e", "ki'a", "xu", "ge'e",
-    "bu'o", "ai'i", "e'ei", "fu'au", "ju'oi", "ko'oi", "oi'a", "si'au", "ue'i", "xo'o", "fu'e",
-    "fu'o", "cai", "pei", "cu'i", "sai", "ru'e", "y", "da'o",
-];
 
 #[requires(true)]
 #[ensures(true)]
@@ -1550,10 +1281,7 @@ mod tests {
             .expect("valid morphology");
 
         assert_eq!(words.len(), 1);
-        let data!(WordWithModifiers::BaseWord { word_like }) = words[0].as_data() else {
-            panic!("expected base word");
-        };
-        let data!(WordLike::ZoQuote { zo, word }) = word_like.as_data() else {
+        let data!(WordLike::ZoQuote { zo, word }) = words[0].as_data() else {
             panic!("expected ZO quote");
         };
         assert_eq!(zo.phonemes, "zo");
@@ -1569,15 +1297,12 @@ mod tests {
                 .expect("valid morphology");
 
         assert_eq!(words.len(), 1);
-        let data!(WordWithModifiers::BaseWord { word_like }) = words[0].as_data() else {
-            panic!("expected base word");
-        };
         let data!(WordLike::ZoiQuote {
             zoi,
             opening_delimiter,
             quoted_text,
             closing_delimiter,
-        }) = word_like.as_data()
+        }) = words[0].as_data()
         else {
             panic!("expected ZOI quote");
         };
@@ -1605,7 +1330,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn bare_phonemes(words: &[WordWithModifiers]) -> Vec<&str> {
+    fn bare_phonemes(words: &[WordLike]) -> Vec<&str> {
         words
             .iter()
             .map(|word| bare_word(word).expect("bare word").phonemes.as_str())
@@ -1614,18 +1339,15 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn bare_span(word: &WordWithModifiers) -> Option<&SourceSpan> {
+    fn bare_span(word: &WordLike) -> Option<&SourceSpan> {
         bare_word(word).map(|word| &word.span)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn bare_word(word: &WordWithModifiers) -> Option<&Word> {
+    fn bare_word(word: &WordLike) -> Option<&Word> {
         match word.as_data() {
-            data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
-                data!(WordLike::Bare { word }) => Some(word),
-                _ => None,
-            },
+            data!(WordLike::Bare(word)) => Some(word),
             _ => None,
         }
     }

@@ -1,8 +1,7 @@
 use bityzba::{data, invariant, requires};
-use jbotci_morphology::{
-    Word, WordKind, WordLike, WordLikeData, WordWithModifiers, WordWithModifiersData,
-};
+use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceSpan;
+use jbotci_syntax::{WordWithModifiers, WordWithModifiersData};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -22,11 +21,10 @@ pub(crate) fn format_word_with_modifiers(word: &WordWithModifiers, source: &str)
 #[ensures(true)]
 pub(crate) fn is_compound_word_with_modifiers(word: &WordWithModifiers) -> bool {
     match word.as_data() {
-        data!(WordWithModifiers::StandaloneIndicator { .. })
-        | data!(WordWithModifiers::Emphasized { .. })
+        data!(WordWithModifiers::Emphasized { .. })
         | data!(WordWithModifiers::WithIndicator { .. }) => true,
-        data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
-            data!(WordLike::Bare { .. }) => false,
+        data!(WordWithModifiers::Bare(word_like)) => match word_like.as_data() {
+            data!(WordLike::Bare(..)) => false,
             data!(WordLike::ZoQuote { .. })
             | data!(WordLike::ZoiQuote { .. })
             | data!(WordLike::LohuQuote { .. })
@@ -34,7 +32,6 @@ pub(crate) fn is_compound_word_with_modifiers(word: &WordWithModifiers) -> bool 
             | data!(WordLike::Letter { .. })
             | data!(WordLike::ZeiLujvo { .. }) => true,
         },
-        data!(WordWithModifiers::NotEof) => false,
     }
 }
 
@@ -45,16 +42,7 @@ fn flatten_word_with_modifiers_surface(
     source: &str,
 ) -> Vec<SurfaceChunk> {
     match word.as_data() {
-        data!(WordWithModifiers::BaseWord { word_like }) => {
-            flatten_word_like_surface(word_like, source)
-        }
-        data!(WordWithModifiers::StandaloneIndicator { indicator, nai }) => {
-            let mut chunks = vec![SurfaceChunk::Word(render_word(indicator))];
-            if let Some(nai) = nai {
-                chunks.push(SurfaceChunk::Word(render_word(nai)));
-            }
-            chunks
-        }
+        data!(WordWithModifiers::Bare(word_like)) => flatten_word_like_surface(word_like, source),
         data!(WordWithModifiers::Emphasized { bahe, word_like }) => {
             let mut chunks = vec![SurfaceChunk::Word(render_word(bahe))];
             chunks.extend(flatten_word_like_surface(word_like, source));
@@ -72,7 +60,6 @@ fn flatten_word_with_modifiers_surface(
             }
             chunks
         }
-        data!(WordWithModifiers::NotEof) => Vec::new(),
     }
 }
 
@@ -80,7 +67,7 @@ fn flatten_word_with_modifiers_surface(
 #[ensures(true)]
 fn flatten_word_like_surface(word_like: &WordLike, source: &str) -> Vec<SurfaceChunk> {
     match word_like.as_data() {
-        data!(WordLike::Bare { word }) => vec![SurfaceChunk::Word(render_word(word))],
+        data!(WordLike::Bare(word)) => vec![SurfaceChunk::Word(render_word(word))],
         data!(WordLike::ZoQuote { zo, word }) => vec![
             SurfaceChunk::Word(render_word(zo)),
             SurfaceChunk::QuotedWords(vec![(**word).clone()]),

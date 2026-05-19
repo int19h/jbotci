@@ -9,12 +9,50 @@ entry-id = "20003"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "pilno", span = { source_id = "<fixture>", byte_start = 0, byte_end = 5, char_start = 0, char_end = 5 } } } },
-    { kind = "base-word", word_like = { kind = "zo-quote", zo = { kind = "cmavo", phonemes = "zo", span = { source_id = "<fixture>", byte_start = 6, byte_end = 8, char_start = 6, char_end = 8 } }, word = { kind = "cmavo", phonemes = "zoĭ", span = { source_id = "<fixture>", byte_start = 9, byte_end = 12, char_start = 9, char_end = 12 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "poĭ", span = { source_id = "<fixture>", byte_start = 13, byte_end = 16, char_start = 13, char_end = 16 } } } },
-    { kind = "base-word", word_like = { kind = "zo-quote", zo = { kind = "cmavo", phonemes = "zo", span = { source_id = "<fixture>", byte_start = 17, byte_end = 19, char_start = 17, char_end = 19 } }, word = { kind = "cmevla", phonemes = "sel", span = { source_id = "<fixture>", byte_start = 20, byte_end = 23, char_start = 20, char_end = 23 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ki'u", span = { source_id = "<fixture>", byte_start = 24, byte_end = 28, char_start = 24, char_end = 28 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ma", span = { source_id = "<fixture>", byte_start = 29, byte_end = 31, char_start = 29, char_end = 31 } } } },
+    {Bare = {
+        kind = "gismu",
+        phonemes = "pilno",
+        span = [0, 5]
+    }},
+    {ZoQuote = {
+        word = {
+            kind = "cmavo",
+            phonemes = "zoĭ",
+            span = [9, 12]
+        },
+        zo = {
+            kind = "cmavo",
+            phonemes = "zo",
+            span = [6, 8]
+        }
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "poĭ",
+        span = [13, 16]
+    }},
+    {ZoQuote = {
+        word = {
+            kind = "cmevla",
+            phonemes = "sel",
+            span = [20, 23]
+        },
+        zo = {
+            kind = "cmavo",
+            phonemes = "zo",
+            span = [17, 19]
+        }
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ki'u",
+        span = [24, 28]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ma",
+        span = [29, 31]
+    }},
 ]
 
 [expectations.syntax]

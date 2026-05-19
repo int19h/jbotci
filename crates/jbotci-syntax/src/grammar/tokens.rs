@@ -1,13 +1,11 @@
 use std::ops::Range;
 
+use crate::{Indicator, WordWithModifiers, WordWithModifiersData};
 use bityzba::{data, requires};
 use chumsky::error::{Rich, RichReason};
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
-use jbotci_morphology::{
-    Word, WordKind, WordLike, WordLikeData, WordWithModifiers, WordWithModifiersData,
-    strip_diacritics,
-};
+use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData, strip_diacritics};
 use jbotci_source::SourceSpan;
 
 use super::{BoxedParser, Span, SpannedToken};
@@ -23,7 +21,7 @@ pub(super) const PA_WORDS: &[&str] = &[
 pub(super) const MOI_WORDS: &[&str] = &["moi", "mei", "si'e", "cu'o", "va'e", "cei'a"];
 pub(super) const MAI_WORDS: &[&str] = &["mo'o", "mai"];
 pub(super) const LAU_WORDS: &[&str] = &["lau", "tau", "zai", "ce'a"];
-pub(super) const CAI_WORDS: &[&str] = &["pei", "cai", "cu'i", "sai", "ru'e"];
+pub(crate) const CAI_WORDS: &[&str] = &["pei", "cai", "cu'i", "sai", "ru'e"];
 pub(super) const CAHA_WORDS: &[&str] = &["ca'a", "pu'i", "nu'o", "ka'e", "bi'ai"];
 pub(super) const BAI_WORDS: &[&str] = &[
     "du'o", "si'u", "zau", "ki'i", "du'i", "cu'u", "tu'i", "ti'u", "di'o", "ji'u", "ri'a", "ni'i",
@@ -49,7 +47,7 @@ pub(super) const ZAHO_WORDS: &[&str] = &[
     "co'au'a", "co'u'a", "sau'a", "xa'o", "xo'u",
 ];
 pub(super) const FA_WORDS: &[&str] = &["fa", "fe", "fi", "fo", "fu", "fai", "fi'a"];
-pub(super) const UI_WORDS: &[&str] = &[
+pub(crate) const UI_WORDS: &[&str] = &[
     "i'a", "ie", "a'e", "u'i", "i'o", "i'e", "a'a", "ia", "o'i", "o'e", "e'e", "oi", "uo", "e'i",
     "u'o", "au", "ua", "a'i", "i'u", "ii", "u'a", "ui", "a'o", "ai", "a'u", "iu", "ei", "o'o",
     "e'a", "uu", "o'a", "o'u", "u'u", "e'o", "io", "e'u", "ue", "i'i", "u'e", "ba'a", "ja'o",
@@ -116,8 +114,22 @@ pub(super) fn lahe_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn leading_indicator<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
-    choice((cmavo_of("UI", UI_WORDS), cmavo_of("CAI", CAI_WORDS))).boxed()
+pub(super) fn leading_indicator<'tokens>() -> BoxedParser<'tokens, Indicator> {
+    choice((cmavo_of("UI", UI_WORDS), cmavo_of("CAI", CAI_WORDS)))
+        .then(cmavo("nai").or_not())
+        .map(|(indicator, nai)| {
+            let indicator = indicator
+                .visible_word()
+                .expect("leading indicator parser matched a visible word")
+                .clone();
+            let nai = nai.map(|nai| {
+                nai.visible_word()
+                    .expect("NAI parser matched a visible word")
+                    .clone()
+            });
+            Indicator::new(indicator, nai)
+        })
+        .boxed()
 }
 
 #[requires(true)]
@@ -197,10 +209,7 @@ pub(super) fn is_relation_word(word: &WordWithModifiers) -> bool {
         data!(WordWithModifiers::Emphasized { word_like, .. }) => {
             return word_like_is_relation_word(word_like);
         }
-        data!(WordWithModifiers::StandaloneIndicator { .. }) | data!(WordWithModifiers::NotEof) => {
-            return false;
-        }
-        data!(WordWithModifiers::BaseWord { .. }) => {}
+        data!(WordWithModifiers::Bare(..)) => {}
     }
 
     if GOHA_WORDS.iter().any(|text| cmavo_text_matches(word, text)) {
@@ -208,7 +217,7 @@ pub(super) fn is_relation_word(word: &WordWithModifiers) -> bool {
     }
 
     match word.as_data() {
-        data!(WordWithModifiers::BaseWord { word_like }) => word_like_is_relation_word(word_like),
+        data!(WordWithModifiers::Bare(word_like)) => word_like_is_relation_word(word_like),
         _ => false,
     }
 }
@@ -223,7 +232,7 @@ pub(super) fn is_brivla_relation_word(word: &WordWithModifiers) -> bool {
 #[ensures(true)]
 pub(super) fn word_like_is_relation_word(word_like: &WordLike) -> bool {
     match word_like.as_data() {
-        data!(WordLike::Bare { word }) => {
+        data!(WordLike::Bare(word)) => {
             matches!(
                 word.kind,
                 WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla
@@ -238,14 +247,11 @@ pub(super) fn word_like_is_relation_word(word_like: &WordLike) -> bool {
 #[ensures(true)]
 pub(super) fn is_cmevla_word(word: &WordWithModifiers) -> bool {
     match word.as_data() {
-        data!(WordWithModifiers::BaseWord { word_like })
+        data!(WordWithModifiers::Bare(word_like))
         | data!(WordWithModifiers::Emphasized { word_like, .. }) => {
             word_like_kind(word_like).is_some_and(|kind| kind == WordKind::Cmevla)
         }
         data!(WordWithModifiers::WithIndicator { base, .. }) => is_cmevla_word(base),
-        data!(WordWithModifiers::StandaloneIndicator { .. }) | data!(WordWithModifiers::NotEof) => {
-            false
-        }
     }
 }
 
@@ -253,10 +259,10 @@ pub(super) fn is_cmevla_word(word: &WordWithModifiers) -> bool {
 #[ensures(true)]
 pub(super) fn is_letter_word(word: &WordWithModifiers) -> bool {
     match word.as_data() {
-        data!(WordWithModifiers::BaseWord { word_like })
+        data!(WordWithModifiers::Bare(word_like))
         | data!(WordWithModifiers::Emphasized { word_like, .. }) => match word_like.as_data() {
             data!(WordLike::Letter { .. }) => true,
-            data!(WordLike::Bare { word }) => {
+            data!(WordLike::Bare(word)) => {
                 word.kind == WordKind::Cmavo
                     && ((word.phonemes != "bu" && word.phonemes.ends_with("bu"))
                         || matches!(
@@ -294,16 +300,13 @@ pub(super) fn is_letter_word(word: &WordWithModifiers) -> bool {
             _ => false,
         },
         data!(WordWithModifiers::WithIndicator { base, .. }) => is_letter_word(base),
-        data!(WordWithModifiers::StandaloneIndicator { .. }) | data!(WordWithModifiers::NotEof) => {
-            false
-        }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn word_like_kind(word_like: &WordLike) -> Option<WordKind> {
-    let data!(WordLike::Bare { word }) = word_like.as_data() else {
+    let data!(WordLike::Bare(word)) = word_like.as_data() else {
         return None;
     };
     Some(word.kind)
@@ -313,15 +316,11 @@ pub(super) fn word_like_kind(word_like: &WordLike) -> Option<WordKind> {
 #[ensures(true)]
 pub(super) fn cmavo_text_matches(word: &WordWithModifiers, expected: &str) -> bool {
     match word.as_data() {
-        data!(WordWithModifiers::BaseWord { word_like })
+        data!(WordWithModifiers::Bare(word_like))
         | data!(WordWithModifiers::Emphasized { word_like, .. }) => {
             word_like_cmavo_text_matches(word_like, expected)
         }
-        data!(WordWithModifiers::StandaloneIndicator { indicator, .. }) => {
-            word_record_text_matches(indicator, expected)
-        }
         data!(WordWithModifiers::WithIndicator { base, .. }) => cmavo_text_matches(base, expected),
-        data!(WordWithModifiers::NotEof) => false,
     }
 }
 
@@ -329,7 +328,7 @@ pub(super) fn cmavo_text_matches(word: &WordWithModifiers, expected: &str) -> bo
 #[ensures(true)]
 pub(super) fn word_like_cmavo_text_matches(word_like: &WordLike, expected: &str) -> bool {
     match word_like.as_data() {
-        data!(WordLike::Bare { word }) => word_record_text_matches(word, expected),
+        data!(WordLike::Bare(word)) => word_record_text_matches(word, expected),
         _ => false,
     }
 }
@@ -349,10 +348,10 @@ pub(super) fn phonemes_match_syntax_text(actual: &str, expected: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn bare_word_kind_and_phonemes(word: &WordWithModifiers) -> Option<(WordKind, &str)> {
-    let data!(WordWithModifiers::BaseWord { word_like }) = word.as_data() else {
+    let data!(WordWithModifiers::Bare(word_like)) = word.as_data() else {
         return None;
     };
-    let data!(WordLike::Bare { word }) = word_like.as_data() else {
+    let data!(WordLike::Bare(word)) = word_like.as_data() else {
         return None;
     };
     Some((word.kind, word.phonemes.as_str()))
@@ -361,7 +360,7 @@ pub(super) fn bare_word_kind_and_phonemes(word: &WordWithModifiers) -> Option<(W
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn base_word_from_record(word: Word) -> WordWithModifiers {
-    WordWithModifiers::base_word(WordLike::bare(word))
+    WordWithModifiers::bare(WordLike::bare(word))
 }
 
 #[requires(span.byte_start <= span.byte_end)]
@@ -393,10 +392,7 @@ pub(super) fn spanned_tokens(words: &[WordWithModifiers]) -> Vec<SpannedToken> {
 #[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 pub(super) fn word_byte_range(word: &WordWithModifiers) -> Option<Range<usize>> {
     match word.as_data() {
-        data!(WordWithModifiers::BaseWord { word_like }) => word_like_byte_range(word_like),
-        data!(WordWithModifiers::StandaloneIndicator { indicator, nai }) => {
-            Some(indicator.span.byte_start..nai.as_ref().unwrap_or(indicator).span.byte_end)
-        }
+        data!(WordWithModifiers::Bare(word_like)) => word_like_byte_range(word_like),
         data!(WordWithModifiers::Emphasized { bahe, word_like }) => word_like_byte_range(word_like)
             .map(|range| bahe.span.byte_start.min(range.start)..bahe.span.byte_end.max(range.end)),
         data!(WordWithModifiers::WithIndicator {
@@ -412,7 +408,6 @@ pub(super) fn word_byte_range(word: &WordWithModifiers) -> Option<Range<usize>> 
                     .byte_end
                     .max(range.end)
         }),
-        data!(WordWithModifiers::NotEof) => None,
     }
 }
 
@@ -420,7 +415,7 @@ pub(super) fn word_byte_range(word: &WordWithModifiers) -> Option<Range<usize>> 
 #[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
     match word_like.as_data() {
-        data!(WordLike::Bare { word }) => Some(word.span.byte_start..word.span.byte_end),
+        data!(WordLike::Bare(word)) => Some(word.span.byte_start..word.span.byte_end),
         data!(WordLike::ZoQuote { zo, word }) => Some(zo.span.byte_start..word.span.byte_end),
         data!(WordLike::ZoiQuote {
             zoi,

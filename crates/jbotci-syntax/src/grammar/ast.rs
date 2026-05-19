@@ -2,11 +2,12 @@
 // Boxing only for enum-size symmetry would obscure that shape during the port.
 #![allow(clippy::large_enum_variant)]
 
+use crate::{Indicator, WordWithModifiers};
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use jbotci_morphology::WordWithModifiers;
+use serde::Serialize;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateSyntax {
     pub leading_terms: Vec<TermSyntax>,
@@ -16,14 +17,14 @@ pub struct PredicateSyntax {
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateTailSyntax {
     pub first: PredicateTail1Syntax,
     pub ke_continuation: Option<KePredicateTailSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct KePredicateTailSyntax {
     pub connective: ConnectiveSyntax,
@@ -37,14 +38,14 @@ pub struct KePredicateTailSyntax {
     pub vau: Option<WordWithModifiers>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateTail1Syntax {
     pub first: PredicateTail2Syntax,
     pub continuations: Vec<PredicateTailContinuationSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateTailContinuationSyntax {
     pub connective: ConnectiveSyntax,
@@ -57,14 +58,14 @@ pub struct PredicateTailContinuationSyntax {
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateTail2Syntax {
     pub first: PredicateTail3Syntax,
     pub bo_continuation: Option<BoPredicateTailSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct BoPredicateTailSyntax {
     pub connective: ConnectiveSyntax,
@@ -78,7 +79,7 @@ pub struct BoPredicateTailSyntax {
     pub vau: Option<WordWithModifiers>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum PredicateTail3Syntax {
     Relation {
@@ -87,12 +88,10 @@ pub enum PredicateTail3Syntax {
         vau: Option<WordWithModifiers>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
-    GekSentence {
-        gek_sentence: GekSentenceSyntax,
-    },
+    GekSentence(GekSentenceSyntax),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum GekSentenceSyntax {
     Pair {
@@ -119,7 +118,7 @@ pub enum GekSentenceSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum SubsentenceSyntax {
     Plain(PredicateSyntax),
@@ -131,18 +130,18 @@ pub enum SubsentenceSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct TextSyntax {
     pub leading_nai: Vec<WordWithModifiers>,
     pub leading_cmevla: Vec<WordWithModifiers>,
-    pub leading_indicators: Vec<WordWithModifiers>,
+    pub leading_indicators: Vec<Indicator>,
     pub leading_free_modifiers: Vec<FreeModifierSyntax>,
     pub leading_connective: Option<ConnectiveSyntax>,
     pub paragraphs: Vec<ParagraphSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct ParagraphSyntax {
     pub i: Option<WordWithModifiers>,
@@ -151,7 +150,7 @@ pub struct ParagraphSyntax {
     pub statements: Vec<ParagraphStatementSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct ParagraphStatementSyntax {
     pub i: Option<WordWithModifiers>,
@@ -160,7 +159,7 @@ pub struct ParagraphStatementSyntax {
     pub statement: Option<StatementSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum FreeModifierSyntax {
     Sei {
@@ -215,7 +214,7 @@ pub enum FreeModifierSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum StatementSyntax {
     Tuhe {
@@ -258,7 +257,7 @@ pub enum StatementSyntax {
     Fragment(FragmentSyntax),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateStatementContinuationSyntax {
     pub connective: ConnectiveSyntax,
@@ -267,7 +266,7 @@ pub struct PredicateStatementContinuationSyntax {
     pub trailing_subsentence: SubsentenceSyntax,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum PredicateStatementContinuationMarkerSyntax {
     Bo {
@@ -282,15 +281,13 @@ pub enum PredicateStatementContinuationMarkerSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum FragmentSyntax {
     // v0 exposes this constructor even though the current grammar produces
     // TermFragment for parsed standalone arguments.
     #[allow(dead_code)]
-    Argument {
-        argument: ArgumentSyntax,
-    },
+    Argument(ArgumentSyntax),
     Ek {
         connective: ConnectiveSyntax,
         free_modifiers: Vec<FreeModifierSyntax>,
@@ -332,26 +329,18 @@ pub enum FragmentSyntax {
         beho: Option<WordWithModifiers>,
         beho_free_modifiers: Vec<FreeModifierSyntax>,
     },
-    BeiLink {
-        bei_only_links: Vec<BeiLinkSyntax>,
-    },
-    RelativeClause {
-        relative_clauses: Vec<RelativeClauseSyntax>,
-    },
-    MathExpression {
-        math_expression: MathExpressionSyntax,
-    },
+    BeiLink(Vec<BeiLinkSyntax>),
+    RelativeClause(Vec<RelativeClauseSyntax>),
+    MathExpression(MathExpressionSyntax),
     Term {
         terms: Vec<TermSyntax>,
         vau: Option<WordWithModifiers>,
         vau_free_modifiers: Vec<FreeModifierSyntax>,
     },
-    Relation {
-        relation: RelationSyntax,
-    },
+    Relation(RelationSyntax),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum TermSyntax {
     NuhiTermset {
@@ -455,7 +444,7 @@ pub enum TermSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum TermWrapperKindSyntax {
     Lahe,
@@ -463,14 +452,14 @@ pub enum TermWrapperKindSyntax {
     Nahe,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct ArgumentConnectionSyntax {
     pub connective: ConnectiveSyntax,
     pub argument: Box<ArgumentSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum ArgumentSyntax {
     Quote {
@@ -592,12 +581,8 @@ pub enum ArgumentSyntax {
         gik: ConnectiveSyntax,
         trailing_argument: Box<ArgumentSyntax>,
     },
-    Descriptor {
-        descriptor: DescriptorSyntax,
-    },
-    ConnectedDescriptor {
-        connected_descriptor: ConnectedDescriptorSyntax,
-    },
+    Descriptor(DescriptorSyntax),
+    ConnectedDescriptor(ConnectedDescriptorSyntax),
     Name {
         la: WordWithModifiers,
         la_free_modifiers: Vec<FreeModifierSyntax>,
@@ -615,7 +600,7 @@ pub enum ArgumentSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum RelativeClauseSyntax {
     Goi(GoiRelativeClauseSyntax),
@@ -644,7 +629,7 @@ pub enum RelativeClauseSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct GoiRelativeClauseSyntax {
     pub goi: WordWithModifiers,
@@ -654,7 +639,7 @@ pub struct GoiRelativeClauseSyntax {
     pub trailing_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct SelbriRelativeClauseSyntax {
     pub nohoi: WordWithModifiers,
@@ -664,7 +649,7 @@ pub struct SelbriRelativeClauseSyntax {
     pub trailing_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum QuoteSyntax {
     Lu {
@@ -717,7 +702,7 @@ pub enum QuoteSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct DescriptorSyntax {
     pub descriptor: Option<WordWithModifiers>,
@@ -730,14 +715,14 @@ pub struct DescriptorSyntax {
     pub ku_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct DescriptorHeadSyntax {
     pub descriptor: WordWithModifiers,
     pub descriptor_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct ConnectedDescriptorSyntax {
     pub leading_descriptor_head: DescriptorHeadSyntax,
@@ -750,7 +735,7 @@ pub struct ConnectedDescriptorSyntax {
     pub ku_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct ConnectiveSyntax {
     pub kind: ConnectiveKind,
@@ -762,7 +747,7 @@ pub struct ConnectiveSyntax {
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct BeiLinkSyntax {
     pub bei: WordWithModifiers,
@@ -773,7 +758,7 @@ pub struct BeiLinkSyntax {
 }
 
 #[invariant(self.fa.is_none() || self.argument.is_some(), "lifted FA link tags must have an argument")]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LinkArgumentSyntax {
     pub fa: Option<WordWithModifiers>,
     pub fa_free_modifiers: Vec<FreeModifierSyntax>,
@@ -781,7 +766,7 @@ pub struct LinkArgumentSyntax {
 }
 
 #[invariant(self.fa.is_none() || self.first_argument.is_some(), "lifted FA link tags must have an argument")]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BeLinkSyntax {
     pub be: WordWithModifiers,
     pub free_modifiers: Vec<FreeModifierSyntax>,
@@ -793,7 +778,7 @@ pub struct BeLinkSyntax {
     pub beho_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum ConnectiveKind {
     Afterthought,
@@ -804,7 +789,7 @@ pub enum ConnectiveKind {
     Interval,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum ArgumentTailElementSyntax {
     Argument(Box<ArgumentSyntax>),
@@ -812,7 +797,7 @@ pub enum ArgumentTailElementSyntax {
     Quantifier(QuantifierSyntax),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum QuantifierSyntax {
     Number {
@@ -829,7 +814,7 @@ pub enum QuantifierSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum MathExpressionSyntax {
     Number(QuantifierSyntax),
@@ -929,7 +914,7 @@ pub enum MathExpressionSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum MathOperatorSyntax {
     Vuhu {
@@ -999,7 +984,7 @@ pub enum MathOperatorSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum RelationSyntax {
     Connected {
@@ -1026,9 +1011,7 @@ pub enum RelationSyntax {
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_relation: Box<RelationSyntax>,
     },
-    Base {
-        word: WordWithModifiers,
-    },
+    Base(WordWithModifiers),
     Se {
         se: WordWithModifiers,
         free_modifiers: Vec<FreeModifierSyntax>,
@@ -1052,15 +1035,11 @@ pub enum RelationSyntax {
         gik: ConnectiveSyntax,
         trailing_predicate: Box<PredicateSyntax>,
     },
-    Abstraction {
-        abstraction: AbstractionSyntax,
-    },
-    Compound {
-        units: Vec<RelationUnitSyntax>,
-    },
+    Abstraction(AbstractionSyntax),
+    Compound(Vec<RelationUnitSyntax>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct TimeTenseSyntax {
     pub direction: Vec<WordWithModifiers>,
@@ -1069,7 +1048,7 @@ pub struct TimeTenseSyntax {
     pub nai: Option<WordWithModifiers>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct SpaceTenseSyntax {
     pub direction: Vec<WordWithModifiers>,
@@ -1080,7 +1059,7 @@ pub struct SpaceTenseSyntax {
     pub fehe: Option<WordWithModifiers>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct IntervalTenseSyntax {
     pub number: Vec<WordWithModifiers>,
@@ -1088,7 +1067,7 @@ pub struct IntervalTenseSyntax {
     pub nai: Option<WordWithModifiers>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct SimpleTenseModalSyntax {
     pub nahe: Option<WordWithModifiers>,
@@ -1097,7 +1076,7 @@ pub struct SimpleTenseModalSyntax {
     pub nai: Option<WordWithModifiers>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct FihoModalSyntax {
     pub nahe: Option<WordWithModifiers>,
@@ -1108,7 +1087,7 @@ pub struct FihoModalSyntax {
     pub fehu_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum TenseModalSyntax {
     Composite {
@@ -1193,7 +1172,7 @@ pub enum TenseModalSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct AbstractionSyntax {
     pub nu: WordWithModifiers,
@@ -1205,7 +1184,7 @@ pub struct AbstractionSyntax {
     pub kei_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct AdditionalNuSyntax {
     pub connective: ConnectiveSyntax,
@@ -1214,7 +1193,7 @@ pub struct AdditionalNuSyntax {
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum RelationUnitSyntax {
     Word {
@@ -1261,9 +1240,7 @@ pub enum RelationUnitSyntax {
         base: Box<RelationUnitSyntax>,
         selbri_relative_clauses: Vec<SelbriRelativeClauseSyntax>,
     },
-    Wrapped {
-        relation: RelationSyntax,
-    },
+    Wrapped(RelationSyntax),
     Jai {
         jai: WordWithModifiers,
         free_modifiers: Vec<FreeModifierSyntax>,
@@ -1292,9 +1269,7 @@ pub enum RelationUnitSyntax {
         beho_free_modifiers: Vec<FreeModifierSyntax>,
         base: Box<RelationUnitSyntax>,
     },
-    Abstraction {
-        abstraction: AbstractionSyntax,
-    },
+    Abstraction(AbstractionSyntax),
     Me {
         me: WordWithModifiers,
         me_free_modifiers: Vec<FreeModifierSyntax>,
@@ -1349,7 +1324,7 @@ pub enum RelationUnitSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct CeiAssignmentSyntax {
     pub cei: WordWithModifiers,
@@ -1499,7 +1474,9 @@ impl TextSyntax {
     pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.leading_nai;
         words.extend(self.leading_cmevla);
-        words.extend(self.leading_indicators);
+        for indicator in self.leading_indicators {
+            words.extend(indicator.words());
+        }
         for free_modifier in self.leading_free_modifiers {
             words.extend(free_modifier.words());
         }
@@ -1837,7 +1814,7 @@ impl PredicateTail3Syntax {
                 }
                 words
             }
-            PredicateTail3Syntax::GekSentence { gek_sentence } => gek_sentence.words(),
+            PredicateTail3Syntax::GekSentence(gek_sentence) => gek_sentence.words(),
         }
     }
 }
@@ -1940,7 +1917,7 @@ impl FragmentSyntax {
     #[ensures(true)]
     pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
-            FragmentSyntax::Argument { argument } => argument.words(),
+            FragmentSyntax::Argument(argument) => argument.words(),
             FragmentSyntax::Ek {
                 connective,
                 free_modifiers,
@@ -2033,15 +2010,15 @@ impl FragmentSyntax {
                 }
                 words
             }
-            FragmentSyntax::BeiLink { bei_only_links } => bei_only_links
+            FragmentSyntax::BeiLink(bei_only_links) => bei_only_links
                 .into_iter()
                 .flat_map(BeiLinkSyntax::words)
                 .collect(),
-            FragmentSyntax::RelativeClause { relative_clauses } => relative_clauses
+            FragmentSyntax::RelativeClause(relative_clauses) => relative_clauses
                 .into_iter()
                 .flat_map(RelativeClauseSyntax::words)
                 .collect(),
-            FragmentSyntax::MathExpression { math_expression } => math_expression.words(),
+            FragmentSyntax::MathExpression(math_expression) => math_expression.words(),
             FragmentSyntax::Term {
                 terms,
                 vau,
@@ -2057,7 +2034,7 @@ impl FragmentSyntax {
                 }
                 words
             }
-            FragmentSyntax::Relation { relation } => relation.words(),
+            FragmentSyntax::Relation(relation) => relation.words(),
         }
     }
 }
@@ -2869,10 +2846,10 @@ impl ArgumentSyntax {
                 words.extend(trailing_argument.words());
                 words
             }
-            ArgumentSyntax::Descriptor { descriptor } => descriptor.words(),
-            ArgumentSyntax::ConnectedDescriptor {
-                connected_descriptor,
-            } => connected_descriptor.words(),
+            ArgumentSyntax::Descriptor(descriptor) => descriptor.words(),
+            ArgumentSyntax::ConnectedDescriptor(connected_descriptor) => {
+                connected_descriptor.words()
+            }
             ArgumentSyntax::Name {
                 la,
                 la_free_modifiers,
@@ -3478,7 +3455,7 @@ impl RelationSyntax {
                 words.extend(inner_relation.words());
                 words
             }
-            RelationSyntax::Base { word } => vec![word],
+            RelationSyntax::Base(word) => vec![word],
             RelationSyntax::Se {
                 se,
                 free_modifiers,
@@ -3530,8 +3507,8 @@ impl RelationSyntax {
                 words.extend(trailing_predicate.words());
                 words
             }
-            RelationSyntax::Abstraction { abstraction } => abstraction.words(),
-            RelationSyntax::Compound { units } => units
+            RelationSyntax::Abstraction(abstraction) => abstraction.words(),
+            RelationSyntax::Compound(units) => units
                 .into_iter()
                 .flat_map(RelationUnitSyntax::words)
                 .collect(),
@@ -3651,7 +3628,7 @@ impl RelationUnitSyntax {
                 }
                 words
             }
-            RelationUnitSyntax::Wrapped { relation } => relation.words(),
+            RelationUnitSyntax::Wrapped(relation) => relation.words(),
             RelationUnitSyntax::Jai {
                 jai,
                 free_modifiers,
@@ -3728,7 +3705,7 @@ impl RelationUnitSyntax {
                 words.extend(base.words());
                 words
             }
-            RelationUnitSyntax::Abstraction { abstraction } => abstraction.words(),
+            RelationUnitSyntax::Abstraction(abstraction) => abstraction.words(),
             RelationUnitSyntax::Me {
                 me,
                 me_free_modifiers,

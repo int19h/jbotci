@@ -9,10 +9,40 @@ entry-id = "321"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "lohu-quote", lohu = { kind = "cmavo", phonemes = "lo'u", span = { source_id = "<fixture>", byte_start = 0, byte_end = 4, char_start = 0, char_end = 4 } }, quoted_words = [{ kind = "cmavo", phonemes = "mi", span = { source_id = "<fixture>", byte_start = 5, byte_end = 7, char_start = 5, char_end = 7 } }], lehu = { kind = "cmavo", phonemes = "le'u", span = { source_id = "<fixture>", byte_start = 8, byte_end = 12, char_start = 8, char_end = 12 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "co", span = { source_id = "<fixture>", byte_start = 13, byte_end = 15, char_start = 13, char_end = 15 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "le'u", span = { source_id = "<fixture>", byte_start = 16, byte_end = 20, char_start = 16, char_end = 20 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "klama", span = { source_id = "<fixture>", byte_start = 21, byte_end = 26, char_start = 21, char_end = 26 } } } },
+    {LohuQuote = {
+        lehu = {
+            kind = "cmavo",
+            phonemes = "le'u",
+            span = [8, 12]
+        },
+        lohu = {
+            kind = "cmavo",
+            phonemes = "lo'u",
+            span = [0, 4]
+        },
+        quoted_words = [
+            {
+                kind = "cmavo",
+                phonemes = "mi",
+                span = [5, 7]
+            },
+        ]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "co",
+        span = [13, 15]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "le'u",
+        span = [16, 20]
+    }},
+    {Bare = {
+        kind = "gismu",
+        phonemes = "klama",
+        span = [21, 26]
+    }},
 ]
 
 [expectations.syntax]

@@ -9,10 +9,33 @@ entry-id = "12662"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "long", span = { source_id = "<fixture>", byte_start = 0, byte_end = 4, char_start = 0, char_end = 4 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "li", span = { source_id = "<fixture>", byte_start = 5, byte_end = 7, char_start = 5, char_end = 7 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ve", span = { source_id = "<fixture>", byte_start = 7, byte_end = 9, char_start = 7, char_end = 9 } } } },
-    { kind = "base-word", word_like = { kind = "zo-quote", zo = { kind = "cmavo", phonemes = "zo", span = { source_id = "<fixture>", byte_start = 10, byte_end = 12, char_start = 10, char_end = 12 } }, word = { kind = "lujvo", phonemes = "samselpla", span = { source_id = "<fixture>", byte_start = 13, byte_end = 22, char_start = 13, char_end = 22 } } } },
+    {Bare = {
+        kind = "cmevla",
+        phonemes = "long",
+        span = [0, 4]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "li",
+        span = [5, 7]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ve",
+        span = [7, 9]
+    }},
+    {ZoQuote = {
+        word = {
+            kind = "lujvo",
+            phonemes = "samselpla",
+            span = [13, 22]
+        },
+        zo = {
+            kind = "cmavo",
+            phonemes = "zo",
+            span = [10, 12]
+        }
+    }},
 ]
 
 [expectations.syntax]

@@ -1,18 +1,17 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command as ProcessCommand, ExitStatus};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
-use bityzba::{contract_trait, ensures, expensive_requires, invariant, requires};
+use bityzba::{contract_trait, ensures, invariant, requires};
 use clap::{Args, Parser, Subcommand};
 use jbotci_morphology::{
-    MorphologyOptions, WordWithModifiers, segment_words_with_modifiers_with_options_and_source_id,
+    MorphologyOptions, WordLike, segment_words_with_modifiers_with_options_and_source_id,
 };
-use jbotci_output::pretty_brackets;
+use jbotci_output::{compact_json_value, pretty_brackets};
 use jbotci_source::SourceId;
-use jbotci_syntax::{
-    ParseOptions, SyntaxError, parse_syntax_tree_with_source_and_options, syntax_values_equivalent,
-};
+use jbotci_syntax::{ParseOptions, SyntaxError, parse_syntax_tree_with_source_and_options};
 use rayon::prelude::*;
 
 #[path = "../../tests/support/fixtures/mod.rs"]
@@ -23,6 +22,7 @@ use fixtures::{
     ExpectationStatus, Facet, FacetResult, FixtureBackend, FixtureProfile, FixtureSelector,
     LoadedTestCase, MuplisForm, Provenance, RunSummary, fixture_matches_selector, fixture_paths,
     import_export_file, load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree,
+    write_fixture_file,
 };
 use syntax_compare::format_syntax_mismatch;
 
@@ -51,6 +51,10 @@ enum Command {
     },
     FixtureImport(FixtureImportArgs),
     FixtureList(FixtureRunArgs),
+    FixtureRewrite {
+        #[arg(default_value = "tests/fixtures")]
+        root: PathBuf,
+    },
     FixtureTest(FixtureRunArgs),
 }
 
@@ -152,6 +156,7 @@ fn main() -> Result<()> {
         }
         Command::FixtureImport(args) => fixture_import(args),
         Command::FixtureList(args) => fixture_list(args),
+        Command::FixtureRewrite { root } => fixture_rewrite(root),
         Command::FixtureTest(args) => fixture_test(args),
     }
 }
@@ -196,6 +201,49 @@ fn fixture_list(args: FixtureRunArgs) -> Result<()> {
         Ok(())
     })
     .with_context(|| format!("loading fixtures under `{}`", args.root.display()))?;
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn fixture_rewrite(root: PathBuf) -> Result<()> {
+    let mut rewritten = 0usize;
+    for path in fixture_paths(&root)
+        .with_context(|| format!("listing fixtures under `{}`", root.display()))?
+    {
+        let before = fs::read_to_string(&path)
+            .with_context(|| format!("reading fixture `{}`", path.display()))?;
+        let mut fixture = load_fixture_path(&path)
+            .with_context(|| format!("loading fixture `{}`", path.display()))?;
+        refresh_fixture_expectations(&mut fixture)
+            .with_context(|| format!("refreshing fixture `{}`", path.display()))?;
+        write_fixture_file(&path, &fixture.test_case)
+            .with_context(|| format!("rewriting fixture `{}`", path.display()))?;
+        let after = fs::read_to_string(&path)
+            .with_context(|| format!("reading rewritten fixture `{}`", path.display()))?;
+        if before != after {
+            rewritten += 1;
+        }
+    }
+    println!("rewrote {rewritten} fixture(s)");
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
+    let dialect = fixture.test_case.dialect_definition()?;
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let words = segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    );
+    if let Some(morphology) = &mut fixture.test_case.expectations.morphology
+        && morphology.status == ExpectationStatus::Success
+    {
+        morphology.words = words.clone()?;
+    }
     Ok(())
 }
 
@@ -432,7 +480,7 @@ impl FixtureBackend for NotImplementedBackend {
     }
 }
 
-#[expensive_requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
 #[ensures(ret.is_valid())]
 fn run_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let Some(expectation) = fixture
@@ -525,7 +573,7 @@ fn normalize_cll_bracket_char(ch: char) -> Option<char> {
     }
 }
 
-#[expensive_requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
 #[ensures(ret.is_valid())]
 fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let Some(expectation) = &fixture.test_case.expectations.syntax else {
@@ -574,7 +622,13 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                 let Some(expected_tree) = &expectation.parse_tree else {
                     return FacetResult::failed("syntax success expectation has no parse-tree");
                 };
-                if syntax_values_equivalent(expected_tree, &parsed.parse_tree) {
+                let actual_tree = match compact_json_value(&parsed.parse_tree) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        return FacetResult::failed(format!("syntax JSON encode error: {error}"));
+                    }
+                };
+                if expected_tree == &actual_tree {
                     syntax_xfail_result(expectation, ExpectationStatus::Success, true)
                         .unwrap_or_else(FacetResult::passed)
                 } else if expectation.xfail.is_some()
@@ -587,7 +641,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                         "syntax xfail accepted success, but parse-tree did not match",
                     )
                 } else {
-                    FacetResult::failed(format_syntax_mismatch(expected_tree, &parsed.parse_tree))
+                    FacetResult::failed(format_syntax_mismatch(expected_tree, &actual_tree))
                 }
             }
             ExpectationStatus::Failure => {
@@ -599,7 +653,15 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     let Some(expected_tree) = &expectation.parse_tree else {
                         return FacetResult::failed("syntax success xfail has no parse-tree");
                     };
-                    if syntax_values_equivalent(expected_tree, &parsed.parse_tree) {
+                    let actual_tree = match compact_json_value(&parsed.parse_tree) {
+                        Ok(value) => value,
+                        Err(error) => {
+                            return FacetResult::failed(format!(
+                                "syntax JSON encode error: {error}"
+                            ));
+                        }
+                    };
+                    if expected_tree == &actual_tree {
                         syntax_xfail_result(expectation, ExpectationStatus::Success, true)
                             .unwrap_or_else(|| {
                                 FacetResult::failed(
@@ -609,7 +671,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     } else {
                         FacetResult::failed(format!(
                             "syntax xfail accepted success, but {}",
-                            format_syntax_mismatch(expected_tree, &parsed.parse_tree)
+                            format_syntax_mismatch(expected_tree, &actual_tree)
                         ))
                     }
                 } else {
@@ -673,7 +735,7 @@ fn syntax_xfail_result(
     )))
 }
 
-#[expensive_requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
 #[ensures(ret.is_valid())]
 fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let Some(expectation) = &fixture.test_case.expectations.morphology else {
@@ -722,10 +784,7 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
 
 #[ensures(!ret.is_empty())]
 #[requires(true)]
-fn format_morphology_mismatch(
-    expected: &[WordWithModifiers],
-    actual: &[WordWithModifiers],
-) -> String {
+fn format_morphology_mismatch(expected: &[WordLike], actual: &[WordLike]) -> String {
     let first_difference = expected
         .iter()
         .zip(actual.iter())

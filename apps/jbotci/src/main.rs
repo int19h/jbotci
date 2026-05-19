@@ -7,7 +7,7 @@ use std::process::ExitCode;
 use anyhow::{Result, anyhow};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use jbotci_morphology::segment_words_with_modifiers;
-use jbotci_output::{BracketRenderOptions, pretty_brackets_with_options};
+use jbotci_output::{BracketRenderOptions, compact_json_string, pretty_brackets_with_options};
 use jbotci_syntax::{ParseOptions, parse_raw_text, parse_syntax_tree};
 use owo_colors::{OwoColorize, Stream};
 
@@ -48,6 +48,8 @@ enum Command {
 enum GentufaFormat {
     Compact,
     Raw,
+    #[value(alias = "djeisone")]
+    Json,
 }
 
 #[derive(Debug, Args)]
@@ -160,8 +162,13 @@ fn run_cli<W: Write>(cli: Cli, stdout: &mut W, color_enabled: bool) -> Result<()
         Command::Vlasei(input) => {
             let text = input.read_text()?;
             let words = segment_words_with_modifiers(&text)?;
-            for word in words {
-                writeln!(stdout, "{word}")?;
+            if matches!(input.format.as_deref(), Some("json" | "djeisone")) {
+                let rendered = compact_json_string(&words)?;
+                writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
+            } else {
+                for word in words {
+                    writeln!(stdout, "{word}")?;
+                }
             }
             Ok(())
         }
@@ -206,6 +213,11 @@ fn run_gentufa<W: Write>(input: GentufaInput, stdout: &mut W, color_enabled: boo
             let parsed = parse_raw_text(&words, &ParseOptions::default())?;
             writeln!(stdout, "{parsed:#?}")?;
         }
+        GentufaFormat::Json => {
+            let parsed = parse_syntax_tree(&words)?;
+            let rendered = compact_json_string(&parsed.parse_tree)?;
+            writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
+        }
     }
     Ok(())
 }
@@ -218,7 +230,7 @@ fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
             GentufaFormat::Compact => Err(anyhow!(
                 "`--skicu`/`--defs` is accepted for compact output, but dictionary definition rendering has not been ported yet"
             )),
-            GentufaFormat::Raw => Err(anyhow!(
+            GentufaFormat::Raw | GentufaFormat::Json => Err(anyhow!(
                 "`--skicu`/`--defs` is only meaningful with `--turtau compact`; dictionary definition rendering has not been ported yet"
             )),
         }
@@ -251,6 +263,108 @@ fn stdout_supports_color() -> bool {
     "x".if_supports_color(Stream::Stdout, |text| text.red())
         .to_string()
         != "x"
+}
+
+#[requires(true)]
+#[ensures(!enabled -> ret == text)]
+fn colorize_json(text: &str, enabled: bool) -> String {
+    if !enabled {
+        return text.to_owned();
+    }
+    let chars = text.chars().collect::<Vec<_>>();
+    let mut output = String::new();
+    let mut index = 0;
+    while index < chars.len() {
+        match chars[index] {
+            '{' | '}' | '[' | ']' => {
+                output.push_str(&chars[index].to_string().cyan().to_string());
+                index += 1;
+            }
+            ':' | ',' => {
+                output.push_str(&chars[index].to_string().bright_black().to_string());
+                index += 1;
+            }
+            '"' => {
+                let start = index;
+                index += 1;
+                let mut escaped = false;
+                while index < chars.len() {
+                    let ch = chars[index];
+                    index += 1;
+                    if escaped {
+                        escaped = false;
+                    } else if ch == '\\' {
+                        escaped = true;
+                    } else if ch == '"' {
+                        break;
+                    }
+                }
+                let token = chars[start..index].iter().collect::<String>();
+                if json_string_is_key(&chars, index) {
+                    if json_string_token_is_constructor_key(&token) {
+                        output.push_str(&token.bright_blue().to_string());
+                    } else {
+                        output.push_str(&token.green().to_string());
+                    }
+                } else {
+                    output.push_str(&token.yellow().to_string());
+                }
+            }
+            ch if ch.is_ascii_digit() || ch == '-' => {
+                let start = index;
+                index += 1;
+                while index < chars.len()
+                    && matches!(chars[index], '0'..='9' | '.' | 'e' | 'E' | '+' | '-')
+                {
+                    index += 1;
+                }
+                output.push_str(
+                    &chars[start..index]
+                        .iter()
+                        .collect::<String>()
+                        .magenta()
+                        .to_string(),
+                );
+            }
+            ch if ch.is_ascii_alphabetic() => {
+                let start = index;
+                index += 1;
+                while index < chars.len() && chars[index].is_ascii_alphabetic() {
+                    index += 1;
+                }
+                output.push_str(
+                    &chars[start..index]
+                        .iter()
+                        .collect::<String>()
+                        .magenta()
+                        .to_string(),
+                );
+            }
+            ch => {
+                output.push(ch);
+                index += 1;
+            }
+        }
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn json_string_is_key(chars: &[char], mut index: usize) -> bool {
+    while index < chars.len() && chars[index].is_whitespace() {
+        index += 1;
+    }
+    index < chars.len() && chars[index] == ':'
+}
+
+#[requires(token.starts_with('"'))]
+#[ensures(true)]
+fn json_string_token_is_constructor_key(token: &str) -> bool {
+    token
+        .chars()
+        .nth(1)
+        .is_some_and(|ch| ch.is_ascii_uppercase())
 }
 
 #[requires(true)]
@@ -397,6 +511,45 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlasei_json_outputs_compact_morphology() {
+        let cli = Cli::try_parse_from(["jbotci", "vlasei", "--format", "json", "coi"])
+            .expect("vlasei json");
+        let mut output = Vec::new();
+        run_cli(cli, &mut output, false).expect("vlasei json run");
+        let value: serde_json::Value =
+            serde_json::from_slice(&output).expect("valid uncolored JSON");
+
+        assert_eq!(value[0]["Bare"]["kind"], "cmavo");
+        assert_eq!(value[0]["Bare"]["span"], serde_json::json!([0, 3]));
+        assert!(
+            String::from_utf8(output)
+                .expect("utf8")
+                .contains("\"Bare\"")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_json_outputs_typed_syntax_tree() {
+        let cli = Cli::try_parse_from(["jbotci", "gentufa", "--format", "djeisone", "mi", "klama"])
+            .expect("gentufa json");
+        let mut output = Vec::new();
+        run_cli(cli, &mut output, false).expect("gentufa json run");
+        let text = String::from_utf8(output).expect("utf8");
+        let value: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
+
+        assert!(value.get("leading_nai").is_none());
+        assert!(value["paragraphs"].as_array().is_some());
+        assert!(text.contains("\"Predicate\""));
+        assert!(!text.contains("\"constructor\""));
+        assert!(!text.contains("\"kind\": \"node\""));
+        assert!(!text.contains("\"leadingNai\""));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn gentufa_raw_output_is_debug_syntax_parse() {
         let cli = Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "raw", "mi", "klama"])
             .expect("gentufa raw");
@@ -436,6 +589,16 @@ mod tests {
         run_cli(cli, &mut output, false).expect("gentufa color run");
         let output = String::from_utf8(output).expect("utf8");
         assert!(output.contains("\x1b["));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn json_colorizer_distinguishes_keys_from_string_values() {
+        let output = colorize_json(r#"{"key":"value","Predicate":{}}"#, true);
+        assert!(output.contains("\x1b[32m\"key\"\x1b[39m"));
+        assert!(output.contains("\x1b[33m\"value\"\x1b[39m"));
+        assert!(output.contains("\x1b[94m\"Predicate\"\x1b[39m"));
     }
 
     #[test]

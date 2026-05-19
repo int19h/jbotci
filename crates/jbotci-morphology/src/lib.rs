@@ -6,7 +6,7 @@ mod syntax_eq;
 
 use std::fmt;
 
-use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 pub use jbotci_dialect::{
     CmavoDialectEntry, CmavoDialectTransform, DialectDefinition, DialectFeature,
 };
@@ -14,9 +14,7 @@ use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub use syntax_eq::{
-    strip_diacritics, word_like_syntax_eq, word_syntax_eq, word_with_modifiers_syntax_eq,
-};
+pub use syntax_eq::{strip_diacritics, word_like_syntax_eq, word_syntax_eq};
 
 #[invariant(self.cmavo_dialect_entries.iter().all(CmavoDialectEntry::is_valid), "cmavo dialect entries must be normalized and internally valid")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -135,13 +133,55 @@ impl fmt::Display for Word {
     }
 }
 
-#[expensive_invariant(word_like_data_is_valid(self.as_data()))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
+impl Word {
+    #[requires(true)]
+    #[ensures(!ret.is_empty() || self.phonemes.is_empty())]
+    pub fn canonical_phonemes(&self) -> String {
+        canonicalize_text(&self.phonemes)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.kind == WordKind::Cmavo))]
+    pub fn is_cmavo(&self) -> bool {
+        self.kind == WordKind::Cmavo
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self.kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla))]
+    pub fn is_brivla(&self) -> bool {
+        matches!(
+            self.kind,
+            WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.kind == WordKind::Cmevla))]
+    pub fn is_cmevla(&self) -> bool {
+        self.kind == WordKind::Cmevla
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    pub fn is_cmavo_text(&self, text: &str) -> bool {
+        self.is_cmavo() && self.canonical_phonemes() == text
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn selmaho(&self) -> Option<&'static str> {
+        if self.is_cmavo() {
+            selmaho(&self.phonemes)
+        } else {
+            None
+        }
+    }
+}
+
+#[invariant(word_like_data_is_valid(self.as_data()))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum WordLike {
-    Bare {
-        word: Box<Word>,
-    },
+    Bare(Box<Word>),
     ZoQuote {
         zo: Box<Word>,
         word: Box<Word>,
@@ -176,9 +216,7 @@ impl WordLike {
     #[requires(true)]
     #[ensures(true)]
     pub fn bare(word: Word) -> Self {
-        new!(WordLike::Bare {
-            word: Box::new(word),
-        })
+        new!(WordLike::Bare(Box::new(word)))
     }
 
     #[requires(true)]
@@ -243,6 +281,65 @@ impl WordLike {
             right: Box::new(right),
         })
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visible_base_word(&self) -> Option<&Word> {
+        match self.as_data() {
+            data!(WordLike::Bare(word)) => Some(word),
+            data!(WordLike::ZoQuote { zo, .. }) => Some(zo),
+            data!(WordLike::ZoiQuote { zoi, .. }) => Some(zoi),
+            data!(WordLike::LohuQuote { lohu, .. }) => Some(lohu),
+            data!(WordLike::SingleWordQuote { marker, .. }) => Some(marker),
+            data!(WordLike::Letter { base, .. }) => base.visible_base_word(),
+            data!(WordLike::ZeiLujvo { left, .. }) => left.visible_base_word(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visible_selmaho(&self) -> Option<&'static str> {
+        visible_selmaho(self)
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    pub fn visible_cmavo_is(&self, text: &str) -> bool {
+        match self.as_data() {
+            data!(WordLike::Bare(word)) => word.is_cmavo_text(text),
+            _ => false,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), data!(WordLike::Bare(word)) if word.is_brivla()))]
+    pub fn is_brivla(&self) -> bool {
+        matches!(self.as_data(), data!(WordLike::Bare(word)) if word.is_brivla())
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), data!(WordLike::Bare(word)) if word.is_cmevla()))]
+    pub fn is_cmevla(&self) -> bool {
+        matches!(self.as_data(), data!(WordLike::Bare(word)) if word.is_cmevla())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
+    pub fn byte_range(&self) -> Option<std::ops::Range<usize>> {
+        word_like_byte_range(self)
+    }
+}
+
+impl<'de> Deserialize<'de> for WordLike {
+    #[requires(true)]
+    #[ensures(true)]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        word_like_from_json(serde_json::Value::deserialize(deserializer)?)
+            .map_err(serde::de::Error::custom)
+    }
 }
 
 impl fmt::Display for WordLike {
@@ -250,7 +347,7 @@ impl fmt::Display for WordLike {
     #[ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.as_data() {
-            data!(WordLike::Bare { word }) => write!(f, "{word}"),
+            data!(WordLike::Bare(word)) => write!(f, "{word}"),
             data!(WordLike::ZoQuote { zo, word }) => write!(f, "{zo}-<<{word}>>"),
             data!(WordLike::ZoiQuote {
                 zoi,
@@ -288,103 +385,71 @@ impl fmt::Display for WordLike {
     }
 }
 
-#[expensive_invariant(word_with_modifiers_data_is_valid(self.as_data()))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
-pub enum WordWithModifiers {
-    BaseWord {
-        word_like: Box<WordLike>,
-    },
-    StandaloneIndicator {
-        indicator: Box<Word>,
-        nai: Option<Box<Word>>,
-    },
-    Emphasized {
-        bahe: Box<Word>,
-        word_like: Box<WordLike>,
-    },
-    WithIndicator {
-        base: Box<WordWithModifiers>,
-        indicator: Box<Word>,
-        nai: Option<Box<Word>>,
-    },
-    NotEof,
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+pub fn map_word_like_spans<F>(word_like: WordLike, map_span: &F) -> Result<WordLike, String>
+where
+    F: Fn(SourceSpan) -> Result<SourceSpan, String>,
+{
+    Ok(match word_like.as_data() {
+        data!(WordLike::Bare(word)) => WordLike::bare(map_word_spans((**word).clone(), map_span)?),
+        data!(WordLike::ZoQuote { zo, word }) => WordLike::zo_quote(
+            map_word_spans((**zo).clone(), map_span)?,
+            map_word_spans((**word).clone(), map_span)?,
+        ),
+        data!(WordLike::ZoiQuote {
+            zoi,
+            opening_delimiter,
+            quoted_text,
+            closing_delimiter,
+        }) => WordLike::zoi_quote(
+            map_word_spans((**zoi).clone(), map_span)?,
+            map_word_spans((**opening_delimiter).clone(), map_span)?,
+            map_span(quoted_text.clone())?,
+            map_word_spans((**closing_delimiter).clone(), map_span)?,
+        ),
+        data!(WordLike::LohuQuote {
+            lohu,
+            quoted_words,
+            lehu,
+        }) => WordLike::lohu_quote(
+            map_word_spans((**lohu).clone(), map_span)?,
+            quoted_words
+                .iter()
+                .cloned()
+                .map(|word| map_word_spans(word, map_span))
+                .collect::<Result<Vec<_>, _>>()?,
+            map_word_spans((**lehu).clone(), map_span)?,
+        ),
+        data!(WordLike::SingleWordQuote {
+            marker,
+            quoted_text,
+        }) => WordLike::single_word_quote(
+            map_word_spans((**marker).clone(), map_span)?,
+            map_span(quoted_text.clone())?,
+        ),
+        data!(WordLike::Letter { base, bu }) => WordLike::letter(
+            map_word_like_spans((**base).clone(), map_span)?,
+            map_word_spans((**bu).clone(), map_span)?,
+        ),
+        data!(WordLike::ZeiLujvo { left, zei, right }) => WordLike::zei_lujvo(
+            map_word_like_spans((**left).clone(), map_span)?,
+            map_word_spans((**zei).clone(), map_span)?,
+            map_word_spans((**right).clone(), map_span)?,
+        ),
+    })
 }
 
-impl WordWithModifiers {
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn base_word(word_like: WordLike) -> Self {
-        new!(WordWithModifiers::BaseWord {
-            word_like: Box::new(word_like),
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn standalone_indicator(indicator: Word, nai: Option<Word>) -> Self {
-        new!(WordWithModifiers::StandaloneIndicator {
-            indicator: Box::new(indicator),
-            nai: nai.map(Box::new),
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn emphasized(bahe: Word, word_like: WordLike) -> Self {
-        new!(WordWithModifiers::Emphasized {
-            bahe: Box::new(bahe),
-            word_like: Box::new(word_like),
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn with_indicator(base: WordWithModifiers, indicator: Word, nai: Option<Word>) -> Self {
-        new!(WordWithModifiers::WithIndicator {
-            base: Box::new(base),
-            indicator: Box::new(indicator),
-            nai: nai.map(Box::new),
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn not_eof() -> Self {
-        new!(WordWithModifiers::NotEof)
-    }
-}
-
-impl fmt::Display for WordWithModifiers {
-    #[requires(true)]
-    #[ensures(true)]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.as_data() {
-            data!(WordWithModifiers::BaseWord { word_like }) => write!(f, "{word_like}"),
-            data!(WordWithModifiers::StandaloneIndicator { indicator, nai }) => {
-                write!(f, "{indicator}")?;
-                if let Some(nai) = nai {
-                    write!(f, "-{nai}")?;
-                }
-                Ok(())
-            }
-            data!(WordWithModifiers::Emphasized { bahe, word_like }) => {
-                write!(f, "{bahe}-{word_like}")
-            }
-            data!(WordWithModifiers::WithIndicator {
-                base,
-                indicator,
-                nai,
-            }) => {
-                write!(f, "{base}-{indicator}")?;
-                if let Some(nai) = nai {
-                    write!(f, "-{nai}")?;
-                }
-                Ok(())
-            }
-            data!(WordWithModifiers::NotEof) => f.write_str("<not-eof>"),
-        }
-    }
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+pub fn map_word_spans<F>(word: Word, map_span: &F) -> Result<Word, String>
+where
+    F: Fn(SourceSpan) -> Result<SourceSpan, String>,
+{
+    let span = map_span(word.span.clone())?;
+    Ok(word.with_data(data! {
+        span: span,
+    }))
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -413,9 +478,7 @@ pub enum MorphologyError {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn segment_words_with_modifiers(
-    input: &str,
-) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+pub fn segment_words_with_modifiers(input: &str) -> Result<Vec<WordLike>, MorphologyError> {
     segment_words_with_modifiers_with_options_and_source_id(
         input,
         &MorphologyOptions::default(),
@@ -428,7 +491,7 @@ pub fn segment_words_with_modifiers(
 pub fn segment_words_with_modifiers_with_options(
     input: &str,
     options: &MorphologyOptions,
-) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+) -> Result<Vec<WordLike>, MorphologyError> {
     segment_words_with_modifiers_with_options_and_source_id(input, options, None)
 }
 
@@ -437,7 +500,7 @@ pub fn segment_words_with_modifiers_with_options(
 pub fn segment_words_with_modifiers_with_source_id(
     input: &str,
     source_id: SourceId,
-) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+) -> Result<Vec<WordLike>, MorphologyError> {
     segment_words_with_modifiers_with_options_and_source_id(
         input,
         &MorphologyOptions::default(),
@@ -451,15 +514,13 @@ pub fn segment_words_with_modifiers_with_options_and_source_id(
     input: &str,
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
-) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+) -> Result<Vec<WordLike>, MorphologyError> {
     grammar::segment_words_with_modifiers(input, options, source_id)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub fn segment_words_with_modifiers_raw(
-    input: &str,
-) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+pub fn segment_words_with_modifiers_raw(input: &str) -> Result<Vec<WordLike>, MorphologyError> {
     segment_words_with_modifiers_raw_with_options_and_source_id(
         input,
         &MorphologyOptions::default(),
@@ -472,7 +533,7 @@ pub fn segment_words_with_modifiers_raw(
 pub fn segment_words_with_modifiers_raw_with_source_id(
     input: &str,
     source_id: SourceId,
-) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+) -> Result<Vec<WordLike>, MorphologyError> {
     segment_words_with_modifiers_raw_with_options_and_source_id(
         input,
         &MorphologyOptions::default(),
@@ -485,7 +546,7 @@ pub fn segment_words_with_modifiers_raw_with_source_id(
 pub fn segment_words_with_modifiers_raw_with_options(
     input: &str,
     options: &MorphologyOptions,
-) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+) -> Result<Vec<WordLike>, MorphologyError> {
     segment_words_with_modifiers_raw_with_options_and_source_id(input, options, None)
 }
 
@@ -495,29 +556,8 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
     input: &str,
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
-) -> Result<Vec<WordWithModifiers>, MorphologyError> {
+) -> Result<Vec<WordLike>, MorphologyError> {
     grammar::segment_words_with_modifiers_raw(input, options, source_id)
-}
-
-#[cfg_attr(not(test), allow(dead_code))]
-#[requires(true)]
-#[ensures(true)]
-fn word_with_modifiers_data_is_valid(word: &WordWithModifiersData) -> bool {
-    match word {
-        data!(WordWithModifiers::BaseWord { word_like }) => {
-            word_like_data_is_valid(word_like.as_data())
-        }
-        data!(WordWithModifiers::StandaloneIndicator { .. }) => true,
-        data!(WordWithModifiers::Emphasized { word_like, .. }) => {
-            word_like_data_is_valid(word_like.as_data())
-        }
-        data!(WordWithModifiers::WithIndicator {
-            base,
-            indicator: _,
-            nai: _,
-        }) => word_with_modifiers_data_is_valid(base.as_data()),
-        data!(WordWithModifiers::NotEof) => true,
-    }
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
@@ -525,21 +565,362 @@ fn word_with_modifiers_data_is_valid(word: &WordWithModifiersData) -> bool {
 #[ensures(true)]
 fn word_like_data_is_valid(word_like: &WordLikeData) -> bool {
     match word_like {
-        data!(WordLike::Bare { .. }) | data!(WordLike::ZoQuote { .. }) => true,
-        data!(WordLike::ZoiQuote { quoted_text, .. }) => source_span_is_valid(quoted_text),
-        data!(WordLike::LohuQuote { .. }) => true,
-        data!(WordLike::SingleWordQuote { quoted_text, .. }) => source_span_is_valid(quoted_text),
-        data!(WordLike::Letter { base, .. }) => word_like_data_is_valid(base.as_data()),
-        data!(WordLike::ZeiLujvo { left, .. }) => word_like_data_is_valid(left.as_data()),
+        data!(WordLike::Bare(..)) => true,
+        data!(WordLike::ZoQuote { zo, .. }) => zo.selmaho() == Some("ZO"),
+        data!(WordLike::ZoiQuote {
+            zoi,
+            opening_delimiter,
+            quoted_text,
+            closing_delimiter,
+        }) => {
+            zoi.selmaho() == Some("ZOI")
+                && opening_delimiter.span.byte_end <= quoted_text.byte_start
+                && quoted_text.byte_end <= closing_delimiter.span.byte_start
+        }
+        data!(WordLike::LohuQuote { lohu, lehu, .. }) => {
+            lohu.is_cmavo_text("lo'u") && lehu.is_cmavo_text("le'u")
+        }
+        data!(WordLike::SingleWordQuote { marker, .. }) => is_single_word_quote_marker(marker),
+        data!(WordLike::Letter { base, bu }) => {
+            word_like_data_is_valid(base.as_data()) && bu.is_cmavo_text("bu")
+        }
+        data!(WordLike::ZeiLujvo { left, zei, .. }) => {
+            word_like_data_is_valid(left.as_data()) && zei.is_cmavo_text("zei")
+        }
     }
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 #[requires(true)]
 #[ensures(true)]
-fn source_span_is_valid(_span: &SourceSpan) -> bool {
-    true
+fn is_single_word_quote_marker(word: &Word) -> bool {
+    matches!(
+        word.canonical_phonemes().as_str(),
+        "zo'oi" | "la'oi" | "ra'oi" | "me'oi" | "go'oi"
+    )
 }
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+fn word_like_from_json(value: serde_json::Value) -> Result<WordLike, String> {
+    let mut object = json_object(value)?;
+    if let Some(kind) = object.remove("kind") {
+        let kind = json_string(kind)?;
+        return match kind.as_str() {
+            "bare" => Ok(WordLike::bare(word_field(&mut object, "word")?)),
+            "zo-quote" => Ok(WordLike::zo_quote(
+                word_field(&mut object, "zo")?,
+                word_field(&mut object, "word")?,
+            )),
+            "zoi-quote" => Ok(WordLike::zoi_quote(
+                word_field(&mut object, "zoi")?,
+                word_field(&mut object, "opening_delimiter")?,
+                source_span_field(&mut object, "quoted_text")?,
+                word_field(&mut object, "closing_delimiter")?,
+            )),
+            "lohu-quote" => Ok(WordLike::lohu_quote(
+                word_field(&mut object, "lohu")?,
+                words_field(&mut object, "quoted_words")?,
+                word_field(&mut object, "lehu")?,
+            )),
+            "single-word-quote" => Ok(WordLike::single_word_quote(
+                word_field(&mut object, "marker")?,
+                source_span_field(&mut object, "quoted_text")?,
+            )),
+            "letter" => Ok(WordLike::letter(
+                word_like_field(&mut object, "base")?,
+                word_field(&mut object, "bu")?,
+            )),
+            "zei-lujvo" => Ok(WordLike::zei_lujvo(
+                word_like_field(&mut object, "left")?,
+                word_field(&mut object, "zei")?,
+                word_field(&mut object, "right")?,
+            )),
+            other => Err(format!("unknown word-like kind `{other}`")),
+        };
+    }
+    let (constructor, payload) = single_constructor(object)?;
+    let mut payload = json_object(payload)?;
+    match constructor.as_str() {
+        "BaseWord" => word_like_field(&mut payload, "word_like"),
+        "Emphasized" => word_like_field(&mut payload, "word_like"),
+        "WithIndicator" => word_like_field(&mut payload, "base"),
+        "StandaloneIndicator" => Ok(WordLike::bare(word_field(&mut payload, "indicator")?)),
+        "NotEof" => Ok(WordLike::bare(new!(Word {
+            kind: WordKind::Cmavo,
+            phonemes: String::from("fa'o"),
+            span: SourceSpan::new(None, 0, 0, 0, 0).expect("valid empty span"),
+            surface_override: None,
+            dialect_transform: None,
+        }))),
+        "Bare" => Ok(WordLike::bare(word_payload(payload)?)),
+        "ZoQuote" => Ok(WordLike::zo_quote(
+            word_field(&mut payload, "zo")?,
+            word_field(&mut payload, "word")?,
+        )),
+        "ZoiQuote" => Ok(WordLike::zoi_quote(
+            word_field(&mut payload, "zoi")?,
+            word_field(&mut payload, "opening_delimiter")?,
+            source_span_field(&mut payload, "quoted_text")?,
+            word_field(&mut payload, "closing_delimiter")?,
+        )),
+        "LohuQuote" => Ok(WordLike::lohu_quote(
+            word_field(&mut payload, "lohu")?,
+            words_field(&mut payload, "quoted_words")?,
+            word_field(&mut payload, "lehu")?,
+        )),
+        "SingleWordQuote" => Ok(WordLike::single_word_quote(
+            word_field(&mut payload, "marker")?,
+            source_span_field(&mut payload, "quoted_text")?,
+        )),
+        "Letter" => Ok(WordLike::letter(
+            word_like_field(&mut payload, "base")?,
+            word_field(&mut payload, "bu")?,
+        )),
+        "ZeiLujvo" => Ok(WordLike::zei_lujvo(
+            word_like_field(&mut payload, "left")?,
+            word_field(&mut payload, "zei")?,
+            word_field(&mut payload, "right")?,
+        )),
+        other => Err(format!("unknown word-like constructor `{other}`")),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+fn word_field(
+    object: &mut serde_json::Map<String, serde_json::Value>,
+    name: &str,
+) -> Result<Word, String> {
+    serde_json::from_value(required_field(object, name)?)
+        .map_err(|error| format!("invalid word field `{name}`: {error}"))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+fn word_payload(mut object: serde_json::Map<String, serde_json::Value>) -> Result<Word, String> {
+    if object.contains_key("word") {
+        return word_field(&mut object, "word");
+    }
+    serde_json::from_value(serde_json::Value::Object(object))
+        .map_err(|error| format!("invalid word payload: {error}"))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+fn words_field(
+    object: &mut serde_json::Map<String, serde_json::Value>,
+    name: &str,
+) -> Result<Vec<Word>, String> {
+    let Some(value) = object.remove(name) else {
+        return Ok(Vec::new());
+    };
+    serde_json::from_value(value)
+        .map_err(|error| format!("invalid word list field `{name}`: {error}"))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+fn source_span_field(
+    object: &mut serde_json::Map<String, serde_json::Value>,
+    name: &str,
+) -> Result<SourceSpan, String> {
+    serde_json::from_value(required_field(object, name)?)
+        .map_err(|error| format!("invalid source span field `{name}`: {error}"))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+fn word_like_field(
+    object: &mut serde_json::Map<String, serde_json::Value>,
+    name: &str,
+) -> Result<WordLike, String> {
+    word_like_from_json(required_field(object, name)?)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+fn required_field(
+    object: &mut serde_json::Map<String, serde_json::Value>,
+    name: &str,
+) -> Result<serde_json::Value, String> {
+    object
+        .remove(name)
+        .ok_or_else(|| format!("missing field `{name}`"))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+fn json_object(
+    value: serde_json::Value,
+) -> Result<serde_json::Map<String, serde_json::Value>, String> {
+    match value {
+        serde_json::Value::Object(object) => Ok(object),
+        other => Err(format!("expected object, got {other}")),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+fn json_string(value: serde_json::Value) -> Result<String, String> {
+    match value {
+        serde_json::Value::String(text) => Ok(text),
+        other => Err(format!("expected string, got {other}")),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+fn single_constructor(
+    object: serde_json::Map<String, serde_json::Value>,
+) -> Result<(String, serde_json::Value), String> {
+    if object.len() != 1 {
+        return Err(format!(
+            "expected single constructor key, got {}",
+            object.len()
+        ));
+    }
+    Ok(object.into_iter().next().expect("object has one item"))
+}
+
+#[ensures(!ret.is_empty() || text.is_empty())]
+#[requires(true)]
+pub fn canonicalize_text(text: &str) -> String {
+    text.chars()
+        .filter(|value| *value != ',')
+        .flat_map(strip_diacritic)
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn strip_diacritic(value: char) -> Option<char> {
+    Some(match value {
+        'á' | 'à' | 'Á' | 'À' => 'a',
+        'é' | 'è' | 'É' | 'È' => 'e',
+        'í' | 'ì' | 'ĭ' | 'Ĭ' | 'Í' | 'Ì' => 'i',
+        'ó' | 'ò' | 'Ó' | 'Ò' => 'o',
+        'ú' | 'ù' | 'ŭ' | 'Ŭ' | 'Ú' | 'Ù' => 'u',
+        'ý' | 'ỳ' | 'Ý' | 'Ỳ' => 'y',
+        '\u{0301}' | '\u{0300}' | '\u{0306}' => return None,
+        other => other,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn selmaho(cmavo: &str) -> Option<&'static str> {
+    match canonicalize_text(cmavo).as_str() {
+        "a" | "e" | "ji" | "o" | "u" => Some("A"),
+        "ba" | "ca" | "pu" => Some("PU"),
+        "ba'e" | "za'e" => Some("BAhE"),
+        "be" => Some("BE"),
+        "bei" => Some("BEI"),
+        "be'o" => Some("BEhO"),
+        "by" | "cy" | "dy" | "fy" | "gy" | "jy" | "ky" | "ly" | "my" | "ny" | "py" | "ry"
+        | "sy" | "ty" | "vy" | "xy" | "y'y" | "zy" => Some("BY"),
+        "cai" | "cu'i" | "pei" | "ru'e" | "sai" => Some("CAI"),
+        "ce'e" => Some("CEhE"),
+        "co" => Some("CO"),
+        "coi" | "co'o" | "je'e" | "ju'i" | "mi'e" | "mu'o" | "ta'a" => Some("COI"),
+        "cu" => Some("CU"),
+        "da" | "de" | "di" | "do" | "fo'a" | "fo'e" | "fo'i" | "fo'o" | "fo'u" | "ko" | "ko'a"
+        | "ko'e" | "ko'i" | "ko'o" | "ko'u" | "ma" | "mi" | "ra" | "ri" | "ru" | "ta" | "ti"
+        | "tu" | "vo'a" | "vo'e" | "vo'i" | "vo'o" | "vo'u" | "zo'e" | "zu'i" => Some("KOhA"),
+        "fa" | "fai" | "fe" | "fi" | "fi'a" | "fo" | "fu" => Some("FA"),
+        "fa'o" => Some("FAhO"),
+        "fu'a" => Some("FUhA"),
+        "ge'a" | "pa'i" | "re'a" | "sa'i" | "sa'o" | "su'i" | "te'a" | "va'a" | "vu'u" | "cu'a"
+        | "de'o" | "fe'a" | "fe'i" | "fu'u" | "ju'u" | "ne'o" | "pi'a" | "pi'i" | "ri'o" => {
+            Some("VUhU")
+        }
+        "goi" | "ne" | "no'u" | "pe" | "po" | "po'e" | "po'u" => Some("GOI"),
+        "i" => Some("I"),
+        "ja" | "je" | "jo" | "ju" => Some("JA"),
+        "jei" | "ka" | "li'i" | "mu'e" | "ni" | "nu" | "pu'u" | "si'o" | "su'u" | "za'i"
+        | "zu'o" => Some("NU"),
+        "jo'i" => Some("JOhI"),
+        "joi" | "ce" | "ce'o" | "fa'u" | "jo'e" | "jo'u" | "ju'e" | "ku'a" | "pi'u" => Some("JOI"),
+        "la" | "lai" | "la'i" => Some("LA"),
+        "le" | "lei" | "le'e" | "le'i" | "lo" | "loi" | "lo'e" | "lo'i" => Some("LE"),
+        "li" | "me'o" => Some("LI"),
+        "la'e" | "lu'a" | "lu'e" | "lu'i" | "lu'o" | "tu'a" | "vu'i" => Some("LAhE"),
+        "li'u" => Some("LIhU"),
+        "lo'o" => Some("LOhO"),
+        "ni'o" => Some("NIhO"),
+        "lu" => Some("LU"),
+        "tu'e" => Some("TUhE"),
+        "to" => Some("TO"),
+        "toi" => Some("TOI"),
+        "zo" | "ma'oi" => Some("ZO"),
+        "zoi" | "la'o" | "mu'oi" => Some("ZOI"),
+        "lo'u" => Some("LOhU"),
+        "le'u" => Some("LEhU"),
+        "bu" => Some("BU"),
+        "zei" => Some("ZEI"),
+        "na" | "ja'a" => Some("NA"),
+        "nai" => Some("NAI"),
+        "na'e" | "je'a" | "no'e" | "to'e" => Some("NAhE"),
+        "noi" | "poi" | "voi" => Some("NOI"),
+        "pa" | "re" | "ci" | "vo" | "mu" | "xa" | "ze" | "bi" | "so" | "no" | "pi" => Some("PA"),
+        "pe'e" => Some("PEhE"),
+        "sa" => Some("SA"),
+        "se" | "te" | "ve" | "xe" => Some("SE"),
+        "si" => Some("SI"),
+        "su" => Some("SU"),
+        "va" | "vi" | "vu" => Some("VA"),
+        "vau" => Some("VAU"),
+        "vei" => Some("VEI"),
+        "ve'o" => Some("VEhO"),
+        "xi" => Some("XI"),
+        "y" => Some("Y"),
+        "za" | "zi" | "zu" => Some("ZI"),
+        "zo'u" => Some("ZOhU"),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn visible_selmaho(word_like: &WordLike) -> Option<&'static str> {
+    match word_like.as_data() {
+        data!(WordLike::Bare(word)) => word.selmaho(),
+        data!(WordLike::ZoQuote { .. }) => Some("ZO"),
+        data!(WordLike::ZoiQuote { zoi, .. }) => zoi.selmaho(),
+        data!(WordLike::LohuQuote { .. }) => Some("LOhU"),
+        data!(WordLike::SingleWordQuote { marker, .. }) => marker.selmaho(),
+        data!(WordLike::Letter { .. }) => Some("BU"),
+        data!(WordLike::ZeiLujvo { .. }) => Some("ZEI"),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
+fn word_like_byte_range(word_like: &WordLike) -> Option<std::ops::Range<usize>> {
+    match word_like.as_data() {
+        data!(WordLike::Bare(word)) => Some(word.span.byte_start..word.span.byte_end),
+        data!(WordLike::ZoQuote { zo, word }) => Some(zo.span.byte_start..word.span.byte_end),
+        data!(WordLike::ZoiQuote {
+            zoi,
+            closing_delimiter,
+            ..
+        }) => Some(zoi.span.byte_start..closing_delimiter.span.byte_end),
+        data!(WordLike::LohuQuote { lohu, lehu, .. }) => {
+            Some(lohu.span.byte_start..lehu.span.byte_end)
+        }
+        data!(WordLike::SingleWordQuote {
+            marker,
+            quoted_text
+        }) => Some(marker.span.byte_start..quoted_text.byte_end),
+        data!(WordLike::Letter { base, bu }) => {
+            word_like_byte_range(base).map(|range| range.start..bu.span.byte_end.max(range.end))
+        }
+        data!(WordLike::ZeiLujvo { left, right, .. }) => {
+            word_like_byte_range(left).map(|range| range.start..right.span.byte_end.max(range.end))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -678,21 +1059,15 @@ mod tests {
         let mut left = segment_words_with_modifiers("coi").expect("valid morphology");
         let mut right = segment_words_with_modifiers("coi").expect("valid morphology");
         let word = match right[0].as_data() {
-            data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
-                data!(WordLike::Bare { word }) => (**word).clone(),
-                _ => panic!("expected bare word"),
-            },
-            _ => panic!("expected base word"),
+            data!(WordLike::Bare(word)) => (**word).clone(),
+            _ => panic!("expected bare word"),
         };
-        right[0] = WordWithModifiers::base_word(WordLike::bare(word.with_data(data! {
+        right[0] = WordLike::bare(word.with_data(data! {
             phonemes: String::from("coĭ"),
             span: SourceSpan::new(None, 99, 102, 99, 102).expect("valid span"),
-        })));
+        }));
 
-        assert!(word_with_modifiers_syntax_eq(
-            &left.remove(0),
-            &right.remove(0)
-        ));
+        assert!(word_like_syntax_eq(&left.remove(0), &right.remove(0)));
     }
 
     #[test]
@@ -742,12 +1117,9 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn base_word(word: &WordWithModifiers) -> Option<&Word> {
+    fn base_word(word: &WordLike) -> Option<&Word> {
         match word.as_data() {
-            data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
-                data!(WordLike::Bare { word }) => Some(word),
-                _ => None,
-            },
+            data!(WordLike::Bare(word)) => Some(word),
             _ => None,
         }
     }

@@ -5,11 +5,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bityzba::{contract_trait, data, invariant, new, requires};
-use jbotci_morphology::{
-    WordKind, WordLike, WordLikeData, WordWithModifiers, WordWithModifiersData,
-};
+use jbotci_morphology::{WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceId;
-use jbotci_syntax::{SyntaxField, SyntaxValue};
 use support::fixtures::{
     CllSelector, ExpectationStatus, Expectations, Facet, FacetResult, FixtureBackend,
     FixtureExport, FixtureSelector, LoadedTestCase, MorphologyExpectation, MuplisForm,
@@ -329,13 +326,13 @@ fn writer_keeps_tree_and_words_as_values() {
     let temp_root = temp_root("jbotci-fixtures-writer-test");
     fs::create_dir_all(&temp_root).expect("temp root");
     let fixture_path = temp_root.join("fixture.toml");
-    let word = WordWithModifiers::base_word(WordLike::bare(new!(jbotci_morphology::Word {
+    let word = WordLike::bare(new!(jbotci_morphology::Word {
         kind: WordKind::Cmavo,
         phonemes: String::from("coi"),
         span: jbotci_source_span(),
         surface_override: None,
         dialect_transform: None,
-    })));
+    }));
     let test_case = TestCase {
         id: "adhoc.syntax".into(),
         lojban: "coi".into(),
@@ -357,13 +354,7 @@ fn writer_keeps_tree_and_words_as_values() {
             }),
             syntax: Some(SyntaxExpectation {
                 status: ExpectationStatus::Success,
-                parse_tree: Some(SyntaxValue::node(
-                    "LojbanText",
-                    vec![new!(SyntaxField {
-                        name: Some("paragraphs".into()),
-                        value: SyntaxValue::list(vec![]),
-                    })],
-                )),
+                parse_tree: Some(serde_json::json!({})),
                 error: None,
                 xfail: Some(XfailExpectation {
                     source: "test".into(),
@@ -439,26 +430,30 @@ fn temp_root(prefix: &str) -> PathBuf {
 #[requires(true)]
 #[ensures(true)]
 fn jbotci_source_span() -> jbotci_source::SourceSpan {
-    jbotci_source::SourceSpan::new(None, 0, 3, 0, 3).expect("valid span")
+    jbotci_source::SourceSpan::new(
+        Some(jbotci_source::SourceId("<fixture>".to_owned())),
+        0,
+        3,
+        0,
+        3,
+    )
+    .expect("valid span")
 }
 
 #[contract_trait]
-trait WordWithModifiersExpectationExt {
+trait WordLikeExpectationExt {
     #[requires(true)]
     #[ensures(true)]
     fn base_word_kind(&self) -> Option<WordKind>;
 }
 
 #[contract_trait]
-impl WordWithModifiersExpectationExt for WordWithModifiers {
+impl WordLikeExpectationExt for WordLike {
     #[requires(true)]
     #[ensures(true)]
     fn base_word_kind(&self) -> Option<WordKind> {
         match self.as_data() {
-            data!(WordWithModifiers::BaseWord { word_like }) => match word_like.as_data() {
-                data!(WordLike::Bare { word }) => Some(word.kind),
-                _ => None,
-            },
+            data!(WordLike::Bare(word)) => Some(word.kind),
             _ => None,
         }
     }

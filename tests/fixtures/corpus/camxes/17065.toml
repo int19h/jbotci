@@ -9,89 +9,45 @@ entry-id = "17065"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "fucker", span = { source_id = "<fixture>", byte_start = 0, byte_end = 6, char_start = 0, char_end = 6 } } } }, indicator = { kind = "cmavo", phonemes = "zo'o", span = { source_id = "<fixture>", byte_start = 9, byte_end = 13, char_start = 9, char_end = 13 } } }, indicator = { kind = "cmavo", phonemes = "ru'e", span = { source_id = "<fixture>", byte_start = 13, byte_end = 17, char_start = 13, char_end = 17 } } },
+    {Bare = {
+        kind = "cmevla",
+        phonemes = "fucker",
+        span = [0, 6]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "zo'o",
+        span = [9, 13]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ru'e",
+        span = [13, 17]
+    }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    kind = "node",
-    node = {
-        constructor = "LojbanText",
-        fields = [
-            {
-                name = "leadingNai",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
+    leading_cmevla = [
+        {WithIndicator = {
+            base = {WithIndicator = {
+                base = {Bare = {
+                    kind = "cmevla",
+                    phonemes = "fucker",
+                    span = [0, 6]
+                }},
+                indicator = {
+                    kind = "cmavo",
+                    phonemes = "zo'o",
+                    span = [9, 13]
                 }
-            },
-            {
-                name = "leadingCmevla",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "(:)",
-                        fields = [
-                            {
-                                value = { kind = "word", word = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmevla", phonemes = "fucker", span = { source_id = "<fixture>", byte_start = 0, byte_end = 6, char_start = 0, char_end = 6 } } } }, indicator = { kind = "cmavo", phonemes = "zo'o", span = { source_id = "<fixture>", byte_start = 9, byte_end = 13, char_start = 9, char_end = 13 } } }, indicator = { kind = "cmavo", phonemes = "ru'e", span = { source_id = "<fixture>", byte_start = 13, byte_end = 17, char_start = 13, char_end = 17 } } } }
-                            },
-                            {
-                                value = {
-                                    kind = "node",
-                                    node = {
-                                        constructor = "[]",
-                                        fields = []
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                name = "leadingIndicators",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingFreeModifiers",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingConnective",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "Nothing",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "paragraphs",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
+            }},
+            indicator = {
+                kind = "cmavo",
+                phonemes = "ru'e",
+                span = [13, 17]
             }
-        ]
-    }
+        }},
+    ]
 }

@@ -15,89 +15,161 @@ brackets = ".ŭo-ru'e.a'i-saĭ-ro'o-bu'o-naĭ.a'i-ru'e-saĭ-ro'e-bu'o-naĭ"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ŭo", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } }, indicator = { kind = "cmavo", phonemes = "ru'e", span = { source_id = "<fixture>", byte_start = 3, byte_end = 7, char_start = 3, char_end = 7 } } }, indicator = { kind = "cmavo", phonemes = "a'i", span = { source_id = "<fixture>", byte_start = 8, byte_end = 11, char_start = 8, char_end = 11 } } }, indicator = { kind = "cmavo", phonemes = "saĭ", span = { source_id = "<fixture>", byte_start = 12, byte_end = 15, char_start = 12, char_end = 15 } } }, indicator = { kind = "cmavo", phonemes = "ro'o", span = { source_id = "<fixture>", byte_start = 16, byte_end = 20, char_start = 16, char_end = 20 } } }, indicator = { kind = "cmavo", phonemes = "bu'o", span = { source_id = "<fixture>", byte_start = 21, byte_end = 25, char_start = 21, char_end = 25 } }, nai = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 26, byte_end = 29, char_start = 26, char_end = 29 } } }, indicator = { kind = "cmavo", phonemes = "a'i", span = { source_id = "<fixture>", byte_start = 30, byte_end = 33, char_start = 30, char_end = 33 } } }, indicator = { kind = "cmavo", phonemes = "ru'e", span = { source_id = "<fixture>", byte_start = 34, byte_end = 38, char_start = 34, char_end = 38 } } }, indicator = { kind = "cmavo", phonemes = "saĭ", span = { source_id = "<fixture>", byte_start = 39, byte_end = 42, char_start = 39, char_end = 42 } } }, indicator = { kind = "cmavo", phonemes = "ro'e", span = { source_id = "<fixture>", byte_start = 43, byte_end = 47, char_start = 43, char_end = 47 } } }, indicator = { kind = "cmavo", phonemes = "bu'o", span = { source_id = "<fixture>", byte_start = 48, byte_end = 52, char_start = 48, char_end = 52 } }, nai = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 53, byte_end = 56, char_start = 53, char_end = 56 } } },
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ŭo",
+        span = [0, 2]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ru'e",
+        span = [3, 7]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "a'i",
+        span = [8, 11]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "saĭ",
+        span = [12, 15]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ro'o",
+        span = [16, 20]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "bu'o",
+        span = [21, 25]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "naĭ",
+        span = [26, 29]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "a'i",
+        span = [30, 33]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ru'e",
+        span = [34, 38]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "saĭ",
+        span = [39, 42]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ro'e",
+        span = [43, 47]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "bu'o",
+        span = [48, 52]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "naĭ",
+        span = [53, 56]
+    }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    kind = "node",
-    node = {
-        constructor = "LojbanText",
-        fields = [
-            {
-                name = "leadingNai",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingCmevla",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingIndicators",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "(:)",
-                        fields = [
-                            {
-                                value = { kind = "word", word = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "with-indicator", base = { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ŭo", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } }, indicator = { kind = "cmavo", phonemes = "ru'e", span = { source_id = "<fixture>", byte_start = 3, byte_end = 7, char_start = 3, char_end = 7 } } }, indicator = { kind = "cmavo", phonemes = "a'i", span = { source_id = "<fixture>", byte_start = 8, byte_end = 11, char_start = 8, char_end = 11 } } }, indicator = { kind = "cmavo", phonemes = "saĭ", span = { source_id = "<fixture>", byte_start = 12, byte_end = 15, char_start = 12, char_end = 15 } } }, indicator = { kind = "cmavo", phonemes = "ro'o", span = { source_id = "<fixture>", byte_start = 16, byte_end = 20, char_start = 16, char_end = 20 } } }, indicator = { kind = "cmavo", phonemes = "bu'o", span = { source_id = "<fixture>", byte_start = 21, byte_end = 25, char_start = 21, char_end = 25 } }, nai = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 26, byte_end = 29, char_start = 26, char_end = 29 } } }, indicator = { kind = "cmavo", phonemes = "a'i", span = { source_id = "<fixture>", byte_start = 30, byte_end = 33, char_start = 30, char_end = 33 } } }, indicator = { kind = "cmavo", phonemes = "ru'e", span = { source_id = "<fixture>", byte_start = 34, byte_end = 38, char_start = 34, char_end = 38 } } }, indicator = { kind = "cmavo", phonemes = "saĭ", span = { source_id = "<fixture>", byte_start = 39, byte_end = 42, char_start = 39, char_end = 42 } } }, indicator = { kind = "cmavo", phonemes = "ro'e", span = { source_id = "<fixture>", byte_start = 43, byte_end = 47, char_start = 43, char_end = 47 } } }, indicator = { kind = "cmavo", phonemes = "bu'o", span = { source_id = "<fixture>", byte_start = 48, byte_end = 52, char_start = 48, char_end = 52 } }, nai = { kind = "cmavo", phonemes = "naĭ", span = { source_id = "<fixture>", byte_start = 53, byte_end = 56, char_start = 53, char_end = 56 } } } }
-                            },
-                            {
-                                value = {
-                                    kind = "node",
-                                    node = {
-                                        constructor = "[]",
-                                        fields = []
+    leading_indicators = [
+        {WithIndicator = {
+            base = {WithIndicator = {
+                base = {WithIndicator = {
+                    base = {WithIndicator = {
+                        base = {WithIndicator = {
+                            base = {WithIndicator = {
+                                base = {WithIndicator = {
+                                    base = {WithIndicator = {
+                                        base = {WithIndicator = {
+                                            base = {WithIndicator = {
+                                                base = {Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ŭo",
+                                                    span = [0, 2]
+                                                }},
+                                                indicator = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ru'e",
+                                                    span = [3, 7]
+                                                }
+                                            }},
+                                            indicator = {
+                                                kind = "cmavo",
+                                                phonemes = "a'i",
+                                                span = [8, 11]
+                                            }
+                                        }},
+                                        indicator = {
+                                            kind = "cmavo",
+                                            phonemes = "saĭ",
+                                            span = [12, 15]
+                                        }
+                                    }},
+                                    indicator = {
+                                        kind = "cmavo",
+                                        phonemes = "ro'o",
+                                        span = [16, 20]
                                     }
+                                }},
+                                indicator = {
+                                    kind = "cmavo",
+                                    phonemes = "bu'o",
+                                    span = [21, 25]
+                                },
+                                nai = {
+                                    kind = "cmavo",
+                                    phonemes = "naĭ",
+                                    span = [26, 29]
                                 }
+                            }},
+                            indicator = {
+                                kind = "cmavo",
+                                phonemes = "a'i",
+                                span = [30, 33]
                             }
-                        ]
+                        }},
+                        indicator = {
+                            kind = "cmavo",
+                            phonemes = "ru'e",
+                            span = [34, 38]
+                        }
+                    }},
+                    indicator = {
+                        kind = "cmavo",
+                        phonemes = "saĭ",
+                        span = [39, 42]
                     }
+                }},
+                indicator = {
+                    kind = "cmavo",
+                    phonemes = "ro'e",
+                    span = [43, 47]
                 }
+            }},
+            indicator = {
+                kind = "cmavo",
+                phonemes = "bu'o",
+                span = [48, 52]
             },
-            {
-                name = "leadingFreeModifiers",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "leadingConnective",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "Nothing",
-                        fields = []
-                    }
-                }
-            },
-            {
-                name = "paragraphs",
-                value = {
-                    kind = "node",
-                    node = {
-                        constructor = "[]",
-                        fields = []
-                    }
-                }
+            nai = {
+                kind = "cmavo",
+                phonemes = "naĭ",
+                span = [53, 56]
             }
-        ]
-    }
+        }},
+    ]
 }

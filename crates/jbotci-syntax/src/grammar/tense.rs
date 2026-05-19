@@ -1,5 +1,5 @@
+use crate::WordWithModifiers;
 use bityzba::requires;
-use jbotci_morphology::WordWithModifiers;
 
 use super::ast::{
     FihoModalSyntax, FreeModifierSyntax, IntervalTenseSyntax, SimpleTenseModalSyntax,

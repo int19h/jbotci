@@ -7,10 +7,10 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use bityzba::{ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, requires};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
-use jbotci_morphology::WordWithModifiers;
-use jbotci_syntax::SyntaxValue;
+use jbotci_morphology::{WordLike, map_word_like_spans};
+use jbotci_source::{SourceId, SourceSpan};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use walkdir::WalkDir;
@@ -273,7 +273,7 @@ pub struct OutputExpectation {
 pub struct MorphologyExpectation {
     pub status: ExpectationStatus,
     #[serde(default)]
-    pub words: Vec<WordWithModifiers>,
+    pub words: Vec<WordLike>,
     #[serde(default)]
     pub error: Option<String>,
 }
@@ -284,7 +284,7 @@ pub struct MorphologyExpectation {
 pub struct SyntaxExpectation {
     pub status: ExpectationStatus,
     #[serde(default, rename = "parse-tree")]
-    pub parse_tree: Option<SyntaxValue>,
+    pub parse_tree: Option<serde_json::Value>,
     #[serde(default)]
     pub error: Option<ParseErrorExpectation>,
     #[serde(default)]
@@ -373,7 +373,7 @@ pub enum AllowedNextExpectation {
     ZoiQuote,
     LohuQuote,
     QuotedWord,
-    AnyWordWithModifiers,
+    AnyWordLike,
     Eof,
     Negative {
         expectation: Box<AllowedNextExpectation>,
@@ -600,6 +600,10 @@ pub enum FixtureError {
     },
     #[error("fixture `{id}` has invalid syntax xfail metadata: {message}")]
     InvalidXfail { id: String, message: String },
+    #[error("fixture `{id}` has invalid compact span: {message}")]
+    InvalidSpan { id: String, message: String },
+    #[error("fixture `{path}` uses legacy expectation format: {message}")]
+    LegacyExpectationFormat { path: PathBuf, message: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -622,10 +626,54 @@ fn default_schema_version() -> u16 {
 pub fn load_fixture_file(path: impl AsRef<Path>) -> Result<TestCase, FixtureError> {
     let path = path.as_ref();
     let text = read_text(path)?;
-    toml::from_str(&text).map_err(|source| FixtureError::ParseToml {
-        path: path.to_path_buf(),
-        source,
-    })
+    reject_legacy_expectation_format(path, &text)?;
+    let mut test_case: TestCase =
+        toml::from_str(&text).map_err(|source| FixtureError::ParseToml {
+            path: path.to_path_buf(),
+            source,
+        })?;
+    resolve_fixture_morphology_spans(&mut test_case)?;
+    Ok(test_case)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn reject_legacy_expectation_format(path: &Path, text: &str) -> Result<(), FixtureError> {
+    let legacy_patterns = [
+        "[expectations.syntax.parse-tree]",
+        "BaseWord =",
+        "StandaloneIndicator =",
+        "NotEof =",
+        "LojbanText =",
+        "constructor =",
+        "kind = \"node\"",
+        "kind = \"base-word\"",
+        "kind = \"standalone-indicator\"",
+        "kind = \"emphasized\"",
+        "kind = \"with-indicator\"",
+        "kind = \"not-eof\"",
+        "kind = \"bare\"",
+        "kind = \"zo-quote\"",
+        "kind = \"zoi-quote\"",
+        "kind = \"lohu-quote\"",
+        "kind = \"single-word-quote\"",
+        "kind = \"letter\"",
+        "kind = \"zei-lujvo\"",
+        "source_id",
+        "byte_start",
+        "byte_end",
+        "char_start",
+        "char_end",
+    ];
+    for pattern in legacy_patterns {
+        if text.contains(pattern) {
+            return Err(FixtureError::LegacyExpectationFormat {
+                path: path.to_path_buf(),
+                message: format!("found `{pattern}`"),
+            });
+        }
+    }
+    Ok(())
 }
 
 #[requires(test_case.is_valid_fixture_metadata())]
@@ -652,6 +700,55 @@ pub fn write_fixture_file(
         path: path.to_path_buf(),
         source,
     })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn resolve_fixture_morphology_spans(test_case: &mut TestCase) -> Result<(), FixtureError> {
+    let boundaries = char_boundaries(&test_case.lojban);
+    if let Some(morphology) = &mut test_case.expectations.morphology {
+        let words = std::mem::take(&mut morphology.words);
+        morphology.words = words
+            .into_iter()
+            .map(|word| map_word_like_spans(word, &|span| resolve_span(span, &boundaries)))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|message| FixtureError::InvalidSpan {
+                id: test_case.id.clone(),
+                message,
+            })?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn char_boundaries(source: &str) -> Vec<usize> {
+    let mut boundaries = source
+        .char_indices()
+        .map(|(byte_index, _)| byte_index)
+        .collect::<Vec<_>>();
+    boundaries.push(source.len());
+    boundaries
+}
+
+#[requires(!boundaries.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+fn resolve_span(span: SourceSpan, boundaries: &[usize]) -> Result<SourceSpan, String> {
+    let char_start = span.char_start;
+    let char_end = span.char_end;
+    let Some(byte_start) = boundaries.get(char_start).copied() else {
+        return Err(format!(
+            "span char_start {char_start} is outside fixture text"
+        ));
+    };
+    let Some(byte_end) = boundaries.get(char_end).copied() else {
+        return Err(format!("span char_end {char_end} is outside fixture text"));
+    };
+    Ok(span.with_data(data! {
+        source_id: Some(SourceId("<fixture>".to_owned())),
+        byte_start: byte_start,
+        byte_end: byte_end,
+    }))
 }
 
 #[requires(true)]

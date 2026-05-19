@@ -9,15 +9,64 @@ entry-id = "6682"
 [expectations.morphology]
 status = "success"
 words = [
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "ma", span = { source_id = "<fixture>", byte_start = 0, byte_end = 2, char_start = 0, char_end = 2 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "krinu", span = { source_id = "<fixture>", byte_start = 3, byte_end = 8, char_start = 3, char_end = 8 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "le", span = { source_id = "<fixture>", byte_start = 9, byte_end = 11, char_start = 9, char_end = 11 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "nu", span = { source_id = "<fixture>", byte_start = 11, byte_end = 13, char_start = 11, char_end = 13 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "mi", span = { source_id = "<fixture>", byte_start = 14, byte_end = 16, char_start = 14, char_end = 16 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "skami", span = { source_id = "<fixture>", byte_start = 17, byte_end = 22, char_start = 17, char_end = 22 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "cmavo", phonemes = "na", span = { source_id = "<fixture>", byte_start = 23, byte_end = 25, char_start = 23, char_end = 25 } } } },
-    { kind = "base-word", word_like = { kind = "bare", word = { kind = "gismu", phonemes = "facki", span = { source_id = "<fixture>", byte_start = 26, byte_end = 31, char_start = 26, char_end = 31 } } } },
-    { kind = "base-word", word_like = { kind = "zoi-quote", zoi = { kind = "cmavo", phonemes = "la'o", span = { source_id = "<fixture>", byte_start = 32, byte_end = 36, char_start = 32, char_end = 36 } }, opening_delimiter = { kind = "cmavo", phonemes = "gy", span = { source_id = "<fixture>", byte_start = 38, byte_end = 40, char_start = 38, char_end = 40 } }, quoted_text = { source_id = "<fixture>", byte_start = 40, byte_end = 55, char_start = 40, char_end = 55 }, closing_delimiter = { kind = "cmavo", phonemes = "gy", span = { source_id = "<fixture>", byte_start = 57, byte_end = 59, char_start = 57, char_end = 59 } } } },
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "ma",
+        span = [0, 2]
+    }},
+    {Bare = {
+        kind = "gismu",
+        phonemes = "krinu",
+        span = [3, 8]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "le",
+        span = [9, 11]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "nu",
+        span = [11, 13]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "mi",
+        span = [14, 16]
+    }},
+    {Bare = {
+        kind = "gismu",
+        phonemes = "skami",
+        span = [17, 22]
+    }},
+    {Bare = {
+        kind = "cmavo",
+        phonemes = "na",
+        span = [23, 25]
+    }},
+    {Bare = {
+        kind = "gismu",
+        phonemes = "facki",
+        span = [26, 31]
+    }},
+    {ZoiQuote = {
+        closing_delimiter = {
+            kind = "cmavo",
+            phonemes = "gy",
+            span = [57, 59]
+        },
+        opening_delimiter = {
+            kind = "cmavo",
+            phonemes = "gy",
+            span = [38, 40]
+        },
+        quoted_text = [40, 55],
+        zoi = {
+            kind = "cmavo",
+            phonemes = "la'o",
+            span = [32, 36]
+        }
+    }},
 ]
 
 [expectations.syntax]
