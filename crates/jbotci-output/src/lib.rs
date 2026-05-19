@@ -69,9 +69,28 @@ pub enum OutputError {
     InvalidSyntaxTree(String),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[invariant(true)]
+pub struct BracketRenderOptions {
+    pub color: bool,
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || matches!(tree.as_data(), bityzba::data!(SyntaxValue::Null)))]
 pub fn pretty_brackets(tree: &SyntaxValue, source: &str) -> Result<String, OutputError> {
+    pretty_brackets_with_options(tree, source, BracketRenderOptions::default())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || matches!(tree.as_data(), bityzba::data!(SyntaxValue::Null)))]
+pub fn pretty_brackets_with_options(
+    tree: &SyntaxValue,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<String, OutputError> {
     let sexpr = walker::to_sexpr(tree, source)?;
-    Ok(sexpr::render_bracketed(&sexpr::flatten(sexpr)))
+    Ok(sexpr::render_bracketed_with_options(
+        &sexpr::flatten(sexpr),
+        options,
+    ))
 }

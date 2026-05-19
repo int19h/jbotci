@@ -1,5 +1,7 @@
 use bityzba::{invariant, requires};
 
+use crate::BracketRenderOptions;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 pub(crate) enum SExpr {
@@ -66,18 +68,24 @@ pub(crate) fn flatten(expr: SExpr) -> SExpr {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn render_bracketed(expr: &SExpr) -> String {
-    render_bracketed_at_depth(0, expr)
+    render_bracketed_with_options(expr, BracketRenderOptions::default())
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_bracketed_at_depth(depth: usize, expr: &SExpr) -> String {
+pub(crate) fn render_bracketed_with_options(expr: &SExpr, options: BracketRenderOptions) -> String {
+    render_bracketed_at_depth(0, expr, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_bracketed_at_depth(depth: usize, expr: &SExpr, options: BracketRenderOptions) -> String {
     match expr {
-        SExpr::Leaf(text) => text.clone(),
+        SExpr::Leaf(text) => colorize_at_depth(depth, text.clone(), options),
         SExpr::Node(children) => {
             let rendered = children
                 .iter()
-                .map(|child| render_bracketed_at_depth(depth + 1, child))
+                .map(|child| render_bracketed_at_depth(depth + 1, child, options))
                 .filter(|text| !text.is_empty())
                 .collect::<Vec<_>>();
             match rendered.as_slice() {
@@ -85,7 +93,11 @@ fn render_bracketed_at_depth(depth: usize, expr: &SExpr) -> String {
                 [single] => single.clone(),
                 _ => {
                     let (open, close) = bracket_pair(depth);
-                    format!("{open}{}{close}", rendered.join(" "))
+                    colorize_at_depth(
+                        depth,
+                        format!("{open}{}{close}", rendered.join(" ")),
+                        options,
+                    )
                 }
             }
         }
@@ -99,5 +111,43 @@ fn bracket_pair(depth: usize) -> (&'static str, &'static str) {
         0 => ("(", ")"),
         1 => ("[", "]"),
         _ => ("{", "}"),
+    }
+}
+
+#[requires(true)]
+#[ensures(!options.color -> ret == old(text.clone()))]
+#[ensures(options.color && !old(text.is_empty()) -> ret.starts_with(ansi_color_for_depth(depth)))]
+fn colorize_at_depth(depth: usize, text: String, options: BracketRenderOptions) -> String {
+    if options.color && !text.is_empty() {
+        format!(
+            "{}{}{}",
+            ansi_color_for_depth(depth),
+            text,
+            ansi_parent_color_for_depth(depth)
+        )
+    } else {
+        text
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn ansi_color_for_depth(depth: usize) -> &'static str {
+    match depth % 5 {
+        0 => "\x1b[35m",
+        1 => "\x1b[34m",
+        2 => "\x1b[32m",
+        3 => "\x1b[31m",
+        _ => "\x1b[33m",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn ansi_parent_color_for_depth(depth: usize) -> &'static str {
+    if depth == 0 {
+        "\x1b[0m"
+    } else {
+        ansi_color_for_depth(depth - 1)
     }
 }
