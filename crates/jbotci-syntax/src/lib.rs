@@ -8,6 +8,10 @@ use jbotci_morphology::{WordWithModifiers, word_with_modifiers_syntax_eq};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+pub mod ast {
+    pub use crate::grammar::ast::*;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct TraceOptions {
@@ -143,6 +147,15 @@ pub fn parse_text(
     options: &ParseOptions,
 ) -> Result<LojbanText, SyntaxError> {
     grammar::parse_text(words, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_raw_text(
+    words: &[WordWithModifiers],
+    options: &ParseOptions,
+) -> Result<ast::TextSyntax, SyntaxError> {
+    grammar::parse_raw_text(words, options)
 }
 
 #[expensive_invariant(syntax_parse_data_is_valid(self.as_data()))]

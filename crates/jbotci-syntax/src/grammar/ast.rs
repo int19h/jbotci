@@ -8,79 +8,79 @@ use jbotci_morphology::WordWithModifiers;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct PredicateSyntax {
-    pub(super) leading_terms: Vec<TermSyntax>,
-    pub(super) cu: Option<WordWithModifiers>,
-    pub(super) cu_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) predicate_tail: PredicateTailSyntax,
-    pub(super) free_modifiers: Vec<FreeModifierSyntax>,
+pub struct PredicateSyntax {
+    pub leading_terms: Vec<TermSyntax>,
+    pub cu: Option<WordWithModifiers>,
+    pub cu_free_modifiers: Vec<FreeModifierSyntax>,
+    pub predicate_tail: PredicateTailSyntax,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct PredicateTailSyntax {
-    pub(super) first: PredicateTail1Syntax,
-    pub(super) ke_continuation: Option<KePredicateTailSyntax>,
+pub struct PredicateTailSyntax {
+    pub first: PredicateTail1Syntax,
+    pub ke_continuation: Option<KePredicateTailSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct KePredicateTailSyntax {
-    pub(super) connective: ConnectiveSyntax,
-    pub(super) tense_modal: Option<TenseModalSyntax>,
-    pub(super) ke: WordWithModifiers,
-    pub(super) ke_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) predicate_tail: Box<PredicateTailSyntax>,
-    pub(super) kehe: Option<WordWithModifiers>,
-    pub(super) kehe_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) tail_terms: Vec<TermSyntax>,
-    pub(super) vau: Option<WordWithModifiers>,
+pub struct KePredicateTailSyntax {
+    pub connective: ConnectiveSyntax,
+    pub tense_modal: Option<TenseModalSyntax>,
+    pub ke: WordWithModifiers,
+    pub ke_free_modifiers: Vec<FreeModifierSyntax>,
+    pub predicate_tail: Box<PredicateTailSyntax>,
+    pub kehe: Option<WordWithModifiers>,
+    pub kehe_free_modifiers: Vec<FreeModifierSyntax>,
+    pub tail_terms: Vec<TermSyntax>,
+    pub vau: Option<WordWithModifiers>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct PredicateTail1Syntax {
-    pub(super) first: PredicateTail2Syntax,
-    pub(super) continuations: Vec<PredicateTailContinuationSyntax>,
+pub struct PredicateTail1Syntax {
+    pub first: PredicateTail2Syntax,
+    pub continuations: Vec<PredicateTailContinuationSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct PredicateTailContinuationSyntax {
-    pub(super) connective: ConnectiveSyntax,
-    pub(super) tense_modal: Option<TenseModalSyntax>,
-    pub(super) cu: Option<WordWithModifiers>,
-    pub(super) cu_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) predicate_tail: PredicateTail2Syntax,
-    pub(super) tail_terms: Vec<TermSyntax>,
-    pub(super) vau: Option<WordWithModifiers>,
-    pub(super) free_modifiers: Vec<FreeModifierSyntax>,
+pub struct PredicateTailContinuationSyntax {
+    pub connective: ConnectiveSyntax,
+    pub tense_modal: Option<TenseModalSyntax>,
+    pub cu: Option<WordWithModifiers>,
+    pub cu_free_modifiers: Vec<FreeModifierSyntax>,
+    pub predicate_tail: PredicateTail2Syntax,
+    pub tail_terms: Vec<TermSyntax>,
+    pub vau: Option<WordWithModifiers>,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct PredicateTail2Syntax {
-    pub(super) first: PredicateTail3Syntax,
-    pub(super) bo_continuation: Option<BoPredicateTailSyntax>,
+pub struct PredicateTail2Syntax {
+    pub first: PredicateTail3Syntax,
+    pub bo_continuation: Option<BoPredicateTailSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct BoPredicateTailSyntax {
-    pub(super) connective: ConnectiveSyntax,
-    pub(super) tense_modal: Option<TenseModalSyntax>,
-    pub(super) bo: WordWithModifiers,
-    pub(super) free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) cu: Option<WordWithModifiers>,
-    pub(super) cu_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) predicate_tail: Box<PredicateTail2Syntax>,
-    pub(super) tail_terms: Vec<TermSyntax>,
-    pub(super) vau: Option<WordWithModifiers>,
+pub struct BoPredicateTailSyntax {
+    pub connective: ConnectiveSyntax,
+    pub tense_modal: Option<TenseModalSyntax>,
+    pub bo: WordWithModifiers,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
+    pub cu: Option<WordWithModifiers>,
+    pub cu_free_modifiers: Vec<FreeModifierSyntax>,
+    pub predicate_tail: Box<PredicateTail2Syntax>,
+    pub tail_terms: Vec<TermSyntax>,
+    pub vau: Option<WordWithModifiers>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum PredicateTail3Syntax {
+pub enum PredicateTail3Syntax {
     Relation {
         relation: RelationSyntax,
         terms: Vec<TermSyntax>,
@@ -94,7 +94,7 @@ pub(super) enum PredicateTail3Syntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum GekSentenceSyntax {
+pub enum GekSentenceSyntax {
     Pair {
         gek: ConnectiveSyntax,
         first: Box<SubsentenceSyntax>,
@@ -121,7 +121,7 @@ pub(super) enum GekSentenceSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum SubsentenceSyntax {
+pub enum SubsentenceSyntax {
     Plain(PredicateSyntax),
     Prenex {
         prenex_terms: Vec<TermSyntax>,
@@ -133,36 +133,36 @@ pub(super) enum SubsentenceSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct TextSyntax {
-    pub(super) leading_nai: Vec<WordWithModifiers>,
-    pub(super) leading_cmevla: Vec<WordWithModifiers>,
-    pub(super) leading_indicators: Vec<WordWithModifiers>,
-    pub(super) leading_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) leading_connective: Option<ConnectiveSyntax>,
-    pub(super) paragraphs: Vec<ParagraphSyntax>,
+pub struct TextSyntax {
+    pub leading_nai: Vec<WordWithModifiers>,
+    pub leading_cmevla: Vec<WordWithModifiers>,
+    pub leading_indicators: Vec<WordWithModifiers>,
+    pub leading_free_modifiers: Vec<FreeModifierSyntax>,
+    pub leading_connective: Option<ConnectiveSyntax>,
+    pub paragraphs: Vec<ParagraphSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct ParagraphSyntax {
-    pub(super) i: Option<WordWithModifiers>,
-    pub(super) niho: Vec<WordWithModifiers>,
-    pub(super) free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) statements: Vec<ParagraphStatementSyntax>,
+pub struct ParagraphSyntax {
+    pub i: Option<WordWithModifiers>,
+    pub niho: Vec<WordWithModifiers>,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
+    pub statements: Vec<ParagraphStatementSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct ParagraphStatementSyntax {
-    pub(super) i: Option<WordWithModifiers>,
-    pub(super) connective: Option<ConnectiveSyntax>,
-    pub(super) free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) statement: Option<StatementSyntax>,
+pub struct ParagraphStatementSyntax {
+    pub i: Option<WordWithModifiers>,
+    pub connective: Option<ConnectiveSyntax>,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
+    pub statement: Option<StatementSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum FreeModifierSyntax {
+pub enum FreeModifierSyntax {
     Sei {
         sei: WordWithModifiers,
         leading_free_modifiers: Vec<FreeModifierSyntax>,
@@ -217,7 +217,7 @@ pub(super) enum FreeModifierSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum StatementSyntax {
+pub enum StatementSyntax {
     Tuhe {
         tense_modal: Option<TenseModalSyntax>,
         tuhe: WordWithModifiers,
@@ -260,16 +260,16 @@ pub(super) enum StatementSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct PredicateStatementContinuationSyntax {
-    pub(super) connective: ConnectiveSyntax,
-    pub(super) tense_modal: Option<TenseModalSyntax>,
-    pub(super) marker: PredicateStatementContinuationMarkerSyntax,
-    pub(super) trailing_subsentence: SubsentenceSyntax,
+pub struct PredicateStatementContinuationSyntax {
+    pub connective: ConnectiveSyntax,
+    pub tense_modal: Option<TenseModalSyntax>,
+    pub marker: PredicateStatementContinuationMarkerSyntax,
+    pub trailing_subsentence: SubsentenceSyntax,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum PredicateStatementContinuationMarkerSyntax {
+pub enum PredicateStatementContinuationMarkerSyntax {
     Bo {
         bo: WordWithModifiers,
         free_modifiers: Vec<FreeModifierSyntax>,
@@ -284,7 +284,7 @@ pub(super) enum PredicateStatementContinuationMarkerSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum FragmentSyntax {
+pub enum FragmentSyntax {
     // v0 exposes this constructor even though the current grammar produces
     // TermFragment for parsed standalone arguments.
     #[allow(dead_code)]
@@ -353,7 +353,7 @@ pub(super) enum FragmentSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum TermSyntax {
+pub enum TermSyntax {
     NuhiTermset {
         nuhi: WordWithModifiers,
         nuhi_free_modifiers: Vec<FreeModifierSyntax>,
@@ -457,7 +457,7 @@ pub(super) enum TermSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum TermWrapperKindSyntax {
+pub enum TermWrapperKindSyntax {
     Lahe,
     NaheBo,
     Nahe,
@@ -465,14 +465,14 @@ pub(super) enum TermWrapperKindSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct ArgumentConnectionSyntax {
-    pub(super) connective: ConnectiveSyntax,
-    pub(super) argument: Box<ArgumentSyntax>,
+pub struct ArgumentConnectionSyntax {
+    pub connective: ConnectiveSyntax,
+    pub argument: Box<ArgumentSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum ArgumentSyntax {
+pub enum ArgumentSyntax {
     Quote {
         quote: QuoteSyntax,
         free_modifiers: Vec<FreeModifierSyntax>,
@@ -617,7 +617,7 @@ pub(super) enum ArgumentSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum RelativeClauseSyntax {
+pub enum RelativeClauseSyntax {
     Goi(GoiRelativeClauseSyntax),
     Noi {
         noi: WordWithModifiers,
@@ -646,27 +646,27 @@ pub(super) enum RelativeClauseSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct GoiRelativeClauseSyntax {
-    pub(super) goi: WordWithModifiers,
-    pub(super) leading_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) argument: ArgumentSyntax,
-    pub(super) gehu: Option<WordWithModifiers>,
-    pub(super) trailing_free_modifiers: Vec<FreeModifierSyntax>,
+pub struct GoiRelativeClauseSyntax {
+    pub goi: WordWithModifiers,
+    pub leading_free_modifiers: Vec<FreeModifierSyntax>,
+    pub argument: ArgumentSyntax,
+    pub gehu: Option<WordWithModifiers>,
+    pub trailing_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct SelbriRelativeClauseSyntax {
-    pub(super) nohoi: WordWithModifiers,
-    pub(super) leading_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) relation: RelationSyntax,
-    pub(super) kuhoi: Option<WordWithModifiers>,
-    pub(super) trailing_free_modifiers: Vec<FreeModifierSyntax>,
+pub struct SelbriRelativeClauseSyntax {
+    pub nohoi: WordWithModifiers,
+    pub leading_free_modifiers: Vec<FreeModifierSyntax>,
+    pub relation: RelationSyntax,
+    pub kuhoi: Option<WordWithModifiers>,
+    pub trailing_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum QuoteSyntax {
+pub enum QuoteSyntax {
     Lu {
         lu: WordWithModifiers,
         free_modifiers: Vec<FreeModifierSyntax>,
@@ -719,83 +719,83 @@ pub(super) enum QuoteSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct DescriptorSyntax {
-    pub(super) descriptor: Option<WordWithModifiers>,
-    pub(super) descriptor_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) outer_quantifier: Option<QuantifierSyntax>,
-    pub(super) tail_elements: Vec<ArgumentTailElementSyntax>,
-    pub(super) relation: Option<RelationSyntax>,
-    pub(super) relative_clauses: Vec<RelativeClauseSyntax>,
-    pub(super) ku: Option<WordWithModifiers>,
-    pub(super) ku_free_modifiers: Vec<FreeModifierSyntax>,
+pub struct DescriptorSyntax {
+    pub descriptor: Option<WordWithModifiers>,
+    pub descriptor_free_modifiers: Vec<FreeModifierSyntax>,
+    pub outer_quantifier: Option<QuantifierSyntax>,
+    pub tail_elements: Vec<ArgumentTailElementSyntax>,
+    pub relation: Option<RelationSyntax>,
+    pub relative_clauses: Vec<RelativeClauseSyntax>,
+    pub ku: Option<WordWithModifiers>,
+    pub ku_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct DescriptorHeadSyntax {
-    pub(super) descriptor: WordWithModifiers,
-    pub(super) descriptor_free_modifiers: Vec<FreeModifierSyntax>,
+pub struct DescriptorHeadSyntax {
+    pub descriptor: WordWithModifiers,
+    pub descriptor_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct ConnectedDescriptorSyntax {
-    pub(super) leading_descriptor_head: DescriptorHeadSyntax,
-    pub(super) connective: ConnectiveSyntax,
-    pub(super) trailing_descriptor_head: DescriptorHeadSyntax,
-    pub(super) tail_elements: Vec<ArgumentTailElementSyntax>,
-    pub(super) relation: Option<RelationSyntax>,
-    pub(super) relative_clauses: Vec<RelativeClauseSyntax>,
-    pub(super) ku: Option<WordWithModifiers>,
-    pub(super) ku_free_modifiers: Vec<FreeModifierSyntax>,
+pub struct ConnectedDescriptorSyntax {
+    pub leading_descriptor_head: DescriptorHeadSyntax,
+    pub connective: ConnectiveSyntax,
+    pub trailing_descriptor_head: DescriptorHeadSyntax,
+    pub tail_elements: Vec<ArgumentTailElementSyntax>,
+    pub relation: Option<RelationSyntax>,
+    pub relative_clauses: Vec<RelativeClauseSyntax>,
+    pub ku: Option<WordWithModifiers>,
+    pub ku_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct ConnectiveSyntax {
-    pub(super) kind: ConnectiveKind,
-    pub(super) se: Option<WordWithModifiers>,
-    pub(super) nahe: Option<WordWithModifiers>,
-    pub(super) na: Option<WordWithModifiers>,
-    pub(super) cmavo: Vec<WordWithModifiers>,
-    pub(super) nai: Option<WordWithModifiers>,
-    pub(super) free_modifiers: Vec<FreeModifierSyntax>,
+pub struct ConnectiveSyntax {
+    pub kind: ConnectiveKind,
+    pub se: Option<WordWithModifiers>,
+    pub nahe: Option<WordWithModifiers>,
+    pub na: Option<WordWithModifiers>,
+    pub cmavo: Vec<WordWithModifiers>,
+    pub nai: Option<WordWithModifiers>,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct BeiLinkSyntax {
-    pub(super) bei: WordWithModifiers,
-    pub(super) bei_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) fa: Option<WordWithModifiers>,
-    pub(super) fa_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) argument: Option<ArgumentSyntax>,
+pub struct BeiLinkSyntax {
+    pub bei: WordWithModifiers,
+    pub bei_free_modifiers: Vec<FreeModifierSyntax>,
+    pub fa: Option<WordWithModifiers>,
+    pub fa_free_modifiers: Vec<FreeModifierSyntax>,
+    pub argument: Option<ArgumentSyntax>,
 }
 
 #[invariant(self.fa.is_none() || self.argument.is_some(), "lifted FA link tags must have an argument")]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct LinkArgumentSyntax {
-    pub(super) fa: Option<WordWithModifiers>,
-    pub(super) fa_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) argument: Option<ArgumentSyntax>,
+pub struct LinkArgumentSyntax {
+    pub fa: Option<WordWithModifiers>,
+    pub fa_free_modifiers: Vec<FreeModifierSyntax>,
+    pub argument: Option<ArgumentSyntax>,
 }
 
 #[invariant(self.fa.is_none() || self.first_argument.is_some(), "lifted FA link tags must have an argument")]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct BeLinkSyntax {
-    pub(super) be: WordWithModifiers,
-    pub(super) free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) fa: Option<WordWithModifiers>,
-    pub(super) fa_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) first_argument: Option<ArgumentSyntax>,
-    pub(super) bei_links: Vec<BeiLinkSyntax>,
-    pub(super) beho: Option<WordWithModifiers>,
-    pub(super) beho_free_modifiers: Vec<FreeModifierSyntax>,
+pub struct BeLinkSyntax {
+    pub be: WordWithModifiers,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
+    pub fa: Option<WordWithModifiers>,
+    pub fa_free_modifiers: Vec<FreeModifierSyntax>,
+    pub first_argument: Option<ArgumentSyntax>,
+    pub bei_links: Vec<BeiLinkSyntax>,
+    pub beho: Option<WordWithModifiers>,
+    pub beho_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum ConnectiveKind {
+pub enum ConnectiveKind {
     Afterthought,
     Relation,
     PredicateTail,
@@ -806,7 +806,7 @@ pub(super) enum ConnectiveKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum ArgumentTailElementSyntax {
+pub enum ArgumentTailElementSyntax {
     Argument(Box<ArgumentSyntax>),
     RelativeClauses(Vec<RelativeClauseSyntax>),
     Quantifier(QuantifierSyntax),
@@ -814,7 +814,7 @@ pub(super) enum ArgumentTailElementSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum QuantifierSyntax {
+pub enum QuantifierSyntax {
     Number {
         number: Vec<WordWithModifiers>,
         boi: Option<WordWithModifiers>,
@@ -831,7 +831,7 @@ pub(super) enum QuantifierSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum MathExpressionSyntax {
+pub enum MathExpressionSyntax {
     Number(QuantifierSyntax),
     Letter {
         letter: Vec<WordWithModifiers>,
@@ -931,7 +931,7 @@ pub(super) enum MathExpressionSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum MathOperatorSyntax {
+pub enum MathOperatorSyntax {
     Vuhu {
         vuhu: WordWithModifiers,
         free_modifiers: Vec<FreeModifierSyntax>,
@@ -1001,7 +1001,7 @@ pub(super) enum MathOperatorSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum RelationSyntax {
+pub enum RelationSyntax {
     Connected {
         connective: ConnectiveSyntax,
         leading_relation: Box<RelationSyntax>,
@@ -1062,55 +1062,55 @@ pub(super) enum RelationSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct TimeTenseSyntax {
-    pub(super) direction: Vec<WordWithModifiers>,
-    pub(super) distance: Option<WordWithModifiers>,
-    pub(super) interval: Option<WordWithModifiers>,
-    pub(super) nai: Option<WordWithModifiers>,
+pub struct TimeTenseSyntax {
+    pub direction: Vec<WordWithModifiers>,
+    pub distance: Option<WordWithModifiers>,
+    pub interval: Option<WordWithModifiers>,
+    pub nai: Option<WordWithModifiers>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct SpaceTenseSyntax {
-    pub(super) direction: Vec<WordWithModifiers>,
-    pub(super) distance: Vec<WordWithModifiers>,
-    pub(super) interval: Vec<WordWithModifiers>,
-    pub(super) dimensions: Vec<WordWithModifiers>,
-    pub(super) mohi: Option<WordWithModifiers>,
-    pub(super) fehe: Option<WordWithModifiers>,
+pub struct SpaceTenseSyntax {
+    pub direction: Vec<WordWithModifiers>,
+    pub distance: Vec<WordWithModifiers>,
+    pub interval: Vec<WordWithModifiers>,
+    pub dimensions: Vec<WordWithModifiers>,
+    pub mohi: Option<WordWithModifiers>,
+    pub fehe: Option<WordWithModifiers>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct IntervalTenseSyntax {
-    pub(super) number: Vec<WordWithModifiers>,
-    pub(super) roi_or_tahe: WordWithModifiers,
-    pub(super) nai: Option<WordWithModifiers>,
+pub struct IntervalTenseSyntax {
+    pub number: Vec<WordWithModifiers>,
+    pub roi_or_tahe: WordWithModifiers,
+    pub nai: Option<WordWithModifiers>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct SimpleTenseModalSyntax {
-    pub(super) nahe: Option<WordWithModifiers>,
-    pub(super) se: Option<WordWithModifiers>,
-    pub(super) bai: Option<WordWithModifiers>,
-    pub(super) nai: Option<WordWithModifiers>,
+pub struct SimpleTenseModalSyntax {
+    pub nahe: Option<WordWithModifiers>,
+    pub se: Option<WordWithModifiers>,
+    pub bai: Option<WordWithModifiers>,
+    pub nai: Option<WordWithModifiers>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct FihoModalSyntax {
-    pub(super) nahe: Option<WordWithModifiers>,
-    pub(super) fiho: WordWithModifiers,
-    pub(super) fiho_free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) relation: RelationSyntax,
-    pub(super) fehu: Option<WordWithModifiers>,
-    pub(super) fehu_free_modifiers: Vec<FreeModifierSyntax>,
+pub struct FihoModalSyntax {
+    pub nahe: Option<WordWithModifiers>,
+    pub fiho: WordWithModifiers,
+    pub fiho_free_modifiers: Vec<FreeModifierSyntax>,
+    pub relation: RelationSyntax,
+    pub fehu: Option<WordWithModifiers>,
+    pub fehu_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum TenseModalSyntax {
+pub enum TenseModalSyntax {
     Composite {
         leaves: Vec<WordWithModifiers>,
         time: Option<TimeTenseSyntax>,
@@ -1195,28 +1195,28 @@ pub(super) enum TenseModalSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct AbstractionSyntax {
-    pub(super) nu: WordWithModifiers,
-    pub(super) nai: Option<WordWithModifiers>,
-    pub(super) free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) additional_nu: Vec<AdditionalNuSyntax>,
-    pub(super) subsentence: Box<SubsentenceSyntax>,
-    pub(super) kei: Option<WordWithModifiers>,
-    pub(super) kei_free_modifiers: Vec<FreeModifierSyntax>,
+pub struct AbstractionSyntax {
+    pub nu: WordWithModifiers,
+    pub nai: Option<WordWithModifiers>,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
+    pub additional_nu: Vec<AdditionalNuSyntax>,
+    pub subsentence: Box<SubsentenceSyntax>,
+    pub kei: Option<WordWithModifiers>,
+    pub kei_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct AdditionalNuSyntax {
-    pub(super) connective: ConnectiveSyntax,
-    pub(super) nu: WordWithModifiers,
-    pub(super) nai: Option<WordWithModifiers>,
-    pub(super) free_modifiers: Vec<FreeModifierSyntax>,
+pub struct AdditionalNuSyntax {
+    pub connective: ConnectiveSyntax,
+    pub nu: WordWithModifiers,
+    pub nai: Option<WordWithModifiers>,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) enum RelationUnitSyntax {
+pub enum RelationUnitSyntax {
     Word {
         word: WordWithModifiers,
         free_modifiers: Vec<FreeModifierSyntax>,
@@ -1351,16 +1351,16 @@ pub(super) enum RelationUnitSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-pub(super) struct CeiAssignmentSyntax {
-    pub(super) cei: WordWithModifiers,
-    pub(super) free_modifiers: Vec<FreeModifierSyntax>,
-    pub(super) relation_unit: RelationUnitSyntax,
+pub struct CeiAssignmentSyntax {
+    pub cei: WordWithModifiers,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
+    pub relation_unit: RelationUnitSyntax,
 }
 
 impl StatementSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             StatementSyntax::Tuhe {
                 tense_modal,
@@ -1459,7 +1459,7 @@ impl StatementSyntax {
 impl PredicateStatementContinuationSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.connective.words();
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
@@ -1496,7 +1496,7 @@ impl PredicateStatementContinuationSyntax {
 impl TextSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.leading_nai;
         words.extend(self.leading_cmevla);
         words.extend(self.leading_indicators);
@@ -1516,7 +1516,7 @@ impl TextSyntax {
 impl ParagraphSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.i.into_iter().collect::<Vec<_>>();
         words.extend(self.niho);
         for free_modifier in self.free_modifiers {
@@ -1532,7 +1532,7 @@ impl ParagraphSyntax {
 impl ParagraphStatementSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.i.into_iter().collect::<Vec<_>>();
         if let Some(connective) = self.connective {
             words.extend(connective.words());
@@ -1550,7 +1550,7 @@ impl ParagraphStatementSyntax {
 impl FreeModifierSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             FreeModifierSyntax::Sei {
                 sei,
@@ -1689,7 +1689,7 @@ impl FreeModifierSyntax {
 impl PredicateSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = Vec::new();
         for term in self.leading_terms {
             words.extend(term.words());
@@ -1709,7 +1709,7 @@ impl PredicateSyntax {
 impl PredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.first.words();
         if let Some(ke_continuation) = self.ke_continuation {
             words.extend(ke_continuation.words());
@@ -1721,7 +1721,7 @@ impl PredicateTailSyntax {
 impl KePredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.connective.words();
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
@@ -1746,7 +1746,7 @@ impl KePredicateTailSyntax {
 impl PredicateTail1Syntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.first.words();
         for continuation in self.continuations {
             words.extend(continuation.words());
@@ -1758,7 +1758,7 @@ impl PredicateTail1Syntax {
 impl PredicateTailContinuationSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.connective.words();
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
@@ -1782,7 +1782,7 @@ impl PredicateTailContinuationSyntax {
 impl PredicateTail2Syntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.first.words();
         if let Some(bo_continuation) = self.bo_continuation {
             words.extend(bo_continuation.words());
@@ -1794,7 +1794,7 @@ impl PredicateTail2Syntax {
 impl BoPredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.connective.words();
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
@@ -1819,7 +1819,7 @@ impl BoPredicateTailSyntax {
 impl PredicateTail3Syntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             PredicateTail3Syntax::Relation {
                 relation,
@@ -1845,7 +1845,7 @@ impl PredicateTail3Syntax {
 impl GekSentenceSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             GekSentenceSyntax::Pair {
                 gek,
@@ -1911,7 +1911,7 @@ impl GekSentenceSyntax {
 impl SubsentenceSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             SubsentenceSyntax::Plain(predicate) => predicate.words(),
             SubsentenceSyntax::Prenex {
@@ -1938,7 +1938,7 @@ impl SubsentenceSyntax {
 impl FragmentSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             FragmentSyntax::Argument { argument } => argument.words(),
             FragmentSyntax::Ek {
@@ -2065,7 +2065,7 @@ impl FragmentSyntax {
 impl TermSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             TermSyntax::NuhiTermset {
                 nuhi,
@@ -2352,7 +2352,7 @@ impl TermSyntax {
 impl MathExpressionSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             MathExpressionSyntax::Number(quantifier) => quantifier.words(),
             MathExpressionSyntax::Letter {
@@ -2577,7 +2577,7 @@ impl MathExpressionSyntax {
 impl ArgumentSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             ArgumentSyntax::Quote {
                 quote,
@@ -2923,7 +2923,7 @@ impl ArgumentSyntax {
 impl GoiRelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = vec![self.goi];
         for free_modifier in self.leading_free_modifiers {
             words.extend(free_modifier.words());
@@ -2940,7 +2940,7 @@ impl GoiRelativeClauseSyntax {
 impl SelbriRelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = vec![self.nohoi];
         for free_modifier in self.leading_free_modifiers {
             words.extend(free_modifier.words());
@@ -2957,7 +2957,7 @@ impl SelbriRelativeClauseSyntax {
 impl RelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             RelativeClauseSyntax::Goi(relative_clause) => relative_clause.words(),
             RelativeClauseSyntax::Noi {
@@ -3020,7 +3020,7 @@ impl RelativeClauseSyntax {
 impl QuoteSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             QuoteSyntax::Lu {
                 lu,
@@ -3119,7 +3119,7 @@ impl QuoteSyntax {
 impl DescriptorSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self
             .outer_quantifier
             .into_iter()
@@ -3149,7 +3149,7 @@ impl DescriptorSyntax {
 impl DescriptorHeadSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = vec![self.descriptor];
         for free_modifier in self.descriptor_free_modifiers {
             words.extend(free_modifier.words());
@@ -3161,7 +3161,7 @@ impl DescriptorHeadSyntax {
 impl ConnectedDescriptorSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.leading_descriptor_head.words();
         words.extend(self.connective.words());
         words.extend(self.trailing_descriptor_head.words());
@@ -3185,7 +3185,7 @@ impl ConnectedDescriptorSyntax {
 impl ConnectiveSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         [
             self.se.into_iter().collect(),
             self.nahe.into_iter().collect(),
@@ -3204,7 +3204,7 @@ impl ConnectiveSyntax {
 impl BeiLinkSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = vec![self.bei];
         for free_modifier in self.bei_free_modifiers {
             words.extend(free_modifier.words());
@@ -3223,7 +3223,7 @@ impl BeiLinkSyntax {
 impl ArgumentTailElementSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             ArgumentTailElementSyntax::Argument(argument) => argument.words(),
             ArgumentTailElementSyntax::RelativeClauses(relative_clauses) => relative_clauses
@@ -3238,7 +3238,7 @@ impl ArgumentTailElementSyntax {
 impl QuantifierSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             QuantifierSyntax::Number {
                 number,
@@ -3276,7 +3276,7 @@ impl QuantifierSyntax {
 impl MathOperatorSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             MathOperatorSyntax::Vuhu {
                 vuhu,
@@ -3418,7 +3418,7 @@ impl MathOperatorSyntax {
 impl RelationSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             RelationSyntax::Connected {
                 connective,
@@ -3542,7 +3542,7 @@ impl RelationSyntax {
 impl RelationUnitSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         match self {
             RelationUnitSyntax::Word {
                 word,
@@ -3860,7 +3860,7 @@ impl RelationUnitSyntax {
 impl AbstractionSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = vec![self.nu];
         words.extend(self.nai);
         for free_modifier in self.free_modifiers {
@@ -3881,7 +3881,7 @@ impl AbstractionSyntax {
 impl AdditionalNuSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.connective.words();
         words.push(self.nu);
         words.extend(self.nai);
@@ -3895,7 +3895,7 @@ impl AdditionalNuSyntax {
 impl TenseModalSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn leaf_words(self) -> Vec<WordWithModifiers> {
+    pub fn leaf_words(self) -> Vec<WordWithModifiers> {
         match self {
             TenseModalSyntax::Composite { leaves, .. } => leaves,
             TenseModalSyntax::Pu { word, .. } | TenseModalSyntax::Caha { word, .. } => vec![word],
@@ -3953,7 +3953,7 @@ impl TenseModalSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WordWithModifiers> {
         let mut words = self.clone().leaf_words();
         for free_modifier in self.free_modifiers() {
             words.extend(free_modifier.words());
@@ -3963,7 +3963,7 @@ impl TenseModalSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn free_modifiers(self) -> Vec<FreeModifierSyntax> {
+    pub fn free_modifiers(self) -> Vec<FreeModifierSyntax> {
         match self {
             TenseModalSyntax::Composite { free_modifiers, .. }
             | TenseModalSyntax::Pu { free_modifiers, .. }

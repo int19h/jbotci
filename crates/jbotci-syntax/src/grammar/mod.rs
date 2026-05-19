@@ -14,7 +14,7 @@ use crate::{
     Statement, SyntaxError, SyntaxField, SyntaxParse, SyntaxValue,
 };
 
-mod ast;
+pub(crate) mod ast;
 use ast::*;
 mod parser;
 mod render;
@@ -76,6 +76,15 @@ pub(crate) fn parse_text(
         leading_connective: text.leading_connective.map(public_connective),
         paragraphs,
     }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn parse_raw_text(
+    words: &[WordWithModifiers],
+    options: &ParseOptions,
+) -> Result<TextSyntax, SyntaxError> {
+    parser::parse_statement(words, None, options)
 }
 
 #[requires(true)]

@@ -8,7 +8,7 @@ use anyhow::{Result, anyhow};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use jbotci_morphology::segment_words_with_modifiers;
 use jbotci_output::{BracketRenderOptions, pretty_brackets_with_options};
-use jbotci_syntax::parse_syntax_tree;
+use jbotci_syntax::{ParseOptions, parse_raw_text, parse_syntax_tree};
 use owo_colors::{OwoColorize, Stream};
 
 #[derive(Debug, Parser)]
@@ -190,9 +190,9 @@ fn run_gentufa<W: Write>(input: GentufaInput, stdout: &mut W, color_enabled: boo
     validate_gentufa_options(&input)?;
     let text = input.read_text()?;
     let words = segment_words_with_modifiers(&text)?;
-    let parsed = parse_syntax_tree(&words)?;
     match input.format {
         GentufaFormat::Compact => {
+            let parsed = parse_syntax_tree(&words)?;
             let rendered = pretty_brackets_with_options(
                 &parsed.parse_tree,
                 &text,
@@ -203,6 +203,7 @@ fn run_gentufa<W: Write>(input: GentufaInput, stdout: &mut W, color_enabled: boo
             writeln!(stdout, "{rendered}")?;
         }
         GentufaFormat::Raw => {
+            let parsed = parse_raw_text(&words, &ParseOptions::default())?;
             writeln!(stdout, "{parsed:#?}")?;
         }
     }
@@ -402,8 +403,9 @@ mod tests {
         let mut output = Vec::new();
         run_cli(cli, &mut output, false).expect("gentufa run");
         let output = String::from_utf8(output).expect("utf8");
-        assert!(output.contains("SyntaxParse"));
-        assert!(output.contains("parse_tree"));
+        assert!(output.contains("TextSyntax"));
+        assert!(output.contains("PredicateSyntax"));
+        assert!(!output.contains("SyntaxValue"));
     }
 
     #[test]
