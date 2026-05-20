@@ -30,46 +30,52 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
+        {Vocative = {
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "coĭ",
-                    span = [0, 3]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "coĭ",
+                        span = [0, 3]
+                    }
                 }},
             ]
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {MathExpressionFragment = {
-                            math_expression = {NumberExpression = {
-                                free_modifiers = [
-                                    {VocativeFree = {
+                {
+                    statement = {Fragment = {
+                        MathExpression = {Number = {
+                            Number = {
+                                number = [
+                                    [
+                                        {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "ro",
+                                                span = [4, 6]
+                                            }
+                                        }},
+                                    ],
+                                    {Vocative = {
                                         vocative_markers = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "doĭ",
-                                                span = [6, 9]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "doĭ",
+                                                    span = [6, 9]
+                                                }
                                             }},
                                         ]
                                     }},
-                                ],
-                                number = [
-                                    {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "ro",
-                                        span = [4, 6]
-                                    }},
                                 ]
-                            }}
+                            }
                         }}
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -35,47 +35,53 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {MathExpressionFragment = {
-                            math_expression = {NumberExpression = {
-                                free_modifiers = [
-                                    {SeiFree = {
-                                        relation = {BaseRelation = {
-                                            word = {WithIndicator = {
+                {
+                    statement = {Fragment = {
+                        MathExpression = {Number = {
+                            Number = {
+                                number = [
+                                    [
+                                        {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "za'u",
+                                                span = [0, 4]
+                                            }
+                                        }},
+                                    ],
+                                    {Sei = {
+                                        relation = {Base = {
+                                            WithIndicator = {
                                                 base = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "tavla",
-                                                    span = [8, 13]
+                                                    Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "tavla",
+                                                        span = [8, 13]
+                                                    }
                                                 }},
                                                 indicator = {
                                                     kind = "cmavo",
                                                     phonemes = "ŭi",
                                                     span = [15, 17]
                                                 }
-                                            }}
+                                            }
                                         }},
                                         sei = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "xoĭ",
-                                            span = [4, 7]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "xoĭ",
+                                                span = [4, 7]
+                                            }
                                         }}
                                     }},
-                                ],
-                                number = [
-                                    {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "za'u",
-                                        span = [0, 4]
-                                    }},
                                 ]
-                            }}
+                            }
                         }}
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

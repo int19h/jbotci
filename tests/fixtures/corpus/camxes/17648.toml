@@ -30,42 +30,48 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {MathExpressionFragment = {
-                            math_expression = {NumberExpression = {
-                                free_modifiers = [
-                                    {ToFree = {
+                {
+                    statement = {Fragment = {
+                        MathExpression = {Number = {
+                            Number = {
+                                number = [
+                                    [
+                                        {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "so",
+                                                span = [0, 2]
+                                            }
+                                        }},
+                                    ],
+                                    {To = {
                                         text = {
                                             leading_cmevla = [
                                                 {Bare = {
-                                                    kind = "cmevla",
-                                                    phonemes = "recap",
-                                                    span = [6, 11]
+                                                    Bare = {
+                                                        kind = "cmevla",
+                                                        phonemes = "recap",
+                                                        span = [6, 11]
+                                                    }
                                                 }},
                                             ]
                                         },
                                         to = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "to",
-                                            span = [3, 5]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "to",
+                                                span = [3, 5]
+                                            }
                                         }}
                                     }},
-                                ],
-                                number = [
-                                    {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "so",
-                                        span = [0, 2]
-                                    }},
                                 ]
-                            }}
+                            }
                         }}
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
