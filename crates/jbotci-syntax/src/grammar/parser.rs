@@ -5317,9 +5317,15 @@ where
         .map(
             |(((connective, nu), nai), free_modifiers)| AdditionalNuSyntax {
                 connective,
-                nu,
-                nai,
-                free_modifiers,
+                nu: WithFreeModifiers::new(
+                    nu,
+                    if nai.is_some() {
+                        Vec::new()
+                    } else {
+                        free_modifiers.clone()
+                    },
+                ),
+                nai: nai.map(|nai| WithFreeModifiers::new(nai, free_modifiers)),
             },
         );
     let abstraction_subsentence_unit = nu_cmavo()
@@ -5327,21 +5333,27 @@ where
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(additional_nu.repeated().collect::<Vec<_>>())
         .then(subsentence)
-        .then(cmavo("kei").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("kei")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |(
-                (((((nu, nai), free_modifiers), additional_nu), subsentence), kei),
-                kei_free_modifiers,
-            )| {
+            |(((((nu, nai), free_modifiers), additional_nu), subsentence), kei)| {
                 RelationUnitSyntax::Abstraction(AbstractionSyntax {
-                    nu,
-                    nai,
-                    free_modifiers,
+                    nu: WithFreeModifiers::new(
+                        nu,
+                        if nai.is_some() {
+                            Vec::new()
+                        } else {
+                            free_modifiers.clone()
+                        },
+                    ),
+                    nai: nai.map(|nai| WithFreeModifiers::new(nai, free_modifiers)),
                     additional_nu,
                     subsentence: Box::new(subsentence),
-                    kei,
-                    kei_free_modifiers,
+                    kei: kei
+                        .map(|(kei, free_modifiers)| WithFreeModifiers::new(kei, free_modifiers)),
                 })
             },
         )
@@ -5807,9 +5819,15 @@ where
             .map(
                 |(((connective, nu), nai), free_modifiers)| AdditionalNuSyntax {
                     connective,
-                    nu,
-                    nai,
-                    free_modifiers,
+                    nu: WithFreeModifiers::new(
+                        nu,
+                        if nai.is_some() {
+                            Vec::new()
+                        } else {
+                            free_modifiers.clone()
+                        },
+                    ),
+                    nai: nai.map(|nai| WithFreeModifiers::new(nai, free_modifiers)),
                 },
             );
         let abstraction_subsentence_unit = nu_cmavo()
@@ -5817,21 +5835,28 @@ where
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(additional_nu.repeated().collect::<Vec<_>>())
             .then(subsentence.clone())
-            .then(cmavo("kei").or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(
+                cmavo("kei")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
             .map(
-                |(
-                    (((((nu, nai), free_modifiers), additional_nu), subsentence), kei),
-                    kei_free_modifiers,
-                )| {
+                |(((((nu, nai), free_modifiers), additional_nu), subsentence), kei)| {
                     RelationUnitSyntax::Abstraction(AbstractionSyntax {
-                        nu,
-                        nai,
-                        free_modifiers,
+                        nu: WithFreeModifiers::new(
+                            nu,
+                            if nai.is_some() {
+                                Vec::new()
+                            } else {
+                                free_modifiers.clone()
+                            },
+                        ),
+                        nai: nai.map(|nai| WithFreeModifiers::new(nai, free_modifiers)),
                         additional_nu,
                         subsentence: Box::new(subsentence),
-                        kei,
-                        kei_free_modifiers,
+                        kei: kei.map(|(kei, free_modifiers)| {
+                            WithFreeModifiers::new(kei, free_modifiers)
+                        }),
                     })
                 },
             )

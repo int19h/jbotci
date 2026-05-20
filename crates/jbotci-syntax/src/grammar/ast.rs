@@ -1108,22 +1108,19 @@ pub enum TenseModalSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct AbstractionSyntax {
-    pub nu: WithIndicators<WordLike>,
-    pub nai: Option<WithIndicators<WordLike>>,
-    pub free_modifiers: Vec<FreeModifierSyntax>,
+    pub nu: WithFreeModifiers<WithIndicators<WordLike>>,
+    pub nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub additional_nu: Vec<AdditionalNuSyntax>,
     pub subsentence: Box<SubsentenceSyntax>,
-    pub kei: Option<WithIndicators<WordLike>>,
-    pub kei_free_modifiers: Vec<FreeModifierSyntax>,
+    pub kei: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct AdditionalNuSyntax {
     pub connective: ConnectiveSyntax,
-    pub nu: WithIndicators<WordLike>,
-    pub nai: Option<WithIndicators<WordLike>>,
-    pub free_modifiers: Vec<FreeModifierSyntax>,
+    pub nu: WithFreeModifiers<WithIndicators<WordLike>>,
+    pub nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -3177,18 +3174,16 @@ impl AbstractionSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = vec![self.nu];
-        words.extend(self.nai);
-        for free_modifier in self.free_modifiers {
-            words.extend(free_modifier.words());
+        let mut words = self.nu.words();
+        if let Some(nai) = self.nai {
+            words.extend(nai.words());
         }
         for additional_nu in self.additional_nu {
             words.extend(additional_nu.words());
         }
         words.extend((*self.subsentence).words());
-        words.extend(self.kei);
-        for free_modifier in self.kei_free_modifiers {
-            words.extend(free_modifier.words());
+        if let Some(kei) = self.kei {
+            words.extend(kei.words());
         }
         words
     }
@@ -3199,10 +3194,9 @@ impl AdditionalNuSyntax {
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.connective.words();
-        words.push(self.nu);
-        words.extend(self.nai);
-        for free_modifier in self.free_modifiers {
-            words.extend(free_modifier.words());
+        words.extend(self.nu.words());
+        if let Some(nai) = self.nai {
+            words.extend(nai.words());
         }
         words
     }
