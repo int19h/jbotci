@@ -312,7 +312,6 @@ fn statement_parser<'tokens>(
             free_modifiers,
             argument,
             ku: None,
-            ku_free_modifiers: Vec::new(),
         });
     let na_ku_term = na_cmavo()
         .then(cmavo("ku"))
@@ -393,43 +392,39 @@ fn statement_parser<'tokens>(
             subsentence.clone(),
             free_modifier.clone(),
         ))
-        .then(cmavo("fe'u").map(Ok).or(cmavo("ku").map(Err)).or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("fe'u")
+                .map(Ok)
+                .or(cmavo("ku").map(Err))
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
             |(
-                (
-                    ((noiha, leading_free_modifiers), (tail_elements, relation, relative_clauses)),
-                    terminator,
-                ),
-                trailing_free_modifiers,
+                ((noiha, leading_free_modifiers), (tail_elements, relation, relative_clauses)),
+                terminator,
             )| {
                 match terminator {
-                    Some(Err(brigahi_ku)) => TermSyntax::PoihaBrigahi {
-                        poiha: noiha,
-                        leading_free_modifiers,
+                    Some((Err(brigahi_ku), trailing_free_modifiers)) => TermSyntax::PoihaBrigahi {
+                        poiha: WithFreeModifiers::new(noiha, leading_free_modifiers),
                         tail_elements,
                         relation,
                         relative_clauses,
-                        brigahi_ku,
-                        trailing_free_modifiers,
+                        brigahi_ku: WithFreeModifiers::new(brigahi_ku, trailing_free_modifiers),
                     },
-                    Some(Ok(fehu)) => TermSyntax::NoihaAdverbial {
-                        noiha,
-                        leading_free_modifiers,
+                    Some((Ok(fehu), trailing_free_modifiers)) => TermSyntax::NoihaAdverbial {
+                        noiha: WithFreeModifiers::new(noiha, leading_free_modifiers),
                         tail_elements,
                         relation,
                         relative_clauses,
-                        fehu: Some(fehu),
-                        trailing_free_modifiers,
+                        fehu: Some(WithFreeModifiers::new(fehu, trailing_free_modifiers)),
                     },
                     None => TermSyntax::NoihaAdverbial {
-                        noiha,
-                        leading_free_modifiers,
+                        noiha: WithFreeModifiers::new(noiha, leading_free_modifiers),
                         tail_elements,
                         relation,
                         relative_clauses,
                         fehu: None,
-                        trailing_free_modifiers,
                     },
                 }
             },
@@ -438,34 +433,34 @@ fn statement_parser<'tokens>(
     let fihoi_adverbial = cmavo("fi'oi")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(subsentence.clone())
-        .then(cmavo("fi'au").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("fi'au")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |((((fihoi, leading_free_modifiers), subsentence), fihau), trailing_free_modifiers)| {
-                TermSyntax::FihoiAdverbial {
-                    fihoi,
-                    leading_free_modifiers,
-                    subsentence: Box::new(subsentence),
-                    fihau,
-                    trailing_free_modifiers,
-                }
+            |(((fihoi, leading_free_modifiers), subsentence), fihau)| TermSyntax::FihoiAdverbial {
+                fihoi: WithFreeModifiers::new(fihoi, leading_free_modifiers),
+                subsentence: Box::new(subsentence),
+                fihau: fihau
+                    .map(|(fihau, free_modifiers)| WithFreeModifiers::new(fihau, free_modifiers)),
             },
         )
         .boxed();
     let soi_adverbial = cmavo_of("SOI", &["soi", "xoi"])
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(subsentence.clone())
-        .then(cmavo("se'u").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("se'u")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |((((soi, leading_free_modifiers), subsentence), sehu), trailing_free_modifiers)| {
-                TermSyntax::SoiAdverbial {
-                    soi,
-                    leading_free_modifiers,
-                    subsentence: Box::new(subsentence),
-                    sehu,
-                    trailing_free_modifiers,
-                }
+            |(((soi, leading_free_modifiers), subsentence), sehu)| TermSyntax::SoiAdverbial {
+                soi: WithFreeModifiers::new(soi, leading_free_modifiers),
+                subsentence: Box::new(subsentence),
+                sehu: sehu
+                    .map(|(sehu, free_modifiers)| WithFreeModifiers::new(sehu, free_modifiers)),
             },
         )
         .boxed();
@@ -500,63 +495,57 @@ fn statement_parser<'tokens>(
     let term_body = {
         let term = term.clone();
         let gek_nuhi_termset = cmavo("nu'i")
-            .or_not()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .or_not()
             .then(modal_forethought_connective_with_free_modifiers(
                 free_modifier.clone(),
             ))
             .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
-            .then(cmavo("nu'u").or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(
+                cmavo("nu'u")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
             .then(gik_connective_with_free_modifiers(free_modifier.clone()))
             .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
-            .then(cmavo("nu'u").or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(
+                cmavo("nu'u")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
             .map(
-                |(
-                    (
-                        (
-                            (
-                                (
-                                    ((((m_nuhi, nuhi_free_modifiers), gek), terms), nuhu),
-                                    nuhu_free_modifiers,
-                                ),
-                                gik,
-                            ),
-                            gik_terms,
-                        ),
-                        gik_nuhu,
-                    ),
-                    gik_nuhu_free_modifiers,
-                )| {
+                |((((((m_nuhi, gek), terms), nuhu), gik), gik_terms), gik_nuhu)| {
                     TermSyntax::GekNuhiTermset {
-                        m_nuhi,
-                        nuhi_free_modifiers,
+                        m_nuhi: m_nuhi.map(|(nuhi, free_modifiers)| {
+                            WithFreeModifiers::new(nuhi, free_modifiers)
+                        }),
                         gek,
                         terms,
-                        nuhu,
-                        nuhu_free_modifiers,
+                        nuhu: nuhu.map(|(nuhu, free_modifiers)| {
+                            WithFreeModifiers::new(nuhu, free_modifiers)
+                        }),
                         gik,
                         gik_terms,
-                        gik_nuhu,
-                        gik_nuhu_free_modifiers,
+                        gik_nuhu: gik_nuhu.map(|(nuhu, free_modifiers)| {
+                            WithFreeModifiers::new(nuhu, free_modifiers)
+                        }),
                     }
                 },
             );
         let nuhi_termset = cmavo("nu'i")
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
-            .then(cmavo("nu'u").or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(
+                cmavo("nu'u")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
             .map(
-                |((((nuhi, nuhi_free_modifiers), termset), nuhu), nuhu_free_modifiers)| {
-                    TermSyntax::NuhiTermset {
-                        nuhi,
-                        nuhi_free_modifiers,
-                        termset,
-                        nuhu,
-                        nuhu_free_modifiers,
-                    }
+                |(((nuhi, nuhi_free_modifiers), termset), nuhu)| TermSyntax::NuhiTermset {
+                    nuhi: WithFreeModifiers::new(nuhi, nuhi_free_modifiers),
+                    termset,
+                    nuhu: nuhu
+                        .map(|(nuhu, free_modifiers)| WithFreeModifiers::new(nuhu, free_modifiers)),
                 },
             );
         let simple_term =

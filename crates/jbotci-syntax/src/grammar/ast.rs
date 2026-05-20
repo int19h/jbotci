@@ -375,23 +375,18 @@ pub enum FragmentSyntax {
 #[invariant(true)]
 pub enum TermSyntax {
     NuhiTermset {
-        nuhi: WithIndicators<WordLike>,
-        nuhi_free_modifiers: Vec<FreeModifierSyntax>,
+        nuhi: WithFreeModifiers<WithIndicators<WordLike>>,
         termset: Vec<TermSyntax>,
-        nuhu: Option<WithIndicators<WordLike>>,
-        nuhu_free_modifiers: Vec<FreeModifierSyntax>,
+        nuhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     GekNuhiTermset {
-        m_nuhi: Option<WithIndicators<WordLike>>,
-        nuhi_free_modifiers: Vec<FreeModifierSyntax>,
+        m_nuhi: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         gek: ConnectiveSyntax,
         terms: Vec<TermSyntax>,
-        nuhu: Option<WithIndicators<WordLike>>,
-        nuhu_free_modifiers: Vec<FreeModifierSyntax>,
+        nuhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         gik: ConnectiveSyntax,
         gik_terms: Vec<TermSyntax>,
-        gik_nuhu: Option<WithIndicators<WordLike>>,
-        gik_nuhu_free_modifiers: Vec<FreeModifierSyntax>,
+        gik_nuhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Cehe {
         leading_terms: Vec<TermSyntax>,
@@ -411,8 +406,7 @@ pub enum TermSyntax {
         fa: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         argument: ArgumentSyntax,
-        ku: Option<WithIndicators<WordLike>>,
-        ku_free_modifiers: Vec<FreeModifierSyntax>,
+        ku: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     NaKu {
         na: WithIndicators<WordLike>,
@@ -424,36 +418,28 @@ pub enum TermSyntax {
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     NoihaAdverbial {
-        noiha: WithIndicators<WordLike>,
-        leading_free_modifiers: Vec<FreeModifierSyntax>,
+        noiha: WithFreeModifiers<WithIndicators<WordLike>>,
         tail_elements: Vec<ArgumentTailElementSyntax>,
         relation: Option<RelationSyntax>,
         relative_clauses: Vec<RelativeClauseSyntax>,
-        fehu: Option<WithIndicators<WordLike>>,
-        trailing_free_modifiers: Vec<FreeModifierSyntax>,
+        fehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     PoihaBrigahi {
-        poiha: WithIndicators<WordLike>,
-        leading_free_modifiers: Vec<FreeModifierSyntax>,
+        poiha: WithFreeModifiers<WithIndicators<WordLike>>,
         tail_elements: Vec<ArgumentTailElementSyntax>,
         relation: Option<RelationSyntax>,
         relative_clauses: Vec<RelativeClauseSyntax>,
-        brigahi_ku: WithIndicators<WordLike>,
-        trailing_free_modifiers: Vec<FreeModifierSyntax>,
+        brigahi_ku: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     FihoiAdverbial {
-        fihoi: WithIndicators<WordLike>,
-        leading_free_modifiers: Vec<FreeModifierSyntax>,
+        fihoi: WithFreeModifiers<WithIndicators<WordLike>>,
         subsentence: Box<SubsentenceSyntax>,
-        fihau: Option<WithIndicators<WordLike>>,
-        trailing_free_modifiers: Vec<FreeModifierSyntax>,
+        fihau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     SoiAdverbial {
-        soi: WithIndicators<WordLike>,
-        leading_free_modifiers: Vec<FreeModifierSyntax>,
+        soi: WithFreeModifiers<WithIndicators<WordLike>>,
         subsentence: Box<SubsentenceSyntax>,
-        sehu: Option<WithIndicators<WordLike>>,
-        trailing_free_modifiers: Vec<FreeModifierSyntax>,
+        sehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Tagged {
         tense_modal: Option<TenseModalSyntax>,
@@ -1969,55 +1955,44 @@ impl TermSyntax {
         match self {
             TermSyntax::NuhiTermset {
                 nuhi,
-                nuhi_free_modifiers,
                 termset,
                 nuhu,
-                nuhu_free_modifiers,
             } => {
-                let mut words = vec![nuhi];
-                for free_modifier in nuhi_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = nuhi.words();
                 for term in termset {
                     words.extend(term.words());
                 }
-                words.extend(nuhu);
-                for free_modifier in nuhu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(nuhu) = nuhu {
+                    words.extend(nuhu.words());
                 }
                 words
             }
             TermSyntax::GekNuhiTermset {
                 m_nuhi,
-                nuhi_free_modifiers,
                 gek,
                 terms,
                 nuhu,
-                nuhu_free_modifiers,
                 gik,
                 gik_terms,
                 gik_nuhu,
-                gik_nuhu_free_modifiers,
             } => {
-                let mut words = m_nuhi.into_iter().collect::<Vec<_>>();
-                for free_modifier in nuhi_free_modifiers {
-                    words.extend(free_modifier.words());
+                let mut words = Vec::new();
+                if let Some(nuhi) = m_nuhi {
+                    words.extend(nuhi.words());
                 }
                 words.extend(gek.words());
                 for term in terms {
                     words.extend(term.words());
                 }
-                words.extend(nuhu);
-                for free_modifier in nuhu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(nuhu) = nuhu {
+                    words.extend(nuhu.words());
                 }
                 words.extend(gik.words());
                 for term in gik_terms {
                     words.extend(term.words());
                 }
-                words.extend(gik_nuhu);
-                for free_modifier in gik_nuhu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(nuhu) = gik_nuhu {
+                    words.extend(nuhu.words());
                 }
                 words
             }
@@ -2067,16 +2042,14 @@ impl TermSyntax {
                 free_modifiers,
                 argument,
                 ku,
-                ku_free_modifiers,
             } => {
                 let mut words = vec![fa];
                 for free_modifier in free_modifiers {
                     words.extend(free_modifier.words());
                 }
                 words.extend(argument.words());
-                words.extend(ku);
-                for free_modifier in ku_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(ku) = ku {
+                    words.extend(ku.words());
                 }
                 words
             }
@@ -2100,17 +2073,12 @@ impl TermSyntax {
             }
             TermSyntax::NoihaAdverbial {
                 noiha,
-                leading_free_modifiers,
                 tail_elements,
                 relation,
                 relative_clauses,
                 fehu,
-                trailing_free_modifiers,
             } => {
-                let mut words = vec![noiha];
-                for free_modifier in leading_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = noiha.words();
                 for tail_element in tail_elements {
                     words.extend(tail_element.words());
                 }
@@ -2120,25 +2088,19 @@ impl TermSyntax {
                 for relative_clause in relative_clauses {
                     words.extend(relative_clause.words());
                 }
-                words.extend(fehu);
-                for free_modifier in trailing_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(fehu) = fehu {
+                    words.extend(fehu.words());
                 }
                 words
             }
             TermSyntax::PoihaBrigahi {
                 poiha,
-                leading_free_modifiers,
                 tail_elements,
                 relation,
                 relative_clauses,
                 brigahi_ku,
-                trailing_free_modifiers,
             } => {
-                let mut words = vec![poiha];
-                for free_modifier in leading_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = poiha.words();
                 for tail_element in tail_elements {
                     words.extend(tail_element.words());
                 }
@@ -2148,45 +2110,30 @@ impl TermSyntax {
                 for relative_clause in relative_clauses {
                     words.extend(relative_clause.words());
                 }
-                words.push(brigahi_ku);
-                for free_modifier in trailing_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(brigahi_ku.words());
                 words
             }
             TermSyntax::FihoiAdverbial {
                 fihoi,
-                leading_free_modifiers,
                 subsentence,
                 fihau,
-                trailing_free_modifiers,
             } => {
-                let mut words = vec![fihoi];
-                for free_modifier in leading_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = fihoi.words();
                 words.extend(subsentence.words());
-                words.extend(fihau);
-                for free_modifier in trailing_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(fihau) = fihau {
+                    words.extend(fihau.words());
                 }
                 words
             }
             TermSyntax::SoiAdverbial {
                 soi,
-                leading_free_modifiers,
                 subsentence,
                 sehu,
-                trailing_free_modifiers,
             } => {
-                let mut words = vec![soi];
-                for free_modifier in leading_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = soi.words();
                 words.extend(subsentence.words());
-                words.extend(sehu);
-                for free_modifier in trailing_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(sehu) = sehu {
+                    words.extend(sehu.words());
                 }
                 words
             }
