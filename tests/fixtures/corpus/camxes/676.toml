@@ -55,91 +55,95 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {ConnectedRelation = {
-                                                connective = {Connective = {
-                                                    cmavo = [
-                                                        {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Connected = {
+                                            connective = {
+                                                cmavo = [
+                                                    {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "je",
                                                             span = [29, 31]
-                                                        }},
-                                                    ]
-                                                }},
-                                                leading_relation = {KeRelation = {
-                                                    inner_relation = {CompoundRelation = {
-                                                        relation_units = [
-                                                            {WordRelationUnit = {
-                                                                word = {Bare = {
-                                                                    kind = "gismu",
-                                                                    phonemes = "melbi",
-                                                                    span = [3, 8]
-                                                                }}
-                                                            }},
-                                                            [
-                                                                {ConnectedRelationUnit = {
-                                                                    connective = {Connective = {
-                                                                        cmavo = [
-                                                                            {Bare = {
-                                                                                kind = "cmavo",
-                                                                                phonemes = "je",
-                                                                                span = [15, 17]
-                                                                            }},
-                                                                        ]
-                                                                    }},
-                                                                    leading_unit = {WordRelationUnit = {
-                                                                        word = {Bare = {
-                                                                            kind = "gismu",
-                                                                            phonemes = "cmalu",
-                                                                            span = [9, 14]
-                                                                        }}
-                                                                    }},
-                                                                    trailing_unit = {WordRelationUnit = {
-                                                                        word = {Bare = {
-                                                                            kind = "gismu",
-                                                                            phonemes = "nixli",
-                                                                            span = [18, 23]
-                                                                        }}
-                                                                    }}
-                                                                }},
-                                                            ],
-                                                        ]
+                                                        }
                                                     }},
-                                                    ke = {Bare = {
+                                                ],
+                                                kind = "Relation"
+                                            },
+                                            leading_relation = {Ke = {
+                                                ke = {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "ke",
                                                         span = [0, 2]
-                                                    }},
-                                                    kehe = {Bare = {
+                                                    }
+                                                }},
+                                                kehe = {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "ke'e",
                                                         span = [24, 28]
-                                                    }}
+                                                    }
                                                 }},
-                                                trailing_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "ckule",
-                                                        span = [32, 37]
-                                                    }}
+                                                relation = {Compound = [
+                                                        {Word = {
+                                                            Bare = {Bare = {
+                                                                kind = "gismu",
+                                                                phonemes = "melbi",
+                                                                span = [3, 8]
+                                                            }}
+                                                        }},
+                                                        {Connected = {
+                                                            connective = {
+                                                                cmavo = [
+                                                                    {Bare = {
+                                                                        Bare = {
+                                                                            kind = "cmavo",
+                                                                            phonemes = "je",
+                                                                            span = [15, 17]
+                                                                        }
+                                                                    }},
+                                                                ],
+                                                                kind = "Relation"
+                                                            },
+                                                            leading_unit = {Word = {
+                                                                Bare = {Bare = {
+                                                                    kind = "gismu",
+                                                                    phonemes = "cmalu",
+                                                                    span = [9, 14]
+                                                                }}
+                                                            }},
+                                                            trailing_unit = {Word = {
+                                                                Bare = {Bare = {
+                                                                    kind = "gismu",
+                                                                    phonemes = "nixli",
+                                                                    span = [18, 23]
+                                                                }}
+                                                            }}
+                                                        }},
+                                                    ] }
+                                            }},
+                                            trailing_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "ckule",
+                                                    span = [32, 37]
                                                 }}
                                             }}
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

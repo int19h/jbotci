@@ -124,60 +124,70 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [0, 2]
-                                            }},
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {BeRelationUnit = {
-                                                        base = {SeRelationUnit = {
-                                                            inner_unit = {WordRelationUnit = {
-                                                                word = {Bare = {
-                                                                    kind = "gismu",
-                                                                    phonemes = "lerfu",
-                                                                    span = [6, 11]
-                                                                }}
-                                                            }},
-                                                            se = {Bare = {
+                                            }
+                                        }},
+                                        relation = {Compound = [
+                                                {Be = {
+                                                    base = {Se = {
+                                                        inner_unit = {Word = {
+                                                            Bare = {Bare = {
+                                                                kind = "gismu",
+                                                                phonemes = "lerfu",
+                                                                span = [6, 11]
+                                                            }}
+                                                        }},
+                                                        se = {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "se",
                                                                 span = [3, 5]
-                                                            }}
-                                                        }},
-                                                        be = {Bare = {
+                                                            }
+                                                        }}
+                                                    }},
+                                                    be = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "be",
                                                             span = [12, 14]
-                                                        }},
-                                                        first_argument = {ConnectedArgument = {
-                                                            connective = {Connective = {
-                                                                cmavo = [
-                                                                    {Bare = {
+                                                        }
+                                                    }},
+                                                    first_argument = {Connected = {
+                                                        connective = {
+                                                            cmavo = [
+                                                                {Bare = {
+                                                                    Bare = {
                                                                         kind = "cmavo",
                                                                         phonemes = "e",
                                                                         span = [23, 24]
-                                                                    }},
-                                                                ]
-                                                            }},
-                                                            leading_argument = {QuoteArgument = {
-                                                                quote = {ZoQuote = {
-                                                                    word = {Bare = {
+                                                                    }
+                                                                }},
+                                                            ],
+                                                            kind = "Afterthought"
+                                                        },
+                                                        leading_argument = {Quote = {
+                                                            quote = {Zo = {
+                                                                word = {Bare = {
+                                                                    Bare = {
                                                                         kind = "cmavo",
                                                                         phonemes = "ky",
                                                                         span = [18, 20]
-                                                                    }},
-                                                                    zo = {ZoQuote = {
+                                                                    }
+                                                                }},
+                                                                zo = {Bare = {
+                                                                    ZoQuote = {
                                                                         word = {
                                                                             kind = "cmavo",
                                                                             phonemes = "ky",
@@ -188,111 +198,162 @@ parse-tree = {
                                                                             phonemes = "zo",
                                                                             span = [15, 17]
                                                                         }
-                                                                    }}
+                                                                    }
                                                                 }}
+                                                            }}
+                                                        }},
+                                                        trailing_argument = {Descriptor = {
+                                                            descriptor = {Bare = {
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "le",
+                                                                    span = [25, 27]
+                                                                }
                                                             }},
-                                                            trailing_argument = {DescriptorArgument = {
-                                                                descriptor = {Descriptor = {
-                                                                    descriptor = {Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "le",
-                                                                        span = [25, 27]
-                                                                    }},
-                                                                    relation = {CompoundRelation = {
-                                                                        relation_units = [
-                                                                            {BeRelationUnit = {
-                                                                                base = {WordRelationUnit = {
-                                                                                    word = {Bare = {
-                                                                                        kind = "gismu",
-                                                                                        phonemes = "lerfu",
-                                                                                        span = [28, 33]
-                                                                                    }}
+                                                            relation = {Compound = [
+                                                                    {Be = {
+                                                                        base = {Word = {
+                                                                            Bare = {Bare = {
+                                                                                kind = "gismu",
+                                                                                phonemes = "lerfu",
+                                                                                span = [28, 33]
+                                                                            }}
+                                                                        }},
+                                                                        be = {Bare = {
+                                                                            Bare = {
+                                                                                kind = "cmavo",
+                                                                                phonemes = "be",
+                                                                                span = [34, 36]
+                                                                            }
+                                                                        }},
+                                                                        first_argument = {Quote = {
+                                                                            quote = {Zo = {
+                                                                                word = {Bare = {
+                                                                                    Bare = {
+                                                                                        kind = "cmavo",
+                                                                                        phonemes = "ly",
+                                                                                        span = [40, 42]
+                                                                                    }
                                                                                 }},
-                                                                                be = {Bare = {
-                                                                                    kind = "cmavo",
-                                                                                    phonemes = "be",
-                                                                                    span = [34, 36]
-                                                                                }},
-                                                                                first_argument = {QuoteArgument = {
-                                                                                    quote = {ZoQuote = {
-                                                                                        word = {Bare = {
+                                                                                zo = {Bare = {
+                                                                                    ZoQuote = {
+                                                                                        word = {
                                                                                             kind = "cmavo",
                                                                                             phonemes = "ly",
                                                                                             span = [40, 42]
-                                                                                        }},
-                                                                                        zo = {ZoQuote = {
-                                                                                            word = {
-                                                                                                kind = "cmavo",
-                                                                                                phonemes = "ly",
-                                                                                                span = [40, 42]
-                                                                                            },
-                                                                                            zo = {
-                                                                                                kind = "cmavo",
-                                                                                                phonemes = "zo",
-                                                                                                span = [37, 39]
-                                                                                            }
-                                                                                        }}
-                                                                                    }}
+                                                                                        },
+                                                                                        zo = {
+                                                                                            kind = "cmavo",
+                                                                                            phonemes = "zo",
+                                                                                            span = [37, 39]
+                                                                                        }
+                                                                                    }
                                                                                 }}
-                                                                            }},
-                                                                            [
-                                                                                {NaheRelationUnit = {
-                                                                                    inner_unit = {WordRelationUnit = {
-                                                                                        word = {Bare = {
-                                                                                            kind = "gismu",
-                                                                                            phonemes = "darno",
-                                                                                            span = [49, 54]
-                                                                                        }}
-                                                                                    }},
-                                                                                    nahe = {Bare = {
-                                                                                        kind = "cmavo",
-                                                                                        phonemes = "to'e",
-                                                                                        span = [44, 48]
-                                                                                    }}
-                                                                                }},
-                                                                            ],
-                                                                        ]
-                                                                    }}
-                                                                }}
-                                                            }}
+                                                                            }}
+                                                                        }}
+                                                                    }},
+                                                                    {Nahe = {
+                                                                        inner_unit = {Word = {
+                                                                            Bare = {Bare = {
+                                                                                kind = "gismu",
+                                                                                phonemes = "darno",
+                                                                                span = [49, 54]
+                                                                            }}
+                                                                        }},
+                                                                        nahe = {Bare = {
+                                                                            Bare = {
+                                                                                kind = "cmavo",
+                                                                                phonemes = "to'e",
+                                                                                span = [44, 48]
+                                                                            }
+                                                                        }}
+                                                                    }},
+                                                                ] }
                                                         }}
-                                                    }},
-                                                ]
-                                            }}
-                                        }}
-                                    }}
+                                                    }}
+                                                }},
+                                            ] }
+                                    }
                                 }},
-                                {FaTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Fa = {
+                                    argument = {Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [58, 60]
+                                            }
+                                        }},
+                                        relation = {Abstraction = {
+                                            nu = {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ka",
+                                                    span = [61, 63]
+                                                }
                                             }},
-                                            relation = {AbstractionRelation = {
-                                                abstraction = {Abstraction = {
-                                                    nu = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "ka",
-                                                        span = [61, 63]
-                                                    }},
-                                                    subsentence = {PlainSubsentence = {} }
-                                                }}
+                                            subsentence = {Plain = {
+                                                predicate_tail = {
+                                                    first = {
+                                                        first = {
+                                                            first = {Relation = {
+                                                                relation = {Compound = [
+                                                                        {Connected = {
+                                                                            connective = {
+                                                                                cmavo = [
+                                                                                    {Bare = {
+                                                                                        Bare = {
+                                                                                            kind = "cmavo",
+                                                                                            phonemes = "je",
+                                                                                            span = [70, 72]
+                                                                                        }
+                                                                                    }},
+                                                                                ],
+                                                                                kind = "Relation"
+                                                                            },
+                                                                            leading_unit = {Word = {
+                                                                                Bare = {Bare = {
+                                                                                    kind = "gismu",
+                                                                                    phonemes = "skami",
+                                                                                    span = [64, 69]
+                                                                                }}
+                                                                            }},
+                                                                            trailing_unit = {Word = {
+                                                                                Bare = {Bare = {
+                                                                                    kind = "gismu",
+                                                                                    phonemes = "degji",
+                                                                                    span = [73, 78]
+                                                                                }}
+                                                                            }}
+                                                                        }},
+                                                                        {Word = {
+                                                                            Bare = {Bare = {
+                                                                                kind = "gismu",
+                                                                                phonemes = "tanbo",
+                                                                                span = [79, 84]
+                                                                            }}
+                                                                        }},
+                                                                    ] }
+                                                            }}
+                                                        }
+                                                    }
+                                                }
                                             }}
                                         }}
                                     }},
                                     fa = {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "fi",
-                                        span = [55, 57]
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "fi",
+                                            span = [55, 57]
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

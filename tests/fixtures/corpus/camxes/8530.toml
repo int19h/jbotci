@@ -45,79 +45,89 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Tagged = {
+                                    argument = {Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [9, 11]
-                                            }},
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {BeRelationUnit = {
-                                                        base = {WordRelationUnit = {
-                                                            word = {Bare = {
-                                                                kind = "gismu",
-                                                                phonemes = "jeftu",
-                                                                span = [12, 17]
-                                                            }}
-                                                        }},
-                                                        be = {Bare = {
+                                            }
+                                        }},
+                                        relation = {Compound = [
+                                                {Be = {
+                                                    base = {Word = {
+                                                        Bare = {Bare = {
+                                                            kind = "gismu",
+                                                            phonemes = "jeftu",
+                                                            span = [12, 17]
+                                                        }}
+                                                    }},
+                                                    be = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "be",
                                                             span = [18, 20]
+                                                        }
+                                                    }},
+                                                    first_argument = {MathExpression = {
+                                                        expression = {Number = {
+                                                            Number = {
+                                                                number = [
+                                                                    {Bare = {
+                                                                        Bare = {
+                                                                            kind = "cmavo",
+                                                                            phonemes = "ci",
+                                                                            span = [24, 26]
+                                                                        }
+                                                                    }},
+                                                                ]
+                                                            }
                                                         }},
-                                                        first_argument = {MathExpressionArgument = {
-                                                            li = {Bare = {
+                                                        li = {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "li",
                                                                 span = [21, 23]
-                                                            }},
-                                                            math_expression = {NumberExpression = {
-                                                                number = [
-                                                                    {Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "ci",
-                                                                        span = [24, 26]
-                                                                    }},
-                                                                ]
-                                                            }}
+                                                            }
                                                         }}
-                                                    }},
-                                                ]
-                                            }}
-                                        }}
+                                                    }}
+                                                }},
+                                            ] }
                                     }},
-                                    tense_modal = {TenseModal = {
+                                    tense_modal = {Composite = {
                                         leaves = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "zi",
-                                                span = [6, 8]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "zi",
+                                                    span = [6, 8]
+                                                }
                                             }},
                                         ],
-                                        time = {Time = {
+                                        time = {
                                             distance = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "zi",
-                                                span = [6, 8]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "zi",
+                                                    span = [6, 8]
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

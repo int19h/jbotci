@@ -30,34 +30,32 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            argument = {RelationVocativeArgument = {
-                relation = {CompoundRelation = {
-                    relation_units = [
-                        {WordRelationUnit = {
-                            word = {Bare = {
+        {Vocative = {
+            argument = {RelationVocative = {
+                relation = {Compound = [
+                        {Word = {
+                            Bare = {Bare = {
                                 kind = "gismu",
                                 phonemes = "zenba",
                                 span = [4, 9]
                             }}
                         }},
-                        [
-                            {WordRelationUnit = {
-                                word = {Bare = {
-                                    kind = "gismu",
-                                    phonemes = "jatna",
-                                    span = [10, 15]
-                                }}
-                            }},
-                        ],
-                    ]
-                }}
+                        {Word = {
+                            Bare = {Bare = {
+                                kind = "gismu",
+                                phonemes = "jatna",
+                                span = [10, 15]
+                            }}
+                        }},
+                    ] }
             }},
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "coĭ",
-                    span = [0, 3]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "coĭ",
+                        span = [0, 3]
+                    }
                 }},
             ]
         }},

@@ -40,69 +40,73 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {ToFree = {
+        {To = {
             text = {
                 paragraphs = [
-                    {Paragraph = {
+                    {
                         statements = [
-                            {ParagraphStatement = {
-                                statement = {StatementPredicate = {
-                                    predicate = {Predicate = {
-                                        leading_terms = [
-                                            {ArgumentTerm = {
-                                                argument = {LetterArgument = {
-                                                    letter = [
-                                                        {Bare = {
+                            {
+                                statement = {Predicate = {
+                                    leading_terms = [
+                                        {Argument = {
+                                            Letter = {
+                                                letter = [
+                                                    {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "xy",
                                                             span = [3, 5]
-                                                        }},
-                                                    ]
-                                                }}
-                                            }},
-                                        ],
-                                        predicate_tail = {PredicateTail = {
-                                            first = {PredicateTail1 = {
-                                                first = {PredicateTail2 = {
-                                                    first = {RelationPredicateTail3 = {
-                                                        relation = {CompoundRelation = {
-                                                            relation_units = [
-                                                                {JaiRelationUnit = {
-                                                                    inner_unit = {WordRelationUnit = {
-                                                                        word = {Bare = {
-                                                                            kind = "gismu",
-                                                                            phonemes = "fenki",
-                                                                            span = [11, 16]
-                                                                        }}
-                                                                    }},
-                                                                    jai = {Bare = {
+                                                        }
+                                                    }},
+                                                ]
+                                            }
+                                        }},
+                                    ],
+                                    predicate_tail = {
+                                        first = {
+                                            first = {
+                                                first = {Relation = {
+                                                    relation = {Compound = [
+                                                            {Jai = {
+                                                                inner_unit = {Word = {
+                                                                    Bare = {Bare = {
+                                                                        kind = "gismu",
+                                                                        phonemes = "fenki",
+                                                                        span = [11, 16]
+                                                                    }}
+                                                                }},
+                                                                jai = {Bare = {
+                                                                    Bare = {
                                                                         kind = "cmavo",
                                                                         phonemes = "jaĭ",
                                                                         span = [7, 10]
-                                                                    }}
-                                                                }},
-                                                            ]
-                                                        }}
-                                                    }}
+                                                                    }
+                                                                }}
+                                                            }},
+                                                        ] }
                                                 }}
-                                            }}
-                                        }}
-                                    }}
+                                            }
+                                        }
+                                    }
                                 }}
-                            }},
+                            },
                         ]
-                    }},
+                    },
                 ]
             },
             to = {Bare = {
-                kind = "cmavo",
-                phonemes = "to",
-                span = [0, 2]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "to",
+                    span = [0, 2]
+                }
             }},
             toi = {Bare = {
-                kind = "cmavo",
-                phonemes = "toĭ",
-                span = [17, 20]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "toĭ",
+                    span = [17, 20]
+                }
             }}
         }},
     ]

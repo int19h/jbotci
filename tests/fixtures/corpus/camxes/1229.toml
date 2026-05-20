@@ -55,92 +55,96 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {WordRelationUnit = {
-                                                        word = {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Word = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "melbi",
+                                                        span = [0, 5]
+                                                    }}
+                                                }},
+                                                {Connected = {
+                                                    connective = {
+                                                        cmavo = [
+                                                            {Bare = {
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "je",
+                                                                    span = [12, 14]
+                                                                }
+                                                            }},
+                                                        ],
+                                                        kind = "Relation"
+                                                    },
+                                                    leading_unit = {Word = {
+                                                        Bare = {Bare = {
                                                             kind = "gismu",
-                                                            phonemes = "melbi",
-                                                            span = [0, 5]
+                                                            phonemes = "cmalu",
+                                                            span = [6, 11]
                                                         }}
                                                     }},
-                                                    [
-                                                        {ConnectedRelationUnit = {
-                                                            connective = {Connective = {
+                                                    trailing_unit = {Ke = {
+                                                        ke = {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "ke",
+                                                                span = [15, 17]
+                                                            }
+                                                        }},
+                                                        kehe = {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "ke'e",
+                                                                span = [34, 38]
+                                                            }
+                                                        }},
+                                                        relation = {Connected = {
+                                                            connective = {
                                                                 cmavo = [
                                                                     {Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "je",
-                                                                        span = [12, 14]
+                                                                        Bare = {
+                                                                            kind = "cmavo",
+                                                                            phonemes = "je",
+                                                                            span = [24, 26]
+                                                                        }
                                                                     }},
-                                                                ]
-                                                            }},
-                                                            leading_unit = {WordRelationUnit = {
-                                                                word = {Bare = {
+                                                                ],
+                                                                kind = "Relation"
+                                                            },
+                                                            leading_relation = {Base = {
+                                                                Bare = {Bare = {
                                                                     kind = "gismu",
-                                                                    phonemes = "cmalu",
-                                                                    span = [6, 11]
+                                                                    phonemes = "nixli",
+                                                                    span = [18, 23]
                                                                 }}
                                                             }},
-                                                            trailing_unit = {KeRelationUnit = {
-                                                                ke = {Bare = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "ke",
-                                                                    span = [15, 17]
-                                                                }},
-                                                                kehe = {Bare = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "ke'e",
-                                                                    span = [34, 38]
-                                                                }},
-                                                                relation = {ConnectedRelation = {
-                                                                    connective = {Connective = {
-                                                                        cmavo = [
-                                                                            {Bare = {
-                                                                                kind = "cmavo",
-                                                                                phonemes = "je",
-                                                                                span = [24, 26]
-                                                                            }},
-                                                                        ]
-                                                                    }},
-                                                                    leading_relation = {BaseRelation = {
-                                                                        word = {Bare = {
-                                                                            kind = "gismu",
-                                                                            phonemes = "nixli",
-                                                                            span = [18, 23]
-                                                                        }}
-                                                                    }},
-                                                                    trailing_relation = {BaseRelation = {
-                                                                        word = {Bare = {
-                                                                            kind = "gismu",
-                                                                            phonemes = "ckule",
-                                                                            span = [27, 32]
-                                                                        }}
-                                                                    }}
+                                                            trailing_relation = {Base = {
+                                                                Bare = {Bare = {
+                                                                    kind = "gismu",
+                                                                    phonemes = "ckule",
+                                                                    span = [27, 32]
                                                                 }}
                                                             }}
-                                                        }},
-                                                    ],
-                                                ]
-                                            }}
-                                        }}
+                                                        }}
+                                                    }}
+                                                }},
+                                            ] }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

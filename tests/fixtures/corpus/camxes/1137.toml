@@ -35,53 +35,63 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {MathExpressionArgument = {
-                                        li = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "li",
-                                            span = [0, 2]
-                                        }},
-                                        math_expression = {BinaryExpression = {
-                                            left_expression = {NumberExpression = {
-                                                number = [
-                                                    {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "re",
-                                                        span = [3, 5]
-                                                    }},
-                                                ]
+                                {Argument = {
+                                    MathExpression = {
+                                        expression = {Binary = {
+                                            left_expression = {Number = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "re",
+                                                                span = [3, 5]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }},
-                                            operator = {VuhuOperator = {
-                                                vuhu = {Bare = {
+                                            operator = {Vuhu = {
+                                                Bare = {Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "su'i",
                                                     span = [6, 10]
                                                 }}
                                             }},
-                                            right_expression = {NumberExpression = {
-                                                number = [
-                                                    {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "re",
-                                                        span = [11, 13]
-                                                    }},
-                                                ]
+                                            right_expression = {Number = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "re",
+                                                                span = [11, 13]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }}
+                                        }},
+                                        li = {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "li",
+                                                span = [0, 2]
+                                            }
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

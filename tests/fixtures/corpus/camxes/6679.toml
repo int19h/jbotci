@@ -52,83 +52,89 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [0, 2]
-                                            }},
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {MoiRelationUnit = {
-                                                        moi = {Bare = {
+                                            }
+                                        }},
+                                        relation = {Compound = [
+                                                {Moi = {
+                                                    moi = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "moĭ",
                                                             span = [5, 8]
-                                                        }},
-                                                        number = [
-                                                            {Bare = {
+                                                        }
+                                                    }},
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "pa",
                                                                 span = [3, 5]
-                                                            }},
-                                                        ]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }},
+                                                {Be = {
+                                                    base = {Word = {
+                                                        Bare = {Bare = {
+                                                            kind = "gismu",
+                                                            phonemes = "rafsi",
+                                                            span = [9, 14]
+                                                        }}
                                                     }},
-                                                    [
-                                                        {BeRelationUnit = {
-                                                            base = {WordRelationUnit = {
-                                                                word = {Bare = {
+                                                    be = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "be",
+                                                            span = [15, 17]
+                                                        }
+                                                    }},
+                                                    first_argument = {Quote = {
+                                                        quote = {Zo = {
+                                                            word = {Bare = {
+                                                                Bare = {
                                                                     kind = "gismu",
-                                                                    phonemes = "rafsi",
-                                                                    span = [9, 14]
-                                                                }}
+                                                                    phonemes = "gismu",
+                                                                    span = [21, 26]
+                                                                }
                                                             }},
-                                                            be = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "be",
-                                                                span = [15, 17]
-                                                            }},
-                                                            first_argument = {QuoteArgument = {
-                                                                quote = {ZoQuote = {
-                                                                    word = {Bare = {
+                                                            zo = {Bare = {
+                                                                ZoQuote = {
+                                                                    word = {
                                                                         kind = "gismu",
                                                                         phonemes = "gismu",
                                                                         span = [21, 26]
-                                                                    }},
-                                                                    zo = {ZoQuote = {
-                                                                        word = {
-                                                                            kind = "gismu",
-                                                                            phonemes = "gismu",
-                                                                            span = [21, 26]
-                                                                        },
-                                                                        zo = {
-                                                                            kind = "cmavo",
-                                                                            phonemes = "zo",
-                                                                            span = [18, 20]
-                                                                        }
-                                                                    }}
-                                                                }}
+                                                                    },
+                                                                    zo = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "zo",
+                                                                        span = [18, 20]
+                                                                    }
+                                                                }
                                                             }}
-                                                        }},
-                                                    ],
-                                                ]
-                                            }}
-                                        }}
-                                    }}
+                                                        }}
+                                                    }}
+                                                }},
+                                            ] }
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

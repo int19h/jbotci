@@ -30,52 +30,50 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {WordRelationUnit = {
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "cmalu",
-                                                            span = [0, 5]
-                                                        }}
-                                                    }},
-                                                    [
-                                                        {MeRelationUnit = {
-                                                            argument = {LetterArgument = {
-                                                                letter = [
-                                                                    {Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "by",
-                                                                        span = [9, 11]
-                                                                    }},
-                                                                ]
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Word = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "cmalu",
+                                                        span = [0, 5]
+                                                    }}
+                                                }},
+                                                {Me = {
+                                                    argument = {Letter = {
+                                                        letter = [
+                                                            {Bare = {
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "by",
+                                                                    span = [9, 11]
+                                                                }
                                                             }},
-                                                            me = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "me",
-                                                                span = [6, 8]
-                                                            }}
-                                                        }},
-                                                    ],
-                                                ]
-                                            }}
-                                        }}
+                                                        ]
+                                                    }},
+                                                    me = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "me",
+                                                            span = [6, 8]
+                                                        }
+                                                    }}
+                                                }},
+                                            ] }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

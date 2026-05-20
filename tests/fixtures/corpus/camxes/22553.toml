@@ -35,57 +35,53 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {WordRelationUnit = {
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "cafne",
-                                                            span = [0, 5]
-                                                        }}
-                                                    }},
-                                                    [
-                                                        {WordRelationUnit = {
-                                                            word = {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Word = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "cafne",
+                                                        span = [0, 5]
+                                                    }}
+                                                }},
+                                                {Word = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "morji",
+                                                        span = [6, 11]
+                                                    }}
+                                                }},
+                                                {Word = {
+                                                    WithIndicator = {
+                                                        base = {Bare = {
+                                                            Bare = {
                                                                 kind = "gismu",
-                                                                phonemes = "morji",
-                                                                span = [6, 11]
-                                                            }}
+                                                                phonemes = "gunka",
+                                                                span = [12, 17]
+                                                            }
                                                         }},
-                                                        {WordRelationUnit = {
-                                                            word = {WithIndicator = {
-                                                                base = {Bare = {
-                                                                    kind = "gismu",
-                                                                    phonemes = "gunka",
-                                                                    span = [12, 17]
-                                                                }},
-                                                                indicator = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "ki'a",
-                                                                    span = [18, 22]
-                                                                }
-                                                            }}
-                                                        }},
-                                                    ],
-                                                ]
-                                            }}
-                                        }}
+                                                        indicator = {
+                                                            kind = "cmavo",
+                                                            phonemes = "ki'a",
+                                                            span = [18, 22]
+                                                        }
+                                                    }
+                                                }},
+                                            ] }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

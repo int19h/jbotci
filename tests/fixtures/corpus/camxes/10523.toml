@@ -42,62 +42,58 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {WordRelationUnit = {
-                                                        word = {ZeiLujvo = {
-                                                            left = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "mu",
-                                                                span = [0, 2]
-                                                            }},
-                                                            right = {
-                                                                kind = "gismu",
-                                                                phonemes = "jamfu",
-                                                                span = [7, 12]
-                                                            },
-                                                            zei = {
-                                                                kind = "cmavo",
-                                                                phonemes = "zeĭ",
-                                                                span = [3, 6]
-                                                            }
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Word = {
+                                                    Bare = {ZeiLujvo = {
+                                                        left = {Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "mu",
+                                                            span = [0, 2]
+                                                        }},
+                                                        right = {
+                                                            kind = "gismu",
+                                                            phonemes = "jamfu",
+                                                            span = [7, 12]
+                                                        },
+                                                        zei = {
+                                                            kind = "cmavo",
+                                                            phonemes = "zeĭ",
+                                                            span = [3, 6]
+                                                        }
+                                                    }}
+                                                }},
+                                                {Se = {
+                                                    inner_unit = {Word = {
+                                                        Bare = {Bare = {
+                                                            kind = "gismu",
+                                                            phonemes = "dansu",
+                                                            span = [16, 21]
                                                         }}
                                                     }},
-                                                    [
-                                                        {SeRelationUnit = {
-                                                            inner_unit = {WordRelationUnit = {
-                                                                word = {Bare = {
-                                                                    kind = "gismu",
-                                                                    phonemes = "dansu",
-                                                                    span = [16, 21]
-                                                                }}
-                                                            }},
-                                                            se = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "se",
-                                                                span = [13, 15]
-                                                            }}
-                                                        }},
-                                                    ],
-                                                ]
-                                            }}
-                                        }}
+                                                    se = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "se",
+                                                            span = [13, 15]
+                                                        }
+                                                    }}
+                                                }},
+                                            ] }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -45,47 +45,89 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {RelativeClauseArgument = {
-                                        base_argument = {MathExpressionArgument = {
-                                            li = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "li",
-                                                span = [0, 2]
+                                {Argument = {
+                                    RelativeClause = {
+                                        base_argument = {MathExpression = {
+                                            expression = {Number = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "paĭ",
+                                                                span = [3, 6]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }},
-                                            math_expression = {NumberExpression = {
-                                                number = [
-                                                    {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "paĭ",
-                                                        span = [3, 6]
-                                                    }},
-                                                ]
+                                            li = {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "li",
+                                                    span = [0, 2]
+                                                }
                                             }}
                                         }},
                                         relative_clauses = [
-                                            {NoiRelativeClause = {
+                                            {Noi = {
                                                 noi = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "noĭ",
-                                                    span = [7, 10]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "noĭ",
+                                                        span = [7, 10]
+                                                    }
                                                 }},
-                                                subsentence = {PlainSubsentence = {} }
+                                                subsentence = {Plain = {
+                                                    predicate_tail = {
+                                                        first = {
+                                                            first = {
+                                                                first = {Relation = {
+                                                                    relation = {Compound = [
+                                                                            {Nahe = {
+                                                                                inner_unit = {Word = {
+                                                                                    Bare = {Bare = {
+                                                                                        kind = "gismu",
+                                                                                        phonemes = "frinu",
+                                                                                        span = [16, 21]
+                                                                                    }}
+                                                                                }},
+                                                                                nahe = {Bare = {
+                                                                                    Bare = {
+                                                                                        kind = "cmavo",
+                                                                                        phonemes = "na'e",
+                                                                                        span = [11, 15]
+                                                                                    }
+                                                                                }}
+                                                                            }},
+                                                                            {Word = {
+                                                                                Bare = {Bare = {
+                                                                                    kind = "gismu",
+                                                                                    phonemes = "namcu",
+                                                                                    span = [22, 27]
+                                                                                }}
+                                                                            }},
+                                                                        ] }
+                                                                }}
+                                                            }
+                                                        }
+                                                    }
+                                                }}
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

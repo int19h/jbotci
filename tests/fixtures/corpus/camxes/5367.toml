@@ -30,25 +30,50 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {RelativeClauseFragment = {
-                            relative_clauses = [
-                                {PoiRelativeClause = {
-                                    poi = {Bare = {
+                {
+                    statement = {Fragment = {
+                        RelativeClause = [
+                            {Poi = {
+                                poi = {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "poĭ",
                                         span = [0, 3]
-                                    }},
-                                    subsentence = {PlainSubsentence = {} }
+                                    }
                                 }},
-                            ]
-                        }}
+                                subsentence = {Plain = {
+                                    predicate_tail = {
+                                        first = {
+                                            first = {
+                                                first = {Relation = {
+                                                    relation = {Compound = [
+                                                            {Word = {
+                                                                Bare = {Bare = {
+                                                                    kind = "gismu",
+                                                                    phonemes = "mutce",
+                                                                    span = [4, 9]
+                                                                }}
+                                                            }},
+                                                            {Word = {
+                                                                Bare = {Bare = {
+                                                                    kind = "gismu",
+                                                                    phonemes = "xamgu",
+                                                                    span = [10, 15]
+                                                                }}
+                                                            }},
+                                                        ] }
+                                                }}
+                                            }
+                                        }
+                                    }
+                                }}
+                            }},
+                        ]
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

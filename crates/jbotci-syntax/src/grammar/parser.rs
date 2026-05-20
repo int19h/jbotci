@@ -64,29 +64,29 @@ fn attach_tense_modal_free_modifiers(
                 connectives,
             }
         }
-        TenseModalSyntax::Pu { mut word } => {
+        TenseModalSyntax::Pu(mut word) => {
             word.free_modifiers.extend(free_modifiers);
-            TenseModalSyntax::Pu { word }
+            TenseModalSyntax::Pu(word)
         }
         TenseModalSyntax::PuDistance { pu, mut distance } => {
             distance.free_modifiers.extend(free_modifiers);
             TenseModalSyntax::PuDistance { pu, distance }
         }
-        TenseModalSyntax::TimeInterval { mut word } => {
+        TenseModalSyntax::TimeInterval(mut word) => {
             word.free_modifiers.extend(free_modifiers);
-            TenseModalSyntax::TimeInterval { word }
+            TenseModalSyntax::TimeInterval(word)
         }
         TenseModalSyntax::PuCaha { pu, mut caha } => {
             caha.free_modifiers.extend(free_modifiers);
             TenseModalSyntax::PuCaha { pu, caha }
         }
-        TenseModalSyntax::SpaceDistance { mut word } => {
+        TenseModalSyntax::SpaceDistance(mut word) => {
             word.free_modifiers.extend(free_modifiers);
-            TenseModalSyntax::SpaceDistance { word }
+            TenseModalSyntax::SpaceDistance(word)
         }
-        TenseModalSyntax::SpaceDirection { mut word } => {
+        TenseModalSyntax::SpaceDirection(mut word) => {
             word.free_modifiers.extend(free_modifiers);
-            TenseModalSyntax::SpaceDirection { word }
+            TenseModalSyntax::SpaceDirection(word)
         }
         TenseModalSyntax::SpaceMovement {
             mohi,
@@ -134,9 +134,9 @@ fn attach_tense_modal_free_modifiers(
                 extra_leaves,
             }
         }
-        TenseModalSyntax::Ki { mut ki } => {
+        TenseModalSyntax::Ki(mut ki) => {
             ki.free_modifiers.extend(free_modifiers);
-            TenseModalSyntax::Ki { ki }
+            TenseModalSyntax::Ki(ki)
         }
         TenseModalSyntax::Fiho {
             mut fiho,
@@ -154,13 +154,13 @@ fn attach_tense_modal_free_modifiers(
                 fehu,
             }
         }
-        TenseModalSyntax::Caha { mut word } => {
+        TenseModalSyntax::Caha(mut word) => {
             word.free_modifiers.extend(free_modifiers);
-            TenseModalSyntax::Caha { word }
+            TenseModalSyntax::Caha(word)
         }
-        TenseModalSyntax::Zaho { mut words } => {
+        TenseModalSyntax::Zaho(mut words) => {
             words.free_modifiers.extend(free_modifiers);
-            TenseModalSyntax::Zaho { words }
+            TenseModalSyntax::Zaho(words)
         }
         TenseModalSyntax::Interval {
             number,
@@ -935,9 +935,10 @@ fn statement_parser<'tokens>(
                 PredicateStatementContinuationSyntax {
                     connective,
                     tense_modal,
-                    marker: PredicateStatementContinuationMarkerSyntax::Bo {
-                        bo: WithFreeModifiers::new(bo, free_modifiers),
-                    },
+                    marker: PredicateStatementContinuationMarkerSyntax::Bo(WithFreeModifiers::new(
+                        bo,
+                        free_modifiers,
+                    )),
                     trailing_subsentence,
                 }
             },
@@ -4681,9 +4682,8 @@ where
         + Clone
         + 'tokens,
 {
-    let vuhu = cmavo_of("VUhU", VUHU_WORDS).map(|vuhu| MathOperatorSyntax::Vuhu {
-        vuhu: WithFreeModifiers::new(vuhu, Vec::new()),
-    });
+    let vuhu = cmavo_of("VUhU", VUHU_WORDS)
+        .map(|vuhu| MathOperatorSyntax::Vuhu(WithFreeModifiers::new(vuhu, Vec::new())));
     let maho = cmavo("ma'o")
         .then(expression)
         .then(cmavo("te'u").or_not())
@@ -4741,9 +4741,8 @@ where
         + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
-    let vuhu = cmavo_of("VUhU", VUHU_WORDS).map(|vuhu| MathOperatorSyntax::Vuhu {
-        vuhu: WithFreeModifiers::new(vuhu, Vec::new()),
-    });
+    let vuhu = cmavo_of("VUhU", VUHU_WORDS)
+        .map(|vuhu| MathOperatorSyntax::Vuhu(WithFreeModifiers::new(vuhu, Vec::new())));
     let maho = cmavo("ma'o")
         .then(expression)
         .then(cmavo("te'u").or_not())
@@ -5044,9 +5043,7 @@ where
 
     let brivla_word_unit = brivla_relation_word()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|(word, free_modifiers)| RelationUnitSyntax::Word {
-            word: wrapped_word(word, free_modifiers),
-        });
+        .map(|(word, free_modifiers)| RelationUnitSyntax::Word(wrapped_word(word, free_modifiers)));
     let goha_word_unit = cmavo_of("GOhA", GOHA_WORDS)
         .then_ignore(
             choice((
@@ -5058,9 +5055,7 @@ where
             .rewind()
             .not(),
         )
-        .map(|word| RelationUnitSyntax::Word {
-            word: wrapped_word(word, Vec::new()),
-        });
+        .map(|word| RelationUnitSyntax::Word(wrapped_word(word, Vec::new())));
     let word_unit = choice((brivla_word_unit, goha_word_unit)).boxed();
     let goha_unit = cmavo_of("GOhA", GOHA_WORDS)
         .then(cmavo("ra'o").or_not())
@@ -5714,8 +5709,8 @@ where
             .boxed();
         let brivla_word_unit = brivla_relation_word()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .map(|(word, free_modifiers)| RelationUnitSyntax::Word {
-                word: wrapped_word(word, free_modifiers),
+            .map(|(word, free_modifiers)| {
+                RelationUnitSyntax::Word(wrapped_word(word, free_modifiers))
             });
         let goha_word_unit = cmavo_of("GOhA", GOHA_WORDS)
             .then_ignore(
@@ -5728,9 +5723,7 @@ where
                 .rewind()
                 .not(),
             )
-            .map(|word| RelationUnitSyntax::Word {
-                word: wrapped_word(word, Vec::new()),
-            });
+            .map(|word| RelationUnitSyntax::Word(wrapped_word(word, Vec::new())));
         let word_unit = choice((brivla_word_unit, goha_word_unit)).boxed();
         let goha_unit = cmavo_of("GOhA", GOHA_WORDS)
             .then(cmavo("ra'o").or_not())
@@ -6164,13 +6157,13 @@ where
 #[ensures(true)]
 fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
     match units.as_slice() {
-        [RelationUnitSyntax::Word { word }] if word.free_modifiers.is_empty() => {
+        [RelationUnitSyntax::Word(word)] if word.free_modifiers.is_empty() => {
             RelationSyntax::Base(word.value.clone())
         }
         [RelationUnitSyntax::Goha { goha, raho: None }] if goha.free_modifiers.is_empty() => {
             RelationSyntax::Base(goha.value.clone())
         }
-        [RelationUnitSyntax::Word { .. } | RelationUnitSyntax::Goha { .. }] => {
+        [RelationUnitSyntax::Word(..) | RelationUnitSyntax::Goha { .. }] => {
             RelationSyntax::Compound(units)
         }
         [RelationUnitSyntax::Se { se, inner_unit }] => RelationSyntax::Se {
@@ -6228,7 +6221,7 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
 #[ensures(true)]
 fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
     match unit {
-        RelationUnitSyntax::Word { word } if word.free_modifiers.is_empty() => {
+        RelationUnitSyntax::Word(word) if word.free_modifiers.is_empty() => {
             RelationSyntax::Base(word.value.clone())
         }
         RelationUnitSyntax::Goha { goha, raho: None } if goha.free_modifiers.is_empty() => {
@@ -6308,9 +6301,8 @@ fn relation_to_empty_predicate(relation: RelationSyntax) -> PredicateSyntax {
 #[ensures(true)]
 fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
     let relation = recursive(|relation| {
-        let word_unit = relation_word().map(|word| RelationUnitSyntax::Word {
-            word: wrapped_word(word, Vec::new()),
-        });
+        let word_unit =
+            relation_word().map(|word| RelationUnitSyntax::Word(wrapped_word(word, Vec::new())));
         let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
             .then(word_unit.clone())
             .map(|(se, inner_unit)| RelationUnitSyntax::Se {
@@ -7211,9 +7203,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
         });
     let caha_before_tag = cmavo_of("CAhA", CAHA_WORDS)
         .then(tense_modal().rewind())
-        .map(|(caha, _)| TenseModalSyntax::Caha {
-            word: WithFreeModifiers::new(caha, Vec::new()),
-        });
+        .map(|(caha, _)| TenseModalSyntax::Caha(WithFreeModifiers::new(caha, Vec::new())));
     let property_split_follower = choice((
         cmavo_of("PU", &["pu", "ca", "ba"]).ignored(),
         cmavo_of("ZI", &["zi", "za", "zu"]).ignored(),
@@ -7304,18 +7294,12 @@ fn tense_modal_atom<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                     pu,
                     caha: WithFreeModifiers::new(caha, Vec::new()),
                 },
-                None => TenseModalSyntax::Pu {
-                    word: WithFreeModifiers::new(pu, Vec::new()),
-                },
+                None => TenseModalSyntax::Pu(WithFreeModifiers::new(pu, Vec::new())),
             }),
-        cmavo_of("VA", &["vi", "va", "vu"]).map(|word| TenseModalSyntax::SpaceDistance {
-            word: WithFreeModifiers::new(word, Vec::new()),
-        }),
-        cmavo_of("ZEhA", &["ze'i", "ze'a", "ze'u", "ze'e"]).map(|word| {
-            TenseModalSyntax::TimeInterval {
-                word: WithFreeModifiers::new(word, Vec::new()),
-            }
-        }),
+        cmavo_of("VA", &["vi", "va", "vu"])
+            .map(|word| TenseModalSyntax::SpaceDistance(WithFreeModifiers::new(word, Vec::new()))),
+        cmavo_of("ZEhA", &["ze'i", "ze'a", "ze'u", "ze'e"])
+            .map(|word| TenseModalSyntax::TimeInterval(WithFreeModifiers::new(word, Vec::new()))),
         cmavo_of(
             "FAhA",
             &[
@@ -7324,9 +7308,7 @@ fn tense_modal_atom<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 "zo'i", "ze'o",
             ],
         )
-        .map(|word| TenseModalSyntax::SpaceDirection {
-            word: WithFreeModifiers::new(word, Vec::new()),
-        }),
+        .map(|word| TenseModalSyntax::SpaceDirection(WithFreeModifiers::new(word, Vec::new()))),
         cmavo("mo'i")
             .then(cmavo_of(
                 "FAhA",
@@ -7344,18 +7326,14 @@ fn tense_modal_atom<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                     distance: distance.map(|distance| WithFreeModifiers::new(distance, Vec::new())),
                 },
             ),
-        cmavo_of("CAhA", CAHA_WORDS).map(|word| TenseModalSyntax::Caha {
-            word: WithFreeModifiers::new(word, Vec::new()),
-        }),
+        cmavo_of("CAhA", CAHA_WORDS)
+            .map(|word| TenseModalSyntax::Caha(WithFreeModifiers::new(word, Vec::new()))),
         fiho_tense_modal(),
-        cmavo_of("ZAhO", ZAHO_WORDS).map(|word| TenseModalSyntax::Zaho {
-            words: WithFreeModifiers::new(vec![word], Vec::new()),
-        }),
+        cmavo_of("ZAhO", ZAHO_WORDS)
+            .map(|word| TenseModalSyntax::Zaho(WithFreeModifiers::new(vec![word], Vec::new()))),
         simple_tense_modal(),
         flat_tag_chunk_tense_modal(),
-        cmavo("ki").map(|ki| TenseModalSyntax::Ki {
-            ki: WithFreeModifiers::new(ki, Vec::new()),
-        }),
+        cmavo("ki").map(|ki| TenseModalSyntax::Ki(WithFreeModifiers::new(ki, Vec::new()))),
         pa_word()
             .repeated()
             .at_least(1)

@@ -73,14 +73,16 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {WithIndicator = {
                         base = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [1, 2]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "i",
+                                span = [1, 2]
+                            }
                         }},
                         indicator = {
                             kind = "cmavo",
@@ -88,99 +90,107 @@ parse-tree = {
                             span = [2, 6]
                         }
                     }},
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [7, 9]
-                                            }},
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {MoiRelationUnit = {
-                                                        moi = {Bare = {
+                                            }
+                                        }},
+                                        relation = {Compound = [
+                                                {Moi = {
+                                                    moi = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "moĭ",
                                                             span = [16, 19]
-                                                        }},
-                                                        number = [
-                                                            {Bare = {
+                                                        }
+                                                    }},
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "ji'i",
                                                                 span = [10, 14]
-                                                            }},
-                                                            [
-                                                                {Bare = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "ro",
-                                                                    span = [14, 16]
-                                                                }},
-                                                            ],
-                                                        ]
-                                                    }},
-                                                    [
-                                                        {BeRelationUnit = {
-                                                            base = {WordRelationUnit = {
-                                                                word = {Bare = {
-                                                                    kind = "gismu",
-                                                                    phonemes = "mupli",
-                                                                    span = [20, 25]
-                                                                }}
-                                                            }},
-                                                            be = {Bare = {
+                                                            }
+                                                        }},
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
-                                                                phonemes = "be",
-                                                                span = [26, 28]
+                                                                phonemes = "ro",
+                                                                span = [14, 16]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }},
+                                                {Be = {
+                                                    base = {Word = {
+                                                        Bare = {Bare = {
+                                                            kind = "gismu",
+                                                            phonemes = "mupli",
+                                                            span = [20, 25]
+                                                        }}
+                                                    }},
+                                                    be = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "be",
+                                                            span = [26, 28]
+                                                        }
+                                                    }},
+                                                    first_argument = {Quote = {
+                                                        quote = {Zoi = {
+                                                            closing_delimiter = {Bare = {
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "sy",
+                                                                    span = [43, 45]
+                                                                }
                                                             }},
-                                                            first_argument = {QuoteArgument = {
-                                                                quote = {ZoiQuote = {
-                                                                    closing_delimiter = {Bare = {
+                                                            opening_delimiter = {Bare = {
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "sy",
+                                                                    span = [34, 36]
+                                                                }
+                                                            }},
+                                                            quoted_text = " xchat",
+                                                            zoi = {Bare = {
+                                                                ZoiQuote = {
+                                                                    closing_delimiter = {
                                                                         kind = "cmavo",
                                                                         phonemes = "sy",
                                                                         span = [43, 45]
-                                                                    }},
-                                                                    opening_delimiter = {Bare = {
+                                                                    },
+                                                                    opening_delimiter = {
                                                                         kind = "cmavo",
                                                                         phonemes = "sy",
                                                                         span = [34, 36]
-                                                                    }},
-                                                                    quoted_text = " xchat",
-                                                                    zoi = {ZoiQuote = {
-                                                                        closing_delimiter = {
-                                                                            kind = "cmavo",
-                                                                            phonemes = "sy",
-                                                                            span = [43, 45]
-                                                                        },
-                                                                        opening_delimiter = {
-                                                                            kind = "cmavo",
-                                                                            phonemes = "sy",
-                                                                            span = [34, 36]
-                                                                        },
-                                                                        quoted_text = [36, 42],
-                                                                        zoi = {
-                                                                            kind = "cmavo",
-                                                                            phonemes = "la'o",
-                                                                            span = [29, 33]
-                                                                        }
-                                                                    }}
-                                                                }}
+                                                                    },
+                                                                    quoted_text = [36, 42],
+                                                                    zoi = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "la'o",
+                                                                        span = [29, 33]
+                                                                    }
+                                                                }
                                                             }}
-                                                        }},
-                                                    ],
-                                                ]
-                                            }}
-                                        }}
-                                    }}
+                                                        }}
+                                                    }}
+                                                }},
+                                            ] }
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -35,25 +35,74 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {RelativeClauseFragment = {
-                            relative_clauses = [
-                                {PoiRelativeClause = {
-                                    poi = {Bare = {
+                {
+                    statement = {Fragment = {
+                        RelativeClause = [
+                            {Poi = {
+                                poi = {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "poĭ",
                                         span = [0, 3]
-                                    }},
-                                    subsentence = {PlainSubsentence = {} }
+                                    }
                                 }},
-                            ]
-                        }}
+                                subsentence = {Plain = {
+                                    predicate_tail = {
+                                        first = {
+                                            first = {
+                                                first = {Relation = {
+                                                    relation = {TenseModal = {
+                                                        inner_relation = {Compound = [
+                                                                {Word = {
+                                                                    Bare = {Bare = {
+                                                                        kind = "gismu",
+                                                                        phonemes = "speni",
+                                                                        span = [7, 12]
+                                                                    }}
+                                                                }},
+                                                                {Word = {
+                                                                    Bare = {Bare = {
+                                                                        kind = "gismu",
+                                                                        phonemes = "milxe",
+                                                                        span = [13, 18]
+                                                                    }}
+                                                                }},
+                                                            ] },
+                                                        tense_modal = {Composite = {
+                                                            leaves = [
+                                                                {Bare = {
+                                                                    Bare = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "ca",
+                                                                        span = [4, 6]
+                                                                    }
+                                                                }},
+                                                            ],
+                                                            time = {
+                                                                direction = [
+                                                                    {Bare = {
+                                                                        Bare = {
+                                                                            kind = "cmavo",
+                                                                            phonemes = "ca",
+                                                                            span = [4, 6]
+                                                                        }
+                                                                    }},
+                                                                ]
+                                                            }
+                                                        }}
+                                                    }}
+                                                }}
+                                            }
+                                        }
+                                    }
+                                }}
+                            }},
+                        ]
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -45,75 +45,71 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [1, 2]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [1, 2]
+                        }
                     }},
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {WordRelationUnit = {
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "denpa",
-                                                            span = [3, 8]
-                                                        }}
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Word = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "denpa",
+                                                        span = [3, 8]
+                                                    }}
+                                                }},
+                                                {Ke = {
+                                                    ke = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "ke",
+                                                            span = [9, 11]
+                                                        }
                                                     }},
-                                                    [
-                                                        {KeRelationUnit = {
-                                                            ke = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "ke",
-                                                                span = [9, 11]
+                                                    relation = {Compound = [
+                                                            {Word = {
+                                                                Bare = {Bare = {
+                                                                    kind = "gismu",
+                                                                    phonemes = "fonxa",
+                                                                    span = [12, 17]
+                                                                }}
                                                             }},
-                                                            relation = {CompoundRelation = {
-                                                                relation_units = [
-                                                                    {WordRelationUnit = {
-                                                                        word = {Bare = {
+                                                            {Word = {
+                                                                WithIndicator = {
+                                                                    base = {Bare = {
+                                                                        Bare = {
                                                                             kind = "gismu",
-                                                                            phonemes = "fonxa",
-                                                                            span = [12, 17]
-                                                                        }}
+                                                                            phonemes = "prenu",
+                                                                            span = [18, 23]
+                                                                        }
                                                                     }},
-                                                                    [
-                                                                        {WordRelationUnit = {
-                                                                            word = {WithIndicator = {
-                                                                                base = {Bare = {
-                                                                                    kind = "gismu",
-                                                                                    phonemes = "prenu",
-                                                                                    span = [18, 23]
-                                                                                }},
-                                                                                indicator = {
-                                                                                    kind = "cmavo",
-                                                                                    phonemes = "zo'o",
-                                                                                    span = [24, 28]
-                                                                                }
-                                                                            }}
-                                                                        }},
-                                                                    ],
-                                                                ]
-                                                            }}
-                                                        }},
-                                                    ],
-                                                ]
-                                            }}
-                                        }}
+                                                                    indicator = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "zo'o",
+                                                                        span = [24, 28]
+                                                                    }
+                                                                }
+                                                            }},
+                                                        ] }
+                                                }},
+                                            ] }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -39,66 +39,67 @@ words = [
 [expectations.syntax]
 status = "failure"
 parse-tree = {
-    leading_connective = {Connective = {
+    leading_connective = {
         cmavo = [
             {Bare = {
-                kind = "cmavo",
-                phonemes = "je",
-                span = [0, 2]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "je",
+                    span = [0, 2]
+                }
             }},
-        ]
-    }},
+        ],
+        kind = "Relation"
+    },
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {KeRelation = {
-                                                inner_relation = {CompoundRelation = {
-                                                    relation_units = [
-                                                        {WordRelationUnit = {
-                                                            word = {Bare = {
-                                                                kind = "gismu",
-                                                                phonemes = "nixli",
-                                                                span = [6, 11]
-                                                            }}
-                                                        }},
-                                                        [
-                                                            {WordRelationUnit = {
-                                                                word = {Bare = {
-                                                                    kind = "gismu",
-                                                                    phonemes = "ckule",
-                                                                    span = [12, 17]
-                                                                }}
-                                                            }},
-                                                        ],
-                                                    ]
-                                                }},
-                                                ke = {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Ke = {
+                                            ke = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "ke",
                                                     span = [3, 5]
-                                                }},
-                                                kehe = {Bare = {
+                                                }
+                                            }},
+                                            kehe = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "ke'e",
                                                     span = [19, 23]
-                                                }}
-                                            }}
+                                                }
+                                            }},
+                                            relation = {Compound = [
+                                                    {Word = {
+                                                        Bare = {Bare = {
+                                                            kind = "gismu",
+                                                            phonemes = "nixli",
+                                                            span = [6, 11]
+                                                        }}
+                                                    }},
+                                                    {Word = {
+                                                        Bare = {Bare = {
+                                                            kind = "gismu",
+                                                            phonemes = "ckule",
+                                                            span = [12, 17]
+                                                        }}
+                                                    }},
+                                                ] }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

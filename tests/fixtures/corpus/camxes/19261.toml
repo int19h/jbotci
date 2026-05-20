@@ -30,50 +30,44 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {WordRelationUnit = {
-                                                        word = {Emphasized = {
-                                                            bahe = {
-                                                                kind = "cmavo",
-                                                                phonemes = "za'e",
-                                                                span = [0, 4]
-                                                            },
-                                                            word_like = {Bare = {
-                                                                kind = "lujvo",
-                                                                phonemes = "cmari'a",
-                                                                span = [5, 12]
-                                                            }}
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Word = {
+                                                    Emphasized = {
+                                                        bahe = {
+                                                            kind = "cmavo",
+                                                            phonemes = "za'e",
+                                                            span = [0, 4]
+                                                        },
+                                                        word_like = {Bare = {
+                                                            kind = "lujvo",
+                                                            phonemes = "cmari'a",
+                                                            span = [5, 12]
                                                         }}
-                                                    }},
-                                                    [
-                                                        {WordRelationUnit = {
-                                                            word = {Bare = {
-                                                                kind = "gismu",
-                                                                phonemes = "saske",
-                                                                span = [13, 18]
-                                                            }}
-                                                        }},
-                                                    ],
-                                                ]
-                                            }}
-                                        }}
+                                                    }
+                                                }},
+                                                {Word = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "saske",
+                                                        span = [13, 18]
+                                                    }}
+                                                }},
+                                            ] }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

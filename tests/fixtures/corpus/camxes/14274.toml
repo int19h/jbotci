@@ -40,46 +40,48 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            argument = {RelationVocativeArgument = {
-                relation = {NaRelation = {
-                    inner_relation = {CompoundRelation = {
-                        relation_units = [
-                            {WordRelationUnit = {
-                                word = {Bare = {
+        {Vocative = {
+            argument = {RelationVocative = {
+                relation = {Na = {
+                    inner_relation = {Compound = [
+                            {Word = {
+                                Bare = {Bare = {
                                     kind = "gismu",
                                     phonemes = "tirna",
                                     span = [11, 16]
                                 }}
                             }},
-                            [
-                                {WordRelationUnit = {
-                                    word = {Bare = {
-                                        kind = "gismu",
-                                        phonemes = "prenu",
-                                        span = [17, 22]
-                                    }}
-                                }},
-                            ],
-                        ]
-                    }},
+                            {Word = {
+                                Bare = {Bare = {
+                                    kind = "gismu",
+                                    phonemes = "prenu",
+                                    span = [17, 22]
+                                }}
+                            }},
+                        ] },
                     na = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "na",
-                        span = [8, 10]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "na",
+                            span = [8, 10]
+                        }
                     }}
                 }}
             }},
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "coĭ",
-                    span = [0, 3]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "coĭ",
+                        span = [0, 3]
+                    }
                 }},
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "doĭ",
-                    span = [4, 7]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "doĭ",
+                        span = [4, 7]
+                    }
                 }},
             ]
         }},
