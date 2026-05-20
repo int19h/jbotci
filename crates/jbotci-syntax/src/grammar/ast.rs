@@ -354,8 +354,7 @@ pub enum FragmentSyntax {
         zohu: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     BeLink {
-        be: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        be: WithFreeModifiers<WithIndicators<WordLike>>,
         fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         first_argument: Option<ArgumentSyntax>,
         bei_links: Vec<BeiLinkSyntax>,
@@ -621,22 +620,17 @@ pub enum ArgumentSyntax {
 pub enum RelativeClauseSyntax {
     Goi(GoiRelativeClauseSyntax),
     Noi {
-        noi: WithIndicators<WordLike>,
-        leading_free_modifiers: Vec<FreeModifierSyntax>,
+        noi: WithFreeModifiers<WithIndicators<WordLike>>,
         subsentence: SubsentenceSyntax,
-        kuho: Option<WithIndicators<WordLike>>,
-        trailing_free_modifiers: Vec<FreeModifierSyntax>,
+        kuho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Poi {
-        poi: WithIndicators<WordLike>,
-        leading_free_modifiers: Vec<FreeModifierSyntax>,
+        poi: WithFreeModifiers<WithIndicators<WordLike>>,
         subsentence: SubsentenceSyntax,
-        kuho: Option<WithIndicators<WordLike>>,
-        trailing_free_modifiers: Vec<FreeModifierSyntax>,
+        kuho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Zihe {
-        zihe: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        zihe: WithFreeModifiers<WithIndicators<WordLike>>,
         inner: Box<RelativeClauseSyntax>,
     },
     Connected {
@@ -648,49 +642,40 @@ pub enum RelativeClauseSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct GoiRelativeClauseSyntax {
-    pub goi: WithIndicators<WordLike>,
-    pub leading_free_modifiers: Vec<FreeModifierSyntax>,
+    pub goi: WithFreeModifiers<WithIndicators<WordLike>>,
     pub argument: ArgumentSyntax,
-    pub gehu: Option<WithIndicators<WordLike>>,
-    pub trailing_free_modifiers: Vec<FreeModifierSyntax>,
+    pub gehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct SelbriRelativeClauseSyntax {
-    pub nohoi: WithIndicators<WordLike>,
-    pub leading_free_modifiers: Vec<FreeModifierSyntax>,
+    pub nohoi: WithFreeModifiers<WithIndicators<WordLike>>,
     pub relation: RelationSyntax,
-    pub kuhoi: Option<WithIndicators<WordLike>>,
-    pub trailing_free_modifiers: Vec<FreeModifierSyntax>,
+    pub kuhoi: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum QuoteSyntax {
     Lu {
-        lu: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        lu: WithFreeModifiers<WithIndicators<WordLike>>,
         text: TextSyntax,
-        lihu: Option<WithIndicators<WordLike>>,
-        lihu_free_modifiers: Vec<FreeModifierSyntax>,
+        lihu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Zo {
         zo: WithIndicators<WordLike>,
-        word: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        word: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     ZohOi {
-        zohoi: WithIndicators<WordLike>,
+        zohoi: WithFreeModifiers<WithIndicators<WordLike>>,
         quoted_text: String,
-        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Zoi {
         zoi: WithIndicators<WordLike>,
         opening_delimiter: WithIndicators<WordLike>,
-        closing_delimiter: WithIndicators<WordLike>,
+        closing_delimiter: WithFreeModifiers<WithIndicators<WordLike>>,
         quoted_text: String,
-        free_modifiers: Vec<FreeModifierSyntax>,
     },
     // v0 exposes this constructor in the Quote ADT, but current v0 grammar
     // classifies morphology-level LAhO quotes as ZoiQuote.
@@ -698,22 +683,19 @@ pub enum QuoteSyntax {
     Laho {
         laho: WithIndicators<WordLike>,
         opening_delimiter: WithIndicators<WordLike>,
-        closing_delimiter: WithIndicators<WordLike>,
+        closing_delimiter: WithFreeModifiers<WithIndicators<WordLike>>,
         quoted_text: String,
-        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Lohu {
         lohu: WithIndicators<WordLike>,
         quoted_words: Vec<WithIndicators<WordLike>>,
-        lehu: WithIndicators<WordLike>,
-        lehu_free_modifiers: Vec<FreeModifierSyntax>,
+        lehu: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     // v0 exposes this constructor in the Quote ADT; current v0 grammar parses
     // ordinary `me'o` through MathExpressionArgument.
     #[allow(dead_code)]
     Meho {
-        meho: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        meho: WithFreeModifiers<WithIndicators<WordLike>>,
         math_expression: MathExpressionSyntax,
     },
 }
@@ -721,21 +703,18 @@ pub enum QuoteSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct DescriptorSyntax {
-    pub descriptor: Option<WithIndicators<WordLike>>,
-    pub descriptor_free_modifiers: Vec<FreeModifierSyntax>,
+    pub descriptor: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub outer_quantifier: Option<QuantifierSyntax>,
     pub tail_elements: Vec<ArgumentTailElementSyntax>,
     pub relation: Option<RelationSyntax>,
     pub relative_clauses: Vec<RelativeClauseSyntax>,
-    pub ku: Option<WithIndicators<WordLike>>,
-    pub ku_free_modifiers: Vec<FreeModifierSyntax>,
+    pub ku: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct DescriptorHeadSyntax {
-    pub descriptor: WithIndicators<WordLike>,
-    pub descriptor_free_modifiers: Vec<FreeModifierSyntax>,
+    pub descriptor: WithFreeModifiers<WithIndicators<WordLike>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -747,8 +726,7 @@ pub struct ConnectedDescriptorSyntax {
     pub tail_elements: Vec<ArgumentTailElementSyntax>,
     pub relation: Option<RelationSyntax>,
     pub relative_clauses: Vec<RelativeClauseSyntax>,
-    pub ku: Option<WithIndicators<WordLike>>,
-    pub ku_free_modifiers: Vec<FreeModifierSyntax>,
+    pub ku: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -766,32 +744,26 @@ pub struct ConnectiveSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct BeiLinkSyntax {
-    pub bei: WithIndicators<WordLike>,
-    pub bei_free_modifiers: Vec<FreeModifierSyntax>,
-    pub fa: Option<WithIndicators<WordLike>>,
-    pub fa_free_modifiers: Vec<FreeModifierSyntax>,
+    pub bei: WithFreeModifiers<WithIndicators<WordLike>>,
+    pub fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub argument: Option<ArgumentSyntax>,
 }
 
 #[invariant(self.fa.is_none() || self.argument.is_some(), "lifted FA link tags must have an argument")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LinkArgumentSyntax {
-    pub fa: Option<WithIndicators<WordLike>>,
-    pub fa_free_modifiers: Vec<FreeModifierSyntax>,
+    pub fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub argument: Option<ArgumentSyntax>,
 }
 
 #[invariant(self.fa.is_none() || self.first_argument.is_some(), "lifted FA link tags must have an argument")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BeLinkSyntax {
-    pub be: WithIndicators<WordLike>,
-    pub free_modifiers: Vec<FreeModifierSyntax>,
-    pub fa: Option<WithIndicators<WordLike>>,
-    pub fa_free_modifiers: Vec<FreeModifierSyntax>,
+    pub be: WithFreeModifiers<WithIndicators<WordLike>>,
+    pub fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub first_argument: Option<ArgumentSyntax>,
     pub bei_links: Vec<BeiLinkSyntax>,
-    pub beho: Option<WithIndicators<WordLike>>,
-    pub beho_free_modifiers: Vec<FreeModifierSyntax>,
+    pub beho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -1267,24 +1239,18 @@ pub enum RelationUnitSyntax {
     },
     Be {
         base: Box<RelationUnitSyntax>,
-        be: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
-        fa: Option<WithIndicators<WordLike>>,
-        fa_free_modifiers: Vec<FreeModifierSyntax>,
+        be: WithFreeModifiers<WithIndicators<WordLike>>,
+        fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         first_argument: Option<ArgumentSyntax>,
         bei_links: Vec<BeiLinkSyntax>,
-        beho: Option<WithIndicators<WordLike>>,
-        beho_free_modifiers: Vec<FreeModifierSyntax>,
+        beho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     PreposedBe {
-        be: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
-        fa: Option<WithIndicators<WordLike>>,
-        fa_free_modifiers: Vec<FreeModifierSyntax>,
+        be: WithFreeModifiers<WithIndicators<WordLike>>,
+        fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         first_argument: Option<ArgumentSyntax>,
         bei_links: Vec<BeiLinkSyntax>,
-        beho: Option<WithIndicators<WordLike>>,
-        beho_free_modifiers: Vec<FreeModifierSyntax>,
+        beho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         base: Box<RelationUnitSyntax>,
     },
     Abstraction(AbstractionSyntax),
@@ -1902,16 +1868,12 @@ impl FragmentSyntax {
             }
             FragmentSyntax::BeLink {
                 be,
-                free_modifiers,
                 fa,
                 first_argument,
                 bei_links,
                 beho,
             } => {
-                let mut words = vec![be];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = be.words();
                 if let Some(fa) = fa {
                     words.extend(fa.words());
                 }
@@ -2766,14 +2728,10 @@ impl GoiRelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = vec![self.goi];
-        for free_modifier in self.leading_free_modifiers {
-            words.extend(free_modifier.words());
-        }
+        let mut words = self.goi.words();
         words.extend(self.argument.words());
-        words.extend(self.gehu);
-        for free_modifier in self.trailing_free_modifiers {
-            words.extend(free_modifier.words());
+        if let Some(gehu) = self.gehu {
+            words.extend(gehu.words());
         }
         words
     }
@@ -2783,14 +2741,10 @@ impl SelbriRelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = vec![self.nohoi];
-        for free_modifier in self.leading_free_modifiers {
-            words.extend(free_modifier.words());
-        }
+        let mut words = self.nohoi.words();
         words.extend(self.relation.words());
-        words.extend(self.kuhoi);
-        for free_modifier in self.trailing_free_modifiers {
-            words.extend(free_modifier.words());
+        if let Some(kuhoi) = self.kuhoi {
+            words.extend(kuhoi.words());
         }
         words
     }
@@ -2804,49 +2758,30 @@ impl RelativeClauseSyntax {
             RelativeClauseSyntax::Goi(relative_clause) => relative_clause.words(),
             RelativeClauseSyntax::Noi {
                 noi,
-                leading_free_modifiers,
                 subsentence,
                 kuho,
-                trailing_free_modifiers,
             } => {
-                let mut words = vec![noi];
-                for free_modifier in leading_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = noi.words();
                 words.extend(subsentence.words());
-                words.extend(kuho);
-                for free_modifier in trailing_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(kuho) = kuho {
+                    words.extend(kuho.words());
                 }
                 words
             }
             RelativeClauseSyntax::Poi {
                 poi,
-                leading_free_modifiers,
                 subsentence,
                 kuho,
-                trailing_free_modifiers,
             } => {
-                let mut words = vec![poi];
-                for free_modifier in leading_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = poi.words();
                 words.extend(subsentence.words());
-                words.extend(kuho);
-                for free_modifier in trailing_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(kuho) = kuho {
+                    words.extend(kuho.words());
                 }
                 words
             }
-            RelativeClauseSyntax::Zihe {
-                zihe,
-                free_modifiers,
-                inner,
-            } => {
-                let mut words = vec![zihe];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            RelativeClauseSyntax::Zihe { zihe, inner } => {
+                let mut words = zihe.words();
                 words.extend(inner.words());
                 words
             }
@@ -2864,93 +2799,54 @@ impl QuoteSyntax {
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
-            QuoteSyntax::Lu {
-                lu,
-                free_modifiers,
-                text,
-                lihu,
-                lihu_free_modifiers,
-            } => {
-                let mut words = vec![lu];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            QuoteSyntax::Lu { lu, text, lihu } => {
+                let mut words = lu.words();
                 words.extend(text.words());
-                words.extend(lihu);
-                for free_modifier in lihu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(lihu) = lihu {
+                    words.extend(lihu.words());
                 }
                 words
             }
-            QuoteSyntax::Zo {
-                zo,
-                word,
-                free_modifiers,
-            } => {
-                let mut words = vec![zo, word];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            QuoteSyntax::Zo { zo, word } => {
+                let mut words = vec![zo];
+                words.extend(word.words());
                 words
             }
-            QuoteSyntax::ZohOi {
-                zohoi,
-                free_modifiers,
-                ..
-            } => {
-                let mut words = vec![zohoi];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
-                words
-            }
+            QuoteSyntax::ZohOi { zohoi, .. } => zohoi.words(),
             QuoteSyntax::Zoi {
                 zoi,
                 opening_delimiter,
                 closing_delimiter,
-                free_modifiers,
                 ..
             } => {
-                let mut words = vec![zoi, opening_delimiter, closing_delimiter];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = vec![zoi, opening_delimiter];
+                words.extend(closing_delimiter.words());
                 words
             }
             QuoteSyntax::Laho {
                 laho,
                 opening_delimiter,
                 closing_delimiter,
-                free_modifiers,
                 ..
             } => {
-                let mut words = vec![laho, opening_delimiter, closing_delimiter];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = vec![laho, opening_delimiter];
+                words.extend(closing_delimiter.words());
                 words
             }
             QuoteSyntax::Lohu {
                 lohu,
                 quoted_words,
                 lehu,
-                lehu_free_modifiers,
             } => {
-                let mut words = [vec![lohu], quoted_words, vec![lehu]].concat();
-                for free_modifier in lehu_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = [vec![lohu], quoted_words].concat();
+                words.extend(lehu.words());
                 words
             }
             QuoteSyntax::Meho {
                 meho,
-                free_modifiers,
                 math_expression,
             } => {
-                let mut words = vec![meho];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = meho.words();
                 words.extend(math_expression.words());
                 words
             }
@@ -2967,9 +2863,8 @@ impl DescriptorSyntax {
             .into_iter()
             .flat_map(QuantifierSyntax::words)
             .collect::<Vec<_>>();
-        words.extend(self.descriptor);
-        for free_modifier in self.descriptor_free_modifiers {
-            words.extend(free_modifier.words());
+        if let Some(descriptor) = self.descriptor {
+            words.extend(descriptor.words());
         }
         for element in self.tail_elements {
             words.extend(element.words());
@@ -2980,9 +2875,8 @@ impl DescriptorSyntax {
         for relative_clause in self.relative_clauses {
             words.extend(relative_clause.words());
         }
-        words.extend(self.ku);
-        for free_modifier in self.ku_free_modifiers {
-            words.extend(free_modifier.words());
+        if let Some(ku) = self.ku {
+            words.extend(ku.words());
         }
         words
     }
@@ -2992,11 +2886,7 @@ impl DescriptorHeadSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = vec![self.descriptor];
-        for free_modifier in self.descriptor_free_modifiers {
-            words.extend(free_modifier.words());
-        }
-        words
+        self.descriptor.words()
     }
 }
 
@@ -3016,9 +2906,8 @@ impl ConnectedDescriptorSyntax {
         for relative_clause in self.relative_clauses {
             words.extend(relative_clause.words());
         }
-        words.extend(self.ku);
-        for free_modifier in self.ku_free_modifiers {
-            words.extend(free_modifier.words());
+        if let Some(ku) = self.ku {
+            words.extend(ku.words());
         }
         words
     }
@@ -3047,13 +2936,9 @@ impl BeiLinkSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = vec![self.bei];
-        for free_modifier in self.bei_free_modifiers {
-            words.extend(free_modifier.words());
-        }
-        words.extend(self.fa);
-        for free_modifier in self.fa_free_modifiers {
-            words.extend(free_modifier.words());
+        let mut words = self.bei.words();
+        if let Some(fa) = self.fa {
+            words.extend(fa.words());
         }
         if let Some(argument) = self.argument {
             words.extend(argument.words());
@@ -3513,59 +3398,43 @@ impl RelationUnitSyntax {
             RelationUnitSyntax::Be {
                 base,
                 be,
-                free_modifiers,
                 fa,
-                fa_free_modifiers,
                 first_argument,
                 bei_links,
                 beho,
-                beho_free_modifiers,
             } => {
                 let mut words = base.words();
-                words.push(be);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
-                words.extend(fa);
-                for free_modifier in fa_free_modifiers {
-                    words.extend(free_modifier.words());
+                words.extend(be.words());
+                if let Some(fa) = fa {
+                    words.extend(fa.words());
                 }
                 if let Some(first_argument) = first_argument {
                     words.extend(first_argument.words());
                 }
                 words.extend(bei_links.into_iter().flat_map(BeiLinkSyntax::words));
-                words.extend(beho);
-                for free_modifier in beho_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(beho) = beho {
+                    words.extend(beho.words());
                 }
                 words
             }
             RelationUnitSyntax::PreposedBe {
                 be,
-                free_modifiers,
                 fa,
-                fa_free_modifiers,
                 first_argument,
                 bei_links,
                 beho,
-                beho_free_modifiers,
                 base,
             } => {
-                let mut words = vec![be];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
-                words.extend(fa);
-                for free_modifier in fa_free_modifiers {
-                    words.extend(free_modifier.words());
+                let mut words = be.words();
+                if let Some(fa) = fa {
+                    words.extend(fa.words());
                 }
                 if let Some(first_argument) = first_argument {
                     words.extend(first_argument.words());
                 }
                 words.extend(bei_links.into_iter().flat_map(BeiLinkSyntax::words));
-                words.extend(beho);
-                for free_modifier in beho_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(beho) = beho {
+                    words.extend(beho.words());
                 }
                 words.extend(base.words());
                 words

@@ -1110,23 +1110,19 @@ fn statement_parser<'tokens>(
     let be_link_fragment = be_link_parser(argument.clone(), free_modifier.clone()).map(|link| {
         let data!(BeLinkSyntax {
             be,
-            free_modifiers,
             fa,
-            fa_free_modifiers,
             first_argument,
             bei_links,
             beho,
-            beho_free_modifiers,
         }) = link.into_data();
 
         {
             StatementSyntax::Fragment(FragmentSyntax::BeLink {
                 be,
-                free_modifiers,
-                fa: fa.map(|fa| WithFreeModifiers::new(fa, fa_free_modifiers)),
+                fa,
                 first_argument,
                 bei_links,
-                beho: beho.map(|beho| WithFreeModifiers::new(beho, beho_free_modifiers)),
+                beho,
             })
         }
     });
@@ -2893,8 +2889,7 @@ where
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(
             |(descriptor, descriptor_free_modifiers)| DescriptorHeadSyntax {
-                descriptor,
-                descriptor_free_modifiers,
+                descriptor: WithFreeModifiers::new(descriptor, descriptor_free_modifiers),
             },
         );
     let descriptor_head_connective = jek_connective().map(|connective| ConnectiveSyntax {
@@ -2911,19 +2906,20 @@ where
         .then(descriptor_head_connective)
         .then(descriptor_head)
         .then(descriptor_tail.clone())
-        .then(cmavo("ku").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("ku")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
             |(
                 (
-                    (
-                        ((leading_descriptor_head, connective), trailing_descriptor_head),
-                        (tail_elements, relation, relative_clauses),
-                    ),
-                    ku,
+                    ((leading_descriptor_head, connective), trailing_descriptor_head),
+                    descriptor_tail,
                 ),
-                ku_free_modifiers,
+                ku,
             )| {
+                let (tail_elements, relation, relative_clauses) = descriptor_tail;
                 ArgumentSyntax::ConnectedDescriptor(ConnectedDescriptorSyntax {
                     leading_descriptor_head,
                     connective,
@@ -2931,8 +2927,7 @@ where
                     tail_elements,
                     relation,
                     relative_clauses,
-                    ku,
-                    ku_free_modifiers,
+                    ku: ku.map(|(ku, free_modifiers)| WithFreeModifiers::new(ku, free_modifiers)),
                 })
             },
         );
@@ -2941,28 +2936,24 @@ where
         .or(la_cmavo())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(descriptor_tail.clone())
-        .then(cmavo("ku").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("ku")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |(
-                (
-                    (
-                        (descriptor, descriptor_free_modifiers),
-                        (tail_elements, relation, relative_clauses),
-                    ),
-                    ku,
-                ),
-                ku_free_modifiers,
-            )| {
+            |(((descriptor, descriptor_free_modifiers), descriptor_tail), ku)| {
+                let (tail_elements, relation, relative_clauses) = descriptor_tail;
                 ArgumentSyntax::Descriptor(DescriptorSyntax {
-                    descriptor: Some(descriptor),
-                    descriptor_free_modifiers,
+                    descriptor: Some(WithFreeModifiers::new(
+                        descriptor,
+                        descriptor_free_modifiers,
+                    )),
                     outer_quantifier: None,
                     tail_elements,
                     relation,
                     relative_clauses,
-                    ku,
-                    ku_free_modifiers,
+                    ku: ku.map(|(ku, free_modifiers)| WithFreeModifiers::new(ku, free_modifiers)),
                 })
             },
         );
@@ -2971,28 +2962,27 @@ where
         .then(le_cmavo().or(la_cmavo()))
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(descriptor_tail.clone())
-        .then(cmavo("ku").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("ku")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
             |(
-                (
-                    (
-                        ((outer_quantifier, descriptor), descriptor_free_modifiers),
-                        (tail_elements, relation, relative_clauses),
-                    ),
-                    ku,
-                ),
-                ku_free_modifiers,
+                (((outer_quantifier, descriptor), descriptor_free_modifiers), descriptor_tail),
+                ku,
             )| {
+                let (tail_elements, relation, relative_clauses) = descriptor_tail;
                 ArgumentSyntax::Descriptor(DescriptorSyntax {
-                    descriptor: Some(descriptor),
-                    descriptor_free_modifiers,
+                    descriptor: Some(WithFreeModifiers::new(
+                        descriptor,
+                        descriptor_free_modifiers,
+                    )),
                     outer_quantifier: Some(outer_quantifier),
                     tail_elements,
                     relation,
                     relative_clauses,
-                    ku,
-                    ku_free_modifiers,
+                    ku: ku.map(|(ku, free_modifiers)| WithFreeModifiers::new(ku, free_modifiers)),
                 })
             },
         );
@@ -3009,13 +2999,11 @@ where
         .map(|((quantifier, relation), relative_clauses)| {
             ArgumentSyntax::Descriptor(DescriptorSyntax {
                 descriptor: None,
-                descriptor_free_modifiers: Vec::new(),
                 outer_quantifier: None,
                 tail_elements: vec![quantifier],
                 relation: Some(relation),
                 relative_clauses,
                 ku: None,
-                ku_free_modifiers: Vec::new(),
             })
         });
 
@@ -3581,8 +3569,10 @@ where
                 data!(WordLike::ZoQuote { word: quoted, .. }) => Ok(ArgumentSyntax::Quote {
                     quote: QuoteSyntax::Zo {
                         zo: word.clone(),
-                        word: base_word_from_record((**quoted).clone()),
-                        free_modifiers: Vec::new(),
+                        word: WithFreeModifiers::new(
+                            base_word_from_record((**quoted).clone()),
+                            Vec::new(),
+                        ),
                     },
                     free_modifiers: Vec::new(),
                 }),
@@ -3596,9 +3586,11 @@ where
                     quote: QuoteSyntax::Zoi {
                         zoi: word.clone(),
                         opening_delimiter: base_word_from_record((**opening_delimiter).clone()),
-                        closing_delimiter: base_word_from_record((**closing_delimiter).clone()),
+                        closing_delimiter: WithFreeModifiers::new(
+                            base_word_from_record((**closing_delimiter).clone()),
+                            Vec::new(),
+                        ),
                         quoted_text: source_text(source, quoted_text),
-                        free_modifiers: Vec::new(),
                     },
                     free_modifiers: Vec::new(),
                 }),
@@ -3614,8 +3606,10 @@ where
                             .cloned()
                             .map(base_word_from_record)
                             .collect(),
-                        lehu: base_word_from_record((**lehu).clone()),
-                        lehu_free_modifiers: Vec::new(),
+                        lehu: WithFreeModifiers::new(
+                            base_word_from_record((**lehu).clone()),
+                            Vec::new(),
+                        ),
                     },
                     free_modifiers: Vec::new(),
                 }),
@@ -3624,9 +3618,8 @@ where
                     quoted_text,
                 }) => Ok(ArgumentSyntax::Quote {
                     quote: QuoteSyntax::ZohOi {
-                        zohoi: word.clone(),
+                        zohoi: WithFreeModifiers::new(word.clone(), Vec::new()),
                         quoted_text: source_text(source, quoted_text),
-                        free_modifiers: Vec::new(),
                     },
                     free_modifiers: Vec::new(),
                 }),
@@ -3643,7 +3636,7 @@ where
             {
                 extra
                     .state()
-                    .warn(ExperimentalConstruct::ExperimentalZohOiQuote, zohoi);
+                    .warn(ExperimentalConstruct::ExperimentalZohOiQuote, &zohoi.value);
             }
             argument
         })
@@ -3653,16 +3646,18 @@ where
     let lu_quote = cmavo("lu")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(text)
-        .then(cmavo("li'u").or_not())
-        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("li'u")
+                .then(free_modifier.repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |((((lu, free_modifiers), text), lihu), lihu_free_modifiers)| ArgumentSyntax::Quote {
+            |(((lu, free_modifiers), text), lihu)| ArgumentSyntax::Quote {
                 quote: QuoteSyntax::Lu {
-                    lu,
-                    free_modifiers,
+                    lu: WithFreeModifiers::new(lu, free_modifiers),
                     text,
-                    lihu,
-                    lihu_free_modifiers,
+                    lihu: lihu
+                        .map(|(lihu, free_modifiers)| WithFreeModifiers::new(lihu, free_modifiers)),
                 },
                 free_modifiers: Vec::new(),
             },
@@ -3696,80 +3691,71 @@ fn quote_with_free_modifiers(
     free_modifiers: Vec<FreeModifierSyntax>,
 ) -> QuoteSyntax {
     match quote {
-        QuoteSyntax::Lu {
-            lu,
-            free_modifiers: mut leading_free_modifiers,
-            text,
-            lihu,
-            lihu_free_modifiers,
-        } => {
-            leading_free_modifiers.extend(free_modifiers);
-            QuoteSyntax::Lu {
-                lu,
-                free_modifiers: leading_free_modifiers,
-                text,
-                lihu,
-                lihu_free_modifiers,
-            }
+        QuoteSyntax::Lu { mut lu, text, lihu } => {
+            lu.free_modifiers.extend(free_modifiers);
+            QuoteSyntax::Lu { lu, text, lihu }
         }
-        QuoteSyntax::Zo { zo, word, .. } => QuoteSyntax::Zo {
-            zo,
-            word,
-            free_modifiers,
-        },
+        QuoteSyntax::Zo { zo, mut word } => {
+            word.free_modifiers.extend(free_modifiers);
+            QuoteSyntax::Zo { zo, word }
+        }
         QuoteSyntax::ZohOi {
-            zohoi, quoted_text, ..
-        } => QuoteSyntax::ZohOi {
-            zohoi,
+            mut zohoi,
             quoted_text,
-            free_modifiers,
-        },
+        } => {
+            zohoi.free_modifiers.extend(free_modifiers);
+            QuoteSyntax::ZohOi { zohoi, quoted_text }
+        }
         QuoteSyntax::Zoi {
             zoi,
             opening_delimiter,
-            closing_delimiter,
+            mut closing_delimiter,
             quoted_text,
-            ..
-        } => QuoteSyntax::Zoi {
-            zoi,
-            opening_delimiter,
-            closing_delimiter,
-            quoted_text,
-            free_modifiers,
-        },
+        } => {
+            closing_delimiter.free_modifiers.extend(free_modifiers);
+            QuoteSyntax::Zoi {
+                zoi,
+                opening_delimiter,
+                closing_delimiter,
+                quoted_text,
+            }
+        }
         QuoteSyntax::Laho {
             laho,
             opening_delimiter,
-            closing_delimiter,
+            mut closing_delimiter,
             quoted_text,
-            ..
-        } => QuoteSyntax::Laho {
-            laho,
-            opening_delimiter,
-            closing_delimiter,
-            quoted_text,
-            free_modifiers,
-        },
+        } => {
+            closing_delimiter.free_modifiers.extend(free_modifiers);
+            QuoteSyntax::Laho {
+                laho,
+                opening_delimiter,
+                closing_delimiter,
+                quoted_text,
+            }
+        }
         QuoteSyntax::Lohu {
             lohu,
             quoted_words,
-            lehu,
-            ..
-        } => QuoteSyntax::Lohu {
-            lohu,
-            quoted_words,
-            lehu,
-            lehu_free_modifiers: free_modifiers,
-        },
+            mut lehu,
+        } => {
+            lehu.free_modifiers.extend(free_modifiers);
+            QuoteSyntax::Lohu {
+                lohu,
+                quoted_words,
+                lehu,
+            }
+        }
         QuoteSyntax::Meho {
-            meho,
+            mut meho,
             math_expression,
-            ..
-        } => QuoteSyntax::Meho {
-            meho,
-            free_modifiers,
-            math_expression,
-        },
+        } => {
+            meho.free_modifiers.extend(free_modifiers);
+            QuoteSyntax::Meho {
+                meho,
+                math_expression,
+            }
+        }
     }
 }
 
@@ -3809,8 +3795,7 @@ where
                     .then(clause.clone())
                     .map(
                         |((zihe, free_modifiers), inner)| RelativeClauseSyntax::Zihe {
-                            zihe,
-                            free_modifiers,
+                            zihe: WithFreeModifiers::new(zihe, free_modifiers),
                             inner: Box::new(inner),
                         },
                     ),
@@ -3848,29 +3833,28 @@ where
     let noi = cmavo_of("NOI", &["poi", "noi", "voi"])
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(subsentence)
-        .then(cmavo("ku'o").or_not())
-        .then(free_modifier.repeated().collect::<Vec<_>>())
-        .map(
-            |((((marker, leading_free_modifiers), subsentence), kuho), trailing_free_modifiers)| {
-                if cmavo_text_matches(&marker, "poi") {
-                    RelativeClauseSyntax::Poi {
-                        poi: marker,
-                        leading_free_modifiers,
-                        subsentence,
-                        kuho,
-                        trailing_free_modifiers,
-                    }
-                } else {
-                    RelativeClauseSyntax::Noi {
-                        noi: marker,
-                        leading_free_modifiers,
-                        subsentence,
-                        kuho,
-                        trailing_free_modifiers,
-                    }
+        .then(
+            cmavo("ku'o")
+                .then(free_modifier.repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
+        .map(|(((marker, leading_free_modifiers), subsentence), kuho)| {
+            if cmavo_text_matches(&marker, "poi") {
+                RelativeClauseSyntax::Poi {
+                    poi: WithFreeModifiers::new(marker, leading_free_modifiers),
+                    subsentence,
+                    kuho: kuho
+                        .map(|(kuho, free_modifiers)| WithFreeModifiers::new(kuho, free_modifiers)),
                 }
-            },
-        );
+            } else {
+                RelativeClauseSyntax::Noi {
+                    noi: WithFreeModifiers::new(marker, leading_free_modifiers),
+                    subsentence,
+                    kuho: kuho
+                        .map(|(kuho, free_modifiers)| WithFreeModifiers::new(kuho, free_modifiers)),
+                }
+            }
+        });
     choice((goi, noi)).boxed()
 }
 
@@ -3960,17 +3944,17 @@ where
     cmavo_of("GOI", &["pe", "ne", "po", "po'e", "po'u", "no'u", "goi"])
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(argument_base)
-        .then(cmavo("ge'u").or_not())
-        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("ge'u")
+                .then(free_modifier.repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |((((goi, leading_free_modifiers), argument), gehu), trailing_free_modifiers)| {
-                GoiRelativeClauseSyntax {
-                    goi,
-                    leading_free_modifiers,
-                    argument,
-                    gehu,
-                    trailing_free_modifiers,
-                }
+            |(((goi, leading_free_modifiers), argument), gehu)| GoiRelativeClauseSyntax {
+                goi: WithFreeModifiers::new(goi, leading_free_modifiers),
+                argument,
+                gehu: gehu
+                    .map(|(gehu, free_modifiers)| WithFreeModifiers::new(gehu, free_modifiers)),
             },
         )
         .boxed()
@@ -5450,17 +5434,17 @@ where
     let selbri_relative_clause = cmavo("no'oi")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(relation.clone())
-        .then(cmavo("ku'oi").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("ku'oi")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |((((nohoi, leading_free_modifiers), relation), kuhoi), trailing_free_modifiers)| {
-                SelbriRelativeClauseSyntax {
-                    nohoi,
-                    leading_free_modifiers,
-                    relation,
-                    kuhoi,
-                    trailing_free_modifiers,
-                }
+            |(((nohoi, leading_free_modifiers), relation), kuhoi)| SelbriRelativeClauseSyntax {
+                nohoi: WithFreeModifiers::new(nohoi, leading_free_modifiers),
+                relation,
+                kuhoi: kuhoi
+                    .map(|(kuhoi, free_modifiers)| WithFreeModifiers::new(kuhoi, free_modifiers)),
             },
         )
         .boxed();
@@ -5472,25 +5456,19 @@ where
                 be_link.map_or(base.clone(), |link| {
                     let data!(BeLinkSyntax {
                         be,
-                        free_modifiers,
                         fa,
-                        fa_free_modifiers,
                         first_argument,
                         bei_links,
                         beho,
-                        beho_free_modifiers,
                     }) = link.into_data();
 
                     RelationUnitSyntax::Be {
                         base: Box::new(base),
                         be,
-                        free_modifiers,
                         fa,
-                        fa_free_modifiers,
                         first_argument,
                         bei_links,
                         beho,
-                        beho_free_modifiers,
                     }
                 })
             })
@@ -5515,24 +5493,18 @@ where
     let preposed_unit = be_link.clone().then(base_unit.clone()).map(|(link, base)| {
         let data!(BeLinkSyntax {
             be,
-            free_modifiers,
             fa,
-            fa_free_modifiers,
             first_argument,
             bei_links,
             beho,
-            beho_free_modifiers,
         }) = link.into_data();
 
         RelationUnitSyntax::PreposedBe {
             be,
-            free_modifiers,
             fa,
-            fa_free_modifiers,
             first_argument,
             bei_links,
             beho,
-            beho_free_modifiers,
             base: Box::new(base),
         }
     });
@@ -6040,22 +6012,20 @@ where
         let selbri_relative_clause = cmavo("no'oi")
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(inner_relation.clone())
-            .then(cmavo("ku'oi").or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .map(
-                |(
-                    (((nohoi, leading_free_modifiers), relation), kuhoi),
-                    trailing_free_modifiers,
-                )| {
-                    SelbriRelativeClauseSyntax {
-                        nohoi,
-                        leading_free_modifiers,
-                        relation,
-                        kuhoi,
-                        trailing_free_modifiers,
-                    }
-                },
+            .then(
+                cmavo("ku'oi")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
             )
+            .map(|(((nohoi, leading_free_modifiers), relation), kuhoi)| {
+                SelbriRelativeClauseSyntax {
+                    nohoi: WithFreeModifiers::new(nohoi, leading_free_modifiers),
+                    relation,
+                    kuhoi: kuhoi.map(|(kuhoi, free_modifiers)| {
+                        WithFreeModifiers::new(kuhoi, free_modifiers)
+                    }),
+                }
+            })
             .boxed();
 
         let base_unit = choice((
@@ -6107,25 +6077,19 @@ where
                     be_link.map_or(base.clone(), |link| {
                         let data!(BeLinkSyntax {
                             be,
-                            free_modifiers,
                             fa,
-                            fa_free_modifiers,
                             first_argument,
                             bei_links,
                             beho,
-                            beho_free_modifiers,
                         }) = link.into_data();
 
                         RelationUnitSyntax::Be {
                             base: Box::new(base),
                             be,
-                            free_modifiers,
                             fa,
-                            fa_free_modifiers,
                             first_argument,
                             bei_links,
                             beho,
-                            beho_free_modifiers,
                         }
                     })
                 })
@@ -6150,24 +6114,18 @@ where
         let preposed_unit = be_link.clone().then(base_unit.clone()).map(|(link, base)| {
             let data!(BeLinkSyntax {
                 be,
-                free_modifiers,
                 fa,
-                fa_free_modifiers,
                 first_argument,
                 bei_links,
                 beho,
-                beho_free_modifiers,
             }) = link.into_data();
 
             RelationUnitSyntax::PreposedBe {
                 be,
-                free_modifiers,
                 fa,
-                fa_free_modifiers,
                 first_argument,
                 bei_links,
                 beho,
-                beho_free_modifiers,
                 base: Box::new(base),
             }
         });
@@ -7629,15 +7587,13 @@ where
             |((fa, mut fa_free_modifiers), (argument, maybe_ku, trailing_free_modifiers))| {
                 if let Some(argument) = argument {
                     new!(LinkArgumentSyntax {
-                        fa: Some(fa),
-                        fa_free_modifiers,
+                        fa: Some(WithFreeModifiers::new(fa, fa_free_modifiers)),
                         argument: Some(argument),
                     })
                 } else {
                     fa_free_modifiers.extend(trailing_free_modifiers);
                     new!(LinkArgumentSyntax {
                         fa: None,
-                        fa_free_modifiers: Vec::new(),
                         argument: Some(ArgumentSyntax::Zohe {
                             tag_words: vec![fa],
                             maybe_ku,
@@ -7667,7 +7623,6 @@ where
                 if let Some(argument) = argument {
                     new!(LinkArgumentSyntax {
                         fa: None,
-                        fa_free_modifiers: Vec::new(),
                         argument: Some(ArgumentSyntax::Tagged {
                             tag_words,
                             tag_tense_modal: Some(tense_modal),
@@ -7680,7 +7635,6 @@ where
                     tag_free_modifiers.extend(trailing_free_modifiers);
                     new!(LinkArgumentSyntax {
                         fa: None,
-                        fa_free_modifiers: Vec::new(),
                         argument: Some(ArgumentSyntax::Zohe {
                             tag_words,
                             maybe_ku,
@@ -7693,7 +7647,6 @@ where
     let plain_argument = argument_base.map(|argument| {
         new!(LinkArgumentSyntax {
             fa: None,
-            fa_free_modifiers: Vec::new(),
             argument: Some(argument),
         })
     });
@@ -7706,7 +7659,6 @@ where
 fn empty_link_argument() -> LinkArgumentSyntax {
     new!(LinkArgumentSyntax {
         fa: None,
-        fa_free_modifiers: Vec::new(),
         argument: None,
     })
 }
@@ -7735,25 +7687,23 @@ where
                 .repeated()
                 .collect::<Vec<_>>(),
         )
-        .then(cmavo("be'o").or_not())
-        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("be'o")
+                .then(free_modifier.repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |(((((be, free_modifiers), link_argument), bei_links), beho), beho_free_modifiers)| {
-                let data!(LinkArgumentSyntax {
-                    fa,
-                    fa_free_modifiers,
-                    argument,
-                }) = link_argument.into_data();
+            |((((be, free_modifiers), link_argument), bei_links), beho)| {
+                let data!(LinkArgumentSyntax { fa, argument }) = link_argument.into_data();
 
                 new!(BeLinkSyntax {
-                    be,
-                    free_modifiers,
+                    be: WithFreeModifiers::new(be, free_modifiers),
                     fa,
-                    fa_free_modifiers,
                     first_argument: argument,
                     bei_links,
-                    beho,
-                    beho_free_modifiers,
+                    beho: beho.map(|(beho, free_modifiers)| {
+                        WithFreeModifiers::new(beho, free_modifiers)
+                    }),
                 })
             },
         )
@@ -7780,17 +7730,11 @@ where
         .then(free_modifier.repeated().collect::<Vec<_>>())
         .then(link_argument)
         .map(|((bei, bei_free_modifiers), link_argument)| {
-            let data!(LinkArgumentSyntax {
-                fa,
-                fa_free_modifiers,
-                argument,
-            }) = link_argument.into_data();
+            let data!(LinkArgumentSyntax { fa, argument }) = link_argument.into_data();
 
             BeiLinkSyntax {
-                bei,
-                bei_free_modifiers,
+                bei: WithFreeModifiers::new(bei, bei_free_modifiers),
                 fa,
-                fa_free_modifiers,
                 argument,
             }
         })

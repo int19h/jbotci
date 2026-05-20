@@ -40,69 +40,73 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {LuQuote = {
-                                            free_modifiers = [
-                                                {VocativeFree = {
-                                                    argument = {RelationVocativeArgument = {
-                                                        relation = {BaseRelation = {
-                                                            word = {Bare = {
-                                                                kind = "lujvo",
-                                                                phonemes = "fracture",
-                                                                span = [7, 15]
-                                                            }}
-                                                        }}
-                                                    }},
-                                                    vocative_markers = [
-                                                        {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "coĭ",
-                                                            span = [3, 6]
-                                                        }},
-                                                    ]
-                                                }},
-                                            ],
-                                            lihu = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Quote = {
+                                    quote = {Lu = {
+                                        lihu = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "li'u",
                                                 span = [16, 20]
+                                            }
+                                        }},
+                                        lu = [
+                                            {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "lu",
+                                                    span = [0, 2]
+                                                }
                                             }},
-                                            lu = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "lu",
-                                                span = [0, 2]
+                                            {Vocative = {
+                                                argument = {RelationVocative = {
+                                                    relation = {Base = {
+                                                        Bare = {Bare = {
+                                                            kind = "lujvo",
+                                                            phonemes = "fracture",
+                                                            span = [7, 15]
+                                                        }}
+                                                    }}
+                                                }},
+                                                vocative_markers = [
+                                                    {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "coĭ",
+                                                            span = [3, 6]
+                                                        }
+                                                    }},
+                                                ]
                                             }},
-                                            text = {}
-                                        }}
+                                        ],
+                                        text = {}
                                     }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "banzu",
-                                                    span = [21, 26]
-                                                }}
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "banzu",
+                                                span = [21, 26]
                                             }}
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

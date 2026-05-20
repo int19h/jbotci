@@ -32,51 +32,57 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {ZoQuote = {
-                                            free_modifiers = [
-                                                {VocativeFree = {
+                                {Argument = {
+                                    Quote = {
+                                        quote = {Zo = {
+                                            word = [
+                                                {Bare = {
+                                                    Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "nanca",
+                                                        span = [3, 8]
+                                                    }
+                                                }},
+                                                {Vocative = {
                                                     vocative_markers = [
                                                         {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "je'e",
-                                                            span = [9, 13]
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "je'e",
+                                                                span = [9, 13]
+                                                            }
                                                         }},
                                                     ]
                                                 }},
                                             ],
-                                            word = {Bare = {
-                                                kind = "gismu",
-                                                phonemes = "nanca",
-                                                span = [3, 8]
-                                            }},
-                                            zo = {ZoQuote = {
-                                                word = {
-                                                    kind = "gismu",
-                                                    phonemes = "nanca",
-                                                    span = [3, 8]
-                                                },
-                                                zo = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zo",
-                                                    span = [0, 2]
+                                            zo = {Bare = {
+                                                ZoQuote = {
+                                                    word = {
+                                                        kind = "gismu",
+                                                        phonemes = "nanca",
+                                                        span = [3, 8]
+                                                    },
+                                                    zo = {
+                                                        kind = "cmavo",
+                                                        phonemes = "zo",
+                                                        span = [0, 2]
+                                                    }
                                                 }
                                             }}
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
