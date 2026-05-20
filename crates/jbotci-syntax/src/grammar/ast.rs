@@ -218,54 +218,42 @@ pub struct ParagraphStatementSyntax {
 #[invariant(true)]
 pub enum FreeModifierSyntax {
     Sei {
-        sei: WithIndicators<WordLike>,
-        leading_free_modifiers: Vec<FreeModifierSyntax>,
+        sei: WithFreeModifiers<WithIndicators<WordLike>>,
         terms: Vec<TermSyntax>,
-        cu: Option<WithIndicators<WordLike>>,
-        cu_free_modifiers: Vec<FreeModifierSyntax>,
+        cu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         relation: RelationSyntax,
-        sehu: Option<WithIndicators<WordLike>>,
-        sehu_free_modifiers: Vec<FreeModifierSyntax>,
+        sehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     To {
-        to: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        to: WithFreeModifiers<WithIndicators<WordLike>>,
         text: Box<TextSyntax>,
-        toi: Option<WithIndicators<WordLike>>,
-        toi_free_modifiers: Vec<FreeModifierSyntax>,
+        toi: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Xi {
-        xi: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        xi: WithFreeModifiers<WithIndicators<WordLike>>,
         expression: MathExpressionSyntax,
     },
     Mai {
         number: Vec<WithIndicators<WordLike>>,
-        mai: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        mai: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     Soi {
-        soi: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        soi: WithFreeModifiers<WithIndicators<WordLike>>,
         leading_argument: Box<ArgumentSyntax>,
         trailing_argument: Option<Box<ArgumentSyntax>>,
-        sehu: Option<WithIndicators<WordLike>>,
-        sehu_free_modifiers: Vec<FreeModifierSyntax>,
+        sehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Vocative {
-        vocative_markers: Vec<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        vocative_markers: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
         argument: Option<ArgumentSyntax>,
-        dohu: Option<WithIndicators<WordLike>>,
-        dohu_free_modifiers: Vec<FreeModifierSyntax>,
+        dohu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Replacement {
         lohai: Option<WithIndicators<WordLike>>,
         old_words: Vec<WithIndicators<WordLike>>,
         sahai: Option<WithIndicators<WordLike>>,
         new_words: Vec<WithIndicators<WordLike>>,
-        lehai: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        lehai: WithFreeModifiers<WithIndicators<WordLike>>,
     },
 }
 
@@ -274,16 +262,13 @@ pub enum FreeModifierSyntax {
 pub enum StatementSyntax {
     Tuhe {
         tense_modal: Option<TenseModalSyntax>,
-        tuhe: WithIndicators<WordLike>,
-        tuhe_free_modifiers: Vec<FreeModifierSyntax>,
+        tuhe: WithFreeModifiers<WithIndicators<WordLike>>,
         text: Box<TextSyntax>,
-        tuhu: Option<WithIndicators<WordLike>>,
-        tuhu_free_modifiers: Vec<FreeModifierSyntax>,
+        tuhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Prenex {
         prenex_terms: Vec<TermSyntax>,
-        zohu: WithIndicators<WordLike>,
-        zohu_free_modifiers: Vec<FreeModifierSyntax>,
+        zohu: WithFreeModifiers<WithIndicators<WordLike>>,
         inner_statement: Box<StatementSyntax>,
     },
     Predicate(PredicateSyntax),
@@ -301,8 +286,7 @@ pub enum StatementSyntax {
     },
     Iau {
         inner_statement: Box<StatementSyntax>,
-        iau: WithIndicators<WordLike>,
-        iau_free_modifiers: Vec<FreeModifierSyntax>,
+        iau: WithFreeModifiers<WithIndicators<WordLike>>,
         reset_terms: Vec<TermSyntax>,
     },
     ExperimentalPredicateContinuation {
@@ -325,14 +309,11 @@ pub struct PredicateStatementContinuationSyntax {
 #[invariant(true)]
 pub enum PredicateStatementContinuationMarkerSyntax {
     Bo {
-        bo: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        bo: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     Ke {
-        ke: WithIndicators<WordLike>,
-        ke_free_modifiers: Vec<FreeModifierSyntax>,
-        kehe: Option<WithIndicators<WordLike>>,
-        kehe_free_modifiers: Vec<FreeModifierSyntax>,
+        ke: WithFreeModifiers<WithIndicators<WordLike>>,
+        kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
 }
 
@@ -1396,40 +1377,30 @@ impl StatementSyntax {
             StatementSyntax::Tuhe {
                 tense_modal,
                 tuhe,
-                tuhe_free_modifiers,
                 text,
                 tuhu,
-                tuhu_free_modifiers,
             } => {
                 let mut words = Vec::new();
                 if let Some(tense_modal) = tense_modal {
                     words.extend(tense_modal.words());
                 }
-                words.push(tuhe);
-                for free_modifier in tuhe_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(tuhe.words());
                 words.extend(text.words());
-                words.extend(tuhu);
-                for free_modifier in tuhu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(tuhu) = tuhu {
+                    words.extend(tuhu.words());
                 }
                 words
             }
             StatementSyntax::Prenex {
                 prenex_terms,
                 zohu,
-                zohu_free_modifiers,
                 inner_statement,
             } => {
                 let mut words = prenex_terms
                     .into_iter()
                     .flat_map(TermSyntax::words)
                     .collect::<Vec<_>>();
-                words.push(zohu);
-                for free_modifier in zohu_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(zohu.words());
                 words.extend(inner_statement.words());
                 words
             }
@@ -1461,14 +1432,10 @@ impl StatementSyntax {
             StatementSyntax::Iau {
                 inner_statement,
                 iau,
-                iau_free_modifiers,
                 reset_terms,
             } => {
                 let mut words = inner_statement.words();
-                words.push(iau);
-                for free_modifier in iau_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(iau.words());
                 for term in reset_terms {
                     words.extend(term.words());
                 }
@@ -1496,27 +1463,15 @@ impl PredicateStatementContinuationSyntax {
             words.extend(tense_modal.words());
         }
         match self.marker {
-            PredicateStatementContinuationMarkerSyntax::Bo { bo, free_modifiers } => {
-                words.push(bo);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            PredicateStatementContinuationMarkerSyntax::Bo { bo } => {
+                words.extend(bo.words());
                 words.extend(self.trailing_subsentence.words());
             }
-            PredicateStatementContinuationMarkerSyntax::Ke {
-                ke,
-                ke_free_modifiers,
-                kehe,
-                kehe_free_modifiers,
-            } => {
-                let mut words = vec![ke];
-                for free_modifier in ke_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            PredicateStatementContinuationMarkerSyntax::Ke { ke, kehe } => {
+                words.extend(ke.words());
                 words.extend(self.trailing_subsentence.words());
-                words.extend(kehe);
-                for free_modifier in kehe_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(kehe) = kehe {
+                    words.extend(kehe.words());
                 }
             }
         }
@@ -1587,113 +1542,69 @@ impl FreeModifierSyntax {
         match self {
             FreeModifierSyntax::Sei {
                 sei,
-                leading_free_modifiers,
                 terms,
                 cu,
-                cu_free_modifiers,
                 relation,
                 sehu,
-                sehu_free_modifiers,
             } => {
-                let mut words = vec![sei];
-                for free_modifier in leading_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = sei.words();
                 for term in terms {
                     words.extend(term.words());
                 }
-                words.extend(cu);
-                for free_modifier in cu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(cu) = cu {
+                    words.extend(cu.words());
                 }
                 words.extend(relation.words());
-                words.extend(sehu);
-                for free_modifier in sehu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(sehu) = sehu {
+                    words.extend(sehu.words());
                 }
                 words
             }
-            FreeModifierSyntax::To {
-                to,
-                free_modifiers,
-                text,
-                toi,
-                toi_free_modifiers,
-            } => {
-                let mut words = vec![to];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            FreeModifierSyntax::To { to, text, toi } => {
+                let mut words = to.words();
                 words.extend(text.words());
-                words.extend(toi);
-                for free_modifier in toi_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(toi) = toi {
+                    words.extend(toi.words());
                 }
                 words
             }
-            FreeModifierSyntax::Xi {
-                xi,
-                free_modifiers,
-                expression,
-            } => {
-                let mut words = vec![xi];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            FreeModifierSyntax::Xi { xi, expression } => {
+                let mut words = xi.words();
                 words.extend(expression.words());
                 words
             }
-            FreeModifierSyntax::Mai {
-                number,
-                mai,
-                free_modifiers,
-            } => {
+            FreeModifierSyntax::Mai { number, mai } => {
                 let mut words = number;
-                words.push(mai);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(mai.words());
                 words
             }
             FreeModifierSyntax::Soi {
                 soi,
-                free_modifiers,
                 leading_argument,
                 trailing_argument,
                 sehu,
-                sehu_free_modifiers,
             } => {
-                let mut words = vec![soi];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = soi.words();
                 words.extend(leading_argument.words());
                 if let Some(argument) = trailing_argument {
                     words.extend(argument.words());
                 }
-                words.extend(sehu);
-                for free_modifier in sehu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(sehu) = sehu {
+                    words.extend(sehu.words());
                 }
                 words
             }
             FreeModifierSyntax::Vocative {
                 vocative_markers,
-                free_modifiers,
                 argument,
                 dohu,
-                dohu_free_modifiers,
             } => {
-                let mut words = vocative_markers;
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = vocative_markers.words();
                 if let Some(argument) = argument {
                     words.extend(argument.words());
                 }
-                words.extend(dohu);
-                for free_modifier in dohu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(dohu) = dohu {
+                    words.extend(dohu.words());
                 }
                 words
             }
@@ -1703,16 +1614,12 @@ impl FreeModifierSyntax {
                 sahai,
                 new_words,
                 lehai,
-                free_modifiers,
             } => {
                 let mut words = lohai.into_iter().collect::<Vec<_>>();
                 words.extend(old_words);
                 words.extend(sahai);
                 words.extend(new_words);
-                words.push(lehai);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(lehai.words());
                 words
             }
         }

@@ -995,7 +995,9 @@ fn statement_parser<'tokens>(
                 PredicateStatementContinuationSyntax {
                     connective,
                     tense_modal,
-                    marker: PredicateStatementContinuationMarkerSyntax::Bo { bo, free_modifiers },
+                    marker: PredicateStatementContinuationMarkerSyntax::Bo {
+                        bo: WithFreeModifiers::new(bo, free_modifiers),
+                    },
                     trailing_subsentence,
                 }
             },
@@ -1005,25 +1007,27 @@ fn statement_parser<'tokens>(
         .then(cmavo("ke"))
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(subsentence.clone())
-        .then(cmavo("ke'e").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("ke'e")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
             |(
-                (
-                    ((((connective, tense_modal), ke), ke_free_modifiers), trailing_subsentence),
-                    kehe,
-                ),
-                kehe_free_modifiers,
-            )| PredicateStatementContinuationSyntax {
-                connective,
-                tense_modal,
-                marker: PredicateStatementContinuationMarkerSyntax::Ke {
-                    ke,
-                    ke_free_modifiers,
-                    kehe,
-                    kehe_free_modifiers,
-                },
-                trailing_subsentence,
+                ((((connective, tense_modal), ke), ke_free_modifiers), trailing_subsentence),
+                kehe,
+            )| {
+                PredicateStatementContinuationSyntax {
+                    connective,
+                    tense_modal,
+                    marker: PredicateStatementContinuationMarkerSyntax::Ke {
+                        ke: WithFreeModifiers::new(ke, ke_free_modifiers),
+                        kehe: kehe.map(|(kehe, free_modifiers)| {
+                            WithFreeModifiers::new(kehe, free_modifiers)
+                        }),
+                    },
+                    trailing_subsentence,
+                }
             },
         );
     let predicate_statement_continuation = choice((
@@ -1179,8 +1183,7 @@ fn statement_parser<'tokens>(
             |(((prenex_terms, zohu), zohu_free_modifiers), inner_statement)| {
                 StatementSyntax::Prenex {
                     prenex_terms,
-                    zohu,
-                    zohu_free_modifiers,
+                    zohu: WithFreeModifiers::new(zohu, zohu_free_modifiers),
                     inner_statement: Box::new(inner_statement),
                 }
             },
@@ -1191,18 +1194,18 @@ fn statement_parser<'tokens>(
         .then(cmavo("tu'e"))
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(text.clone())
-        .then(cmavo("tu'u").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("tu'u")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |(((((tense_modal, tuhe), tuhe_free_modifiers), text), tuhu), tuhu_free_modifiers)| {
-                StatementSyntax::Tuhe {
-                    tense_modal,
-                    tuhe,
-                    tuhe_free_modifiers,
-                    text: Box::new(text),
-                    tuhu,
-                    tuhu_free_modifiers,
-                }
+            |((((tense_modal, tuhe), tuhe_free_modifiers), text), tuhu)| StatementSyntax::Tuhe {
+                tense_modal,
+                tuhe: WithFreeModifiers::new(tuhe, tuhe_free_modifiers),
+                text: Box::new(text),
+                tuhu: tuhu
+                    .map(|(tuhu, free_modifiers)| WithFreeModifiers::new(tuhu, free_modifiers)),
             },
         );
 
@@ -1392,8 +1395,7 @@ fn statement_parser<'tokens>(
         .map(|(statement, iau_tail)| match iau_tail {
             Some(((iau, iau_free_modifiers), reset_terms)) => StatementSyntax::Iau {
                 inner_statement: Box::new(statement),
-                iau,
-                iau_free_modifiers,
+                iau: WithFreeModifiers::new(iau, iau_free_modifiers),
                 reset_terms,
             },
             None => statement,
@@ -1952,21 +1954,13 @@ where
         )
         .map(
             |(((((sei, leading_free_modifiers), terms), cu), relation), sehu)| {
-                let (cu, cu_free_modifiers) = cu
-                    .map(|(cu, free_modifiers)| (Some(cu), free_modifiers))
-                    .unwrap_or((None, Vec::new()));
-                let (sehu, sehu_free_modifiers) = sehu
-                    .map(|(sehu, free_modifiers)| (Some(sehu), free_modifiers))
-                    .unwrap_or((None, Vec::new()));
                 FreeModifierSyntax::Sei {
-                    sei,
-                    leading_free_modifiers,
+                    sei: WithFreeModifiers::new(sei, leading_free_modifiers),
                     terms,
-                    cu,
-                    cu_free_modifiers,
+                    cu: cu.map(|(cu, free_modifiers)| WithFreeModifiers::new(cu, free_modifiers)),
                     relation,
-                    sehu,
-                    sehu_free_modifiers,
+                    sehu: sehu
+                        .map(|(sehu, free_modifiers)| WithFreeModifiers::new(sehu, free_modifiers)),
                 }
             },
         )
@@ -1994,11 +1988,9 @@ where
         )
         .map(
             move |(((to, free_modifiers), toi), toi_free_modifiers)| FreeModifierSyntax::To {
-                to,
-                free_modifiers,
+                to: WithFreeModifiers::new(to, free_modifiers),
                 text: Box::new(empty_text()),
-                toi: Some(toi),
-                toi_free_modifiers,
+                toi: Some(WithFreeModifiers::new(toi, toi_free_modifiers)),
             },
         );
 
@@ -2015,18 +2007,13 @@ where
                 )
                 .or_not(),
         )
-        .map(|(((to, free_modifiers), text), toi)| {
-            let (toi, toi_free_modifiers) = toi
-                .map(|(toi, toi_free_modifiers)| (Some(toi), toi_free_modifiers))
-                .unwrap_or((None, Vec::new()));
-            FreeModifierSyntax::To {
-                to,
-                free_modifiers,
+        .map(
+            |(((to, free_modifiers), text), toi)| FreeModifierSyntax::To {
+                to: WithFreeModifiers::new(to, free_modifiers),
                 text: Box::new(text),
-                toi,
-                toi_free_modifiers,
-            }
-        });
+                toi: toi.map(|(toi, free_modifiers)| WithFreeModifiers::new(toi, free_modifiers)),
+            },
+        );
 
     choice((empty_parenthetical, nonempty_parenthetical)).boxed()
 }
@@ -2052,8 +2039,7 @@ where
                     old_words,
                     sahai,
                     new_words,
-                    lehai,
-                    free_modifiers,
+                    lehai: WithFreeModifiers::new(lehai, free_modifiers),
                 }
             },
         );
@@ -2067,8 +2053,7 @@ where
                 old_words: Vec::new(),
                 sahai: Some(sahai),
                 new_words,
-                lehai,
-                free_modifiers,
+                lehai: WithFreeModifiers::new(lehai, free_modifiers),
             },
         );
     let close_only_replacement = cmavo("le'ai")
@@ -2078,8 +2063,7 @@ where
             old_words: Vec::new(),
             sahai: None,
             new_words: Vec::new(),
-            lehai,
-            free_modifiers,
+            lehai: WithFreeModifiers::new(lehai, free_modifiers),
         });
 
     choice((
@@ -4048,8 +4032,7 @@ where
         .then(xi_expression)
         .map(
             |((xi, free_modifiers), expression)| FreeModifierSyntax::Xi {
-                xi,
-                free_modifiers,
+                xi: WithFreeModifiers::new(xi, free_modifiers),
                 expression,
             },
         )
@@ -4069,8 +4052,7 @@ where
         .then(free_modifier.repeated().collect::<Vec<_>>())
         .map(|((number, mai), free_modifiers)| FreeModifierSyntax::Mai {
             number,
-            mai,
-            free_modifiers,
+            mai: WithFreeModifiers::new(mai, free_modifiers),
         })
         .boxed()
 }
@@ -4099,16 +4081,12 @@ where
         )
         .map(
             |((((soi, free_modifiers), leading_argument), trailing_argument), sehu)| {
-                let (sehu, sehu_free_modifiers) = sehu
-                    .map(|(sehu, free_modifiers)| (Some(sehu), free_modifiers))
-                    .unwrap_or((None, Vec::new()));
                 FreeModifierSyntax::Soi {
-                    soi,
-                    free_modifiers,
+                    soi: WithFreeModifiers::new(soi, free_modifiers),
                     leading_argument: Box::new(leading_argument),
                     trailing_argument: trailing_argument.map(Box::new),
-                    sehu,
-                    sehu_free_modifiers,
+                    sehu: sehu
+                        .map(|(sehu, free_modifiers)| WithFreeModifiers::new(sehu, free_modifiers)),
                 }
             },
         )
@@ -4190,15 +4168,11 @@ where
                 .or_not(),
         )
         .map(|(((vocative_markers, free_modifiers), argument), dohu)| {
-            let (dohu, dohu_free_modifiers) = dohu
-                .map(|(dohu, free_modifiers)| (Some(dohu), free_modifiers))
-                .unwrap_or((None, Vec::new()));
             FreeModifierSyntax::Vocative {
-                vocative_markers,
-                free_modifiers,
+                vocative_markers: WithFreeModifiers::new(vocative_markers, free_modifiers),
                 argument,
-                dohu,
-                dohu_free_modifiers,
+                dohu: dohu
+                    .map(|(dohu, free_modifiers)| WithFreeModifiers::new(dohu, free_modifiers)),
             }
         })
         .boxed()

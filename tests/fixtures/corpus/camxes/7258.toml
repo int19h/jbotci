@@ -35,33 +35,39 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            free_modifiers = [
-                {SeiFree = {
-                    relation = {BaseRelation = {
-                        word = {Bare = {
+        {Vocative = {
+            vocative_markers = [
+                [
+                    {Bare = {
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "coĭ",
+                            span = [0, 3]
+                        }
+                    }},
+                    {Bare = {
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "co'o",
+                            span = [3, 7]
+                        }
+                    }},
+                ],
+                {Sei = {
+                    relation = {Base = {
+                        Bare = {Bare = {
                             kind = "gismu",
                             phonemes = "krefu",
                             span = [12, 17]
                         }}
                     }},
                     sei = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "seĭ",
-                        span = [8, 11]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "seĭ",
+                            span = [8, 11]
+                        }
                     }}
-                }},
-            ],
-            vocative_markers = [
-                {Bare = {
-                    kind = "cmavo",
-                    phonemes = "coĭ",
-                    span = [0, 3]
-                }},
-                {Bare = {
-                    kind = "cmavo",
-                    phonemes = "co'o",
-                    span = [3, 7]
                 }},
             ]
         }},
