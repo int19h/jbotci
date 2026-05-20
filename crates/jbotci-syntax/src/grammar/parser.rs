@@ -1944,6 +1944,7 @@ where
         + Clone
         + 'tokens,
 {
+    let prohibited_free_modifier = cll_prohibited_free_modifier(free_modifier.clone());
     cmavo_of("SEI", &["sei", "ti'o", "xoi"])
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(term.repeated().collect::<Vec<_>>())
@@ -1953,15 +1954,23 @@ where
                 .or_not(),
         )
         .then(relation)
-        .then(cmavo("se'u").or_not())
-        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("se'u")
+                .then(
+                    prohibited_free_modifier
+                        .clone()
+                        .repeated()
+                        .collect::<Vec<_>>(),
+                )
+                .or_not(),
+        )
         .map(
-            |(
-                (((((sei, leading_free_modifiers), terms), cu), relation), sehu),
-                sehu_free_modifiers,
-            )| {
+            |(((((sei, leading_free_modifiers), terms), cu), relation), sehu)| {
                 let (cu, cu_free_modifiers) = cu
                     .map(|(cu, free_modifiers)| (Some(cu), free_modifiers))
+                    .unwrap_or((None, Vec::new()));
+                let (sehu, sehu_free_modifiers) = sehu
+                    .map(|(sehu, free_modifiers)| (Some(sehu), free_modifiers))
                     .unwrap_or((None, Vec::new()));
                 FreeModifierSyntax::Sei {
                     sei,
@@ -1987,10 +1996,16 @@ where
         + Clone
         + 'tokens,
 {
+    let prohibited_free_modifier = cll_prohibited_free_modifier(free_modifier.clone());
     let empty_parenthetical = cmavo_of("TO", &["to'i", "to"])
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(cmavo("toi"))
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            prohibited_free_modifier
+                .clone()
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
         .map(
             move |(((to, free_modifiers), toi), toi_free_modifiers)| FreeModifierSyntax::To {
                 to,
@@ -2006,7 +2021,12 @@ where
         .then(text)
         .then(
             cmavo("toi")
-                .then(free_modifier.repeated().collect::<Vec<_>>())
+                .then(
+                    prohibited_free_modifier
+                        .clone()
+                        .repeated()
+                        .collect::<Vec<_>>(),
+                )
                 .or_not(),
         )
         .map(|(((to, free_modifiers), text), toi)| {
@@ -4077,23 +4097,29 @@ where
         + Clone
         + 'tokens,
 {
+    let prohibited_free_modifier = cll_prohibited_free_modifier(free_modifier.clone());
     cmavo("soi")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(argument.clone())
         .then(argument.or_not())
-        .then(cmavo("se'u").or_not())
-        .then(free_modifier.repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("se'u")
+                .then(prohibited_free_modifier.repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |(
-                ((((soi, free_modifiers), leading_argument), trailing_argument), sehu),
-                sehu_free_modifiers,
-            )| FreeModifierSyntax::Soi {
-                soi,
-                free_modifiers,
-                leading_argument: Box::new(leading_argument),
-                trailing_argument: trailing_argument.map(Box::new),
-                sehu,
-                sehu_free_modifiers,
+            |((((soi, free_modifiers), leading_argument), trailing_argument), sehu)| {
+                let (sehu, sehu_free_modifiers) = sehu
+                    .map(|(sehu, free_modifiers)| (Some(sehu), free_modifiers))
+                    .unwrap_or((None, Vec::new()));
+                FreeModifierSyntax::Soi {
+                    soi,
+                    free_modifiers,
+                    leading_argument: Box::new(leading_argument),
+                    trailing_argument: trailing_argument.map(Box::new),
+                    sehu,
+                    sehu_free_modifiers,
+                }
             },
         )
         .boxed()
@@ -4164,20 +4190,60 @@ where
     vocative_markers()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(vocative_argument.or_not())
-        .then(cmavo("do'u").or_not())
-        .then(free_modifier.repeated().collect::<Vec<_>>())
-        .map(
-            |((((vocative_markers, free_modifiers), argument), dohu), dohu_free_modifiers)| {
-                FreeModifierSyntax::Vocative {
-                    vocative_markers,
-                    free_modifiers,
-                    argument,
-                    dohu,
-                    dohu_free_modifiers,
+        .then(
+            cmavo("do'u")
+                .then(
+                    cll_prohibited_free_modifier(free_modifier)
+                        .repeated()
+                        .collect::<Vec<_>>(),
+                )
+                .or_not(),
+        )
+        .map(|(((vocative_markers, free_modifiers), argument), dohu)| {
+            let (dohu, dohu_free_modifiers) = dohu
+                .map(|(dohu, free_modifiers)| (Some(dohu), free_modifiers))
+                .unwrap_or((None, Vec::new()));
+            FreeModifierSyntax::Vocative {
+                vocative_markers,
+                free_modifiers,
+                argument,
+                dohu,
+                dohu_free_modifiers,
+            }
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_prohibited_free_modifier<'tokens, F>(
+    free_modifier: F,
+) -> BoxedParser<'tokens, FreeModifierSyntax>
+where
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
+    free_modifier
+        .map_with(
+            |free_modifier,
+             extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+                if let Some(anchor) = free_modifier_anchor(&free_modifier) {
+                    extra.state().warn(
+                        ExperimentalConstruct::CllProhibitedFreeModifierPlacement,
+                        &anchor,
+                    );
                 }
+                free_modifier
             },
         )
         .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn free_modifier_anchor(free_modifier: &FreeModifierSyntax) -> Option<WordWithModifiers> {
+    free_modifier.clone().words().into_iter().next()
 }
 
 #[requires(true)]
