@@ -1049,13 +1049,15 @@ fn statement_parser<'tokens>(
         .repeated()
         .at_least(1)
         .collect::<Vec<_>>()
-        .then(cmavo("vau").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|((terms, vau), vau_free_modifiers)| {
+        .then(
+            cmavo("vau")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
+        .map(|(terms, vau)| {
             StatementSyntax::Fragment(FragmentSyntax::Term {
                 terms,
-                vau,
-                vau_free_modifiers,
+                vau: vau.map(|(vau, free_modifiers)| WithFreeModifiers::new(vau, free_modifiers)),
             })
         });
 
@@ -1132,12 +1134,10 @@ fn statement_parser<'tokens>(
             StatementSyntax::Fragment(FragmentSyntax::BeLink {
                 be,
                 free_modifiers,
-                fa,
-                fa_free_modifiers,
+                fa: fa.map(|fa| WithFreeModifiers::new(fa, fa_free_modifiers)),
                 first_argument,
                 bei_links,
-                beho,
-                beho_free_modifiers,
+                beho: beho.map(|beho| WithFreeModifiers::new(beho, beho_free_modifiers)),
             })
         }
     });
@@ -1167,8 +1167,7 @@ fn statement_parser<'tokens>(
         .map(|((terms, zohu), zohu_free_modifiers)| {
             StatementSyntax::Fragment(FragmentSyntax::Prenex {
                 terms,
-                zohu,
-                zohu_free_modifiers,
+                zohu: WithFreeModifiers::new(zohu, zohu_free_modifiers),
             })
         });
 

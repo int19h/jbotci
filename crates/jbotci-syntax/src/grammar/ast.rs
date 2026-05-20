@@ -343,8 +343,7 @@ pub enum FragmentSyntax {
         vocative_markers: Vec<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
         vocative_argument: Option<ArgumentSyntax>,
-        dohu: Option<WithIndicators<WordLike>>,
-        dohu_free_modifiers: Vec<FreeModifierSyntax>,
+        dohu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Ijek {
         i: WithIndicators<WordLike>,
@@ -352,26 +351,22 @@ pub enum FragmentSyntax {
     },
     Prenex {
         terms: Vec<TermSyntax>,
-        zohu: WithIndicators<WordLike>,
-        zohu_free_modifiers: Vec<FreeModifierSyntax>,
+        zohu: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     BeLink {
         be: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
-        fa: Option<WithIndicators<WordLike>>,
-        fa_free_modifiers: Vec<FreeModifierSyntax>,
+        fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         first_argument: Option<ArgumentSyntax>,
         bei_links: Vec<BeiLinkSyntax>,
-        beho: Option<WithIndicators<WordLike>>,
-        beho_free_modifiers: Vec<FreeModifierSyntax>,
+        beho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     BeiLink(Vec<BeiLinkSyntax>),
     RelativeClause(Vec<RelativeClauseSyntax>),
     MathExpression(MathExpressionSyntax),
     Term {
         terms: Vec<TermSyntax>,
-        vau: Option<WithIndicators<WordLike>>,
-        vau_free_modifiers: Vec<FreeModifierSyntax>,
+        vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Relation(RelationSyntax),
 }
@@ -1893,7 +1888,6 @@ impl FragmentSyntax {
                 free_modifiers,
                 vocative_argument,
                 dohu,
-                dohu_free_modifiers,
             } => {
                 let mut words = vocative_markers;
                 for free_modifier in free_modifiers {
@@ -1902,9 +1896,8 @@ impl FragmentSyntax {
                 if let Some(vocative_argument) = vocative_argument {
                     words.extend(vocative_argument.words());
                 }
-                words.extend(dohu);
-                for free_modifier in dohu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(dohu) = dohu {
+                    words.extend(dohu.words());
                 }
                 words
             }
@@ -1913,46 +1906,35 @@ impl FragmentSyntax {
                 words.extend(connective.words());
                 words
             }
-            FragmentSyntax::Prenex {
-                terms,
-                zohu,
-                zohu_free_modifiers,
-            } => {
+            FragmentSyntax::Prenex { terms, zohu } => {
                 let mut words = terms
                     .into_iter()
                     .flat_map(TermSyntax::words)
                     .collect::<Vec<_>>();
-                words.push(zohu);
-                for free_modifier in zohu_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(zohu.words());
                 words
             }
             FragmentSyntax::BeLink {
                 be,
                 free_modifiers,
                 fa,
-                fa_free_modifiers,
                 first_argument,
                 bei_links,
                 beho,
-                beho_free_modifiers,
             } => {
                 let mut words = vec![be];
                 for free_modifier in free_modifiers {
                     words.extend(free_modifier.words());
                 }
-                words.extend(fa);
-                for free_modifier in fa_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(fa) = fa {
+                    words.extend(fa.words());
                 }
                 if let Some(first_argument) = first_argument {
                     words.extend(first_argument.words());
                 }
                 words.extend(bei_links.into_iter().flat_map(BeiLinkSyntax::words));
-                words.extend(beho);
-                for free_modifier in beho_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(beho) = beho {
+                    words.extend(beho.words());
                 }
                 words
             }
@@ -1965,18 +1947,13 @@ impl FragmentSyntax {
                 .flat_map(RelativeClauseSyntax::words)
                 .collect(),
             FragmentSyntax::MathExpression(math_expression) => math_expression.words(),
-            FragmentSyntax::Term {
-                terms,
-                vau,
-                vau_free_modifiers,
-            } => {
+            FragmentSyntax::Term { terms, vau } => {
                 let mut words = Vec::new();
                 for term in terms {
                     words.extend(term.words());
                 }
-                words.extend(vau);
-                for free_modifier in vau_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(vau) = vau {
+                    words.extend(vau.words());
                 }
                 words
             }
