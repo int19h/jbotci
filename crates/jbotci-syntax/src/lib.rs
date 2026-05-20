@@ -310,30 +310,205 @@ pub struct SyntaxParse {
     pub warnings: Vec<SyntaxWarning>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[invariant(true)]
+pub enum ExperimentalConstruct {
+    ExperimentalCmavo,
+    ExperimentalZohOiQuote,
+    ExperimentalMehOiRelationUnit,
+    ExperimentalLohOiBridiDescription,
+    ExperimentalLohAiReplacementFree,
+    ExperimentalJacuPredicateTailConnective,
+    ExperimentalJeIStatementConnective,
+    ExperimentalMultipleNaFragment,
+    ExperimentalEmptyPrenex,
+    ExperimentalBareCuPredicate,
+    ExperimentalNaheArgumentWithoutBo,
+    ExperimentalVuhoScopedAttachment,
+    ExperimentalNohoiSelbriRelativeClause,
+    ExperimentalSimplerSumtiConnective,
+    ExperimentalExplicitCuPredicateTailStarter,
+    ExperimentalRelativeClauseConnective,
+    ExperimentalSimplerForethoughtConnective,
+    ExperimentalSimplerTermConnective,
+    ExperimentalSimplerMexOperandConnective,
+    ExperimentalSimplerDescriptorHeadConnective,
+    ExperimentalJiAsJaConnective,
+    ExperimentalGadganzuGadri,
+    ExperimentalIauReset,
+    ExperimentalGohoiRelationUnit,
+    ExperimentalKeTermset,
+    ExperimentalLaheNaheTermWrapper,
+    ExperimentalForethoughtRelativeClauseConnective,
+    ExperimentalBroadAConnective,
+    ExperimentalVuhuConnective,
+    ExperimentalNahuPredicateConnective,
+    ExperimentalFaAsTag,
+    ExperimentalFlattenedTag,
+    ExperimentalCbmCmevlaRelationWord,
+    ExperimentalCbmLaNameAsDescriptor,
+    ExperimentalDictionaryDoiVocative,
+    ExperimentalDictionaryCoiVocative,
+    ExperimentalDictionarySeiFreeModifier,
+    ExperimentalDictionaryPaNumber,
+    ExperimentalDictionaryFahaTag,
+    ExperimentalDictionaryUiIndicator,
+    ExperimentalNoihaAdverbial,
+    ExperimentalFihoiAdverbial,
+    ExperimentalSoiAdverbial,
+    ExperimentalPreposedLinkargs,
+    ExperimentalEmptyLinkargs,
+    ExperimentalBroadBoStatementConnective,
+    ExperimentalBroadKePredicateContinuation,
+    ExperimentalTermHierarchyBoConnection,
+    ExperimentalBareNaTerm,
+    ExperimentalXohiTagRelation,
+    ExperimentalZantufaCmavo,
+    ExperimentalZantufaForethoughtGihi,
+    ExperimentalZantufaGek,
+    ExperimentalZantufaPoihaBrigahi,
+    ExperimentalZantufaJaiTagTerm,
+    ExperimentalZantufaRecursiveTag,
+    ExperimentalZantufaMuhoiRelationUnit,
+    ExperimentalZantufaLuheiRelationUnit,
+    CllProhibitedFreeModifierPlacement,
+}
+
+impl ExperimentalConstruct {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn message(self) -> &'static str {
+        match self {
+            Self::ExperimentalCmavo => "experimental cmavo",
+            Self::ExperimentalZohOiQuote => "ZOhOI single-word foreign quote",
+            Self::ExperimentalMehOiRelationUnit => "MEhOI stage-0 fu'ivla relation unit",
+            Self::ExperimentalLohOiBridiDescription => "LOhOI/KUhAU bridi description sumti",
+            Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",
+            Self::ExperimentalJacuPredicateTailConnective => {
+                "JA/JOI connective used in a bridi-tail connective slot"
+            }
+            Self::ExperimentalJeIStatementConnective => {
+                "JA/JOI connective used before statement separator I"
+            }
+            Self::ExperimentalMultipleNaFragment => "multiple NA fragment sequence",
+            Self::ExperimentalEmptyPrenex => "empty prenex",
+            Self::ExperimentalBareCuPredicate => "bare CU before the main selbri",
+            Self::ExperimentalNaheArgumentWithoutBo => "NAhE before sumti without BO",
+            Self::ExperimentalVuhoScopedAttachment => "VUhO scoped attachment enhancement",
+            Self::ExperimentalNohoiSelbriRelativeClause => "NOhOI/KUhOI selbri relative clause",
+            Self::ExperimentalSimplerSumtiConnective => {
+                "JA connective used in an argument connective slot"
+            }
+            Self::ExperimentalExplicitCuPredicateTailStarter => {
+                "explicit CU before the right side of a bridi-tail connective"
+            }
+            Self::ExperimentalRelativeClauseConnective => {
+                "JA/JOI connective used between relative clauses"
+            }
+            Self::ExperimentalSimplerForethoughtConnective => {
+                "simpler binary forethought connective form"
+            }
+            Self::ExperimentalSimplerTermConnective => "JA connective used directly between terms",
+            Self::ExperimentalSimplerMexOperandConnective => {
+                "JA connective used between MEX operands"
+            }
+            Self::ExperimentalSimplerDescriptorHeadConnective => {
+                "JA connective used between descriptor heads"
+            }
+            Self::ExperimentalJiAsJaConnective => "JI used as an experimental JA-family connective",
+            Self::ExperimentalGadganzuGadri => "gadganzu article",
+            Self::ExperimentalIauReset => "IhAU bridi-level reset",
+            Self::ExperimentalGohoiRelationUnit => "GOhOI pro-bridi word quote",
+            Self::ExperimentalKeTermset => "KE/KEhE termset grouping",
+            Self::ExperimentalLaheNaheTermWrapper => "LAhE/NAhE term wrapper",
+            Self::ExperimentalForethoughtRelativeClauseConnective => {
+                "forethought connective used between relative clauses"
+            }
+            Self::ExperimentalBroadAConnective => {
+                "A-family connective used in a broader connective-family slot"
+            }
+            Self::ExperimentalVuhuConnective => "VUhU used as a non-MEX connective",
+            Self::ExperimentalNahuPredicateConnective => "NAhU/ji'oi predicate-to-connective form",
+            Self::ExperimentalFaAsTag => "FA place tag used as a tag/stag atom",
+            Self::ExperimentalFlattenedTag => "experimental flattened tag form",
+            Self::ExperimentalCbmCmevlaRelationWord => "CBM cmevla used as a relation word",
+            Self::ExperimentalCbmLaNameAsDescriptor => "CBM LA name form parsed as a descriptor",
+            Self::ExperimentalDictionaryDoiVocative => {
+                "dictionary-first DOI experimental vocative/attribution cmavo"
+            }
+            Self::ExperimentalDictionaryCoiVocative => {
+                "dictionary-first COI experimental vocative cmavo"
+            }
+            Self::ExperimentalDictionarySeiFreeModifier => {
+                "dictionary-first SEI-style experimental free modifier"
+            }
+            Self::ExperimentalDictionaryPaNumber => "dictionary-first PA experimental number word",
+            Self::ExperimentalDictionaryFahaTag => "dictionary-first FAhA experimental spatial tag",
+            Self::ExperimentalDictionaryUiIndicator => {
+                "dictionary-first UI3a experimental indicator"
+            }
+            Self::ExperimentalNoihaAdverbial => "NOIhA adverbial relative-clause term",
+            Self::ExperimentalFihoiAdverbial => "FIhOI bridi/subsentence adverbial term",
+            Self::ExperimentalSoiAdverbial => "SOI/XOI bridi/subsentence adverbial term",
+            Self::ExperimentalPreposedLinkargs => "BE linkargs before a relation unit",
+            Self::ExperimentalEmptyLinkargs => "empty BE/BEI linkarg slot",
+            Self::ExperimentalBroadBoStatementConnective => {
+                "broad connective with BO in a statement/subsentence continuation"
+            }
+            Self::ExperimentalBroadKePredicateContinuation => {
+                "broad connective with KE/KEhE in a predicate/subsentence continuation"
+            }
+            Self::ExperimentalTermHierarchyBoConnection => {
+                "experimental term-hierarchy BO connection"
+            }
+            Self::ExperimentalBareNaTerm => "bare NA term/adverbial without KU",
+            Self::ExperimentalXohiTagRelation => "XOhI tag-to-relation conversion",
+            Self::ExperimentalZantufaCmavo => "Zantufa experimental cmavo classification",
+            Self::ExperimentalZantufaForethoughtGihi => "Zantufa GIhI forethought-chain terminator",
+            Self::ExperimentalZantufaGek => "Zantufa forethought connective form",
+            Self::ExperimentalZantufaPoihaBrigahi => {
+                "Zantufa POIhA briga'i term with KU terminator"
+            }
+            Self::ExperimentalZantufaJaiTagTerm => "Zantufa JAI tag term",
+            Self::ExperimentalZantufaRecursiveTag => "Zantufa recursive SE/NAhE tag prefix",
+            Self::ExperimentalZantufaMuhoiRelationUnit => {
+                "Zantufa MUhOI delimited foreign relation unit"
+            }
+            Self::ExperimentalZantufaLuheiRelationUnit => "Zantufa LUhEI/LIhAU text relation unit",
+            Self::CllProhibitedFreeModifierPlacement => {
+                "free modifier placement prohibited by CLL grammar"
+            }
+        }
+    }
+}
+
 #[invariant(syntax_warning_data_is_valid(self.as_data()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
-pub enum SyntaxWarning {
-    ExperimentalConstruct {
-        construct: String,
-        anchor_index: usize,
-        anchor: WordWithModifiers,
-    },
+pub struct SyntaxWarning {
+    pub kind: ExperimentalConstruct,
+    pub anchor_index: usize,
+    pub anchor: WordWithModifiers,
 }
 
 impl SyntaxWarning {
     #[requires(true)]
     #[ensures(true)]
     pub fn experimental_construct(
-        construct: impl Into<String>,
+        construct: ExperimentalConstruct,
         anchor_index: usize,
         anchor: WordWithModifiers,
     ) -> Self {
-        new!(SyntaxWarning::ExperimentalConstruct {
-            construct: construct.into(),
+        new!(SyntaxWarning {
+            kind: construct,
             anchor_index: anchor_index,
             anchor: anchor,
         })
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn message(&self) -> &'static str {
+        self.kind.message()
     }
 }
 
@@ -373,7 +548,6 @@ fn syntax_parse_data_is_valid(data: &SyntaxParseData) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn syntax_warning_data_is_valid(data: &SyntaxWarningData) -> bool {
-    match data {
-        data!(SyntaxWarning::ExperimentalConstruct { construct, .. }) => !construct.is_empty(),
-    }
+    let data!(SyntaxWarning { .. }) = data;
+    true
 }

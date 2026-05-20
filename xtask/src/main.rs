@@ -234,6 +234,7 @@ fn fixture_rewrite(root: PathBuf) -> Result<()> {
 fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
     let dialect = fixture.test_case.dialect_definition()?;
     let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let words = segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
         &morphology_options,
@@ -243,6 +244,37 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
         && morphology.status == ExpectationStatus::Success
     {
         morphology.words = words.clone()?;
+    }
+    let refresh_syntax = fixture
+        .test_case
+        .expectations
+        .syntax
+        .as_ref()
+        .is_some_and(syntax_accepts_success_tree_refresh);
+    let refresh_warnings = fixture
+        .test_case
+        .expectations
+        .warnings
+        .as_ref()
+        .is_some_and(|warnings| warnings.status == ExpectationStatus::Success);
+    if refresh_syntax || refresh_warnings {
+        let syntax_words = words?;
+        if let Ok(parsed) = parse_syntax_tree_with_source_and_options(
+            &syntax_words,
+            &fixture.test_case.lojban,
+            &syntax_options,
+        ) {
+            if refresh_syntax
+                && let Some(syntax) = &mut fixture.test_case.expectations.syntax
+            {
+                syntax.parse_tree = Some(compact_json_value(&parsed.parse_tree)?);
+            }
+            if refresh_warnings
+                && let Some(warnings) = &mut fixture.test_case.expectations.warnings
+            {
+                warnings.value = Some(compact_json_value(&parsed.warnings)?);
+            }
+        }
     }
     Ok(())
 }
@@ -472,8 +504,9 @@ impl FixtureBackend for NotImplementedBackend {
         match facet {
             Facet::Morphology => run_morphology_fixture(fixture),
             Facet::Syntax => run_syntax_fixture(fixture),
+            Facet::Warnings => run_warnings_fixture(fixture),
             Facet::Brackets => run_brackets_fixture(fixture),
-            Facet::SyntaxRefs | Facet::Warnings => {
+            Facet::SyntaxRefs => {
                 FacetResult::skipped(format!("{facet} runner is not implemented yet"))
             }
         }
@@ -704,6 +737,84 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
             }
             ExpectationStatus::Pending | ExpectationStatus::NotApplicable => {
                 FacetResult::skipped(format!("syntax expectation is {:?}", expectation.status))
+            }
+        },
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_warnings_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = &fixture.test_case.expectations.warnings else {
+        return FacetResult::skipped("fixture has no warnings expectation");
+    };
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) {
+        Ok(words) => words,
+        Err(error) => {
+            return match expectation.status {
+                ExpectationStatus::Failure => FacetResult::passed(),
+                ExpectationStatus::Success => {
+                    FacetResult::failed(format!("warnings blocked by morphology error: {error}"))
+                }
+                ExpectationStatus::Pending | ExpectationStatus::NotApplicable => {
+                    FacetResult::skipped(format!(
+                        "warnings expectation is {:?}",
+                        expectation.status
+                    ))
+                }
+            };
+        }
+    };
+
+    match parse_syntax_tree_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => match expectation.status {
+            ExpectationStatus::Success => {
+                let expected = expectation
+                    .value
+                    .clone()
+                    .unwrap_or_else(|| serde_json::Value::Array(Vec::new()));
+                let actual = match compact_json_value(&parsed.warnings) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        return FacetResult::failed(format!("warnings JSON encode error: {error}"));
+                    }
+                };
+                if expected == actual {
+                    FacetResult::passed()
+                } else {
+                    FacetResult::failed(format!(
+                        "warnings mismatch: expected {expected}, got {actual}"
+                    ))
+                }
+            }
+            ExpectationStatus::Failure => {
+                FacetResult::failed("expected warnings parse failure, got success")
+            }
+            ExpectationStatus::Pending | ExpectationStatus::NotApplicable => {
+                FacetResult::skipped(format!("warnings expectation is {:?}", expectation.status))
+            }
+        },
+        Err(error) => match expectation.status {
+            ExpectationStatus::Failure => FacetResult::passed(),
+            ExpectationStatus::Success => {
+                FacetResult::failed(format!("warnings syntax error: {error}"))
+            }
+            ExpectationStatus::Pending | ExpectationStatus::NotApplicable => {
+                FacetResult::skipped(format!("warnings expectation is {:?}", expectation.status))
             }
         },
     }

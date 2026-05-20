@@ -1,6 +1,7 @@
 use super::tense::*;
 use super::tokens::*;
 use super::*;
+use chumsky::input::MapExtra;
 use jbotci_dialect::DialectFeature;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -232,19 +233,25 @@ pub(super) fn parse_statement(
     words: &[WordWithModifiers],
     source: Option<&str>,
     options: &ParseOptions,
-) -> Result<TextSyntax, SyntaxError> {
+) -> Result<ParsedStatement, SyntaxError> {
     let tokens = spanned_tokens(words);
     let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
+    let mut state = ParserState::new(words);
 
-    statement_parser(source, options)
+    let text = statement_parser(source, options)
         .then_ignore(end())
-        .parse(
+        .parse_with_state(
             tokens
                 .as_slice()
                 .split_spanned(SimpleSpan::from(eoi_offset..eoi_offset)),
+            &mut state,
         )
         .into_result()
-        .map_err(syntax_error)
+        .map_err(syntax_error)?;
+    Ok(ParsedStatement {
+        text,
+        warnings: state.finish_warnings(),
+    })
 }
 
 #[requires(true)]
@@ -3645,6 +3652,20 @@ where
                 _ => Err(Rich::custom(span, "expected quote")),
             }
         })
+        .map_with(
+            |argument,
+             extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+            if let ArgumentSyntax::Quote {
+                quote: QuoteSyntax::ZohOi { zohoi, .. },
+                ..
+            } = &argument
+            {
+                extra
+                    .state()
+                    .warn(ExperimentalConstruct::ExperimentalZohOiQuote, zohoi);
+            }
+            argument
+        })
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(argument, free_modifiers)| attach_quote_free_modifiers(argument, free_modifiers));
 
@@ -4865,6 +4886,20 @@ where
                 Err(Rich::custom(span, format!("expected {marker_text} quote")))
             }
         })
+        .map_with(
+            move |(word, quoted_text),
+                  extra: &mut MapExtra<
+                'tokens,
+                '_,
+                ParserInput<'tokens>,
+                ParseExtra<'tokens>,
+            >| {
+                if let Some(construct) = quoted_relation_unit_warning(marker_text) {
+                    extra.state().warn(construct, &word);
+                }
+                (word, quoted_text)
+            },
+        )
         .then(free_modifier.repeated().collect::<Vec<_>>())
         .map(move |((word, quoted_text), free_modifiers)| build(word, quoted_text, free_modifiers))
         .boxed()
@@ -4914,6 +4949,20 @@ where
                 Err(Rich::custom(span, format!("expected {marker_text} quote")))
             }
         })
+        .map_with(
+            move |(word, opening_delimiter, closing_delimiter, quoted_text),
+                  extra: &mut MapExtra<
+                'tokens,
+                '_,
+                ParserInput<'tokens>,
+                ParseExtra<'tokens>,
+            >| {
+                if let Some(construct) = quoted_relation_unit_warning(marker_text) {
+                    extra.state().warn(construct, &word);
+                }
+                (word, opening_delimiter, closing_delimiter, quoted_text)
+            },
+        )
         .then(free_modifier.repeated().collect::<Vec<_>>())
         .map(
             move |((word, opening_delimiter, closing_delimiter, quoted_text), free_modifiers)| {
@@ -4927,6 +4976,17 @@ where
             },
         )
         .boxed()
+}
+
+#[requires(!marker_text.is_empty())]
+#[ensures(true)]
+fn quoted_relation_unit_warning(marker_text: &str) -> Option<ExperimentalConstruct> {
+    match marker_text {
+        "me'oi" => Some(ExperimentalConstruct::ExperimentalMehOiRelationUnit),
+        "go'oi" => Some(ExperimentalConstruct::ExperimentalGohoiRelationUnit),
+        "mu'oi" => Some(ExperimentalConstruct::ExperimentalZantufaMuhoiRelationUnit),
+        _ => None,
+    }
 }
 
 #[requires(true)]

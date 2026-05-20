@@ -8,7 +8,10 @@ use anyhow::{Result, anyhow};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use jbotci_morphology::segment_words_with_modifiers;
 use jbotci_output::{BracketRenderOptions, compact_json_string, pretty_brackets_with_options};
-use jbotci_syntax::{ParseOptions, parse_raw_text, parse_syntax_tree};
+use jbotci_syntax::{
+    ExperimentalConstruct, ParseOptions, SyntaxParse, SyntaxWarning,
+    parse_syntax_tree_with_source_and_options,
+};
 use owo_colors::{OwoColorize, Stream};
 
 #[derive(Debug, Parser)]
@@ -151,12 +154,18 @@ fn run() -> Result<()> {
     let cli = Cli::parse();
     let color_enabled = cli.color || stdout_supports_color();
     let mut stdout = std::io::stdout();
-    run_cli(cli, &mut stdout, color_enabled)
+    let mut stderr = std::io::stderr();
+    run_cli(cli, &mut stdout, &mut stderr, color_enabled)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn run_cli<W: Write>(cli: Cli, stdout: &mut W, color_enabled: bool) -> Result<()> {
+fn run_cli<WOut: Write, WErr: Write>(
+    cli: Cli,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_enabled: bool,
+) -> Result<()> {
     let color_enabled = cli.color || color_enabled;
     match cli.command {
         Command::Vlasei(input) => {
@@ -172,7 +181,7 @@ fn run_cli<W: Write>(cli: Cli, stdout: &mut W, color_enabled: bool) -> Result<()
             }
             Ok(())
         }
-        Command::Gentufa(input) => run_gentufa(input, stdout, color_enabled),
+        Command::Gentufa(input) => run_gentufa(input, stdout, stderr, color_enabled),
         Command::Mulgau(input) => {
             let _ = input.read_text()?;
             command_not_implemented("mulgau")
@@ -193,13 +202,21 @@ fn run_cli<W: Write>(cli: Cli, stdout: &mut W, color_enabled: bool) -> Result<()
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn run_gentufa<W: Write>(input: GentufaInput, stdout: &mut W, color_enabled: bool) -> Result<()> {
+fn run_gentufa<WOut: Write, WErr: Write>(
+    input: GentufaInput,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_enabled: bool,
+) -> Result<()> {
     validate_gentufa_options(&input)?;
+    let warning_source = input_source_label(input.file.as_ref(), input.text.is_empty());
     let text = input.read_text()?;
     let words = segment_words_with_modifiers(&text)?;
+    let parsed =
+        parse_syntax_tree_with_source_and_options(&words, &text, &ParseOptions::default())?;
+    render_syntax_warnings(&parsed, &text, &warning_source, stderr)?;
     match input.format {
         GentufaFormat::Compact => {
-            let parsed = parse_syntax_tree(&words)?;
             let rendered = pretty_brackets_with_options(
                 &parsed.parse_tree,
                 &text,
@@ -210,16 +227,84 @@ fn run_gentufa<W: Write>(input: GentufaInput, stdout: &mut W, color_enabled: boo
             writeln!(stdout, "{rendered}")?;
         }
         GentufaFormat::Raw => {
-            let parsed = parse_raw_text(&words, &ParseOptions::default())?;
-            writeln!(stdout, "{parsed:#?}")?;
+            writeln!(stdout, "{:#?}", parsed.parse_tree)?;
         }
         GentufaFormat::Json => {
-            let parsed = parse_syntax_tree(&words)?;
             let rendered = compact_json_string(&parsed.parse_tree)?;
             writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
         }
     }
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn input_source_label(file: Option<&PathBuf>, stdin: bool) -> String {
+    match file {
+        Some(path) => path.display().to_string(),
+        None if stdin => "<stdin>".to_owned(),
+        None => "<input>".to_owned(),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn render_syntax_warnings<W: Write>(
+    parsed: &SyntaxParse,
+    source: &str,
+    source_label: &str,
+    stderr: &mut W,
+) -> Result<()> {
+    for warning in &parsed.warnings {
+        let (line, column) = warning_line_column(source, warning);
+        writeln!(
+            stderr,
+            "{source_label}:{line}:{column}: warning: experimental syntax: {}",
+            syntax_warning_message(warning)
+        )?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn syntax_warning_message(warning: &SyntaxWarning) -> String {
+    let message = warning.message();
+    if warning.kind == ExperimentalConstruct::ExperimentalCmavo
+        && let Some(word) = warning.anchor.visible_word()
+    {
+        return format!("{message}: {}", word.canonical_phonemes());
+    }
+    message.to_owned()
+}
+
+#[requires(true)]
+#[ensures(ret.0 > 0 && ret.1 > 0)]
+fn warning_line_column(source: &str, warning: &SyntaxWarning) -> (usize, usize) {
+    let char_offset = warning
+        .anchor
+        .visible_word()
+        .map_or(0, |word| word.span.char_start);
+    char_offset_to_line_column(source, char_offset)
+}
+
+#[requires(true)]
+#[ensures(ret.0 > 0 && ret.1 > 0)]
+fn char_offset_to_line_column(source: &str, char_offset: usize) -> (usize, usize) {
+    let mut line = 1usize;
+    let mut column = 1usize;
+    for (index, ch) in source.chars().enumerate() {
+        if index == char_offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            column = 1;
+        } else {
+            column += 1;
+        }
+    }
+    (line, column)
 }
 
 #[requires(true)]
@@ -379,6 +464,7 @@ fn command_not_implemented(command: &str) -> Result<()> {
 mod tests {
     use super::*;
     use clap::error::ErrorKind;
+    use jbotci_syntax::parse_syntax_tree;
 
     #[test]
     #[requires(true)]
@@ -491,7 +577,9 @@ mod tests {
         let cli =
             Cli::try_parse_from(["jbotci", "gentufa", "mi", "klama"]).expect("gentufa compact");
         let mut output = Vec::new();
-        run_cli(cli, &mut output, false).expect("gentufa run");
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
+        assert!(error.is_empty());
 
         let text = "mi klama";
         let words = segment_words_with_modifiers(text).expect("morphology");
@@ -515,7 +603,9 @@ mod tests {
         let cli = Cli::try_parse_from(["jbotci", "vlasei", "--format", "json", "coi"])
             .expect("vlasei json");
         let mut output = Vec::new();
-        run_cli(cli, &mut output, false).expect("vlasei json run");
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("vlasei json run");
+        assert!(error.is_empty());
         let value: serde_json::Value =
             serde_json::from_slice(&output).expect("valid uncolored JSON");
 
@@ -535,7 +625,9 @@ mod tests {
         let cli = Cli::try_parse_from(["jbotci", "gentufa", "--format", "djeisone", "mi", "klama"])
             .expect("gentufa json");
         let mut output = Vec::new();
-        run_cli(cli, &mut output, false).expect("gentufa json run");
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("gentufa json run");
+        assert!(error.is_empty());
         let text = String::from_utf8(output).expect("utf8");
         let value: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
 
@@ -550,11 +642,40 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn gentufa_warnings_go_to_stderr() {
+        std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(|| {
+                let cli = Cli::try_parse_from([
+                    "jbotci", "gentufa", "--format", "djeisone", "mi", "klama", "fi'oi", "broda",
+                ])
+                .expect("gentufa warning parse");
+                let mut output = Vec::new();
+                let mut error = Vec::new();
+                run_cli(cli, &mut output, &mut error, false).expect("gentufa warning run");
+
+                let stdout = String::from_utf8(output).expect("stdout utf8");
+                let stderr = String::from_utf8(error).expect("stderr utf8");
+                assert!(stdout.starts_with('{'));
+                assert!(!stdout.contains("warning:"));
+                assert!(stderr.contains("warning: experimental syntax"));
+                assert!(stderr.contains("FIhOI bridi/subsentence adverbial term"));
+            })
+            .expect("spawn warning test")
+            .join()
+            .expect("warning test thread");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn gentufa_raw_output_is_debug_syntax_parse() {
         let cli = Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "raw", "mi", "klama"])
             .expect("gentufa raw");
         let mut output = Vec::new();
-        run_cli(cli, &mut output, false).expect("gentufa run");
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
+        assert!(error.is_empty());
         let output = String::from_utf8(output).expect("utf8");
         assert!(output.contains("TextSyntax"));
         assert!(output.contains("PredicateSyntax"));
@@ -567,14 +688,16 @@ mod tests {
     fn gentufa_definitions_report_not_implemented() {
         let cli = Cli::try_parse_from(["jbotci", "gentufa", "--defs", "mi", "klama"])
             .expect("gentufa defs");
-        let error = run_cli(cli, &mut Vec::new(), false).expect_err("defs not implemented");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("defs not implemented");
         assert!(error.to_string().contains("definition rendering"));
 
         let cli = Cli::try_parse_from([
             "jbotci", "gentufa", "--turtau", "raw", "--skicu", "mi", "klama",
         ])
         .expect("gentufa raw defs");
-        let error = run_cli(cli, &mut Vec::new(), false).expect_err("raw defs not implemented");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("raw defs not implemented");
         assert!(error.to_string().contains("only meaningful"));
     }
 
@@ -586,7 +709,9 @@ mod tests {
             .expect("gentufa color");
         assert!(cli.color);
         let mut output = Vec::new();
-        run_cli(cli, &mut output, false).expect("gentufa color run");
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("gentufa color run");
+        assert!(error.is_empty());
         let output = String::from_utf8(output).expect("utf8");
         assert!(output.contains("\x1b["));
     }

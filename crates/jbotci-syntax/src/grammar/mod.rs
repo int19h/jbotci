@@ -3,13 +3,16 @@ use bityzba::{data, ensures, invariant, new, requires};
 use chumsky::Boxed;
 use chumsky::error::Rich;
 use chumsky::input::MappedInput;
+use chumsky::input::{Checkpoint, Cursor};
+use chumsky::inspector::Inspector;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData, canonicalize_text};
 
 use crate::{
-    Connective, Fragment, FreeModifier, LojbanText, Paragraph, ParagraphStatement, ParseOptions,
-    Statement, SyntaxError, SyntaxParse, WordWithModifiers, WordWithModifiersData,
+    Connective, ExperimentalConstruct, Fragment, FreeModifier, LojbanText, Paragraph,
+    ParagraphStatement, ParseOptions, Statement, SyntaxError, SyntaxParse, SyntaxWarning,
+    WordWithModifiers, WordWithModifiersData,
 };
 
 pub(crate) mod ast;
@@ -22,9 +25,100 @@ type Span = SimpleSpan;
 type Token = WordWithModifiers;
 type SpannedToken = Spanned<Token, Span>;
 type ParserInput<'tokens> = MappedInput<'tokens, Token, Span, &'tokens [SpannedToken]>;
-type ParseExtra<'tokens> = extra::Err<Rich<'tokens, Token, Span>>;
+type ParseExtra<'tokens> = extra::Full<Rich<'tokens, Token, Span>, ParserState, ()>;
 type BoxedParser<'tokens, O> =
     Boxed<'tokens, 'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>>;
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+pub(super) struct ParsedStatement {
+    pub text: TextSyntax,
+    pub warnings: Vec<SyntaxWarning>,
+}
+
+#[derive(Debug, Clone, Default)]
+#[invariant(true)]
+pub(super) struct ParserState {
+    anchor_byte_starts: Vec<Option<usize>>,
+    warnings: Vec<SyntaxWarning>,
+}
+
+impl ParserState {
+    #[requires(true)]
+    #[ensures(ret.anchor_byte_starts.len() == words.len())]
+    pub(super) fn new(words: &[WordWithModifiers]) -> Self {
+        Self {
+            anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
+            warnings: Vec::new(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(self.warnings.len() == old(self.warnings.len()) + 1)]
+    pub(super) fn warn(&mut self, construct: ExperimentalConstruct, anchor: &WordWithModifiers) {
+        let anchor_index = self.anchor_index(anchor);
+        self.warnings.push(SyntaxWarning::experimental_construct(
+            construct,
+            anchor_index,
+            anchor.clone(),
+        ));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn finish_warnings(self) -> Vec<SyntaxWarning> {
+        let mut deduped = Vec::new();
+        for warning in self.warnings {
+            if !deduped.contains(&warning) {
+                deduped.push(warning);
+            }
+        }
+        deduped
+    }
+
+    #[requires(true)]
+    #[ensures(ret < self.anchor_byte_starts.len() || self.anchor_byte_starts.is_empty())]
+    fn anchor_index(&self, anchor: &WordWithModifiers) -> usize {
+        if let Some(anchor_start) = word_anchor_byte_start(anchor)
+            && let Some(index) = self
+                .anchor_byte_starts
+                .iter()
+                .position(|candidate| *candidate == Some(anchor_start))
+        {
+            return index;
+        }
+        0
+    }
+}
+
+impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState {
+    type Checkpoint = usize;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn on_token(&mut self, _token: &Token) {}
+
+    #[requires(true)]
+    #[ensures(ret == self.warnings.len())]
+    fn on_save<'parse>(&self, _cursor: &Cursor<'tokens, 'parse, ParserInput<'tokens>>) -> usize {
+        self.warnings.len()
+    }
+
+    #[requires(true)]
+    #[ensures(self.warnings.len() <= old(self.warnings.len()))]
+    fn on_rewind<'parse>(
+        &mut self,
+        marker: &Checkpoint<'tokens, 'parse, ParserInput<'tokens>, usize>,
+    ) {
+        self.warnings.truncate(*marker.inspector());
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_anchor_byte_start(word: &WordWithModifiers) -> Option<usize> {
+    word.visible_word().map(|word| word.span.byte_start)
+}
 
 #[requires(true)]
 #[ensures(true)]
@@ -43,10 +137,10 @@ pub(crate) fn parse_syntax_tree_with_source(
     options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
     let tokens = syntax_tokens(words);
-    let text = parser::parse_statement(&tokens, source, options)?;
+    let parsed = parser::parse_statement(&tokens, source, options)?;
     Ok(new!(SyntaxParse {
-        parse_tree: text,
-        warnings: Vec::new(),
+        parse_tree: parsed.text,
+        warnings: parsed.warnings,
     }))
 }
 
@@ -57,7 +151,7 @@ pub(crate) fn parse_text(
     options: &ParseOptions,
 ) -> Result<LojbanText, SyntaxError> {
     let tokens = syntax_tokens(words);
-    let text = parser::parse_statement(&tokens, None, options)?;
+    let text = parser::parse_statement(&tokens, None, options)?.text;
     let paragraphs = text
         .paragraphs
         .into_iter()
@@ -84,7 +178,7 @@ pub(crate) fn parse_raw_text(
     options: &ParseOptions,
 ) -> Result<TextSyntax, SyntaxError> {
     let tokens = syntax_tokens(words);
-    parser::parse_statement(&tokens, None, options)
+    Ok(parser::parse_statement(&tokens, None, options)?.text)
 }
 
 #[requires(true)]

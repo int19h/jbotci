@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::{Indicator, WordWithModifiers, WordWithModifiersData};
+use crate::{ExperimentalConstruct, Indicator, WordWithModifiers, WordWithModifiersData};
 use bityzba::{data, requires};
 use chumsky::error::{Rich, RichReason};
 use chumsky::prelude::*;
@@ -8,7 +8,7 @@ use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData, strip_diacritics};
 use jbotci_source::SourceSpan;
 
-use super::{BoxedParser, Span, SpannedToken};
+use super::{BoxedParser, ParserState, Span, SpannedToken};
 use crate::SyntaxError;
 
 pub(super) const PA_WORDS: &[&str] = &[
@@ -184,7 +184,10 @@ pub(super) fn token_matching<'tokens>(
         let checkpoint = input.save();
         let cursor = input.cursor();
         match input.next() {
-            Some(word) if predicate(&word) => Ok(word),
+            Some(word) if predicate(&word) => {
+                warn_experimental_cmavo(input.state(), label, &word);
+                Ok(word)
+            }
             _ => {
                 let span = input.span_since(&cursor);
                 input.rewind(checkpoint);
@@ -193,6 +196,77 @@ pub(super) fn token_matching<'tokens>(
         }
     })
     .boxed()
+}
+
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn warn_experimental_cmavo(state: &mut ParserState, label: &str, word: &WordWithModifiers) {
+    let Some(construct) = experimental_construct_for_cmavo(label, word) else {
+        return;
+    };
+    state.warn(construct, word);
+}
+
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn experimental_construct_for_cmavo(
+    label: &str,
+    word: &WordWithModifiers,
+) -> Option<ExperimentalConstruct> {
+    let canonical = word.visible_word()?.canonical_phonemes();
+    match (label, canonical.as_str()) {
+        (
+            "BAI",
+            "be'ei" | "de'i'a" | "de'i'e" | "de'i'i" | "de'i'o" | "de'i'u" | "ka'ai" | "ki'oi"
+            | "ko'au",
+        )
+        | ("BY", "a'y" | "e'y" | "i'y" | "iy" | "o'y" | "u'y" | "uy")
+        | ("CAhA", "bi'ai")
+        | ("COI", "co'oi" | "di'ai" | "ki'ai" | "sa'ei")
+        | ("KOhA", "mi'ai" | "nau'o" | "nau'u" | "xai" | "zu'ai")
+        | ("LAhE", "zo'ei")
+        | ("LE", "lei'i" | "lei'e" | "loi'e" | "loi'i" | "mo'oi" | "moi'oi")
+        | ("ME", "me'au")
+        | ("MOI", "cei'a")
+        | ("NAhE", "na'ei")
+        | ("NAI", "ja'ai")
+        | ("NU", "kai'u" | "poi'i" | "xe'ei")
+        | ("PA", "ro'oi" | "su'oi" | "xo'e")
+        | ("ROI", "mu'ei" | "va'ei")
+        | ("SE", "su'ei" | "to'ai" | "vo'ai" | "xo'ai")
+        | (
+            "UI",
+            "ai'i" | "e'ei" | "fu'au" | "ju'oi" | "ko'oi" | "oi'a" | "si'au" | "ue'i" | "xo'o",
+        )
+        | ("VUhU", "joi'i")
+        | ("XI", "te'ai")
+        | ("ZAhO", "co'a'a" | "co'au'a" | "co'u'a" | "sau'a" | "xa'o" | "xo'u")
+        | ("ZO", "ma'oi")
+        | ("ZOhU", "ce'ai") => Some(ExperimentalConstruct::ExperimentalCmavo),
+        ("COI", "a'oi" | "o'ai") => Some(ExperimentalConstruct::ExperimentalDictionaryCoiVocative),
+        ("DOI", "da'oi") => Some(ExperimentalConstruct::ExperimentalDictionaryDoiVocative),
+        ("FAhA", "xei'e") => Some(ExperimentalConstruct::ExperimentalDictionaryFahaTag),
+        ("PA", "su'ai" | "xe'e") => Some(ExperimentalConstruct::ExperimentalDictionaryPaNumber),
+        ("SEI", "xoi") => Some(ExperimentalConstruct::ExperimentalDictionarySeiFreeModifier),
+        ("UI" | "UI3a", "li'oi") => Some(ExperimentalConstruct::ExperimentalDictionaryUiIndicator),
+        ("NOIhA", _) => Some(ExperimentalConstruct::ExperimentalNoihaAdverbial),
+        ("SOI", _) => Some(ExperimentalConstruct::ExperimentalSoiAdverbial),
+        ("LOhOI", "lo'oi") => Some(ExperimentalConstruct::ExperimentalLohOiBridiDescription),
+        ("LOhOI", "mau'a" | "xau'a") => Some(ExperimentalConstruct::ExperimentalZantufaCmavo),
+        ("ROI", "ba'oi" | "de'ei" | "xu'au") => {
+            Some(ExperimentalConstruct::ExperimentalZantufaCmavo)
+        }
+        ("cmavo", "fi'oi") => Some(ExperimentalConstruct::ExperimentalFihoiAdverbial),
+        ("cmavo", "lo'ai" | "sa'ai" | "le'ai") => {
+            Some(ExperimentalConstruct::ExperimentalLohAiReplacementFree)
+        }
+        ("cmavo", "no'oi") => Some(ExperimentalConstruct::ExperimentalNohoiSelbriRelativeClause),
+        ("cmavo", "go'oi") => Some(ExperimentalConstruct::ExperimentalGohoiRelationUnit),
+        ("cmavo", "lu'ei") => Some(ExperimentalConstruct::ExperimentalZantufaLuheiRelationUnit),
+        ("cmavo", "mu'oi") => Some(ExperimentalConstruct::ExperimentalZantufaMuhoiRelationUnit),
+        ("cmavo", "xo'i") => Some(ExperimentalConstruct::ExperimentalXohiTagRelation),
+        _ => None,
+    }
 }
 
 #[requires(true)]
