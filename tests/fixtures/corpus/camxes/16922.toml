@@ -60,102 +60,114 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "mi",
-                                            span = [0, 2]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {NaheRelationUnit = {
-                                                        inner_unit = {WordRelationUnit = {
-                                                            word = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Koha = {Bare = {
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "mi",
+                                        span = [0, 2]
+                                    }
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Nahe = {
+                                                    inner_unit = {Word = {
+                                                        word = {Bare = {
+                                                            Bare = {
                                                                 kind = "gismu",
                                                                 phonemes = "lumci",
                                                                 span = [8, 13]
-                                                            }}
-                                                        }},
-                                                        nahe = {Bare = {
+                                                            }
+                                                        }}
+                                                    }},
+                                                    nahe = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "na'e",
                                                             span = [3, 7]
-                                                        }}
-                                                    }},
-                                                ]
-                                            }},
-                                            terms = [
-                                                {ArgumentTerm = {
-                                                    argument = {DescriptorArgument = {
-                                                        descriptor = {Descriptor = {
-                                                            descriptor = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "le",
-                                                                span = [14, 16]
-                                                            }},
-                                                            relation = {CompoundRelation = {
-                                                                relation_units = [
-                                                                    {NaheRelationUnit = {
-                                                                        inner_unit = {WordRelationUnit = {
-                                                                            word = {Bare = {
-                                                                                kind = "gismu",
-                                                                                phonemes = "jinsa",
-                                                                                span = [25, 30]
-                                                                            }}
-                                                                        }},
-                                                                        nahe = {Bare = {
-                                                                            kind = "cmavo",
-                                                                            phonemes = "na'e",
-                                                                            span = [20, 24]
-                                                                        }}
-                                                                    }},
-                                                                    [
-                                                                        {SeRelationUnit = {
-                                                                            inner_unit = {WordRelationUnit = {
-                                                                                word = {Bare = {
-                                                                                    kind = "gismu",
-                                                                                    phonemes = "dasni",
-                                                                                    span = [34, 39]
-                                                                                }}
-                                                                            }},
-                                                                            se = {Bare = {
-                                                                                kind = "cmavo",
-                                                                                phonemes = "se",
-                                                                                span = [31, 33]
-                                                                            }}
-                                                                        }},
-                                                                    ],
-                                                                ]
-                                                            }},
-                                                            tail_elements = [
-                                                                {ArgumentTailArgument = {} },
-                                                            ]
-                                                        }}
+                                                        }
                                                     }}
                                                 }},
-                                            ]
-                                        }}
+                                            ] },
+                                        terms = [
+                                            {Argument = {
+                                                Descriptor = {
+                                                    descriptor = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "le",
+                                                            span = [14, 16]
+                                                        }
+                                                    }},
+                                                    relation = {Compound = [
+                                                            {Nahe = {
+                                                                inner_unit = {Word = {
+                                                                    word = {Bare = {
+                                                                        Bare = {
+                                                                            kind = "gismu",
+                                                                            phonemes = "jinsa",
+                                                                            span = [25, 30]
+                                                                        }
+                                                                    }}
+                                                                }},
+                                                                nahe = {Bare = {
+                                                                    Bare = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "na'e",
+                                                                        span = [20, 24]
+                                                                    }
+                                                                }}
+                                                            }},
+                                                            {Se = {
+                                                                inner_unit = {Word = {
+                                                                    word = {Bare = {
+                                                                        Bare = {
+                                                                            kind = "gismu",
+                                                                            phonemes = "dasni",
+                                                                            span = [34, 39]
+                                                                        }
+                                                                    }}
+                                                                }},
+                                                                se = {Bare = {
+                                                                    Bare = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "se",
+                                                                        span = [31, 33]
+                                                                    }
+                                                                }}
+                                                            }},
+                                                        ] },
+                                                    tail_elements = [
+                                                        {Argument = {
+                                                            Koha = {Bare = {
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "mi",
+                                                                    span = [17, 19]
+                                                                }
+                                                            }}
+                                                        }},
+                                                    ]
+                                                }
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -50,74 +50,86 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "xu",
-            span = [0, 2]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "xu",
+                span = [0, 2]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        free_modifiers = [
-                                            {VocativeFree = {
-                                                argument = {RelationVocativeArgument = {
-                                                    relation = {BaseRelation = {
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "zbasu",
-                                                            span = [11, 16]
-                                                        }}
+                                {Argument = {
+                                    Koha = [
+                                        {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "do",
+                                                span = [3, 5]
+                                            }
+                                        }},
+                                        {Vocative = {
+                                            argument = {RelationVocative = {
+                                                relation = {Base = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "zbasu",
+                                                        span = [11, 16]
                                                     }}
-                                                }},
-                                                vocative_markers = [
-                                                    {Bare = {
+                                                }}
+                                            }},
+                                            vocative_markers = [
+                                                {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "mu'o",
                                                         span = [6, 10]
-                                                    }},
-                                                ]
-                                            }},
-                                        ],
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "do",
-                                            span = [3, 5]
-                                        }}
-                                    }}
+                                                    }
+                                                }},
+                                            ]
+                                        }},
+                                    ]
                                 }},
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [17, 19]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "zmiku",
-                                                    span = [23, 28]
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "zmiku",
+                                                span = [23, 28]
+                                            }}
+                                        }},
+                                        tail_elements = [
+                                            {Argument = {
+                                                Koha = {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "do",
+                                                        span = [20, 22]
+                                                    }
                                                 }}
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailArgument = {} },
-                                            ]
-                                        }}
-                                    }}
+                                        ]
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -50,80 +50,86 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
+                                {Argument = {
+                                    Koha = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "ta",
                                             span = [0, 2]
-                                        }}
+                                        }
                                     }}
                                 }},
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
+                                {Argument = {
+                                    Koha = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "di",
                                             span = [2, 4]
-                                        }}
+                                        }
                                     }}
                                 }},
-                                {ArgumentTerm = {
-                                    argument = {QuantifiedArgument = {
-                                        inner_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                {Argument = {
+                                    Quantified = {
+                                        inner_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "da",
                                                 span = [8, 10]
                                             }}
                                         }},
-                                        quantifier = {NumberExpression = {
+                                        quantifier = {Number = {
                                             number = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "ro",
-                                                    span = [5, 7]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "ro",
+                                                        span = [5, 7]
+                                                    }
                                                 }},
                                             ]
                                         }}
-                                    }}
+                                    }
                                 }},
-                                {FaTerm = {
-                                    argument = {QuantifiedArgument = {
-                                        inner_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                {Fa = {
+                                    argument = {Quantified = {
+                                        inner_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "de",
                                                 span = [19, 21]
                                             }}
                                         }},
-                                        quantifier = {NumberExpression = {
+                                        quantifier = {Number = {
                                             number = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "za'u",
-                                                    span = [14, 18]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "za'u",
+                                                        span = [14, 18]
+                                                    }
                                                 }},
                                             ]
                                         }}
                                     }},
                                     fa = {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "fa",
-                                        span = [11, 13]
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "fa",
+                                            span = [11, 13]
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

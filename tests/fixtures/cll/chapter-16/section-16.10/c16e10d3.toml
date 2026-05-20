@@ -59,86 +59,91 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {ConnectedArgument = {
-                                        connective = {Connective = {
-                                            cmavo = [
-                                                {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Connected = {
+                                    connective = {
+                                        cmavo = [
+                                            {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "e",
                                                     span = [4, 5]
-                                                }},
-                                            ],
-                                            nai = {Bare = {
+                                                }
+                                            }},
+                                        ],
+                                        kind = "Afterthought",
+                                        nai = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
-                                                phonemes = "nai",
+                                                phonemes = "naĭ",
                                                 span = [5, 8]
-                                            }}
-                                        }},
-                                        leading_argument = {KohaArgument = {
-                                            koha = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "mi",
-                                                span = [0, 2]
-                                            }}
-                                        }},
-                                        trailing_argument = {KohaArgument = {
-                                            koha = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "do",
-                                                span = [9, 11]
-                                            }}
+                                            }
+                                        }}
+                                    },
+                                    leading_argument = {Koha = {
+                                        Bare = {Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "mi",
+                                            span = [0, 2]
+                                        }}
+                                    }},
+                                    trailing_argument = {Koha = {
+                                        Bare = {Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "do",
+                                            span = [9, 11]
                                         }}
                                     }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "prami",
-                                                    span = [12, 17]
-                                                }}
-                                            }},
-                                            terms = [
-                                                {ArgumentTerm = {
-                                                    argument = {QuantifiedArgument = {
-                                                        inner_argument = {KohaArgument = {
-                                                            koha = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "da",
-                                                                span = [20, 22]
-                                                            }}
-                                                        }},
-                                                        quantifier = {NumberExpression = {
-                                                            number = [
-                                                                {Bare = {
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "prami",
+                                                span = [12, 17]
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Argument = {
+                                                Quantified = {
+                                                    inner_argument = {Koha = {
+                                                        Bare = {Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "da",
+                                                            span = [20, 22]
+                                                        }}
+                                                    }},
+                                                    quantifier = {Number = {
+                                                        number = [
+                                                            {Bare = {
+                                                                Bare = {
                                                                     kind = "cmavo",
                                                                     phonemes = "ro",
                                                                     span = [18, 20]
-                                                                }},
-                                                            ]
-                                                        }}
+                                                                }
+                                                            }},
+                                                        ]
                                                     }}
-                                                }},
-                                            ]
-                                        }}
+                                                }
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -65,90 +65,102 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {FaTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {ZoQuote = {
+                                {Fa = {
+                                    argument = {Quote = {
+                                        quote = {Zo = {
                                             word = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "vi",
-                                                span = [12, 14]
-                                            }},
-                                            zo = {ZoQuote = {
-                                                word = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "vi",
                                                     span = [12, 14]
-                                                },
-                                                zo = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zo",
-                                                    span = [9, 11]
+                                                }
+                                            }},
+                                            zo = {Bare = {
+                                                ZoQuote = {
+                                                    word = {
+                                                        kind = "cmavo",
+                                                        phonemes = "vi",
+                                                        span = [12, 14]
+                                                    },
+                                                    zo = {
+                                                        kind = "cmavo",
+                                                        phonemes = "zo",
+                                                        span = [9, 11]
+                                                    }
                                                 }
                                             }}
                                         }}
                                     }},
                                     fa = {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "fi",
-                                        span = [6, 8]
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "fi",
+                                            span = [6, 8]
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
-                {ParagraphStatement = {
+                },
+                {
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [16, 17]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [16, 17]
+                        }
                     }},
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "ko",
-                                            span = [18, 20]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "viska",
-                                                    span = [21, 26]
-                                                }}
-                                            }},
-                                            terms = [
-                                                {ArgumentTerm = {
-                                                    argument = {QuoteArgument = {
-                                                        quote = {ZoiQuote = {
-                                                            closing_delimiter = {Bare = {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Koha = {Bare = {
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "ko",
+                                        span = [18, 20]
+                                    }
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "viska",
+                                                span = [21, 26]
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Argument = {
+                                                Quote = {
+                                                    quote = {Zoi = {
+                                                        closing_delimiter = {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "zy",
                                                                 span = [76, 78]
-                                                            }},
-                                                            opening_delimiter = {Bare = {
+                                                            }
+                                                        }},
+                                                        opening_delimiter = {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "zy",
                                                                 span = [31, 33]
-                                                            }},
-                                                            quoted_text = " http://lojban.org/publications/wordlists/",
-                                                            zoi = {ZoiQuote = {
+                                                            }
+                                                        }},
+                                                        quoted_text = " http://lojban.org/publications/wordlists/",
+                                                        zoi = {Bare = {
+                                                            ZoiQuote = {
                                                                 closing_delimiter = {
                                                                     kind = "cmavo",
                                                                     phonemes = "zy",
@@ -165,19 +177,19 @@ parse-tree = {
                                                                     phonemes = "zoĭ",
                                                                     span = [27, 30]
                                                                 }
-                                                            }}
+                                                            }
                                                         }}
                                                     }}
-                                                }},
-                                            ]
-                                        }}
+                                                }
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

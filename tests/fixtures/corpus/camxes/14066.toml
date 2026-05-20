@@ -45,76 +45,92 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
+                                {Argument = {
+                                    Koha = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "mi",
                                             span = [0, 2]
-                                        }}
+                                        }
                                     }}
                                 }},
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            relation = {TenseModalRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "spuda",
-                                                        span = [8, 13]
-                                                    }}
-                                                }},
-                                                tense_modal = {TenseModal = {
-                                                    leaves = [
-                                                        {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "zu",
-                                                            span = [5, 7]
-                                                        }},
-                                                    ],
-                                                    time = {Time = {
-                                                        distance = {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "zu",
-                                                            span = [5, 7]
-                                                        }}
-                                                    }}
+                                {Argument = {
+                                    Descriptor = {
+                                        relation = {TenseModal = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "spuda",
+                                                    span = [8, 13]
                                                 }}
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailQuantifier = {} },
-                                            ]
-                                        }}
-                                    }}
+                                            tense_modal = {Composite = {
+                                                leaves = [
+                                                    {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "zu",
+                                                            span = [5, 7]
+                                                        }
+                                                    }},
+                                                ],
+                                                time = {
+                                                    distance = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "zu",
+                                                            span = [5, 7]
+                                                        }
+                                                    }}
+                                                }
+                                            }}
+                                        }},
+                                        tail_elements = [
+                                            {Quantifier = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "pi",
+                                                                span = [3, 5]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
+                                            }},
+                                        ]
+                                    }
                                 }},
-                                {ArgumentTerm = {
-                                    argument = {LaheArgument = {
-                                        inner_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                {Argument = {
+                                    Lahe = {
+                                        inner_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "do",
                                                 span = [19, 21]
                                             }}
                                         }},
                                         lahe = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "tu'a",
-                                            span = [14, 18]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "tu'a",
+                                                span = [14, 18]
+                                            }
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -30,44 +30,47 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {ConnectedArgument = {
-                                        connective = {Connective = {
+                                {Argument = {
+                                    Connected = {
+                                        connective = {
                                             cmavo = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "jo'u",
-                                                    span = [3, 7]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "jo'u",
+                                                        span = [3, 7]
+                                                    }
                                                 }},
-                                            ]
-                                        }},
-                                        leading_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                            ],
+                                            kind = "NonLogical"
+                                        },
+                                        leading_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "do",
                                                 span = [0, 2]
                                             }}
                                         }},
-                                        trailing_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                        trailing_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "ri",
                                                 span = [8, 10]
                                             }}
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

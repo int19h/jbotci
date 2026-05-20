@@ -24,36 +24,39 @@ words = [
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_connective = {Connective = {
+    leading_connective = {
         cmavo = [
             {Bare = {
-                kind = "cmavo",
-                phonemes = "joĭ",
-                span = [24, 27]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "joĭ",
+                    span = [24, 27]
+                }
             }},
-        ]
-    }},
+        ],
+        kind = "NonLogical"
+    },
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
+                                {Argument = {
+                                    Koha = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "da",
                                             span = [28, 30]
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

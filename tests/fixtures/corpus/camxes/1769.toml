@@ -80,79 +80,172 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {PrenexStatement = {
-                        inner_statement = {StatementPredicate = {
-                            predicate = {Predicate = {
-                                predicate_tail = {PredicateTail = {
-                                    first = {PredicateTail1 = {
-                                        first = {PredicateTail2 = {
-                                            first = {GekSentencePredicateTail3 = {
-                                                gek_sentence = {GekSentencePair = {
-                                                    first = {PlainSubsentence = {} },
-                                                    gek = {Connective = {
-                                                        cmavo = [
-                                                            {Bare = {
+                {
+                    statement = {Prenex = {
+                        inner_statement = {Predicate = {
+                            predicate_tail = {
+                                first = {
+                                    first = {
+                                        first = {GekSentence = {
+                                            Pair = {
+                                                first = {Plain = {
+                                                    leading_terms = [
+                                                        {Argument = {
+                                                            Koha = {Bare = {
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "da",
+                                                                    span = [17, 19]
+                                                                }
+                                                            }}
+                                                        }},
+                                                    ],
+                                                    predicate_tail = {
+                                                        first = {
+                                                            first = {
+                                                                first = {Relation = {
+                                                                    relation = {Base = {
+                                                                        Bare = {Bare = {
+                                                                            kind = "gismu",
+                                                                            phonemes = "klama",
+                                                                            span = [20, 25]
+                                                                        }}
+                                                                    }},
+                                                                    terms = [
+                                                                        {Argument = {
+                                                                            Descriptor = {
+                                                                                descriptor = {Bare = {
+                                                                                    Bare = {
+                                                                                        kind = "cmavo",
+                                                                                        phonemes = "le",
+                                                                                        span = [26, 28]
+                                                                                    }
+                                                                                }},
+                                                                                relation = {Base = {
+                                                                                    Bare = {Bare = {
+                                                                                        kind = "gismu",
+                                                                                        phonemes = "zarci",
+                                                                                        span = [29, 34]
+                                                                                    }}
+                                                                                }}
+                                                                            }
+                                                                        }},
+                                                                    ]
+                                                                }}
+                                                            }
+                                                        }
+                                                    }
+                                                }},
+                                                gek = {
+                                                    cmavo = [
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "ga",
                                                                 span = [11, 13]
-                                                            }},
-                                                        ],
-                                                        nai = {Bare = {
+                                                            }
+                                                        }},
+                                                    ],
+                                                    kind = "Forethought",
+                                                    nai = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "naĭ",
                                                             span = [13, 16]
-                                                        }}
-                                                    }},
-                                                    gik = {Connective = {
-                                                        cmavo = [
-                                                            {Bare = {
+                                                        }
+                                                    }}
+                                                },
+                                                gik = {
+                                                    cmavo = [
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "gi",
                                                                 span = [35, 37]
-                                                            }},
-                                                        ]
-                                                    }},
-                                                    second = {PlainSubsentence = {} }
+                                                            }
+                                                        }},
+                                                    ],
+                                                    kind = "Forethought"
+                                                },
+                                                second = {Plain = {
+                                                    predicate_tail = {
+                                                        first = {
+                                                            first = {
+                                                                first = {Relation = {
+                                                                    relation = {Base = {
+                                                                        Bare = {Bare = {
+                                                                            kind = "gismu",
+                                                                            phonemes = "cadzu",
+                                                                            span = [38, 43]
+                                                                        }}
+                                                                    }},
+                                                                    terms = [
+                                                                        {Argument = {
+                                                                            Descriptor = {
+                                                                                descriptor = {Bare = {
+                                                                                    Bare = {
+                                                                                        kind = "cmavo",
+                                                                                        phonemes = "le",
+                                                                                        span = [44, 46]
+                                                                                    }
+                                                                                }},
+                                                                                relation = {Base = {
+                                                                                    Bare = {Bare = {
+                                                                                        kind = "gismu",
+                                                                                        phonemes = "foldi",
+                                                                                        span = [47, 52]
+                                                                                    }}
+                                                                                }}
+                                                                            }
+                                                                        }},
+                                                                    ]
+                                                                }}
+                                                            }
+                                                        }
+                                                    }
                                                 }}
-                                            }}
+                                            }
                                         }}
-                                    }}
-                                }}
-                            }}
+                                    }
+                                }
+                            }
                         }},
                         prenex_terms = [
-                            {ArgumentTerm = {
-                                argument = {QuantifiedArgument = {
-                                    inner_argument = {KohaArgument = {
-                                        koha = {Bare = {
+                            {Argument = {
+                                Quantified = {
+                                    inner_argument = {Koha = {
+                                        Bare = {Bare = {
                                             kind = "cmavo",
                                             phonemes = "da",
                                             span = [3, 5]
                                         }}
                                     }},
-                                    quantifier = {NumberExpression = {
+                                    quantifier = {Number = {
                                         number = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ro",
-                                                span = [0, 2]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ro",
+                                                    span = [0, 2]
+                                                }
                                             }},
                                         ]
                                     }}
-                                }}
+                                }
                             }},
                         ],
                         zohu = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "zo'u",
-                            span = [6, 10]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "zo'u",
+                                span = [6, 10]
+                            }
                         }}
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

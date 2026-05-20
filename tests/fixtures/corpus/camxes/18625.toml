@@ -35,23 +35,26 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            argument = {CmevlaArgument = {
-                cmevla = [
-                    {Bare = {
-                        kind = "cmevla",
-                        phonemes = "araĭzen",
-                        span = [5, 12]
-                    }},
-                ],
-                free_modifiers = [
-                    {VocativeFree = {
+        {Vocative = {
+            argument = {Cmevla = [
+                    [
+                        {Bare = {
+                            Bare = {
+                                kind = "cmevla",
+                                phonemes = "araĭzen",
+                                span = [5, 12]
+                            }
+                        }},
+                    ],
+                    {Vocative = {
                         vocative_markers = [
                             {WithIndicator = {
                                 base = {Bare = {
-                                    kind = "cmavo",
-                                    phonemes = "re'i",
-                                    span = [14, 18]
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "re'i",
+                                        span = [14, 18]
+                                    }
                                 }},
                                 indicator = {
                                     kind = "cmavo",
@@ -61,13 +64,14 @@ parse-tree = {
                             }},
                         ]
                     }},
-                ]
-            }},
+                ] },
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "ju'i",
-                    span = [0, 4]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "ju'i",
+                        span = [0, 4]
+                    }
                 }},
             ]
         }},

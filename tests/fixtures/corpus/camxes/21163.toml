@@ -45,25 +45,79 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {RelativeClauseFragment = {
-                            relative_clauses = [
-                                {PoiRelativeClause = {
-                                    poi = {Bare = {
+                {
+                    statement = {Fragment = {
+                        RelativeClause = [
+                            {Poi = {
+                                poi = {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "poĭ",
                                         span = [3, 6]
-                                    }},
-                                    subsentence = {PlainSubsentence = {} }
+                                    }
                                 }},
-                            ]
-                        }}
+                                subsentence = {Plain = {
+                                    leading_terms = [
+                                        {Argument = {
+                                            Koha = {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "mi",
+                                                    span = [7, 9]
+                                                }
+                                            }}
+                                        }},
+                                    ],
+                                    predicate_tail = {
+                                        first = {
+                                            first = {
+                                                first = {Relation = {
+                                                    relation = {Base = {
+                                                        Bare = {Bare = {
+                                                            kind = "gismu",
+                                                            phonemes = "djuno",
+                                                            span = [10, 15]
+                                                        }}
+                                                    }},
+                                                    terms = [
+                                                        {Fa = {
+                                                            argument = {Lahe = {
+                                                                inner_argument = {Koha = {
+                                                                    Bare = {Bare = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "ke'a",
+                                                                        span = [24, 28]
+                                                                    }}
+                                                                }},
+                                                                lahe = {Bare = {
+                                                                    Bare = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "lu'a",
+                                                                        span = [19, 23]
+                                                                    }
+                                                                }}
+                                                            }},
+                                                            fa = {Bare = {
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "fi",
+                                                                    span = [16, 18]
+                                                                }
+                                                            }}
+                                                        }},
+                                                    ]
+                                                }}
+                                            }
+                                        }
+                                    }
+                                }}
+                            }},
+                        ]
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

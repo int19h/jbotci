@@ -53,56 +53,62 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "ma",
-                                            span = [2, 4]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {SeRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "fanva",
-                                                        span = [8, 13]
-                                                    }}
-                                                }},
-                                                se = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Koha = {Bare = {
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "ma",
+                                        span = [2, 4]
+                                    }
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Se = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "fanva",
+                                                    span = [8, 13]
+                                                }}
+                                            }},
+                                            se = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "xe",
                                                     span = [5, 7]
-                                                }}
-                                            }},
-                                            terms = [
-                                                {FaTerm = {
-                                                    argument = {QuoteArgument = {
-                                                        quote = {ZoiQuote = {
-                                                            closing_delimiter = {Bare = {
+                                                }
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Fa = {
+                                                argument = {Quote = {
+                                                    quote = {Zoi = {
+                                                        closing_delimiter = {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "gy",
                                                                 span = [34, 36]
-                                                            }},
-                                                            opening_delimiter = {Bare = {
+                                                            }
+                                                        }},
+                                                        opening_delimiter = {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "gy",
                                                                 span = [21, 23]
-                                                            }},
-                                                            quoted_text = "example",
-                                                            zoi = {ZoiQuote = {
+                                                            }
+                                                        }},
+                                                        quoted_text = "example",
+                                                        zoi = {Bare = {
+                                                            ZoiQuote = {
                                                                 closing_delimiter = {
                                                                     kind = "cmavo",
                                                                     phonemes = "gy",
@@ -119,25 +125,27 @@ parse-tree = {
                                                                     phonemes = "zoĭ",
                                                                     span = [17, 20]
                                                                 }
-                                                            }}
+                                                            }
                                                         }}
-                                                    }},
-                                                    fa = {Bare = {
+                                                    }}
+                                                }},
+                                                fa = {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "fe",
                                                         span = [14, 16]
-                                                    }}
-                                                }},
-                                            ]
-                                        }}
+                                                    }
+                                                }}
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

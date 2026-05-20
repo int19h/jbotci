@@ -30,44 +30,46 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {RelativeClauseArgument = {
-                                        base_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                {Argument = {
+                                    RelativeClause = {
+                                        base_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "vo'a",
                                                 span = [0, 4]
                                             }}
                                         }},
                                         relative_clauses = [
-                                            {GoiRelativeClause = {
-                                                argument = {KohaArgument = {
-                                                    koha = {Bare = {
+                                            {Goi = {
+                                                argument = {Koha = {
+                                                    Bare = {Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "deĭ",
                                                         span = [8, 11]
                                                     }}
                                                 }},
                                                 goi = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "po",
-                                                    span = [5, 7]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "po",
+                                                        span = [5, 7]
+                                                    }
                                                 }}
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

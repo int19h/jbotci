@@ -64,65 +64,72 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "mi",
-                                            span = [0, 2]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "stidi",
-                                                    span = [3, 8]
-                                                }}
-                                            }},
-                                            terms = [
-                                                {ArgumentTerm = {
-                                                    argument = {ConnectedArgument = {
-                                                        connective = {Connective = {
-                                                            cmavo = [
-                                                                {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Koha = {Bare = {
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "mi",
+                                        span = [0, 2]
+                                    }
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "stidi",
+                                                span = [3, 8]
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Argument = {
+                                                Connected = {
+                                                    connective = {
+                                                        cmavo = [
+                                                            {Bare = {
+                                                                Bare = {
                                                                     kind = "cmavo",
                                                                     phonemes = "e",
                                                                     span = [19, 20]
-                                                                }},
-                                                            ],
-                                                            nai = {WithIndicator = {
-                                                                base = {Bare = {
+                                                                }
+                                                            }},
+                                                        ],
+                                                        kind = "Afterthought",
+                                                        nai = {WithIndicator = {
+                                                            base = {Bare = {
+                                                                Bare = {
                                                                     kind = "cmavo",
                                                                     phonemes = "naĭ",
                                                                     span = [20, 23]
-                                                                }},
-                                                                indicator = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "saĭ",
-                                                                    span = [23, 26]
                                                                 }
-                                                            }}
-                                                        }},
-                                                        leading_argument = {QuoteArgument = {
-                                                            quote = {ZoQuote = {
-                                                                word = {Bare = {
+                                                            }},
+                                                            indicator = {
+                                                                kind = "cmavo",
+                                                                phonemes = "saĭ",
+                                                                span = [23, 26]
+                                                            }
+                                                        }}
+                                                    },
+                                                    leading_argument = {Quote = {
+                                                        quote = {Zo = {
+                                                            word = {Bare = {
+                                                                Bare = {
                                                                     kind = "gismu",
                                                                     phonemes = "srana",
                                                                     span = [12, 17]
-                                                                }},
-                                                                zo = {ZoQuote = {
+                                                                }
+                                                            }},
+                                                            zo = {Bare = {
+                                                                ZoQuote = {
                                                                     word = {
                                                                         kind = "gismu",
                                                                         phonemes = "srana",
@@ -133,17 +140,21 @@ parse-tree = {
                                                                         phonemes = "zo",
                                                                         span = [9, 11]
                                                                     }
-                                                                }}
+                                                                }
                                                             }}
-                                                        }},
-                                                        trailing_argument = {QuoteArgument = {
-                                                            quote = {ZoQuote = {
-                                                                word = {Bare = {
+                                                        }}
+                                                    }},
+                                                    trailing_argument = {Quote = {
+                                                        quote = {Zo = {
+                                                            word = {Bare = {
+                                                                Bare = {
                                                                     kind = "cmavo",
                                                                     phonemes = "me",
                                                                     span = [30, 32]
-                                                                }},
-                                                                zo = {ZoQuote = {
+                                                                }
+                                                            }},
+                                                            zo = {Bare = {
+                                                                ZoQuote = {
                                                                     word = {
                                                                         kind = "cmavo",
                                                                         phonemes = "me",
@@ -154,20 +165,20 @@ parse-tree = {
                                                                         phonemes = "zo",
                                                                         span = [27, 29]
                                                                     }
-                                                                }}
+                                                                }
                                                             }}
                                                         }}
                                                     }}
-                                                }},
-                                            ]
-                                        }}
+                                                }
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

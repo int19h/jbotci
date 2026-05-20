@@ -25,33 +25,35 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "peĭ",
-            span = [0, 3]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "peĭ",
+                span = [0, 3]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
+                                {Argument = {
+                                    Koha = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "ri",
                                             span = [4, 6]
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -47,22 +47,24 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {RelativeClauseArgument = {
-                                        base_argument = {QuoteArgument = {
-                                            quote = {ZoQuote = {
-                                                word = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                RelativeClause = {
+                                    base_argument = {Quote = {
+                                        quote = {Zo = {
+                                            word = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "ca'a",
                                                     span = [3, 7]
-                                                }},
-                                                zo = {ZoQuote = {
+                                                }
+                                            }},
+                                            zo = {Bare = {
+                                                ZoQuote = {
                                                     word = {
                                                         kind = "cmavo",
                                                         phonemes = "ca'a",
@@ -73,54 +75,58 @@ parse-tree = {
                                                         phonemes = "zo",
                                                         span = [0, 2]
                                                     }
-                                                }}
+                                                }
                                             }}
-                                        }},
-                                        relative_clauses = [
-                                            {GoiRelativeClause = {
-                                                argument = {KohaArgument = {
-                                                    koha = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "mi",
-                                                        span = [11, 13]
-                                                    }}
-                                                }},
-                                                goi = {Bare = {
+                                        }}
+                                    }},
+                                    relative_clauses = [
+                                        {Goi = {
+                                            argument = {Koha = {
+                                                Bare = {Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "mi",
+                                                    span = [11, 13]
+                                                }}
+                                            }},
+                                            goi = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "pe",
                                                     span = [8, 10]
+                                                }
+                                            }}
+                                        }},
+                                    ]
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Na = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "lujvo",
+                                                    phonemes = "sumtcita",
+                                                    span = [17, 25]
                                                 }}
                                             }},
-                                        ]
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {NaRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "lujvo",
-                                                        phonemes = "sumtcita",
-                                                        span = [17, 25]
-                                                    }}
-                                                }},
-                                                na = {Bare = {
+                                            na = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "na",
                                                     span = [14, 16]
-                                                }}
+                                                }
                                             }}
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

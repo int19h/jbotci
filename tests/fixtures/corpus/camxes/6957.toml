@@ -30,38 +30,56 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {RelativeClauseArgument = {
-                                        base_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                {Argument = {
+                                    RelativeClause = {
+                                        base_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "da",
                                                 span = [0, 2]
                                             }}
                                         }},
                                         relative_clauses = [
-                                            {PoiRelativeClause = {
+                                            {Poi = {
                                                 poi = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "poĭ",
-                                                    span = [3, 6]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "poĭ",
+                                                        span = [3, 6]
+                                                    }
                                                 }},
-                                                subsentence = {PlainSubsentence = {} }
+                                                subsentence = {Plain = {
+                                                    predicate_tail = {
+                                                        first = {
+                                                            first = {
+                                                                first = {Relation = {
+                                                                    relation = {Base = {
+                                                                        Bare = {Bare = {
+                                                                            kind = "cmavo",
+                                                                            phonemes = "mo",
+                                                                            span = [7, 9]
+                                                                        }}
+                                                                    }}
+                                                                }}
+                                                            }
+                                                        }
+                                                    }
+                                                }}
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

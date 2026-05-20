@@ -55,13 +55,13 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     free_modifiers = [
-                        {VocativeFree = {
-                            argument = {KohaArgument = {
-                                koha = {Bare = {
+                        {Vocative = {
+                            argument = {Koha = {
+                                Bare = {Bare = {
                                     kind = "cmavo",
                                     phonemes = "do",
                                     span = [12, 14]
@@ -69,18 +69,22 @@ parse-tree = {
                             }},
                             vocative_markers = [
                                 {Bare = {
-                                    kind = "cmavo",
-                                    phonemes = "ki'e",
-                                    span = [7, 11]
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "ki'e",
+                                        span = [7, 11]
+                                    }
                                 }},
                             ]
                         }},
                     ],
                     i = {WithIndicator = {
                         base = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [1, 2]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "i",
+                                span = [1, 2]
+                            }
                         }},
                         indicator = {
                             kind = "cmavo",
@@ -88,13 +92,15 @@ parse-tree = {
                             span = [4, 6]
                         }
                     }}
-                }},
-                {ParagraphStatement = {
+                },
+                {
                     i = {WithIndicator = {
                         base = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [16, 17]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "i",
+                                span = [16, 17]
+                            }
                         }},
                         indicator = {
                             kind = "cmavo",
@@ -102,38 +108,36 @@ parse-tree = {
                             span = [18, 20]
                         }
                     }},
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "do",
-                                            span = [21, 23]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "terpa",
-                                                    span = [24, 29]
-                                                }}
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Koha = {Bare = {
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "do",
+                                        span = [21, 23]
+                                    }
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "terpa",
+                                                span = [24, 29]
                                             }}
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

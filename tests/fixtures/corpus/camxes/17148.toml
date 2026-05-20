@@ -40,17 +40,19 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    connective = {Connective = {
+                {
+                    connective = {
                         cmavo = [
                             {WithIndicator = {
                                 base = {WithIndicator = {
                                     base = {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "je",
-                                        span = [2, 4]
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "je",
+                                            span = [2, 4]
+                                        }
                                     }},
                                     indicator = {
                                         kind = "cmavo",
@@ -64,30 +66,33 @@ parse-tree = {
                                     span = [9, 12]
                                 }
                             }},
-                        ]
-                    }},
+                        ],
+                        kind = "Relation"
+                    },
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [1, 2]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [1, 2]
+                        }
                     }},
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
+                                {Argument = {
+                                    Koha = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "do",
                                             span = [13, 15]
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

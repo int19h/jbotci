@@ -49,81 +49,92 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
+                                {Argument = {
+                                    Koha = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "mi",
                                             span = [0, 2]
-                                        }}
+                                        }
                                     }}
                                 }},
-                                {ArgumentTerm = {
-                                    argument = {ConnectedArgument = {
-                                        connective = {Connective = {
+                                {Argument = {
+                                    Connected = {
+                                        connective = {
                                             cmavo = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "e",
-                                                    span = [10, 11]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "e",
+                                                        span = [10, 11]
+                                                    }
                                                 }},
-                                            ]
-                                        }},
-                                        leading_argument = {QuoteArgument = {
-                                            quote = {ZoQuote = {
+                                            ],
+                                            kind = "Afterthought"
+                                        },
+                                        leading_argument = {Quote = {
+                                            quote = {Zo = {
                                                 word = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zo",
-                                                    span = [6, 8]
-                                                }},
-                                                zo = {ZoQuote = {
-                                                    word = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "zo",
                                                         span = [6, 8]
-                                                    },
-                                                    zo = {
-                                                        kind = "cmavo",
-                                                        phonemes = "zo",
-                                                        span = [3, 5]
+                                                    }
+                                                }},
+                                                zo = {Bare = {
+                                                    ZoQuote = {
+                                                        word = {
+                                                            kind = "cmavo",
+                                                            phonemes = "zo",
+                                                            span = [6, 8]
+                                                        },
+                                                        zo = {
+                                                            kind = "cmavo",
+                                                            phonemes = "zo",
+                                                            span = [3, 5]
+                                                        }
                                                     }
                                                 }}
                                             }}
                                         }},
-                                        trailing_argument = {QuoteArgument = {
-                                            quote = {ZoQuote = {
+                                        trailing_argument = {Quote = {
+                                            quote = {Zo = {
                                                 word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "brodi",
-                                                    span = [48, 53]
-                                                }},
-                                                zo = {ZoQuote = {
-                                                    word = {
+                                                    Bare = {
                                                         kind = "gismu",
                                                         phonemes = "brodi",
                                                         span = [48, 53]
-                                                    },
-                                                    zo = {
-                                                        kind = "cmavo",
-                                                        phonemes = "zo",
-                                                        span = [45, 47]
+                                                    }
+                                                }},
+                                                zo = {Bare = {
+                                                    ZoQuote = {
+                                                        word = {
+                                                            kind = "gismu",
+                                                            phonemes = "brodi",
+                                                            span = [48, 53]
+                                                        },
+                                                        zo = {
+                                                            kind = "cmavo",
+                                                            phonemes = "zo",
+                                                            span = [45, 47]
+                                                        }
                                                     }
                                                 }}
                                             }}
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

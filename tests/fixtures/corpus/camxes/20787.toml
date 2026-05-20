@@ -35,9 +35,9 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            argument = {KohaArgument = {
-                koha = {Bare = {
+        {Vocative = {
+            argument = {Koha = {
+                Bare = {Bare = {
                     kind = "cmavo",
                     phonemes = "ma",
                     span = [7, 9]
@@ -46,9 +46,11 @@ parse-tree = {
             vocative_markers = [
                 {WithIndicator = {
                     base = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "doĭ",
-                        span = [0, 3]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "doĭ",
+                            span = [0, 3]
+                        }
                     }},
                     indicator = {
                         kind = "cmavo",
@@ -60,30 +62,28 @@ parse-tree = {
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "nuzba",
-                                                    span = [10, 15]
-                                                }}
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "nuzba",
+                                                span = [10, 15]
                                             }}
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

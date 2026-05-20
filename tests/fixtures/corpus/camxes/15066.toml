@@ -55,15 +55,17 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {WithIndicator = {
                         base = {WithIndicator = {
                             base = {Bare = {
-                                kind = "cmavo",
-                                phonemes = "i",
-                                span = [4, 5]
+                                Bare = {
+                                    kind = "cmavo",
+                                    phonemes = "i",
+                                    span = [4, 5]
+                                }
                             }},
                             indicator = {
                                 kind = "cmavo",
@@ -77,54 +79,90 @@ parse-tree = {
                             span = [10, 13]
                         }
                     }},
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "ko",
-                                            span = [14, 16]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {GekSentencePredicateTail3 = {
-                                            gek_sentence = {GekSentencePair = {
-                                                first = {PlainSubsentence = {} },
-                                                gek = {Connective = {
-                                                    cmavo = [
-                                                        {Bare = {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Koha = {Bare = {
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "ko",
+                                        span = [14, 16]
+                                    }
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {GekSentence = {
+                                        Pair = {
+                                            first = {Plain = {
+                                                predicate_tail = {
+                                                    first = {
+                                                        first = {
+                                                            first = {Relation = {
+                                                                relation = {Base = {
+                                                                    Bare = {Bare = {
+                                                                        kind = "gismu",
+                                                                        phonemes = "kanba",
+                                                                        span = [20, 25]
+                                                                    }}
+                                                                }}
+                                                            }}
+                                                        }
+                                                    }
+                                                }
+                                            }},
+                                            gek = {
+                                                cmavo = [
+                                                    {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "ge",
                                                             span = [17, 19]
-                                                        }},
-                                                    ]
-                                                }},
-                                                gik = {Connective = {
-                                                    cmavo = [
-                                                        {Bare = {
+                                                        }
+                                                    }},
+                                                ],
+                                                kind = "Forethought"
+                                            },
+                                            gik = {
+                                                cmavo = [
+                                                    {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "gi",
                                                             span = [26, 28]
-                                                        }},
-                                                    ]
-                                                }},
-                                                second = {PlainSubsentence = {} }
+                                                        }
+                                                    }},
+                                                ],
+                                                kind = "Forethought"
+                                            },
+                                            second = {Plain = {
+                                                predicate_tail = {
+                                                    first = {
+                                                        first = {
+                                                            first = {Relation = {
+                                                                relation = {Base = {
+                                                                    Bare = {Bare = {
+                                                                        kind = "lujvo",
+                                                                        phonemes = "cinseltcidu",
+                                                                        span = [29, 40]
+                                                                    }}
+                                                                }}
+                                                            }}
+                                                        }
+                                                    }
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

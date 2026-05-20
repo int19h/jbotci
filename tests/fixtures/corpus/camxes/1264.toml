@@ -40,27 +40,32 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {ConnectedArgument = {
-                                        connective = {Connective = {
+                                {Argument = {
+                                    Connected = {
+                                        connective = {
                                             cmavo = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "e",
-                                                    span = [4, 5]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "e",
+                                                        span = [4, 5]
+                                                    }
                                                 }},
                                             ],
+                                            kind = "Afterthought",
                                             nai = {WithIndicator = {
                                                 base = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "naĭ",
-                                                    span = [6, 9]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "naĭ",
+                                                        span = [6, 9]
+                                                    }
                                                 }},
                                                 indicator = {
                                                     kind = "cmavo",
@@ -68,28 +73,28 @@ parse-tree = {
                                                     span = [11, 13]
                                                 }
                                             }}
-                                        }},
-                                        leading_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                        },
+                                        leading_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "mi",
                                                 span = [0, 2]
                                             }}
                                         }},
-                                        trailing_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                        trailing_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "do",
                                                 span = [14, 16]
                                             }}
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

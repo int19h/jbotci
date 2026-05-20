@@ -55,83 +55,89 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [0, 2]
-                                            }},
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {BeRelationUnit = {
-                                                        base = {WordRelationUnit = {
-                                                            word = {Bare = {
+                                            }
+                                        }},
+                                        relation = {Compound = [
+                                                {Be = {
+                                                    base = {Word = {
+                                                        word = {Bare = {
+                                                            Bare = {
                                                                 kind = "gismu",
                                                                 phonemes = "broda",
                                                                 span = [3, 8]
-                                                            }}
-                                                        }},
-                                                        be = {Bare = {
+                                                            }
+                                                        }}
+                                                    }},
+                                                    be = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "be",
                                                             span = [9, 11]
-                                                        }},
-                                                        bei_links = [
-                                                            {BeiLink = {
-                                                                argument = {KohaArgument = {
-                                                                    koha = {Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "do",
-                                                                        span = [19, 21]
-                                                                    }}
-                                                                }},
-                                                                bei = {Bare = {
+                                                        }
+                                                    }},
+                                                    bei_links = [
+                                                        {
+                                                            argument = {Koha = {
+                                                                Bare = {Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "do",
+                                                                    span = [19, 21]
+                                                                }}
+                                                            }},
+                                                            bei = {Bare = {
+                                                                Bare = {
                                                                     kind = "cmavo",
                                                                     phonemes = "beĭ",
                                                                     span = [15, 18]
+                                                                }
+                                                            }}
+                                                        },
+                                                        {
+                                                            argument = {Koha = {
+                                                                Bare = {Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "ko'a",
+                                                                    span = [26, 30]
                                                                 }}
                                                             }},
-                                                            {BeiLink = {
-                                                                argument = {KohaArgument = {
-                                                                    koha = {Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "ko'a",
-                                                                        span = [26, 30]
-                                                                    }}
-                                                                }},
-                                                                bei = {Bare = {
+                                                            bei = {Bare = {
+                                                                Bare = {
                                                                     kind = "cmavo",
                                                                     phonemes = "beĭ",
                                                                     span = [22, 25]
-                                                                }}
-                                                            }},
-                                                        ],
-                                                        first_argument = {KohaArgument = {
-                                                            koha = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "mi",
-                                                                span = [12, 14]
+                                                                }
                                                             }}
+                                                        },
+                                                    ],
+                                                    first_argument = {Koha = {
+                                                        Bare = {Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "mi",
+                                                            span = [12, 14]
                                                         }}
-                                                    }},
-                                                ]
-                                            }}
-                                        }}
-                                    }}
+                                                    }}
+                                                }},
+                                            ] }
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

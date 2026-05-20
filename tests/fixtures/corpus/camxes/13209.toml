@@ -55,99 +55,111 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {PrenexStatement = {
-                        inner_statement = {StatementPredicate = {
-                            predicate = {Predicate = {
-                                leading_terms = [
-                                    {ArgumentTerm = {
-                                        argument = {KohaArgument = {
-                                            koha = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ma",
-                                                span = [8, 10]
-                                            }}
-                                        }}
-                                    }},
-                                ],
-                                predicate_tail = {PredicateTail = {
-                                    first = {PredicateTail1 = {
-                                        first = {PredicateTail2 = {
-                                            first = {RelationPredicateTail3 = {
-                                                relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "sumji",
-                                                        span = [11, 16]
-                                                    }}
-                                                }},
-                                                terms = [
-                                                    {ArgumentTerm = {
-                                                        argument = {MathExpressionArgument = {
-                                                            li = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "li",
-                                                                span = [17, 19]
-                                                            }},
-                                                            math_expression = {LetterExpression = {
-                                                                letter = [
-                                                                    {Bare = {
+                {
+                    statement = {Prenex = {
+                        inner_statement = {Predicate = {
+                            leading_terms = [
+                                {Argument = {
+                                    Koha = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "ma",
+                                            span = [8, 10]
+                                        }
+                                    }}
+                                }},
+                            ],
+                            predicate_tail = {
+                                first = {
+                                    first = {
+                                        first = {Relation = {
+                                            relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "sumji",
+                                                    span = [11, 16]
+                                                }}
+                                            }},
+                                            terms = [
+                                                {Argument = {
+                                                    MathExpression = {
+                                                        expression = {Letter = {
+                                                            letter = [
+                                                                {Bare = {
+                                                                    Bare = {
                                                                         kind = "cmavo",
                                                                         phonemes = "xy",
                                                                         span = [20, 22]
+                                                                    }
+                                                                }},
+                                                            ]
+                                                        }},
+                                                        li = {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "li",
+                                                                span = [17, 19]
+                                                            }
+                                                        }}
+                                                    }
+                                                }},
+                                                {Argument = {
+                                                    MathExpression = {
+                                                        expression = {Number = {
+                                                            Number = {
+                                                                number = [
+                                                                    {Bare = {
+                                                                        Bare = {
+                                                                            kind = "cmavo",
+                                                                            phonemes = "pa",
+                                                                            span = [26, 28]
+                                                                        }
                                                                     }},
                                                                 ]
-                                                            }}
-                                                        }}
-                                                    }},
-                                                    {ArgumentTerm = {
-                                                        argument = {MathExpressionArgument = {
-                                                            li = {Bare = {
+                                                            }
+                                                        }},
+                                                        li = {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "li",
                                                                 span = [23, 25]
-                                                            }},
-                                                            math_expression = {NumberExpression = {
-                                                                number = [
-                                                                    {Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "pa",
-                                                                        span = [26, 28]
-                                                                    }},
-                                                                ]
-                                                            }}
+                                                            }
                                                         }}
-                                                    }},
-                                                ]
-                                            }}
+                                                    }
+                                                }},
+                                            ]
                                         }}
-                                    }}
-                                }}
-                            }}
+                                    }
+                                }
+                            }
                         }},
                         prenex_terms = [
-                            {ArgumentTerm = {
-                                argument = {LetterArgument = {
+                            {Argument = {
+                                Letter = {
                                     letter = [
                                         {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "xy",
-                                            span = [0, 2]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "xy",
+                                                span = [0, 2]
+                                            }
                                         }},
                                     ]
-                                }}
+                                }
                             }},
                         ],
                         zohu = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "zo'u",
-                            span = [3, 7]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "zo'u",
+                                span = [3, 7]
+                            }
                         }}
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -50,65 +50,79 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {WordRelationUnit = {
-                                                        word = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        relation = {Compound = [
+                                                {Word = {
+                                                    word = {Bare = {
+                                                        Bare = {
                                                             kind = "gismu",
                                                             phonemes = "prenu",
                                                             span = [5, 10]
-                                                        }}
-                                                    }},
-                                                    [
-                                                        {WordRelationUnit = {
-                                                            word = {Bare = {
-                                                                kind = "gismu",
-                                                                phonemes = "jinvi",
-                                                                span = [11, 16]
-                                                            }}
+                                                        }
+                                                    }}
+                                                }},
+                                                {Word = {
+                                                    word = {Bare = {
+                                                        Bare = {
+                                                            kind = "gismu",
+                                                            phonemes = "jinvi",
+                                                            span = [11, 16]
+                                                        }
+                                                    }}
+                                                }},
+                                            ] },
+                                        tail_elements = [
+                                            {Quantifier = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "so'i",
+                                                                span = [0, 4]
+                                                            }
                                                         }},
-                                                    ],
-                                                ]
+                                                    ]
+                                                }
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailQuantifier = {} },
-                                            ]
-                                        }}
-                                    }}
+                                        ]
+                                    }
                                 }},
-                                {FaTerm = {
-                                    argument = {QuantifiedArgument = {
-                                        inner_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                {Fa = {
+                                    argument = {Quantified = {
+                                        inner_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "da",
                                                 span = [27, 29]
                                             }}
                                         }},
-                                        quantifier = {NumberExpression = {
+                                        quantifier = {Number = {
                                             number = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "ro",
-                                                    span = [25, 27]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "ro",
+                                                        span = [25, 27]
+                                                    }
                                                 }},
                                             ]
                                         }}
                                     }},
                                     fa = {WithIndicator = {
                                         base = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "fi",
-                                            span = [17, 19]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "fi",
+                                                span = [17, 19]
+                                            }
                                         }},
                                         indicator = {
                                             kind = "cmavo",
@@ -118,10 +132,10 @@ parse-tree = {
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

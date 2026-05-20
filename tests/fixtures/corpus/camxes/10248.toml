@@ -45,73 +45,79 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {WithIndicator = {
-                                                    base = {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            WithIndicator = {
+                                                base = {Bare = {
+                                                    Bare = {
                                                         kind = "gismu",
                                                         phonemes = "sipna",
                                                         span = [0, 5]
-                                                    }},
-                                                    indicator = {
-                                                        kind = "cmavo",
-                                                        phonemes = "eĭ",
-                                                        span = [7, 9]
                                                     }
-                                                }}
-                                            }}
+                                                }},
+                                                indicator = {
+                                                    kind = "cmavo",
+                                                    phonemes = "eĭ",
+                                                    span = [7, 9]
+                                                }
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
-                {ParagraphStatement = {
+                },
+                {
                     free_modifiers = [
-                        {VocativeFree = {
-                            argument = {QuantifiedArgument = {
-                                inner_argument = {KohaArgument = {
-                                    koha = {Bare = {
+                        {Vocative = {
+                            argument = {Quantified = {
+                                inner_argument = {Koha = {
+                                    Bare = {Bare = {
                                         kind = "cmavo",
                                         phonemes = "do",
                                         span = [20, 22]
                                     }}
                                 }},
-                                quantifier = {NumberExpression = {
+                                quantifier = {Number = {
                                     number = [
                                         {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "ro",
-                                            span = [18, 20]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "ro",
+                                                span = [18, 20]
+                                            }
                                         }},
                                     ]
                                 }}
                             }},
                             vocative_markers = [
                                 {Bare = {
-                                    kind = "cmavo",
-                                    phonemes = "co'o",
-                                    span = [13, 17]
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "co'o",
+                                        span = [13, 17]
+                                    }
                                 }},
                             ]
                         }},
                     ],
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [11, 12]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [11, 12]
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

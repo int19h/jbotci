@@ -50,79 +50,83 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "xu",
-            span = [0, 2]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "xu",
+                span = [0, 2]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "do",
-                                            span = [3, 5]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "lujvo",
-                                                    phonemes = "djisku",
-                                                    span = [6, 12]
-                                                }}
-                                            }},
-                                            terms = [
-                                                {ArgumentTerm = {
-                                                    argument = {QuoteArgument = {
-                                                        quote = {LuQuote = {
-                                                            lihu = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Koha = {Bare = {
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "do",
+                                        span = [3, 5]
+                                    }
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "lujvo",
+                                                phonemes = "djisku",
+                                                span = [6, 12]
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Argument = {
+                                                Quote = {
+                                                    quote = {Lu = {
+                                                        lihu = {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "li'u",
                                                                 span = [24, 28]
-                                                            }},
-                                                            lu = {WithIndicator = {
-                                                                base = {Bare = {
+                                                            }
+                                                        }},
+                                                        lu = {WithIndicator = {
+                                                            base = {Bare = {
+                                                                Bare = {
                                                                     kind = "cmavo",
                                                                     phonemes = "lu",
                                                                     span = [13, 15]
-                                                                }},
-                                                                indicator = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "u'i",
-                                                                    span = [17, 20]
-                                                                },
-                                                                nai = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "naĭ",
-                                                                    span = [20, 23]
                                                                 }
                                                             }},
-                                                            text = {}
-                                                        }}
+                                                            indicator = {
+                                                                kind = "cmavo",
+                                                                phonemes = "u'i",
+                                                                span = [17, 20]
+                                                            },
+                                                            nai = {
+                                                                kind = "cmavo",
+                                                                phonemes = "naĭ",
+                                                                span = [20, 23]
+                                                            }
+                                                        }},
+                                                        text = {}
                                                     }}
-                                                }},
-                                            ]
-                                        }}
+                                                }
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

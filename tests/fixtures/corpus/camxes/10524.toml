@@ -60,94 +60,92 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {WithIndicator = {
-            base = {WithIndicator = {
-                base = {Bare = {
-                    kind = "cmavo",
-                    phonemes = "paŭ",
-                    span = [0, 3]
-                }},
-                indicator = {
-                    kind = "cmavo",
-                    phonemes = "ŭe",
-                    span = [5, 7]
-                }
-            }},
+        {
             indicator = {
                 kind = "cmavo",
-                phonemes = "saĭ",
-                span = [7, 10]
+                phonemes = "paŭ",
+                span = [0, 3]
             }
-        }},
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "do",
-                                            span = [11, 13]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "ponse",
-                                                    span = [14, 19]
-                                                }}
-                                            }},
-                                            terms = [
-                                                {ArgumentTerm = {
-                                                    argument = {DescriptorArgument = {
-                                                        descriptor = {Descriptor = {
-                                                            relation = {BaseRelation = {
-                                                                word = {WithIndicator = {
-                                                                    base = {WithIndicator = {
-                                                                        base = {Bare = {
-                                                                            kind = "gismu",
-                                                                            phonemes = "jamfu",
-                                                                            span = [23, 28]
-                                                                        }},
-                                                                        indicator = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Koha = {Bare = {
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "do",
+                                        span = [11, 13]
+                                    }
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "ponse",
+                                                span = [14, 19]
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Argument = {
+                                                Descriptor = {
+                                                    relation = {Base = {
+                                                        WithIndicator = {
+                                                            base = {WithIndicator = {
+                                                                base = {Bare = {
+                                                                    Bare = {
+                                                                        kind = "gismu",
+                                                                        phonemes = "jamfu",
+                                                                        span = [23, 28]
+                                                                    }
+                                                                }},
+                                                                indicator = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "xu",
+                                                                    span = [29, 31]
+                                                                }
+                                                            }},
+                                                            indicator = {
+                                                                kind = "cmavo",
+                                                                phonemes = "zo'o",
+                                                                span = [32, 36]
+                                                            }
+                                                        }
+                                                    }},
+                                                    tail_elements = [
+                                                        {Quantifier = {
+                                                            Number = {
+                                                                number = [
+                                                                    {Bare = {
+                                                                        Bare = {
                                                                             kind = "cmavo",
-                                                                            phonemes = "xu",
-                                                                            span = [29, 31]
+                                                                            phonemes = "mu",
+                                                                            span = [20, 22]
                                                                         }
                                                                     }},
-                                                                    indicator = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "zo'o",
-                                                                        span = [32, 36]
-                                                                    }
-                                                                }}
-                                                            }},
-                                                            tail_elements = [
-                                                                {ArgumentTailQuantifier = {} },
-                                                            ]
-                                                        }}
-                                                    }}
-                                                }},
-                                            ]
-                                        }}
+                                                                ]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

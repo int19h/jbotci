@@ -45,67 +45,71 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
+        {Vocative = {
             dohu = {Bare = {
-                kind = "cmavo",
-                phonemes = "do'u",
-                span = [5, 9]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "do'u",
+                    span = [5, 9]
+                }
             }},
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "re'i",
-                    span = [0, 4]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "re'i",
+                        span = [0, 4]
+                    }
                 }},
             ]
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
+                                {Tagged = {
+                                    argument = {Koha = {
+                                        Bare = {Bare = {
                                             kind = "cmavo",
                                             phonemes = "ma",
                                             span = [24, 26]
                                         }}
                                     }},
-                                    tense_modal = {TenseModal = {
-                                        fiho = [
-                                            {FihoModal = {
-                                                fiho = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "fi'o",
-                                                    span = [10, 14]
-                                                }},
-                                                relation = {SeRelation = {
-                                                    inner_relation = {BaseRelation = {
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "casnu",
-                                                            span = [18, 23]
-                                                        }}
-                                                    }},
-                                                    se = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "se",
-                                                        span = [15, 17]
-                                                    }}
+                                    tense_modal = {Fiho = {
+                                        fiho = {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "fi'o",
+                                                span = [10, 14]
+                                            }
+                                        }},
+                                        relation = {Se = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "casnu",
+                                                    span = [18, 23]
                                                 }}
                                             }},
-                                        ]
+                                            se = {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "se",
+                                                    span = [15, 17]
+                                                }
+                                            }}
+                                        }}
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

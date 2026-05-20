@@ -42,38 +42,85 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {RelativeClauseArgument = {
-                                        base_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                {Argument = {
+                                    RelativeClause = {
+                                        base_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "de'u",
                                                 span = [3, 7]
                                             }}
                                         }},
                                         relative_clauses = [
-                                            {PoiRelativeClause = {
+                                            {Poi = {
                                                 poi = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "poĭ",
-                                                    span = [8, 11]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "poĭ",
+                                                        span = [8, 11]
+                                                    }
                                                 }},
-                                                subsentence = {PlainSubsentence = {} }
+                                                subsentence = {Plain = {
+                                                    predicate_tail = {
+                                                        first = {
+                                                            first = {
+                                                                first = {Relation = {
+                                                                    relation = {Base = {
+                                                                        Bare = {Bare = {
+                                                                            kind = "gismu",
+                                                                            phonemes = "vasru",
+                                                                            span = [12, 17]
+                                                                        }}
+                                                                    }},
+                                                                    terms = [
+                                                                        {Argument = {
+                                                                            Quote = {
+                                                                                quote = {Zo = {
+                                                                                    word = {Bare = {
+                                                                                        Bare = {
+                                                                                            kind = "cmavo",
+                                                                                            phonemes = "deĭ",
+                                                                                            span = [21, 24]
+                                                                                        }
+                                                                                    }},
+                                                                                    zo = {Bare = {
+                                                                                        ZoQuote = {
+                                                                                            word = {
+                                                                                                kind = "cmavo",
+                                                                                                phonemes = "deĭ",
+                                                                                                span = [21, 24]
+                                                                                            },
+                                                                                            zo = {
+                                                                                                kind = "cmavo",
+                                                                                                phonemes = "zo",
+                                                                                                span = [18, 20]
+                                                                                            }
+                                                                                        }
+                                                                                    }}
+                                                                                }}
+                                                                            }
+                                                                        }},
+                                                                    ]
+                                                                }}
+                                                            }
+                                                        }
+                                                    }
+                                                }}
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

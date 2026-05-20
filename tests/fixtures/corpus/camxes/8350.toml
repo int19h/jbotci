@@ -40,62 +40,68 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {PrenexFragment = {
+                {
+                    statement = {Fragment = {
+                        Prenex = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuantifiedArgument = {
-                                        inner_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                {Argument = {
+                                    Quantified = {
+                                        inner_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "da",
                                                 span = [2, 4]
                                             }}
                                         }},
-                                        quantifier = {NumberExpression = {
+                                        quantifier = {Number = {
                                             number = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "ro",
-                                                    span = [0, 2]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "ro",
+                                                        span = [0, 2]
+                                                    }
                                                 }},
                                             ]
                                         }}
-                                    }}
+                                    }
                                 }},
-                                {ArgumentTerm = {
-                                    argument = {QuantifiedArgument = {
-                                        inner_argument = {KohaArgument = {
-                                            koha = {Bare = {
+                                {Argument = {
+                                    Quantified = {
+                                        inner_argument = {Koha = {
+                                            Bare = {Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "de",
                                                 span = [7, 9]
                                             }}
                                         }},
-                                        quantifier = {NumberExpression = {
+                                        quantifier = {Number = {
                                             number = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "ro",
-                                                    span = [5, 7]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "ro",
+                                                        span = [5, 7]
+                                                    }
                                                 }},
                                             ]
                                         }}
-                                    }}
+                                    }
                                 }},
                             ],
                             zohu = {Bare = {
-                                kind = "cmavo",
-                                phonemes = "zo'u",
-                                span = [10, 14]
+                                Bare = {
+                                    kind = "cmavo",
+                                    phonemes = "zo'u",
+                                    span = [10, 14]
+                                }
                             }}
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

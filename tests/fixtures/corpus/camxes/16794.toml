@@ -78,52 +78,60 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            argument = {CmevlaArgument = {
-                cmevla = [
+        {Vocative = {
+            argument = {Cmevla = [
                     {Bare = {
-                        kind = "cmevla",
-                        phonemes = "ceĭn",
-                        span = [4, 8]
+                        Bare = {
+                            kind = "cmevla",
+                            phonemes = "ceĭn",
+                            span = [4, 8]
+                        }
                     }},
-                ]
-            }},
+                ] },
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "doĭ",
-                    span = [0, 3]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "doĭ",
+                        span = [0, 3]
+                    }
                 }},
             ]
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            cu = {Bare = {
+                {
+                    statement = {Predicate = {
+                        cu = {Bare = {
+                            Bare = {
                                 kind = "cmavo",
                                 phonemes = "cu",
                                 span = [30, 32]
-                            }},
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {ZoiQuote = {
-                                            closing_delimiter = {Bare = {
+                            }
+                        }},
+                        leading_terms = [
+                            {Argument = {
+                                Quote = {
+                                    quote = {Zoi = {
+                                        closing_delimiter = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "ke",
                                                 span = [27, 29]
-                                            }},
-                                            opening_delimiter = {Bare = {
+                                            }
+                                        }},
+                                        opening_delimiter = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "ke",
                                                 span = [14, 16]
-                                            }},
-                                            quoted_text = " jadenbane",
-                                            zoi = {ZoiQuote = {
+                                            }
+                                        }},
+                                        quoted_text = " jadenbane",
+                                        zoi = {Bare = {
+                                            ZoiQuote = {
                                                 closing_delimiter = {
                                                     kind = "cmavo",
                                                     phonemes = "ke",
@@ -140,75 +148,80 @@ parse-tree = {
                                                     phonemes = "la'o",
                                                     span = [9, 13]
                                                 }
-                                            }}
+                                            }
                                         }}
                                     }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {ConnectedRelationUnit = {
-                                                        connective = {Connective = {
-                                                            cmavo = [
-                                                                {Bare = {
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Connected = {
+                                                    connective = {
+                                                        cmavo = [
+                                                            {Bare = {
+                                                                Bare = {
                                                                     kind = "cmavo",
                                                                     phonemes = "je",
                                                                     span = [39, 41]
-                                                                }},
-                                                            ]
-                                                        }},
-                                                        leading_unit = {WordRelationUnit = {
-                                                            word = {Bare = {
+                                                                }
+                                                            }},
+                                                        ],
+                                                        kind = "Relation"
+                                                    },
+                                                    leading_unit = {Word = {
+                                                        word = {Bare = {
+                                                            Bare = {
                                                                 kind = "gismu",
                                                                 phonemes = "citno",
                                                                 span = [33, 38]
-                                                            }}
-                                                        }},
-                                                        trailing_unit = {WordRelationUnit = {
-                                                            word = {Bare = {
+                                                            }
+                                                        }}
+                                                    }},
+                                                    trailing_unit = {Word = {
+                                                        word = {Bare = {
+                                                            Bare = {
                                                                 kind = "gismu",
                                                                 phonemes = "cnino",
                                                                 span = [42, 47]
-                                                            }}
+                                                            }
                                                         }}
-                                                    }},
-                                                    [
-                                                        {WordRelationUnit = {
-                                                            word = {WithIndicator = {
-                                                                base = {WithIndicator = {
-                                                                    base = {Bare = {
-                                                                        kind = "lujvo",
-                                                                        phonemes = "jbopre",
-                                                                        span = [48, 54]
-                                                                    }},
-                                                                    indicator = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "ŭi",
-                                                                        span = [56, 58]
-                                                                    }
-                                                                }},
-                                                                indicator = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "saĭ",
-                                                                    span = [58, 61]
+                                                    }}
+                                                }},
+                                                {Word = {
+                                                    word = {WithIndicator = {
+                                                        base = {WithIndicator = {
+                                                            base = {Bare = {
+                                                                Bare = {
+                                                                    kind = "lujvo",
+                                                                    phonemes = "jbopre",
+                                                                    span = [48, 54]
                                                                 }
-                                                            }}
+                                                            }},
+                                                            indicator = {
+                                                                kind = "cmavo",
+                                                                phonemes = "ŭi",
+                                                                span = [56, 58]
+                                                            }
                                                         }},
-                                                    ],
-                                                ]
-                                            }}
-                                        }}
+                                                        indicator = {
+                                                            kind = "cmavo",
+                                                            phonemes = "saĭ",
+                                                            span = [58, 61]
+                                                        }
+                                                    }}
+                                                }},
+                                            ] }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

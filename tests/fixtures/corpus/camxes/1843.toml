@@ -50,82 +50,88 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "ta",
-                                            span = [0, 2]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {WordRelationUnit = {
-                                                        word = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Koha = {Bare = {
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "ta",
+                                        span = [0, 2]
+                                    }
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Word = {
+                                                    word = {Bare = {
+                                                        Bare = {
                                                             kind = "gismu",
                                                             phonemes = "melbi",
                                                             span = [3, 8]
+                                                        }
+                                                    }}
+                                                }},
+                                                {Bo = {
+                                                    bo = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "bo",
+                                                            span = [15, 17]
+                                                        }
+                                                    }},
+                                                    leading_unit = {Word = {
+                                                        word = {Bare = {
+                                                            Bare = {
+                                                                kind = "gismu",
+                                                                phonemes = "cmalu",
+                                                                span = [9, 14]
+                                                            }
                                                         }}
                                                     }},
-                                                    [
-                                                        {BoRelationUnit = {
-                                                            bo = {Bare = {
+                                                    trailing_unit = {Bo = {
+                                                        bo = {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "bo",
-                                                                span = [15, 17]
-                                                            }},
-                                                            leading_unit = {WordRelationUnit = {
-                                                                word = {Bare = {
+                                                                span = [24, 26]
+                                                            }
+                                                        }},
+                                                        leading_unit = {Word = {
+                                                            word = {Bare = {
+                                                                Bare = {
                                                                     kind = "gismu",
-                                                                    phonemes = "cmalu",
-                                                                    span = [9, 14]
-                                                                }}
-                                                            }},
-                                                            trailing_unit = {BoRelationUnit = {
-                                                                bo = {Bare = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "bo",
-                                                                    span = [24, 26]
-                                                                }},
-                                                                leading_unit = {WordRelationUnit = {
-                                                                    word = {Bare = {
-                                                                        kind = "gismu",
-                                                                        phonemes = "nixli",
-                                                                        span = [18, 23]
-                                                                    }}
-                                                                }},
-                                                                trailing_unit = {WordRelationUnit = {
-                                                                    word = {Bare = {
-                                                                        kind = "gismu",
-                                                                        phonemes = "ckule",
-                                                                        span = [27, 32]
-                                                                    }}
-                                                                }}
+                                                                    phonemes = "nixli",
+                                                                    span = [18, 23]
+                                                                }
                                                             }}
                                                         }},
-                                                    ],
-                                                ]
-                                            }}
-                                        }}
+                                                        trailing_unit = {Word = {
+                                                            word = {Bare = {
+                                                                Bare = {
+                                                                    kind = "gismu",
+                                                                    phonemes = "ckule",
+                                                                    span = [27, 32]
+                                                                }
+                                                            }}
+                                                        }}
+                                                    }}
+                                                }},
+                                            ] }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

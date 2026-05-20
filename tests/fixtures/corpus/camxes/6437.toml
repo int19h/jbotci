@@ -40,62 +40,74 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {WordRelationUnit = {
-                                                        word = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        relation = {Compound = [
+                                                {Word = {
+                                                    word = {Bare = {
+                                                        Bare = {
                                                             kind = "gismu",
                                                             phonemes = "mrilu",
                                                             span = [5, 10]
+                                                        }
+                                                    }}
+                                                }},
+                                                {Jai = {
+                                                    inner_unit = {Word = {
+                                                        word = {Bare = {
+                                                            Bare = {
+                                                                kind = "gismu",
+                                                                phonemes = "casnu",
+                                                                span = [15, 20]
+                                                            }
                                                         }}
                                                     }},
-                                                    [
-                                                        {JaiRelationUnit = {
-                                                            inner_unit = {WordRelationUnit = {
-                                                                word = {Bare = {
-                                                                    kind = "gismu",
-                                                                    phonemes = "casnu",
-                                                                    span = [15, 20]
-                                                                }}
-                                                            }},
-                                                            jai = {Bare = {
+                                                    jai = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "jaĭ",
+                                                            span = [11, 14]
+                                                        }
+                                                    }}
+                                                }},
+                                            ] },
+                                        tail_elements = [
+                                            {Quantifier = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
-                                                                phonemes = "jaĭ",
-                                                                span = [11, 14]
-                                                            }}
+                                                                phonemes = "so'i",
+                                                                span = [0, 4]
+                                                            }
                                                         }},
-                                                    ],
-                                                ]
+                                                    ]
+                                                }
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailQuantifier = {} },
-                                            ]
-                                        }}
-                                    }}
+                                        ]
+                                    }
                                 }},
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
+                                {Argument = {
+                                    Koha = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "ma",
                                             span = [21, 23]
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

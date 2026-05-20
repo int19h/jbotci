@@ -30,44 +30,42 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
+                                {Tagged = {
+                                    argument = {Koha = {
+                                        Bare = {Bare = {
                                             kind = "cmavo",
                                             phonemes = "ma",
                                             span = [14, 16]
                                         }}
                                     }},
-                                    tense_modal = {TenseModal = {
-                                        fiho = [
-                                            {FihoModal = {
-                                                fiho = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "fi'o",
-                                                    span = [0, 4]
-                                                }},
-                                                relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "lujvo",
-                                                        phonemes = "samjudri",
-                                                        span = [5, 13]
-                                                    }}
-                                                }}
-                                            }},
-                                        ]
+                                    tense_modal = {Fiho = {
+                                        fiho = {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "fi'o",
+                                                span = [0, 4]
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "lujvo",
+                                                phonemes = "samjudri",
+                                                span = [5, 13]
+                                            }}
+                                        }}
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -31,39 +31,41 @@ status = "success"
 parse-tree = {
     leading_cmevla = [
         {Bare = {
-            kind = "cmevla",
-            phonemes = "uses",
-            span = [0, 4]
+            Bare = {
+                kind = "cmevla",
+                phonemes = "uses",
+                span = [0, 4]
+            }
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {WithIndicator = {
-                                            base = {Bare = {
+                                {Argument = {
+                                    Koha = {WithIndicator = {
+                                        base = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "ma",
                                                 span = [5, 7]
-                                            }},
-                                            indicator = {
-                                                kind = "cmavo",
-                                                phonemes = "kaŭ",
-                                                span = [7, 10]
                                             }
-                                        }}
+                                        }},
+                                        indicator = {
+                                            kind = "cmavo",
+                                            phonemes = "kaŭ",
+                                            span = [7, 10]
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

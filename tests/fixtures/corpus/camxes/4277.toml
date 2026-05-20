@@ -40,54 +40,66 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "la",
                                                 span = [2, 4]
-                                            }},
-                                            outer_quantifier = {NumberQuantifier = {
-                                                number = [
-                                                    {Bare = {
+                                            }
+                                        }},
+                                        outer_quantifier = {Number = {
+                                            number = [
+                                                {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "re",
                                                         span = [0, 2]
-                                                    }},
-                                                ]
-                                            }},
-                                            relation = {SeRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "fu'ivla",
-                                                        phonemes = "claŭse",
-                                                        span = [9, 15]
-                                                    }}
+                                                    }
                                                 }},
-                                                se = {Bare = {
+                                            ]
+                                        }},
+                                        relation = {Se = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "fu'ivla",
+                                                    phonemes = "claŭse",
+                                                    span = [9, 15]
+                                                }}
+                                            }},
+                                            se = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "ve",
                                                     span = [6, 8]
+                                                }
+                                            }}
+                                        }},
+                                        tail_elements = [
+                                            {Argument = {
+                                                Koha = {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "ti",
+                                                        span = [4, 6]
+                                                    }
                                                 }}
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailArgument = {} },
-                                            ]
-                                        }}
-                                    }}
+                                        ]
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

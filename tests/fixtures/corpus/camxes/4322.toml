@@ -40,25 +40,85 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {RelativeClauseFragment = {
-                            relative_clauses = [
-                                {PoiRelativeClause = {
-                                    poi = {Bare = {
+                {
+                    statement = {Fragment = {
+                        RelativeClause = [
+                            {Poi = {
+                                poi = {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "poĭ",
                                         span = [0, 3]
-                                    }},
-                                    subsentence = {PlainSubsentence = {} }
+                                    }
                                 }},
-                            ]
-                        }}
+                                subsentence = {Plain = {
+                                    leading_terms = [
+                                        {Argument = {
+                                            Koha = {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ke'a",
+                                                    span = [4, 8]
+                                                }
+                                            }}
+                                        }},
+                                    ],
+                                    predicate_tail = {
+                                        first = {
+                                            first = {
+                                                first = {Relation = {
+                                                    relation = {Na = {
+                                                        inner_relation = {TenseModal = {
+                                                            inner_relation = {Base = {
+                                                                Bare = {Bare = {
+                                                                    kind = "gismu",
+                                                                    phonemes = "jdice",
+                                                                    span = [15, 20]
+                                                                }}
+                                                            }},
+                                                            tense_modal = {Composite = {
+                                                                leaves = [
+                                                                    {Bare = {
+                                                                        Bare = {
+                                                                            kind = "cmavo",
+                                                                            phonemes = "ca",
+                                                                            span = [12, 14]
+                                                                        }
+                                                                    }},
+                                                                ],
+                                                                time = {
+                                                                    direction = [
+                                                                        {Bare = {
+                                                                            Bare = {
+                                                                                kind = "cmavo",
+                                                                                phonemes = "ca",
+                                                                                span = [12, 14]
+                                                                            }
+                                                                        }},
+                                                                    ]
+                                                                }
+                                                            }}
+                                                        }},
+                                                        na = {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "na",
+                                                                span = [9, 11]
+                                                            }
+                                                        }}
+                                                    }}
+                                                }}
+                                            }
+                                        }
+                                    }
+                                }}
+                            }},
+                        ]
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

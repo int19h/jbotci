@@ -45,25 +45,93 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {RelativeClauseFragment = {
-                            relative_clauses = [
-                                {PoiRelativeClause = {
-                                    poi = {Bare = {
+                {
+                    statement = {Fragment = {
+                        RelativeClause = [
+                            {Poi = {
+                                poi = {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "poĭ",
                                         span = [0, 3]
-                                    }},
-                                    subsentence = {PlainSubsentence = {} }
+                                    }
                                 }},
-                            ]
-                        }}
+                                subsentence = {Plain = {
+                                    predicate_tail = {
+                                        first = {
+                                            first = {
+                                                first = {Relation = {
+                                                    relation = {Base = {
+                                                        Bare = {Bare = {
+                                                            kind = "gismu",
+                                                            phonemes = "simsa",
+                                                            span = [4, 9]
+                                                        }}
+                                                    }},
+                                                    terms = [
+                                                        {Argument = {
+                                                            RelativeClause = {
+                                                                base_argument = {Koha = {
+                                                                    Bare = {Bare = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "da",
+                                                                        span = [10, 12]
+                                                                    }}
+                                                                }},
+                                                                relative_clauses = [
+                                                                    {Poi = {
+                                                                        poi = {Bare = {
+                                                                            Bare = {
+                                                                                kind = "cmavo",
+                                                                                phonemes = "poĭ",
+                                                                                span = [13, 16]
+                                                                            }
+                                                                        }},
+                                                                        subsentence = {Plain = {
+                                                                            leading_terms = [
+                                                                                {Argument = {
+                                                                                    Koha = {Bare = {
+                                                                                        Bare = {
+                                                                                            kind = "cmavo",
+                                                                                            phonemes = "mi",
+                                                                                            span = [17, 19]
+                                                                                        }
+                                                                                    }}
+                                                                                }},
+                                                                            ],
+                                                                            predicate_tail = {
+                                                                                first = {
+                                                                                    first = {
+                                                                                        first = {Relation = {
+                                                                                            relation = {Base = {
+                                                                                                Bare = {Bare = {
+                                                                                                    kind = "gismu",
+                                                                                                    phonemes = "morji",
+                                                                                                    span = [20, 25]
+                                                                                                }}
+                                                                                            }}
+                                                                                        }}
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                    }},
+                                                                ]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }}
+                                            }
+                                        }
+                                    }
+                                }}
+                            }},
+                        ]
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

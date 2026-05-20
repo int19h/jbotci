@@ -30,44 +30,48 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {LaheArgument = {
-                                        inner_argument = {QuantifiedArgument = {
-                                            inner_argument = {KohaArgument = {
-                                                koha = {Bare = {
+                                {Argument = {
+                                    Lahe = {
+                                        inner_argument = {Quantified = {
+                                            inner_argument = {Koha = {
+                                                Bare = {Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "da",
                                                     span = [16, 18]
                                                 }}
                                             }},
-                                            quantifier = {NumberExpression = {
+                                            quantifier = {Number = {
                                                 number = [
                                                     {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "so'i",
-                                                        span = [11, 15]
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "so'i",
+                                                            span = [11, 15]
+                                                        }
                                                     }},
                                                 ]
                                             }}
                                         }},
                                         lahe = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "tu'a",
-                                            span = [6, 10]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "tu'a",
+                                                span = [6, 10]
+                                            }
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

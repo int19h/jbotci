@@ -55,36 +55,42 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [0, 2]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "mlatu",
-                                                    span = [3, 8]
-                                                }}
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "mlatu",
+                                                span = [3, 8]
                                             }}
                                         }}
-                                    }}
+                                    }
                                 }},
-                                {BareNaTerm = {
-                                    free_modifiers = [
-                                        {VocativeFree = {
-                                            argument = {RelationVocativeArgument = {
-                                                relation = {BaseRelation = {
-                                                    word = {Bare = {
+                                {BareNa = [
+                                        {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "na",
+                                                span = [9, 11]
+                                            }
+                                        }},
+                                        {Vocative = {
+                                            argument = {RelationVocative = {
+                                                relation = {Base = {
+                                                    Bare = {Bare = {
                                                         kind = "gismu",
                                                         phonemes = "pinxe",
                                                         span = [17, 22]
@@ -93,46 +99,50 @@ parse-tree = {
                                             }},
                                             vocative_markers = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "mu'o",
-                                                    span = [12, 16]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "mu'o",
+                                                        span = [12, 16]
+                                                    }
                                                 }},
                                             ]
                                         }},
-                                    ],
-                                    na = {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "na",
-                                        span = [9, 11]
-                                    }}
-                                }},
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                    ] },
+                                {Argument = {
+                                    Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [23, 25]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "ladru",
-                                                    span = [29, 34]
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "ladru",
+                                                span = [29, 34]
+                                            }}
+                                        }},
+                                        tail_elements = [
+                                            {Argument = {
+                                                Koha = {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "ri",
+                                                        span = [26, 28]
+                                                    }
                                                 }}
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailArgument = {} },
-                                            ]
-                                        }}
-                                    }}
+                                        ]
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

@@ -389,33 +389,26 @@ pub enum TermSyntax {
     },
     Cehe {
         leading_terms: Vec<TermSyntax>,
-        cehe: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        cehe: WithFreeModifiers<WithIndicators<WordLike>>,
         trailing_terms: Vec<TermSyntax>,
     },
     Pehe {
         leading_terms: Vec<TermSyntax>,
-        pehe: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        pehe: WithFreeModifiers<WithIndicators<WordLike>>,
         connective: ConnectiveSyntax,
         trailing_terms: Vec<TermSyntax>,
     },
     Argument(ArgumentSyntax),
     Fa {
-        fa: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        fa: WithFreeModifiers<WithIndicators<WordLike>>,
         argument: ArgumentSyntax,
         ku: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     NaKu {
         na: WithIndicators<WordLike>,
-        na_ku: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        na_ku: WithFreeModifiers<WithIndicators<WordLike>>,
     },
-    BareNa {
-        na: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
-    },
+    BareNa(WithFreeModifiers<WithIndicators<WordLike>>),
     NoihaAdverbial {
         noiha: WithFreeModifiers<WithIndicators<WordLike>>,
         tail_elements: Vec<ArgumentTailElementSyntax>,
@@ -454,8 +447,7 @@ pub enum TermSyntax {
         leading_terms: Vec<TermSyntax>,
         bo_connective: Option<ConnectiveSyntax>,
         tense_modal: Option<TenseModalSyntax>,
-        bo: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        bo: WithFreeModifiers<WithIndicators<WordLike>>,
         trailing_term: Box<TermSyntax>,
     },
 }
@@ -519,8 +511,7 @@ pub enum ArgumentSyntax {
     },
     NaKu {
         na: WithIndicators<WordLike>,
-        ku: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        ku: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     Tagged {
         tag_words: Vec<WithIndicators<WordLike>>,
@@ -531,40 +522,33 @@ pub enum ArgumentSyntax {
     },
     NaheBo {
         nahe: WithIndicators<WordLike>,
-        bo: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        bo: WithFreeModifiers<WithIndicators<WordLike>>,
         inner_argument: Box<ArgumentSyntax>,
         luhu: Option<WithIndicators<WordLike>>,
         luhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Nahe {
-        nahe: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        nahe: WithFreeModifiers<WithIndicators<WordLike>>,
         inner_argument: Box<ArgumentSyntax>,
         luhu: Option<WithIndicators<WordLike>>,
         luhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     TermWrapped {
         term_wrapper_kind: TermWrapperKindSyntax,
-        wrapper: WithIndicators<WordLike>,
-        wrapper_bo: Option<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        wrapper: WithFreeModifiers<WithIndicators<WordLike>>,
+        wrapper_bo: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         inner_term: Box<TermSyntax>,
         luhu: Option<WithIndicators<WordLike>>,
         luhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
-    Koha {
-        koha: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
-    },
+    Koha(WithFreeModifiers<WithIndicators<WordLike>>),
     Zohe {
         tag_words: Vec<WithIndicators<WordLike>>,
         maybe_ku: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Lahe {
-        lahe: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        lahe: WithFreeModifiers<WithIndicators<WordLike>>,
         relative_clauses: Vec<RelativeClauseSyntax>,
         inner_argument: Box<ArgumentSyntax>,
         luhu: Option<WithIndicators<WordLike>>,
@@ -586,8 +570,7 @@ pub enum ArgumentSyntax {
         leading_argument: Box<ArgumentSyntax>,
         bo_connective: Option<ConnectiveSyntax>,
         bo_tense_modal: Option<TenseModalSyntax>,
-        bo: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        bo: WithFreeModifiers<WithIndicators<WordLike>>,
         trailing_argument: Box<ArgumentSyntax>,
     },
     Gek {
@@ -604,10 +587,7 @@ pub enum ArgumentSyntax {
         names: Vec<WithIndicators<WordLike>>,
         name_free_modifiers: Vec<FreeModifierSyntax>,
     },
-    Cmevla {
-        cmevla: Vec<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
-    },
+    Cmevla(WithFreeModifiers<Vec<WithIndicators<WordLike>>>),
     RelationVocative {
         leading_relative_clauses: Vec<RelativeClauseSyntax>,
         relation: RelationSyntax,
@@ -1904,17 +1884,13 @@ impl TermSyntax {
             TermSyntax::Cehe {
                 leading_terms,
                 cehe,
-                free_modifiers,
                 trailing_terms,
             } => {
                 let mut words = Vec::new();
                 for term in leading_terms {
                     words.extend(term.words());
                 }
-                words.push(cehe);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(cehe.words());
                 for term in trailing_terms {
                     words.extend(term.words());
                 }
@@ -1923,7 +1899,6 @@ impl TermSyntax {
             TermSyntax::Pehe {
                 leading_terms,
                 pehe,
-                free_modifiers,
                 connective,
                 trailing_terms,
             } => {
@@ -1931,10 +1906,7 @@ impl TermSyntax {
                 for term in leading_terms {
                     words.extend(term.words());
                 }
-                words.push(pehe);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(pehe.words());
                 words.extend(connective.words());
                 for term in trailing_terms {
                     words.extend(term.words());
@@ -1942,40 +1914,20 @@ impl TermSyntax {
                 words
             }
             TermSyntax::Argument(argument) => argument.words(),
-            TermSyntax::Fa {
-                fa,
-                free_modifiers,
-                argument,
-                ku,
-            } => {
-                let mut words = vec![fa];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            TermSyntax::Fa { fa, argument, ku } => {
+                let mut words = fa.words();
                 words.extend(argument.words());
                 if let Some(ku) = ku {
                     words.extend(ku.words());
                 }
                 words
             }
-            TermSyntax::NaKu {
-                na,
-                na_ku,
-                free_modifiers,
-            } => {
-                let mut words = vec![na, na_ku];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
-                words
-            }
-            TermSyntax::BareNa { na, free_modifiers } => {
+            TermSyntax::NaKu { na, na_ku } => {
                 let mut words = vec![na];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(na_ku.words());
                 words
             }
+            TermSyntax::BareNa(na) => na.words(),
             TermSyntax::NoihaAdverbial {
                 noiha,
                 tail_elements,
@@ -2077,7 +2029,6 @@ impl TermSyntax {
                 bo_connective,
                 tense_modal,
                 bo,
-                free_modifiers,
                 trailing_term,
             } => {
                 let mut words = Vec::new();
@@ -2090,10 +2041,7 @@ impl TermSyntax {
                 if let Some(tense_modal) = tense_modal {
                     words.extend(tense_modal.words());
                 }
-                words.push(bo);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(bo.words());
                 words.extend(trailing_term.words());
                 words
             }
@@ -2380,15 +2328,9 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::NaKu {
-                na,
-                ku,
-                free_modifiers,
-            } => {
-                let mut words = vec![na, ku];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            ArgumentSyntax::NaKu { na, ku } => {
+                let mut words = vec![na];
+                words.extend(ku.words());
                 words
             }
             ArgumentSyntax::Tagged {
@@ -2407,15 +2349,12 @@ impl ArgumentSyntax {
             ArgumentSyntax::NaheBo {
                 nahe,
                 bo,
-                free_modifiers,
                 inner_argument,
                 luhu,
                 luhu_free_modifiers,
             } => {
-                let mut words = vec![nahe, bo];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = vec![nahe];
+                words.extend(bo.words());
                 words.extend(inner_argument.words());
                 words.extend(luhu);
                 for free_modifier in luhu_free_modifiers {
@@ -2425,15 +2364,11 @@ impl ArgumentSyntax {
             }
             ArgumentSyntax::Nahe {
                 nahe,
-                free_modifiers,
                 inner_argument,
                 luhu,
                 luhu_free_modifiers,
             } => {
-                let mut words = vec![nahe];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = nahe.words();
                 words.extend(inner_argument.words());
                 words.extend(luhu);
                 for free_modifier in luhu_free_modifiers {
@@ -2444,16 +2379,14 @@ impl ArgumentSyntax {
             ArgumentSyntax::TermWrapped {
                 wrapper,
                 wrapper_bo,
-                free_modifiers,
                 inner_term,
                 luhu,
                 luhu_free_modifiers,
                 ..
             } => {
-                let mut words = vec![wrapper];
-                words.extend(wrapper_bo);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
+                let mut words = wrapper.words();
+                if let Some(wrapper_bo) = wrapper_bo {
+                    words.extend(wrapper_bo.words());
                 }
                 words.extend(inner_term.words());
                 words.extend(luhu);
@@ -2462,16 +2395,7 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::Koha {
-                koha,
-                free_modifiers,
-            } => {
-                let mut words = vec![koha];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
-                words
-            }
+            ArgumentSyntax::Koha(koha) => koha.words(),
             ArgumentSyntax::Zohe {
                 tag_words,
                 maybe_ku,
@@ -2485,16 +2409,12 @@ impl ArgumentSyntax {
             }
             ArgumentSyntax::Lahe {
                 lahe,
-                free_modifiers,
                 relative_clauses,
                 inner_argument,
                 luhu,
                 luhu_free_modifiers,
             } => {
-                let mut words = vec![lahe];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = lahe.words();
                 for relative_clause in relative_clauses {
                     words.extend(relative_clause.words());
                 }
@@ -2538,7 +2458,6 @@ impl ArgumentSyntax {
                 bo_connective,
                 bo_tense_modal,
                 bo,
-                free_modifiers,
                 trailing_argument,
             } => {
                 let mut words = leading_argument.words();
@@ -2548,10 +2467,7 @@ impl ArgumentSyntax {
                 if let Some(tense_modal) = bo_tense_modal {
                     words.extend(tense_modal.words());
                 }
-                words.push(bo);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(bo.words());
                 words.extend(trailing_argument.words());
                 words
             }
@@ -2587,16 +2503,7 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::Cmevla {
-                cmevla,
-                free_modifiers,
-            } => {
-                let mut words = cmevla;
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
-                words
-            }
+            ArgumentSyntax::Cmevla(cmevla) => cmevla.words(),
             ArgumentSyntax::RelationVocative {
                 leading_relative_clauses,
                 relation,

@@ -66,79 +66,92 @@ status = "success"
 parse-tree = {
     leading_cmevla = [
         {Bare = {
-            kind = "cmevla",
-            phonemes = "besides",
-            span = [0, 7]
+            Bare = {
+                kind = "cmevla",
+                phonemes = "besides",
+                span = [0, 7]
+            }
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {ConnectedArgument = {
-                                        connective = {Connective = {
+                                {Argument = {
+                                    Connected = {
+                                        connective = {
                                             cmavo = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "e",
-                                                    span = [18, 19]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "e",
+                                                        span = [18, 19]
+                                                    }
                                                 }},
                                             ],
+                                            kind = "Afterthought",
                                             nai = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "naĭ",
-                                                span = [19, 22]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "naĭ",
+                                                    span = [19, 22]
+                                                }
                                             }}
-                                        }},
-                                        leading_argument = {ConnectedArgument = {
-                                            connective = {Connective = {
+                                        },
+                                        leading_argument = {Connected = {
+                                            connective = {
                                                 cmavo = [
                                                     {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "ji",
-                                                        span = [11, 13]
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "ji",
+                                                            span = [11, 13]
+                                                        }
                                                     }},
-                                                ]
-                                            }},
-                                            leading_argument = {KohaArgument = {
-                                                koha = {Bare = {
+                                                ],
+                                                kind = "Afterthought"
+                                            },
+                                            leading_argument = {Koha = {
+                                                Bare = {Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "da",
                                                     span = [8, 10]
                                                 }}
                                             }},
-                                            trailing_argument = {KohaArgument = {
-                                                koha = {Bare = {
+                                            trailing_argument = {Koha = {
+                                                Bare = {Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "de",
                                                     span = [14, 16]
                                                 }}
                                             }}
                                         }},
-                                        trailing_argument = {KeArgument = {
-                                            inner_argument = {ConnectedArgument = {
-                                                connective = {Connective = {
+                                        trailing_argument = {Ke = {
+                                            inner_argument = {Connected = {
+                                                connective = {
                                                     cmavo = [
                                                         {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "e",
-                                                            span = [30, 31]
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "e",
+                                                                span = [30, 31]
+                                                            }
                                                         }},
-                                                    ]
-                                                }},
-                                                leading_argument = {KohaArgument = {
-                                                    koha = {Bare = {
+                                                    ],
+                                                    kind = "Afterthought"
+                                                },
+                                                leading_argument = {Koha = {
+                                                    Bare = {Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "da",
                                                         span = [26, 28]
                                                     }}
                                                 }},
-                                                trailing_argument = {KohaArgument = {
-                                                    koha = {Bare = {
+                                                trailing_argument = {Koha = {
+                                                    Bare = {Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "de",
                                                         span = [32, 34]
@@ -146,18 +159,20 @@ parse-tree = {
                                                 }}
                                             }},
                                             ke = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ke",
-                                                span = [23, 25]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ke",
+                                                    span = [23, 25]
+                                                }
                                             }}
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

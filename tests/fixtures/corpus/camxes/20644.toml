@@ -50,52 +50,85 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             free_modifiers = [
-                {VocativeFree = {
-                    argument = {DescriptorArgument = {
-                        descriptor = {Descriptor = {
-                            descriptor = {Bare = {
+                {Vocative = {
+                    argument = {Descriptor = {
+                        descriptor = {Bare = {
+                            Bare = {
                                 kind = "cmavo",
                                 phonemes = "le",
                                 span = [13, 15]
+                            }
+                        }},
+                        relation = {Abstraction = {
+                            nu = {Bare = {
+                                Bare = {
+                                    kind = "cmavo",
+                                    phonemes = "nu",
+                                    span = [16, 18]
+                                }
                             }},
-                            relation = {AbstractionRelation = {
-                                abstraction = {Abstraction = {
-                                    nu = {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "nu",
-                                        span = [16, 18]
+                            subsentence = {Plain = {
+                                leading_terms = [
+                                    {Argument = {
+                                        Koha = {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "do",
+                                                span = [19, 21]
+                                            }
+                                        }}
                                     }},
-                                    subsentence = {PlainSubsentence = {} }
-                                }}
+                                ],
+                                predicate_tail = {
+                                    first = {
+                                        first = {
+                                            first = {Relation = {
+                                                relation = {Base = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "mrilu",
+                                                        span = [22, 27]
+                                                    }}
+                                                }}
+                                            }}
+                                        }
+                                    }
+                                }
                             }}
                         }}
                     }},
                     vocative_markers = [
                         {Bare = {
-                            kind = "cmavo",
-                            phonemes = "ki'e",
-                            span = [8, 12]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "ki'e",
+                                span = [8, 12]
+                            }
                         }},
                     ]
                 }},
             ],
             i = {Bare = {
-                kind = "cmavo",
-                phonemes = "i",
-                span = [1, 2]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "i",
+                    span = [1, 2]
+                }
             }},
             niho = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "ni'o",
-                    span = [3, 7]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "ni'o",
+                        span = [3, 7]
+                    }
                 }},
             ],
             statements = [
-                {ParagraphStatement = {} },
+                {},
             ]
-        }},
+        },
     ]
 }

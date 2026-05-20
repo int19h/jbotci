@@ -35,51 +35,57 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {RelativeClauseArgument = {
-                                        base_argument = {NameArgument = {
+                                {Argument = {
+                                    RelativeClause = {
+                                        base_argument = {Name = {
                                             la = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "la",
-                                                span = [0, 2]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "la",
+                                                    span = [0, 2]
+                                                }
                                             }},
                                             names = [
                                                 {Bare = {
-                                                    kind = "cmevla",
-                                                    phonemes = "kok",
-                                                    span = [3, 6]
+                                                    Bare = {
+                                                        kind = "cmevla",
+                                                        phonemes = "kok",
+                                                        span = [3, 6]
+                                                    }
                                                 }},
                                             ]
                                         }},
                                         relative_clauses = [
-                                            {GoiRelativeClause = {
-                                                argument = {KohaArgument = {
-                                                    koha = {Bare = {
+                                            {Goi = {
+                                                argument = {Koha = {
+                                                    Bare = {Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "ma",
                                                         span = [11, 13]
                                                     }}
                                                 }},
                                                 goi = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "goĭ",
-                                                    span = [7, 10]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "goĭ",
+                                                        span = [7, 10]
+                                                    }
                                                 }}
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

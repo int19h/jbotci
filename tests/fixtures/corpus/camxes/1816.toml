@@ -50,99 +50,96 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "ta",
-                                            span = [0, 2]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {BeRelationUnit = {
-                                                        base = {WordRelationUnit = {
-                                                            word = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Koha = {Bare = {
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "ta",
+                                        span = [0, 2]
+                                    }
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Be = {
+                                                    base = {Word = {
+                                                        word = {Bare = {
+                                                            Bare = {
                                                                 kind = "gismu",
                                                                 phonemes = "blanu",
                                                                 span = [3, 8]
-                                                            }}
-                                                        }},
-                                                        be = {Bare = {
+                                                            }
+                                                        }}
+                                                    }},
+                                                    be = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "be",
                                                             span = [9, 11]
-                                                        }},
-                                                        beho = {Bare = {
+                                                        }
+                                                    }},
+                                                    beho = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "be'o",
                                                             span = [21, 25]
+                                                        }
+                                                    }},
+                                                    first_argument = {Tagged = {
+                                                        inner_argument = {Koha = {
+                                                            Bare = {Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "mi",
+                                                                span = [17, 19]
+                                                            }}
                                                         }},
-                                                        first_argument = {TaggedArgument = {
-                                                            inner_argument = {KohaArgument = {
-                                                                koha = {Bare = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "mi",
-                                                                    span = [17, 19]
-                                                                }}
-                                                            }},
-                                                            tag_tense_modal = {TenseModal = {
-                                                                leaves = [
-                                                                    {Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "ga'a",
-                                                                        span = [12, 16]
-                                                                    }},
-                                                                ],
-                                                                simple = {SimpleTenseModal = {
-                                                                    bai = {Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "ga'a",
-                                                                        span = [12, 16]
-                                                                    }}
-                                                                }}
-                                                            }},
-                                                            tag_words = [
-                                                                {Bare = {
+                                                        tag_tense_modal = {Simple = {
+                                                            bai = {Bare = {
+                                                                Bare = {
                                                                     kind = "cmavo",
                                                                     phonemes = "ga'a",
                                                                     span = [12, 16]
-                                                                }},
-                                                            ]
-                                                        }}
-                                                    }},
-                                                    [
-                                                        {WordRelationUnit = {
-                                                            word = {Bare = {
-                                                                kind = "gismu",
-                                                                phonemes = "zdani",
-                                                                span = [27, 32]
+                                                                }
                                                             }}
                                                         }},
-                                                    ],
-                                                ]
-                                            }}
-                                        }}
+                                                        tag_words = [
+                                                            {Bare = {
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "ga'a",
+                                                                    span = [12, 16]
+                                                                }
+                                                            }},
+                                                        ]
+                                                    }}
+                                                }},
+                                                {Word = {
+                                                    word = {Bare = {
+                                                        Bare = {
+                                                            kind = "gismu",
+                                                            phonemes = "zdani",
+                                                            span = [27, 32]
+                                                        }
+                                                    }}
+                                                }},
+                                            ] }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

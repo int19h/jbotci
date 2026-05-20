@@ -35,37 +35,34 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            argument = {CmevlaArgument = {
-                cmevla = [
+        {Vocative = {
+            argument = {Cmevla = [
                     {Bare = {
-                        kind = "cmevla",
-                        phonemes = "rabn",
-                        span = [10, 14]
+                        Bare = {
+                            kind = "cmevla",
+                            phonemes = "rabn",
+                            span = [10, 14]
+                        }
                     }},
-                ]
-            }},
+                ] },
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "doĭ",
-                    span = [6, 9]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "doĭ",
+                        span = [6, 9]
+                    }
                 }},
             ]
         }},
     ],
     leading_indicators = [
-        {WithIndicator = {
-            base = {Bare = {
+        {
+            indicator = {
                 kind = "cmavo",
                 phonemes = "ĭo",
                 span = [0, 2]
-            }},
-            indicator = {
-                kind = "cmavo",
-                phonemes = "saĭ",
-                span = [2, 5]
             }
-        }},
+        },
     ]
 }

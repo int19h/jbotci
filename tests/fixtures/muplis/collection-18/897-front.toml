@@ -41,21 +41,23 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {LaheArgument = {
-                                        inner_argument = {KohaArgument = {
-                                            koha = {WithIndicator = {
+                                {Argument = {
+                                    Lahe = {
+                                        inner_argument = {Koha = {
+                                            WithIndicator = {
                                                 base = {WithIndicator = {
                                                     base = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "do'i",
-                                                        span = [5, 9]
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "do'i",
+                                                            span = [5, 9]
+                                                        }
                                                     }},
                                                     indicator = {
                                                         kind = "cmavo",
@@ -68,20 +70,22 @@ parse-tree = {
                                                     phonemes = "cu'i",
                                                     span = [14, 18]
                                                 }
-                                            }}
+                                            }
                                         }},
                                         lahe = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "la'e",
-                                            span = [0, 4]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "la'e",
+                                                span = [0, 4]
+                                            }
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

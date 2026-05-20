@@ -30,46 +30,48 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        free_modifiers = [
-                                            {VocativeFree = {
-                                                argument = {CmevlaArgument = {
-                                                    cmevla = [
-                                                        {Bare = {
+                                {Argument = {
+                                    Koha = [
+                                        {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "di'u",
+                                                span = [0, 4]
+                                            }
+                                        }},
+                                        {Vocative = {
+                                            argument = {Cmevla = [
+                                                    {Bare = {
+                                                        Bare = {
                                                             kind = "cmevla",
                                                             phonemes = "xiks",
                                                             span = [9, 13]
-                                                        }},
-                                                    ]
-                                                }},
-                                                vocative_markers = [
-                                                    {Bare = {
+                                                        }
+                                                    }},
+                                                ] },
+                                            vocative_markers = [
+                                                {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "doĭ",
                                                         span = [5, 8]
-                                                    }},
-                                                ]
-                                            }},
-                                        ],
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "di'u",
-                                            span = [0, 4]
-                                        }}
-                                    }}
+                                                    }
+                                                }},
+                                            ]
+                                        }},
+                                    ]
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

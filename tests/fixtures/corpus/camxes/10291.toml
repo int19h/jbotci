@@ -30,51 +30,57 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {WithIndicator = {
+                                {Tagged = {
+                                    argument = {Koha = {
+                                        WithIndicator = {
                                             base = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ma",
-                                                span = [2, 4]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ma",
+                                                    span = [2, 4]
+                                                }
                                             }},
                                             indicator = {
                                                 kind = "cmavo",
                                                 phonemes = "kaŭ",
                                                 span = [4, 7]
                                             }
-                                        }}
+                                        }
                                     }},
-                                    tense_modal = {TenseModal = {
+                                    tense_modal = {Composite = {
                                         leaves = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ca",
-                                                span = [0, 2]
-                                            }},
-                                        ],
-                                        time = {Time = {
-                                            direction = [
-                                                {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "ca",
                                                     span = [0, 2]
+                                                }
+                                            }},
+                                        ],
+                                        time = {
+                                            direction = [
+                                                {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "ca",
+                                                        span = [0, 2]
+                                                    }
                                                 }},
                                             ]
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -69,31 +69,35 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {ZoQuote = {
+                                {Argument = {
+                                    Quote = {
+                                        quote = {Zo = {
                                             word = {Bare = {
-                                                kind = "cmevla",
-                                                phonemes = "síndarin",
-                                                span = [3, 11]
+                                                Bare = {
+                                                    kind = "cmevla",
+                                                    phonemes = "síndarin",
+                                                    span = [3, 11]
+                                                }
                                             }},
                                             zo = {WithIndicator = {
-                                                base = {ZoQuote = {
-                                                    word = {
-                                                        kind = "cmevla",
-                                                        phonemes = "síndarin",
-                                                        span = [3, 11]
-                                                    },
-                                                    zo = {
-                                                        kind = "cmavo",
-                                                        phonemes = "zo",
-                                                        span = [0, 2]
+                                                base = {Bare = {
+                                                    ZoQuote = {
+                                                        word = {
+                                                            kind = "cmevla",
+                                                            phonemes = "síndarin",
+                                                            span = [3, 11]
+                                                        },
+                                                        zo = {
+                                                            kind = "cmavo",
+                                                            phonemes = "zo",
+                                                            span = [0, 2]
+                                                        }
                                                     }
                                                 }},
                                                 indicator = {
@@ -103,40 +107,46 @@ parse-tree = {
                                                 }
                                             }}
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
-                {ParagraphStatement = {
+                },
+                {
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [17, 18]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [17, 18]
+                        }
                     }},
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {ZoQuote = {
+                                {Argument = {
+                                    Quote = {
+                                        quote = {Zo = {
                                             word = {Bare = {
-                                                kind = "cmevla",
-                                                phonemes = "sindárin",
-                                                span = [22, 30]
+                                                Bare = {
+                                                    kind = "cmevla",
+                                                    phonemes = "sindárin",
+                                                    span = [22, 30]
+                                                }
                                             }},
                                             zo = {WithIndicator = {
-                                                base = {ZoQuote = {
-                                                    word = {
-                                                        kind = "cmevla",
-                                                        phonemes = "sindárin",
-                                                        span = [22, 30]
-                                                    },
-                                                    zo = {
-                                                        kind = "cmavo",
-                                                        phonemes = "zo",
-                                                        span = [19, 21]
+                                                base = {Bare = {
+                                                    ZoQuote = {
+                                                        word = {
+                                                            kind = "cmevla",
+                                                            phonemes = "sindárin",
+                                                            span = [22, 30]
+                                                        },
+                                                        zo = {
+                                                            kind = "cmavo",
+                                                            phonemes = "zo",
+                                                            span = [19, 21]
+                                                        }
                                                     }
                                                 }},
                                                 indicator = {
@@ -146,50 +156,50 @@ parse-tree = {
                                                 }
                                             }}
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
-                {ParagraphStatement = {
+                },
+                {
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [36, 37]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [36, 37]
+                        }
                     }},
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "ma",
-                                            span = [38, 40]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "javni",
-                                                    span = [41, 46]
-                                                }}
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Koha = {Bare = {
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "ma",
+                                        span = [38, 40]
+                                    }
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "javni",
+                                                span = [41, 46]
                                             }}
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

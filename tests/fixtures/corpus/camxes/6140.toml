@@ -45,31 +45,73 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            argument = {RelativeClauseArgument = {
-                base_argument = {KohaArgument = {
-                    koha = {Bare = {
+        {Vocative = {
+            argument = {RelativeClause = {
+                base_argument = {Koha = {
+                    Bare = {Bare = {
                         kind = "cmavo",
                         phonemes = "da",
                         span = [4, 6]
                     }}
                 }},
                 relative_clauses = [
-                    {PoiRelativeClause = {
+                    {Poi = {
                         poi = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "poĭ",
-                            span = [7, 10]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "poĭ",
+                                span = [7, 10]
+                            }
                         }},
-                        subsentence = {PlainSubsentence = {} }
+                        subsentence = {Plain = {
+                            leading_terms = [
+                                {Argument = {
+                                    Koha = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "de",
+                                            span = [11, 13]
+                                        }
+                                    }}
+                                }},
+                            ],
+                            predicate_tail = {
+                                first = {
+                                    first = {
+                                        first = {Relation = {
+                                            relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "cmene",
+                                                    span = [14, 19]
+                                                }}
+                                            }},
+                                            terms = [
+                                                {Argument = {
+                                                    Koha = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "ke'a",
+                                                            span = [20, 24]
+                                                        }
+                                                    }}
+                                                }},
+                                            ]
+                                        }}
+                                    }
+                                }
+                            }
+                        }}
                     }},
                 ]
             }},
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "coĭ",
-                    span = [0, 3]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "coĭ",
+                        span = [0, 3]
+                    }
                 }},
             ]
         }},

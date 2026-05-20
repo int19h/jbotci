@@ -50,15 +50,17 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {WithIndicator = {
                         base = {WithIndicator = {
                             base = {Bare = {
-                                kind = "cmavo",
-                                phonemes = "i",
-                                span = [0, 1]
+                                Bare = {
+                                    kind = "cmavo",
+                                    phonemes = "i",
+                                    span = [0, 1]
+                                }
                             }},
                             indicator = {
                                 kind = "cmavo",
@@ -72,63 +74,67 @@ parse-tree = {
                             span = [6, 8]
                         }
                     }},
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {TaggedTerm = {
-                                    argument = {QuantifiedArgument = {
-                                        inner_argument = {KohaArgument = {
-                                            koha = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ma",
-                                                span = [17, 19]
-                                            }}
-                                        }},
-                                        quantifier = {NumberExpression = {
-                                            number = [
-                                                {Bare = {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Tagged = {
+                                argument = {Quantified = {
+                                    inner_argument = {Koha = {
+                                        Bare = {Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "ma",
+                                            span = [17, 19]
+                                        }}
+                                    }},
+                                    quantifier = {Number = {
+                                        number = [
+                                            {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "xo",
                                                     span = [14, 16]
-                                                }},
-                                            ]
-                                        }}
-                                    }},
-                                    tense_modal = {TenseModal = {
-                                        cuhe = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "cu'e",
-                                            span = [9, 13]
-                                        }},
-                                        leaves = [
-                                            {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "cu'e",
-                                                span = [9, 13]
+                                                }
                                             }},
                                         ]
                                     }}
                                 }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "mo",
-                                                    span = [20, 22]
-                                                }}
+                                tense_modal = {Composite = {
+                                    cuhe = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "cu'e",
+                                            span = [9, 13]
+                                        }
+                                    }},
+                                    leaves = [
+                                        {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "cu'e",
+                                                span = [9, 13]
+                                            }
+                                        }},
+                                    ]
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "mo",
+                                                span = [20, 22]
                                             }}
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

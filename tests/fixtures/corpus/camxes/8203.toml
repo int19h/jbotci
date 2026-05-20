@@ -47,51 +47,57 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            argument = {CmevlaArgument = {
-                cmevla = [
+        {Vocative = {
+            argument = {Cmevla = [
                     {Bare = {
-                        kind = "cmevla",
-                        phonemes = "rlp",
-                        span = [4, 7]
+                        Bare = {
+                            kind = "cmevla",
+                            phonemes = "rlp",
+                            span = [4, 7]
+                        }
                     }},
-                ]
-            }},
+                ] },
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "doĭ",
-                    span = [0, 3]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "doĭ",
+                        span = [0, 3]
+                    }
                 }},
             ]
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {ZoQuote = {
+                                {Argument = {
+                                    Quote = {
+                                        quote = {Zo = {
                                             word = {Bare = {
-                                                kind = "lujvo",
-                                                phonemes = "bavyspe",
-                                                span = [11, 18]
+                                                Bare = {
+                                                    kind = "lujvo",
+                                                    phonemes = "bavyspe",
+                                                    span = [11, 18]
+                                                }
                                             }},
                                             zo = {WithIndicator = {
-                                                base = {ZoQuote = {
-                                                    word = {
-                                                        kind = "lujvo",
-                                                        phonemes = "bavyspe",
-                                                        span = [11, 18]
-                                                    },
-                                                    zo = {
-                                                        kind = "cmavo",
-                                                        phonemes = "zo",
-                                                        span = [8, 10]
+                                                base = {Bare = {
+                                                    ZoQuote = {
+                                                        word = {
+                                                            kind = "lujvo",
+                                                            phonemes = "bavyspe",
+                                                            span = [11, 18]
+                                                        },
+                                                        zo = {
+                                                            kind = "cmavo",
+                                                            phonemes = "zo",
+                                                            span = [8, 10]
+                                                        }
                                                     }
                                                 }},
                                                 indicator = {
@@ -106,13 +112,13 @@ parse-tree = {
                                                 }
                                             }}
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -35,19 +35,25 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {KohaArgument = {
-                                        free_modifiers = [
-                                            {VocativeFree = {
-                                                argument = {RelationVocativeArgument = {
-                                                    relation = {BaseRelation = {
-                                                        word = {Bare = {
+                                {Tagged = {
+                                    argument = {Koha = [
+                                            {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "do",
+                                                    span = [5, 7]
+                                                }
+                                            }},
+                                            {Vocative = {
+                                                argument = {RelationVocative = {
+                                                    relation = {Base = {
+                                                        Bare = {Bare = {
                                                             kind = "gismu",
                                                             phonemes = "tavla",
                                                             span = [13, 18]
@@ -56,43 +62,43 @@ parse-tree = {
                                                 }},
                                                 vocative_markers = [
                                                     {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "co'o",
-                                                        span = [8, 12]
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "co'o",
+                                                            span = [8, 12]
+                                                        }
                                                     }},
                                                 ]
                                             }},
-                                        ],
-                                        koha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "do",
-                                            span = [5, 7]
-                                        }}
-                                    }},
-                                    tense_modal = {TenseModal = {
+                                        ] },
+                                    tense_modal = {Composite = {
                                         leaves = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "bu'u",
-                                                span = [0, 4]
-                                            }},
-                                        ],
-                                        space = {Space = {
-                                            direction = [
-                                                {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "bu'u",
                                                     span = [0, 4]
+                                                }
+                                            }},
+                                        ],
+                                        space = {
+                                            direction = [
+                                                {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "bu'u",
+                                                        span = [0, 4]
+                                                    }
                                                 }},
                                             ]
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

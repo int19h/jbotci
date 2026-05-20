@@ -308,8 +308,7 @@ fn statement_parser<'tokens>(
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(argument.clone().or(elided_argument))
         .map(|((fa, free_modifiers), argument)| TermSyntax::Fa {
-            fa,
-            free_modifiers,
+            fa: WithFreeModifiers::new(fa, free_modifiers),
             argument,
             ku: None,
         });
@@ -318,8 +317,7 @@ fn statement_parser<'tokens>(
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|((na, na_ku), free_modifiers)| TermSyntax::NaKu {
             na,
-            na_ku,
-            free_modifiers,
+            na_ku: WithFreeModifiers::new(na_ku, free_modifiers),
         });
     let tagged_term_before_tag_start = leading_term_tag_tense_modal()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -344,7 +342,9 @@ fn statement_parser<'tokens>(
     let bare_na_term = na_cmavo()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(bare_na_term_blocker.rewind().not())
-        .map(|((na, free_modifiers), _)| TermSyntax::BareNa { na, free_modifiers });
+        .map(|((na, free_modifiers), _)| {
+            TermSyntax::BareNa(WithFreeModifiers::new(na, free_modifiers))
+        });
     let tagged_term_start = modal_forethought_connective()
         .rewind()
         .not()
@@ -569,8 +569,7 @@ fn statement_parser<'tokens>(
                     leading_term.clone(),
                     |((cehe, free_modifiers), trailing_terms)| TermSyntax::Cehe {
                         leading_terms: vec![leading_term],
-                        cehe,
-                        free_modifiers,
+                        cehe: WithFreeModifiers::new(cehe, free_modifiers),
                         trailing_terms,
                     },
                 )
@@ -608,8 +607,7 @@ fn statement_parser<'tokens>(
                             leading_terms: vec![leading_term],
                             bo_connective,
                             tense_modal,
-                            bo,
-                            free_modifiers,
+                            bo: WithFreeModifiers::new(bo, free_modifiers),
                             trailing_term: Box::new(trailing_term),
                         }
                     },
@@ -647,8 +645,7 @@ fn statement_parser<'tokens>(
                     |leading_term, (pehe, free_modifiers, connective, trailing_term)| {
                         TermSyntax::Pehe {
                             leading_terms: vec![leading_term],
-                            pehe,
-                            free_modifiers,
+                            pehe: WithFreeModifiers::new(pehe, free_modifiers),
                             connective,
                             trailing_terms: vec![trailing_term],
                         }
@@ -2794,9 +2791,8 @@ where
 
     let koha = koha_argument()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|(koha, free_modifiers)| ArgumentSyntax::Koha {
-            koha,
-            free_modifiers,
+        .map(|(koha, free_modifiers)| {
+            ArgumentSyntax::Koha(WithFreeModifiers::new(koha, free_modifiers))
         });
     let lahe = lahe_cmavo()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -2806,37 +2802,38 @@ where
                 .map(Option::unwrap_or_default),
         )
         .then(argument.clone())
-        .then(cmavo("lu'u").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("lu'u")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |(
-                ((((lahe, free_modifiers), relative_clauses), inner_argument), luhu),
-                luhu_free_modifiers,
-            )| ArgumentSyntax::Lahe {
-                lahe,
-                free_modifiers,
-                relative_clauses,
-                inner_argument: Box::new(inner_argument),
-                luhu,
-                luhu_free_modifiers,
+            |((((lahe, free_modifiers), relative_clauses), inner_argument), luhu)| {
+                ArgumentSyntax::Lahe {
+                    lahe: WithFreeModifiers::new(lahe, free_modifiers),
+                    relative_clauses,
+                    inner_argument: Box::new(inner_argument),
+                    luhu: luhu
+                        .map(|(luhu, free_modifiers)| WithFreeModifiers::new(luhu, free_modifiers)),
+                }
             },
         );
     let lahe_term_wrapper = lahe_cmavo()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(single_term.clone())
-        .then(cmavo("lu'u").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("lu'u")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |((((wrapper, free_modifiers), inner_term), luhu), luhu_free_modifiers)| {
-                ArgumentSyntax::TermWrapped {
-                    term_wrapper_kind: TermWrapperKindSyntax::Lahe,
-                    wrapper,
-                    wrapper_bo: None,
-                    free_modifiers,
-                    inner_term: Box::new(inner_term),
-                    luhu,
-                    luhu_free_modifiers,
-                }
+            |(((wrapper, free_modifiers), inner_term), luhu)| ArgumentSyntax::TermWrapped {
+                term_wrapper_kind: TermWrapperKindSyntax::Lahe,
+                wrapper: WithFreeModifiers::new(wrapper, free_modifiers),
+                wrapper_bo: None,
+                inner_term: Box::new(inner_term),
+                luhu: luhu
+                    .map(|(luhu, free_modifiers)| WithFreeModifiers::new(luhu, free_modifiers)),
             },
         )
         .boxed();
@@ -2993,39 +2990,38 @@ where
         .then(cmavo("bo"))
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(argument.clone())
-        .then(cmavo("lu'u").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("lu'u")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |(((((nahe, bo), free_modifiers), inner_argument), luhu), luhu_free_modifiers)| {
-                ArgumentSyntax::NaheBo {
-                    nahe,
-                    bo,
-                    free_modifiers,
-                    inner_argument: Box::new(inner_argument),
-                    luhu,
-                    luhu_free_modifiers,
-                }
+            |((((nahe, bo), free_modifiers), inner_argument), luhu)| ArgumentSyntax::NaheBo {
+                nahe,
+                bo: WithFreeModifiers::new(bo, free_modifiers),
+                inner_argument: Box::new(inner_argument),
+                luhu: luhu
+                    .map(|(luhu, free_modifiers)| WithFreeModifiers::new(luhu, free_modifiers)),
             },
         );
     let nahe_bo_term_wrapper = cmavo_of("NAhE", &["na'e", "to'e", "no'e", "je'a"])
         .then(cmavo("bo"))
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(single_term.clone())
-        .then(cmavo("lu'u").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("lu'u")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |(
-                ((((wrapper, wrapper_bo), free_modifiers), inner_term), luhu),
-                luhu_free_modifiers,
-            )| {
+            |((((wrapper, wrapper_bo), free_modifiers), inner_term), luhu)| {
                 ArgumentSyntax::TermWrapped {
                     term_wrapper_kind: TermWrapperKindSyntax::NaheBo,
-                    wrapper,
-                    wrapper_bo: Some(wrapper_bo),
-                    free_modifiers,
+                    wrapper: WithFreeModifiers::new(wrapper, Vec::new()),
+                    wrapper_bo: Some(WithFreeModifiers::new(wrapper_bo, free_modifiers)),
                     inner_term: Box::new(inner_term),
-                    luhu,
-                    luhu_free_modifiers,
+                    luhu: luhu
+                        .map(|(luhu, free_modifiers)| WithFreeModifiers::new(luhu, free_modifiers)),
                 }
             },
         )
@@ -3034,17 +3030,17 @@ where
         .then(cmavo("bo").rewind().not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(argument.clone())
-        .then(cmavo("lu'u").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("lu'u")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |(((((nahe, _), free_modifiers), inner_argument), luhu), luhu_free_modifiers)| {
-                ArgumentSyntax::Nahe {
-                    nahe,
-                    free_modifiers,
-                    inner_argument: Box::new(inner_argument),
-                    luhu,
-                    luhu_free_modifiers,
-                }
+            |((((nahe, _), free_modifiers), inner_argument), luhu)| ArgumentSyntax::Nahe {
+                nahe: WithFreeModifiers::new(nahe, free_modifiers),
+                inner_argument: Box::new(inner_argument),
+                luhu: luhu
+                    .map(|(luhu, free_modifiers)| WithFreeModifiers::new(luhu, free_modifiers)),
             },
         )
         .boxed();
@@ -3052,19 +3048,19 @@ where
         .then(cmavo("bo").rewind().not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(single_term.clone())
-        .then(cmavo("lu'u").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("lu'u")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |(((((wrapper, _), free_modifiers), inner_term), luhu), luhu_free_modifiers)| {
-                ArgumentSyntax::TermWrapped {
-                    term_wrapper_kind: TermWrapperKindSyntax::Nahe,
-                    wrapper,
-                    wrapper_bo: None,
-                    free_modifiers,
-                    inner_term: Box::new(inner_term),
-                    luhu,
-                    luhu_free_modifiers,
-                }
+            |((((wrapper, _), free_modifiers), inner_term), luhu)| ArgumentSyntax::TermWrapped {
+                term_wrapper_kind: TermWrapperKindSyntax::Nahe,
+                wrapper: WithFreeModifiers::new(wrapper, free_modifiers),
+                wrapper_bo: None,
+                inner_term: Box::new(inner_term),
+                luhu: luhu
+                    .map(|(luhu, free_modifiers)| WithFreeModifiers::new(luhu, free_modifiers)),
             },
         )
         .boxed();
@@ -3195,8 +3191,7 @@ where
                             leading_argument: Box::new(leading_argument),
                             bo_connective: Some(bo_connective),
                             bo_tense_modal,
-                            bo,
-                            free_modifiers,
+                            bo: WithFreeModifiers::new(bo, free_modifiers),
                             trailing_argument: Box::new(trailing_argument),
                         }
                     },
@@ -3950,8 +3945,7 @@ where
         .then(free_modifier.repeated().collect::<Vec<_>>())
         .map(|((na, ku), free_modifiers)| ArgumentSyntax::NaKu {
             na,
-            ku,
-            free_modifiers,
+            ku: WithFreeModifiers::new(ku, free_modifiers),
         })
         .boxed()
 }
@@ -4088,10 +4082,8 @@ where
         .then(optional_relative_clauses)
         .map(
             |(((leading_relative_clauses, cmevla), free_modifiers), trailing_relative_clauses)| {
-                let argument = ArgumentSyntax::Cmevla {
-                    cmevla,
-                    free_modifiers,
-                };
+                let argument =
+                    ArgumentSyntax::Cmevla(WithFreeModifiers::new(cmevla, free_modifiers));
                 let relative_clauses = leading_relative_clauses
                     .into_iter()
                     .chain(trailing_relative_clauses)
