@@ -2631,7 +2631,6 @@ where
             ArgumentSyntax::RelativeClause {
                 base_argument,
                 vuho: _,
-                vuho_free_modifiers: _,
                 relative_clauses,
             } => vec![
                 ArgumentTailElementSyntax::Argument(base_argument),
@@ -2731,17 +2730,17 @@ where
             relation.clone(),
             free_modifier.clone(),
         ))
-        .then(cmavo("lo'o").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("lo'o")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |((((li, li_free_modifiers), expression), loho), loho_free_modifiers)| {
-                ArgumentSyntax::MathExpression {
-                    li,
-                    li_free_modifiers,
-                    expression,
-                    loho,
-                    loho_free_modifiers,
-                }
+            |(((li, li_free_modifiers), expression), loho)| ArgumentSyntax::MathExpression {
+                li: WithFreeModifiers::new(li, li_free_modifiers),
+                expression,
+                loho: loho
+                    .map(|(loho, free_modifiers)| WithFreeModifiers::new(loho, free_modifiers)),
             },
         );
 
@@ -2816,10 +2815,8 @@ where
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(
             |(((la, la_free_modifiers), names), name_free_modifiers)| ArgumentSyntax::Name {
-                la,
-                la_free_modifiers,
-                names,
-                name_free_modifiers,
+                la: WithFreeModifiers::new(la, la_free_modifiers),
+                names: WithFreeModifiers::new(names, name_free_modifiers),
             },
         );
 
@@ -3038,19 +3035,19 @@ where
     let bridi_description = cmavo_of("LOhOI", &["lo'oi", "mau'a", "xau'a"])
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(subsentence.clone())
-        .then(cmavo("ku'au").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(
-            |((((lohoi, lohoi_free_modifiers), subsentence), kuhau), kuhau_free_modifiers)| {
-                ArgumentSyntax::BridiDescription {
-                    lohoi,
-                    lohoi_free_modifiers,
-                    subsentence: Box::new(subsentence),
-                    kuhau,
-                    kuhau_free_modifiers,
-                }
-            },
+        .then(
+            cmavo("ku'au")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
         )
+        .map(|(((lohoi, lohoi_free_modifiers), subsentence), kuhau)| {
+            ArgumentSyntax::BridiDescription {
+                lohoi: WithFreeModifiers::new(lohoi, lohoi_free_modifiers),
+                subsentence: Box::new(subsentence),
+                kuhau: kuhau
+                    .map(|(kuhau, free_modifiers)| WithFreeModifiers::new(kuhau, free_modifiers)),
+            }
+        })
         .boxed();
     let quoted_or_simple_argument_core = choice((
         quote,
@@ -3098,7 +3095,6 @@ where
                 ArgumentSyntax::RelativeClause {
                     base_argument: Box::new(base_argument),
                     vuho: None,
-                    vuho_free_modifiers: Vec::new(),
                     relative_clauses,
                 }
             }
@@ -3117,7 +3113,6 @@ where
                 ArgumentSyntax::RelativeClause {
                     base_argument: Box::new(quantified),
                     vuho: None,
-                    vuho_free_modifiers: Vec::new(),
                     relative_clauses,
                 }
             }
@@ -3202,8 +3197,11 @@ where
             .then(cmavo("ke"))
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(argument.clone())
-            .then(cmavo("ke'e").or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(
+                cmavo("ke'e")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
             .boxed();
     let argument1 = argument2
         .clone()
@@ -3217,10 +3215,7 @@ where
         .map(|(leading_argument, ke_tail)| {
             ke_tail.map_or(
                 leading_argument.clone(),
-                |(
-                    (((((connective, tense_modal), ke), ke_free_modifiers), inner_argument), kehe),
-                    kehe_free_modifiers,
-                )| {
+                |(((((connective, tense_modal), ke), ke_free_modifiers), inner_argument), kehe)| {
                     let connective = tense_modal.map_or(connective.clone(), |tense_modal| {
                         append_connective_words(connective, tense_modal.words())
                     });
@@ -3228,11 +3223,11 @@ where
                         leading_argument: Box::new(leading_argument),
                         connective,
                         trailing_argument: Box::new(ArgumentSyntax::Ke {
-                            ke,
-                            ke_free_modifiers,
+                            ke: WithFreeModifiers::new(ke, ke_free_modifiers),
                             inner_argument: Box::new(inner_argument),
-                            kehe,
-                            kehe_free_modifiers,
+                            kehe: kehe.map(|(kehe, free_modifiers)| {
+                                WithFreeModifiers::new(kehe, free_modifiers)
+                            }),
                         }),
                     }
                 },
@@ -3267,15 +3262,13 @@ where
                 if !relative_clauses.is_empty() && connected_argument.is_none() {
                     ArgumentSyntax::RelativeClause {
                         base_argument: Box::new(base_argument),
-                        vuho: Some(vuho),
-                        vuho_free_modifiers,
+                        vuho: Some(WithFreeModifiers::new(vuho, vuho_free_modifiers)),
                         relative_clauses,
                     }
                 } else {
                     ArgumentSyntax::Vuho {
                         base_argument: Box::new(base_argument),
-                        vuho_marker: vuho,
-                        vuho_free_modifiers,
+                        vuho_marker: WithFreeModifiers::new(vuho, vuho_free_modifiers),
                         relative_clauses,
                         connected_argument,
                     }
@@ -4029,7 +4022,6 @@ where
                     ArgumentSyntax::RelativeClause {
                         base_argument: Box::new(argument),
                         vuho: None,
-                        vuho_free_modifiers: Vec::new(),
                         relative_clauses,
                     }
                 }

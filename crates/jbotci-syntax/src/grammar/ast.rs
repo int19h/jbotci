@@ -466,11 +466,9 @@ pub struct ArgumentConnectionSyntax {
 pub enum ArgumentSyntax {
     Quote(QuoteSyntax),
     MathExpression {
-        li: WithIndicators<WordLike>,
-        li_free_modifiers: Vec<FreeModifierSyntax>,
+        li: WithFreeModifiers<WithIndicators<WordLike>>,
         expression: MathExpressionSyntax,
-        loho: Option<WithIndicators<WordLike>>,
-        loho_free_modifiers: Vec<FreeModifierSyntax>,
+        loho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Letter {
         letter: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
@@ -482,23 +480,19 @@ pub enum ArgumentSyntax {
     },
     RelativeClause {
         base_argument: Box<ArgumentSyntax>,
-        vuho: Option<WithIndicators<WordLike>>,
-        vuho_free_modifiers: Vec<FreeModifierSyntax>,
+        vuho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         relative_clauses: Vec<RelativeClauseSyntax>,
     },
     Vuho {
         base_argument: Box<ArgumentSyntax>,
-        vuho_marker: WithIndicators<WordLike>,
-        vuho_free_modifiers: Vec<FreeModifierSyntax>,
+        vuho_marker: WithFreeModifiers<WithIndicators<WordLike>>,
         relative_clauses: Vec<RelativeClauseSyntax>,
         connected_argument: Option<ArgumentConnectionSyntax>,
     },
     BridiDescription {
-        lohoi: WithIndicators<WordLike>,
-        lohoi_free_modifiers: Vec<FreeModifierSyntax>,
+        lohoi: WithFreeModifiers<WithIndicators<WordLike>>,
         subsentence: Box<SubsentenceSyntax>,
-        kuhau: Option<WithIndicators<WordLike>>,
-        kuhau_free_modifiers: Vec<FreeModifierSyntax>,
+        kuhau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     NaKu {
         na: WithIndicators<WordLike>,
@@ -512,22 +506,19 @@ pub enum ArgumentSyntax {
         nahe: WithIndicators<WordLike>,
         bo: WithFreeModifiers<WithIndicators<WordLike>>,
         inner_argument: Box<ArgumentSyntax>,
-        luhu: Option<WithIndicators<WordLike>>,
-        luhu_free_modifiers: Vec<FreeModifierSyntax>,
+        luhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Nahe {
         nahe: WithFreeModifiers<WithIndicators<WordLike>>,
         inner_argument: Box<ArgumentSyntax>,
-        luhu: Option<WithIndicators<WordLike>>,
-        luhu_free_modifiers: Vec<FreeModifierSyntax>,
+        luhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     TermWrapped {
         term_wrapper_kind: TermWrapperKindSyntax,
         wrapper: WithFreeModifiers<WithIndicators<WordLike>>,
         wrapper_bo: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         inner_term: Box<TermSyntax>,
-        luhu: Option<WithIndicators<WordLike>>,
-        luhu_free_modifiers: Vec<FreeModifierSyntax>,
+        luhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Koha(WithFreeModifiers<WithIndicators<WordLike>>),
     Zohe {
@@ -539,8 +530,7 @@ pub enum ArgumentSyntax {
         lahe: WithFreeModifiers<WithIndicators<WordLike>>,
         relative_clauses: Vec<RelativeClauseSyntax>,
         inner_argument: Box<ArgumentSyntax>,
-        luhu: Option<WithIndicators<WordLike>>,
-        luhu_free_modifiers: Vec<FreeModifierSyntax>,
+        luhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Connected {
         leading_argument: Box<ArgumentSyntax>,
@@ -548,11 +538,9 @@ pub enum ArgumentSyntax {
         trailing_argument: Box<ArgumentSyntax>,
     },
     Ke {
-        ke: WithIndicators<WordLike>,
-        ke_free_modifiers: Vec<FreeModifierSyntax>,
+        ke: WithFreeModifiers<WithIndicators<WordLike>>,
         inner_argument: Box<ArgumentSyntax>,
-        kehe: Option<WithIndicators<WordLike>>,
-        kehe_free_modifiers: Vec<FreeModifierSyntax>,
+        kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Bo {
         leading_argument: Box<ArgumentSyntax>,
@@ -570,10 +558,8 @@ pub enum ArgumentSyntax {
     Descriptor(DescriptorSyntax),
     ConnectedDescriptor(ConnectedDescriptorSyntax),
     Name {
-        la: WithIndicators<WordLike>,
-        la_free_modifiers: Vec<FreeModifierSyntax>,
-        names: Vec<WithIndicators<WordLike>>,
-        name_free_modifiers: Vec<FreeModifierSyntax>,
+        la: WithFreeModifiers<WithIndicators<WordLike>>,
+        names: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
     },
     Cmevla(WithFreeModifiers<Vec<WithIndicators<WordLike>>>),
     RelationVocative {
@@ -2170,19 +2156,13 @@ impl ArgumentSyntax {
             ArgumentSyntax::Quote(quote) => quote.words(),
             ArgumentSyntax::MathExpression {
                 li,
-                li_free_modifiers,
                 expression,
                 loho,
-                loho_free_modifiers,
             } => {
-                let mut words = vec![li];
-                for free_modifier in li_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = li.words();
                 words.extend(expression.words());
-                words.extend(loho);
-                for free_modifier in loho_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(loho) = loho {
+                    words.extend(loho.words());
                 }
                 words
             }
@@ -2204,13 +2184,11 @@ impl ArgumentSyntax {
             ArgumentSyntax::RelativeClause {
                 base_argument,
                 vuho,
-                vuho_free_modifiers,
                 relative_clauses,
             } => {
                 let mut words = base_argument.words();
-                words.extend(vuho);
-                for free_modifier in vuho_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(vuho) = vuho {
+                    words.extend(vuho.words());
                 }
                 for relative_clause in relative_clauses {
                     words.extend(relative_clause.words());
@@ -2220,15 +2198,11 @@ impl ArgumentSyntax {
             ArgumentSyntax::Vuho {
                 base_argument,
                 vuho_marker,
-                vuho_free_modifiers,
                 relative_clauses,
                 connected_argument,
             } => {
                 let mut words = base_argument.words();
-                words.push(vuho_marker);
-                for free_modifier in vuho_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(vuho_marker.words());
                 for relative_clause in relative_clauses {
                     words.extend(relative_clause.words());
                 }
@@ -2240,19 +2214,13 @@ impl ArgumentSyntax {
             }
             ArgumentSyntax::BridiDescription {
                 lohoi,
-                lohoi_free_modifiers,
                 subsentence,
                 kuhau,
-                kuhau_free_modifiers,
             } => {
-                let mut words = vec![lohoi];
-                for free_modifier in lohoi_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = lohoi.words();
                 words.extend(subsentence.words());
-                words.extend(kuhau);
-                for free_modifier in kuhau_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(kuhau) = kuhau {
+                    words.extend(kuhau.words());
                 }
                 words
             }
@@ -2274,14 +2242,12 @@ impl ArgumentSyntax {
                 bo,
                 inner_argument,
                 luhu,
-                luhu_free_modifiers,
             } => {
                 let mut words = vec![nahe];
                 words.extend(bo.words());
                 words.extend(inner_argument.words());
-                words.extend(luhu);
-                for free_modifier in luhu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(luhu) = luhu {
+                    words.extend(luhu.words());
                 }
                 words
             }
@@ -2289,13 +2255,11 @@ impl ArgumentSyntax {
                 nahe,
                 inner_argument,
                 luhu,
-                luhu_free_modifiers,
             } => {
                 let mut words = nahe.words();
                 words.extend(inner_argument.words());
-                words.extend(luhu);
-                for free_modifier in luhu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(luhu) = luhu {
+                    words.extend(luhu.words());
                 }
                 words
             }
@@ -2304,7 +2268,6 @@ impl ArgumentSyntax {
                 wrapper_bo,
                 inner_term,
                 luhu,
-                luhu_free_modifiers,
                 ..
             } => {
                 let mut words = wrapper.words();
@@ -2312,9 +2275,8 @@ impl ArgumentSyntax {
                     words.extend(wrapper_bo.words());
                 }
                 words.extend(inner_term.words());
-                words.extend(luhu);
-                for free_modifier in luhu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(luhu) = luhu {
+                    words.extend(luhu.words());
                 }
                 words
             }
@@ -2341,16 +2303,14 @@ impl ArgumentSyntax {
                 relative_clauses,
                 inner_argument,
                 luhu,
-                luhu_free_modifiers,
             } => {
                 let mut words = lahe.words();
                 for relative_clause in relative_clauses {
                     words.extend(relative_clause.words());
                 }
                 words.extend(inner_argument.words());
-                words.extend(luhu);
-                for free_modifier in luhu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(luhu) = luhu {
+                    words.extend(luhu.words());
                 }
                 words
             }
@@ -2366,19 +2326,13 @@ impl ArgumentSyntax {
             }
             ArgumentSyntax::Ke {
                 ke,
-                ke_free_modifiers,
                 inner_argument,
                 kehe,
-                kehe_free_modifiers,
             } => {
-                let mut words = vec![ke];
-                for free_modifier in ke_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = ke.words();
                 words.extend(inner_argument.words());
-                words.extend(kehe);
-                for free_modifier in kehe_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(kehe) = kehe {
+                    words.extend(kehe.words());
                 }
                 words
             }
@@ -2416,20 +2370,9 @@ impl ArgumentSyntax {
             ArgumentSyntax::ConnectedDescriptor(connected_descriptor) => {
                 connected_descriptor.words()
             }
-            ArgumentSyntax::Name {
-                la,
-                la_free_modifiers,
-                names,
-                name_free_modifiers,
-            } => {
-                let mut words = vec![la];
-                for free_modifier in la_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
-                words.extend(names);
-                for free_modifier in name_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            ArgumentSyntax::Name { la, names } => {
+                let mut words = la.words();
+                words.extend(names.words());
                 words
             }
             ArgumentSyntax::Cmevla(cmevla) => cmevla.words(),
