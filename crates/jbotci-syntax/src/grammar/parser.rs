@@ -7,7 +7,7 @@ use jbotci_dialect::DialectFeature;
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 struct LeadingIStatementSyntax {
-    i: WordWithModifiers,
+    i: WithIndicators<WordLike>,
     connective: Option<ConnectiveSyntax>,
     free_modifiers: Vec<FreeModifierSyntax>,
 }
@@ -17,7 +17,7 @@ struct LeadingIStatementSyntax {
 enum TermContinuationSyntax {
     Pehe {
         tails: Vec<(
-            WordWithModifiers,
+            WithIndicators<WordLike>,
             Vec<FreeModifierSyntax>,
             ConnectiveSyntax,
             TermSyntax,
@@ -230,7 +230,7 @@ fn attach_tense_modal_free_modifiers(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn parse_statement(
-    words: &[WordWithModifiers],
+    words: &[WithIndicators<WordLike>],
     source: Option<&str>,
     options: &ParseOptions,
 ) -> Result<ParsedStatement, SyntaxError> {
@@ -1719,8 +1719,8 @@ fn attach_i_connective_to_niho_paragraph_statements(
 #[requires(true)]
 #[ensures(true)]
 fn build_paragraph(
-    i: Option<WordWithModifiers>,
-    niho: Vec<WordWithModifiers>,
+    i: Option<WithIndicators<WordLike>>,
+    niho: Vec<WithIndicators<WordLike>>,
     free_modifiers: Vec<FreeModifierSyntax>,
     statements: Vec<ParagraphStatementSyntax>,
 ) -> ParagraphSyntax {
@@ -1785,7 +1785,12 @@ fn build_predicate_statement(
 #[expensive_ensures(ret.clone().words().len() >= old(leading_statement.clone().words().len()))]
 fn build_connected_statement(
     leading_statement: StatementSyntax,
-    continuations: Vec<(bool, WordWithModifiers, ConnectiveSyntax, StatementSyntax)>,
+    continuations: Vec<(
+        bool,
+        WithIndicators<WordLike>,
+        ConnectiveSyntax,
+        StatementSyntax,
+    )>,
 ) -> StatementSyntax {
     let mut statements = vec![leading_statement];
     let mut connectors = Vec::new();
@@ -2108,7 +2113,7 @@ where
 #[ensures(true)]
 fn raw_words_until<'tokens>(
     terminators: &'static [&'static str],
-) -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
+) -> BoxedParser<'tokens, Vec<WithIndicators<WordLike>>> {
     token_matching("replacement word", move |word| {
         !terminators
             .iter()
@@ -3402,7 +3407,7 @@ fn implicit_zohe_argument() -> ArgumentSyntax {
 
 #[requires(true)]
 #[ensures(true)]
-fn letter_string<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
+fn letter_string<'tokens>() -> BoxedParser<'tokens, Vec<WithIndicators<WordLike>>> {
     recursive(|letter_string| {
         let letter_tokens = letter_word_tokens_from(letter_string.clone());
         let continuation = choice((pa_word().map(|word| vec![word]), letter_tokens.clone()))
@@ -3420,7 +3425,7 @@ fn letter_string<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
 
 #[requires(true)]
 #[ensures(true)]
-fn number_words<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
+fn number_words<'tokens>() -> BoxedParser<'tokens, Vec<WithIndicators<WordLike>>> {
     let letter_tokens = letter_word_tokens_from(letter_string());
     pa_word()
         .map(|word| vec![word])
@@ -3440,7 +3445,7 @@ fn number_words<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
 
 #[requires(true)]
 #[ensures(true)]
-fn number_or_letter_words<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
+fn number_or_letter_words<'tokens>() -> BoxedParser<'tokens, Vec<WithIndicators<WordLike>>> {
     choice((number_words(), letter_string())).boxed()
 }
 
@@ -3448,9 +3453,9 @@ fn number_or_letter_words<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifie
 #[ensures(true)]
 fn letter_word_tokens_from<'tokens, L>(
     letter_string: L,
-) -> BoxedParser<'tokens, Vec<WordWithModifiers>>
+) -> BoxedParser<'tokens, Vec<WithIndicators<WordLike>>>
 where
-    L: Parser<'tokens, ParserInput<'tokens>, Vec<WordWithModifiers>, ParseExtra<'tokens>>
+    L: Parser<'tokens, ParserInput<'tokens>, Vec<WithIndicators<WordLike>>, ParseExtra<'tokens>>
         + Clone
         + 'tokens,
 {
@@ -3611,7 +3616,7 @@ where
         + 'tokens,
 {
     let compound_quote = any()
-        .try_map(move |word: WordWithModifiers, span| {
+        .try_map(move |word: WithIndicators<WordLike>, span| {
             let Some(word_like) = quote_word_like(&word) else {
                 return Err(Rich::custom(span, "expected quote"));
             };
@@ -3814,11 +3819,12 @@ fn quote_with_free_modifiers(
 
 #[requires(true)]
 #[ensures(true)]
-fn quote_word_like(word: &WordWithModifiers) -> Option<&WordLike> {
-    match word.as_data() {
-        data!(WordWithModifiers::Bare(word_like))
-        | data!(WordWithModifiers::Emphasized { word_like, .. }) => Some(word_like),
-        data!(WordWithModifiers::WithIndicator { base, .. }) => quote_word_like(base),
+fn quote_word_like(word: &WithIndicators<WordLike>) -> Option<&WordLike> {
+    match word {
+        WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
+            Some(word_like)
+        }
+        WithIndicators::WithIndicator { base, .. } => quote_word_like(base),
     }
 }
 
@@ -4242,13 +4248,13 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn free_modifier_anchor(free_modifier: &FreeModifierSyntax) -> Option<WordWithModifiers> {
+fn free_modifier_anchor(free_modifier: &FreeModifierSyntax) -> Option<WithIndicators<WordLike>> {
     free_modifier.clone().words().into_iter().next()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn vocative_markers<'tokens>() -> BoxedParser<'tokens, Vec<WordWithModifiers>> {
+fn vocative_markers<'tokens>() -> BoxedParser<'tokens, Vec<WithIndicators<WordLike>>> {
     let coi_marker = cmavo_of("COI", COI_WORDS)
         .then(cmavo("nai").or_not())
         .map(|(coi, nai)| [vec![coi], nai.into_iter().collect()].concat());
@@ -4470,7 +4476,7 @@ fn append_connective_free_modifiers(
 #[ensures(ret.cmavo.len() >= old(words.len()))]
 fn append_connective_words(
     connective: ConnectiveSyntax,
-    words: Vec<WordWithModifiers>,
+    words: Vec<WithIndicators<WordLike>>,
 ) -> ConnectiveSyntax {
     let mut cmavo = connective.cmavo;
     cmavo.extend(words);
@@ -4488,7 +4494,7 @@ fn append_connective_words(
 #[requires(true)]
 #[ensures(ret.cmavo.len() >= old(words.len()))]
 fn prepend_connective_words(
-    words: Vec<WordWithModifiers>,
+    words: Vec<WithIndicators<WordLike>>,
     connective: ConnectiveSyntax,
 ) -> ConnectiveSyntax {
     let mut cmavo = words;
@@ -4581,7 +4587,7 @@ fn joik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
 
 #[requires(!connective.cmavo.is_empty())]
 #[ensures(ret.len() >= old(connective.cmavo.len()))]
-fn connective_tense_modal_leaves(connective: ConnectiveSyntax) -> Vec<WordWithModifiers> {
+fn connective_tense_modal_leaves(connective: ConnectiveSyntax) -> Vec<WithIndicators<WordLike>> {
     let mut leaves = Vec::new();
     leaves.extend(connective.se);
     leaves.extend(connective.nahe);
@@ -4927,7 +4933,7 @@ fn single_word_quoted_relation_unit<'tokens, F>(
     marker_text: &'static str,
     source: Option<&'tokens str>,
     free_modifier: F,
-    build: fn(WordWithModifiers, String, Vec<FreeModifierSyntax>) -> RelationUnitSyntax,
+    build: fn(WithIndicators<WordLike>, String, Vec<FreeModifierSyntax>) -> RelationUnitSyntax,
 ) -> BoxedParser<'tokens, RelationUnitSyntax>
 where
     F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
@@ -4935,7 +4941,7 @@ where
         + 'tokens,
 {
     any()
-        .try_map(move |word: WordWithModifiers, span| {
+        .try_map(move |word: WithIndicators<WordLike>, span| {
             let Some(word_like) = quote_word_like(&word) else {
                 return Err(Rich::custom(span, format!("expected {marker_text} quote")));
             };
@@ -4978,9 +4984,9 @@ fn delimited_quoted_relation_unit<'tokens, F>(
     source: Option<&'tokens str>,
     free_modifier: F,
     build: fn(
-        WordWithModifiers,
-        WordWithModifiers,
-        WordWithModifiers,
+        WithIndicators<WordLike>,
+        WithIndicators<WordLike>,
+        WithIndicators<WordLike>,
         String,
         Vec<FreeModifierSyntax>,
     ) -> RelationUnitSyntax,
@@ -4991,7 +4997,7 @@ where
         + 'tokens,
 {
     any()
-        .try_map(move |word: WordWithModifiers, span| {
+        .try_map(move |word: WithIndicators<WordLike>, span| {
             let Some(word_like) = quote_word_like(&word) else {
                 return Err(Rich::custom(span, format!("expected {marker_text} quote")));
             };
@@ -7070,7 +7076,10 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
 
 #[requires(matches!(modal, TenseModalSyntax::Composite { .. }))]
 #[ensures(matches!(ret, TenseModalSyntax::Composite { simple: Some(SimpleTenseModalSyntax { nahe: Some(_), .. }), .. }))]
-fn prefix_tense_modal_nahe(nahe: WordWithModifiers, modal: TenseModalSyntax) -> TenseModalSyntax {
+fn prefix_tense_modal_nahe(
+    nahe: WithIndicators<WordLike>,
+    modal: TenseModalSyntax,
+) -> TenseModalSyntax {
     let TenseModalSyntax::Composite {
         mut leaves,
         time,
@@ -7514,8 +7523,8 @@ fn tense_modal_atom<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
     #[derive(Clone)]
     #[invariant(true)]
     enum PuTail {
-        Distance(WordWithModifiers),
-        Caha(WordWithModifiers),
+        Distance(WithIndicators<WordLike>),
+        Caha(WithIndicators<WordLike>),
     }
 
     choice((

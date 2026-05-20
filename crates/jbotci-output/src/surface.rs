@@ -1,7 +1,7 @@
 use bityzba::{data, invariant, requires};
 use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceSpan;
-use jbotci_syntax::{WordWithModifiers, WordWithModifiersData};
+use jbotci_syntax::WithIndicators;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -13,17 +13,16 @@ enum SurfaceChunk {
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn format_word_with_modifiers(word: &WordWithModifiers, source: &str) -> String {
-    render_surface_chunks(flatten_word_with_modifiers_surface(word, source))
+pub(crate) fn format_with_indicators(word: &WithIndicators<WordLike>, source: &str) -> String {
+    render_surface_chunks(flatten_with_indicators_surface(word, source))
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn is_compound_word_with_modifiers(word: &WordWithModifiers) -> bool {
-    match word.as_data() {
-        data!(WordWithModifiers::Emphasized { .. })
-        | data!(WordWithModifiers::WithIndicator { .. }) => true,
-        data!(WordWithModifiers::Bare(word_like)) => match word_like.as_data() {
+pub(crate) fn is_compound_with_indicators(word: &WithIndicators<WordLike>) -> bool {
+    match word {
+        WithIndicators::Emphasized { .. } | WithIndicators::WithIndicator { .. } => true,
+        WithIndicators::Bare(word_like) => match word_like.as_data() {
             data!(WordLike::Bare(..)) => false,
             data!(WordLike::ZoQuote { .. })
             | data!(WordLike::ZoiQuote { .. })
@@ -37,23 +36,23 @@ pub(crate) fn is_compound_word_with_modifiers(word: &WordWithModifiers) -> bool 
 
 #[requires(true)]
 #[ensures(true)]
-fn flatten_word_with_modifiers_surface(
-    word: &WordWithModifiers,
+fn flatten_with_indicators_surface(
+    word: &WithIndicators<WordLike>,
     source: &str,
 ) -> Vec<SurfaceChunk> {
-    match word.as_data() {
-        data!(WordWithModifiers::Bare(word_like)) => flatten_word_like_surface(word_like, source),
-        data!(WordWithModifiers::Emphasized { bahe, word_like }) => {
+    match word {
+        WithIndicators::Bare(word_like) => flatten_word_like_surface(word_like, source),
+        WithIndicators::Emphasized { bahe, word_like } => {
             let mut chunks = vec![SurfaceChunk::Word(render_word(bahe))];
             chunks.extend(flatten_word_like_surface(word_like, source));
             chunks
         }
-        data!(WordWithModifiers::WithIndicator {
+        WithIndicators::WithIndicator {
             base,
             indicator,
             nai,
-        }) => {
-            let mut chunks = flatten_word_with_modifiers_surface(base, source);
+        } => {
+            let mut chunks = flatten_with_indicators_surface(base, source);
             chunks.push(SurfaceChunk::Word(render_word(indicator)));
             if let Some(nai) = nai {
                 chunks.push(SurfaceChunk::Word(render_word(nai)));

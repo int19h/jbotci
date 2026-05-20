@@ -1,5 +1,6 @@
-use crate::WordWithModifiers;
+use crate::WithIndicators;
 use bityzba::requires;
+use jbotci_morphology::WordLike;
 
 use super::ast::{
     FihoModalSyntax, FreeModifierSyntax, IntervalTenseSyntax, SimpleTenseModalSyntax,
@@ -11,7 +12,7 @@ use super::tokens::{BAI_WORDS, CAHA_WORDS, FA_WORDS, ROI_WORDS, ZAHO_WORDS, cmav
 #[ensures(matches!(ret, TenseModalSyntax::Composite { .. }))]
 #[ensures(ret.clone().leaf_words() == old(leaves.clone()))]
 pub(super) fn tense_modal_from_leaves(
-    leaves: Vec<WordWithModifiers>,
+    leaves: Vec<WithIndicators<WordLike>>,
     free_modifiers: Vec<FreeModifierSyntax>,
 ) -> TenseModalSyntax {
     let mut time_direction = Vec::new();
@@ -187,7 +188,7 @@ pub(super) fn tense_modal_as_composite(tense_modal: TenseModalSyntax) -> TenseMo
 #[ensures(matches!(ret, TenseModalSyntax::Composite { .. }))]
 #[ensures(ret.clone().leaf_words() == old(leaves.clone()))]
 pub(super) fn connective_tense_modal_from_leaves(
-    leaves: Vec<WordWithModifiers>,
+    leaves: Vec<WithIndicators<WordLike>>,
 ) -> TenseModalSyntax {
     let connectives = leaves
         .iter()
@@ -223,7 +224,7 @@ pub(super) fn connective_tense_modal_from_leaves(
 
 #[requires(!texts.is_empty())]
 #[ensures(ret == texts.iter().any(|text| cmavo_text_matches(word, text)))]
-fn cmavo_matches_any(word: &WordWithModifiers, texts: &[&str]) -> bool {
+fn cmavo_matches_any(word: &WithIndicators<WordLike>, texts: &[&str]) -> bool {
     texts.iter().any(|text| cmavo_text_matches(word, text))
 }
 
@@ -231,7 +232,7 @@ fn cmavo_matches_any(word: &WordWithModifiers, texts: &[&str]) -> bool {
 #[ensures(ret.bai.is_some())]
 fn set_simple_bai(
     simple: Option<SimpleTenseModalSyntax>,
-    bai: WordWithModifiers,
+    bai: WithIndicators<WordLike>,
 ) -> SimpleTenseModalSyntax {
     match simple {
         Some(existing) => SimpleTenseModalSyntax {
@@ -251,7 +252,7 @@ fn set_simple_bai(
 #[ensures(ret.nahe.is_some())]
 fn set_simple_nahe(
     simple: Option<SimpleTenseModalSyntax>,
-    nahe: WordWithModifiers,
+    nahe: WithIndicators<WordLike>,
 ) -> SimpleTenseModalSyntax {
     match simple {
         Some(existing) => SimpleTenseModalSyntax {
@@ -271,7 +272,7 @@ fn set_simple_nahe(
 #[ensures(ret.se.is_some())]
 fn set_simple_se(
     simple: Option<SimpleTenseModalSyntax>,
-    se: WordWithModifiers,
+    se: WithIndicators<WordLike>,
 ) -> SimpleTenseModalSyntax {
     match simple {
         Some(existing) => SimpleTenseModalSyntax {

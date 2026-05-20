@@ -2,16 +2,17 @@
 // Boxing only for enum-size symmetry would obscure that shape during the port.
 #![allow(clippy::large_enum_variant)]
 
-use crate::{Indicator, WordWithModifiers};
+use crate::{Indicator, WithIndicators};
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
+use jbotci_morphology::WordLike;
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateSyntax {
     pub leading_terms: Vec<TermSyntax>,
-    pub cu: Option<WordWithModifiers>,
+    pub cu: Option<WithIndicators<WordLike>>,
     pub cu_free_modifiers: Vec<FreeModifierSyntax>,
     pub predicate_tail: PredicateTailSyntax,
     pub free_modifiers: Vec<FreeModifierSyntax>,
@@ -29,13 +30,13 @@ pub struct PredicateTailSyntax {
 pub struct KePredicateTailSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<TenseModalSyntax>,
-    pub ke: WordWithModifiers,
+    pub ke: WithIndicators<WordLike>,
     pub ke_free_modifiers: Vec<FreeModifierSyntax>,
     pub predicate_tail: Box<PredicateTailSyntax>,
-    pub kehe: Option<WordWithModifiers>,
+    pub kehe: Option<WithIndicators<WordLike>>,
     pub kehe_free_modifiers: Vec<FreeModifierSyntax>,
     pub tail_terms: Vec<TermSyntax>,
-    pub vau: Option<WordWithModifiers>,
+    pub vau: Option<WithIndicators<WordLike>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -50,11 +51,11 @@ pub struct PredicateTail1Syntax {
 pub struct PredicateTailContinuationSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<TenseModalSyntax>,
-    pub cu: Option<WordWithModifiers>,
+    pub cu: Option<WithIndicators<WordLike>>,
     pub cu_free_modifiers: Vec<FreeModifierSyntax>,
     pub predicate_tail: PredicateTail2Syntax,
     pub tail_terms: Vec<TermSyntax>,
-    pub vau: Option<WordWithModifiers>,
+    pub vau: Option<WithIndicators<WordLike>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
@@ -70,13 +71,13 @@ pub struct PredicateTail2Syntax {
 pub struct BoPredicateTailSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<TenseModalSyntax>,
-    pub bo: WordWithModifiers,
+    pub bo: WithIndicators<WordLike>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
-    pub cu: Option<WordWithModifiers>,
+    pub cu: Option<WithIndicators<WordLike>>,
     pub cu_free_modifiers: Vec<FreeModifierSyntax>,
     pub predicate_tail: Box<PredicateTail2Syntax>,
     pub tail_terms: Vec<TermSyntax>,
-    pub vau: Option<WordWithModifiers>,
+    pub vau: Option<WithIndicators<WordLike>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -85,7 +86,7 @@ pub enum PredicateTail3Syntax {
     Relation {
         relation: RelationSyntax,
         terms: Vec<TermSyntax>,
-        vau: Option<WordWithModifiers>,
+        vau: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     GekSentence(GekSentenceSyntax),
@@ -100,19 +101,19 @@ pub enum GekSentenceSyntax {
         gik: ConnectiveSyntax,
         second: Box<SubsentenceSyntax>,
         tail_terms: Vec<TermSyntax>,
-        vau: Option<WordWithModifiers>,
+        vau: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Ke {
         tense_modal: Option<TenseModalSyntax>,
-        ke: WordWithModifiers,
+        ke: WithIndicators<WordLike>,
         ke_free_modifiers: Vec<FreeModifierSyntax>,
         inner: Box<GekSentenceSyntax>,
-        kehe: Option<WordWithModifiers>,
+        kehe: Option<WithIndicators<WordLike>>,
         kehe_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Na {
-        na: WordWithModifiers,
+        na: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner: Box<GekSentenceSyntax>,
     },
@@ -124,7 +125,7 @@ pub enum SubsentenceSyntax {
     Plain(PredicateSyntax),
     Prenex {
         prenex_terms: Vec<TermSyntax>,
-        zohu: WordWithModifiers,
+        zohu: WithIndicators<WordLike>,
         zohu_free_modifiers: Vec<FreeModifierSyntax>,
         inner_subsentence: Box<SubsentenceSyntax>,
     },
@@ -133,8 +134,8 @@ pub enum SubsentenceSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct TextSyntax {
-    pub leading_nai: Vec<WordWithModifiers>,
-    pub leading_cmevla: Vec<WordWithModifiers>,
+    pub leading_nai: Vec<WithIndicators<WordLike>>,
+    pub leading_cmevla: Vec<WithIndicators<WordLike>>,
     pub leading_indicators: Vec<Indicator>,
     pub leading_free_modifiers: Vec<FreeModifierSyntax>,
     pub leading_connective: Option<ConnectiveSyntax>,
@@ -144,8 +145,8 @@ pub struct TextSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct ParagraphSyntax {
-    pub i: Option<WordWithModifiers>,
-    pub niho: Vec<WordWithModifiers>,
+    pub i: Option<WithIndicators<WordLike>>,
+    pub niho: Vec<WithIndicators<WordLike>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
     pub statements: Vec<ParagraphStatementSyntax>,
 }
@@ -153,7 +154,7 @@ pub struct ParagraphSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct ParagraphStatementSyntax {
-    pub i: Option<WordWithModifiers>,
+    pub i: Option<WithIndicators<WordLike>>,
     pub connective: Option<ConnectiveSyntax>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
     pub statement: Option<StatementSyntax>,
@@ -163,53 +164,53 @@ pub struct ParagraphStatementSyntax {
 #[invariant(true)]
 pub enum FreeModifierSyntax {
     Sei {
-        sei: WordWithModifiers,
+        sei: WithIndicators<WordLike>,
         leading_free_modifiers: Vec<FreeModifierSyntax>,
         terms: Vec<TermSyntax>,
-        cu: Option<WordWithModifiers>,
+        cu: Option<WithIndicators<WordLike>>,
         cu_free_modifiers: Vec<FreeModifierSyntax>,
         relation: RelationSyntax,
-        sehu: Option<WordWithModifiers>,
+        sehu: Option<WithIndicators<WordLike>>,
         sehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     To {
-        to: WordWithModifiers,
+        to: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         text: Box<TextSyntax>,
-        toi: Option<WordWithModifiers>,
+        toi: Option<WithIndicators<WordLike>>,
         toi_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Xi {
-        xi: WordWithModifiers,
+        xi: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         expression: MathExpressionSyntax,
     },
     Mai {
-        number: Vec<WordWithModifiers>,
-        mai: WordWithModifiers,
+        number: Vec<WithIndicators<WordLike>>,
+        mai: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Soi {
-        soi: WordWithModifiers,
+        soi: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         leading_argument: Box<ArgumentSyntax>,
         trailing_argument: Option<Box<ArgumentSyntax>>,
-        sehu: Option<WordWithModifiers>,
+        sehu: Option<WithIndicators<WordLike>>,
         sehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Vocative {
-        vocative_markers: Vec<WordWithModifiers>,
+        vocative_markers: Vec<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
         argument: Option<ArgumentSyntax>,
-        dohu: Option<WordWithModifiers>,
+        dohu: Option<WithIndicators<WordLike>>,
         dohu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Replacement {
-        lohai: Option<WordWithModifiers>,
-        old_words: Vec<WordWithModifiers>,
-        sahai: Option<WordWithModifiers>,
-        new_words: Vec<WordWithModifiers>,
-        lehai: WordWithModifiers,
+        lohai: Option<WithIndicators<WordLike>>,
+        old_words: Vec<WithIndicators<WordLike>>,
+        sahai: Option<WithIndicators<WordLike>>,
+        new_words: Vec<WithIndicators<WordLike>>,
+        lehai: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
 }
@@ -219,34 +220,34 @@ pub enum FreeModifierSyntax {
 pub enum StatementSyntax {
     Tuhe {
         tense_modal: Option<TenseModalSyntax>,
-        tuhe: WordWithModifiers,
+        tuhe: WithIndicators<WordLike>,
         tuhe_free_modifiers: Vec<FreeModifierSyntax>,
         text: Box<TextSyntax>,
-        tuhu: Option<WordWithModifiers>,
+        tuhu: Option<WithIndicators<WordLike>>,
         tuhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Prenex {
         prenex_terms: Vec<TermSyntax>,
-        zohu: WordWithModifiers,
+        zohu: WithIndicators<WordLike>,
         zohu_free_modifiers: Vec<FreeModifierSyntax>,
         inner_statement: Box<StatementSyntax>,
     },
     Predicate(PredicateSyntax),
     Connected {
-        i: WordWithModifiers,
+        i: WithIndicators<WordLike>,
         connective: ConnectiveSyntax,
         leading_statement: Box<StatementSyntax>,
         trailing_statement: Box<StatementSyntax>,
     },
     PreIConnected {
         connective: ConnectiveSyntax,
-        i: WordWithModifiers,
+        i: WithIndicators<WordLike>,
         leading_statement: Box<StatementSyntax>,
         trailing_statement: Box<StatementSyntax>,
     },
     Iau {
         inner_statement: Box<StatementSyntax>,
-        iau: WordWithModifiers,
+        iau: WithIndicators<WordLike>,
         iau_free_modifiers: Vec<FreeModifierSyntax>,
         reset_terms: Vec<TermSyntax>,
     },
@@ -270,13 +271,13 @@ pub struct PredicateStatementContinuationSyntax {
 #[invariant(true)]
 pub enum PredicateStatementContinuationMarkerSyntax {
     Bo {
-        bo: WordWithModifiers,
+        bo: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Ke {
-        ke: WordWithModifiers,
+        ke: WithIndicators<WordLike>,
         ke_free_modifiers: Vec<FreeModifierSyntax>,
-        kehe: Option<WordWithModifiers>,
+        kehe: Option<WithIndicators<WordLike>>,
         kehe_free_modifiers: Vec<FreeModifierSyntax>,
     },
 }
@@ -297,36 +298,36 @@ pub enum FragmentSyntax {
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Other {
-        words: Vec<WordWithModifiers>,
+        words: Vec<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     // v0 exposes this constructor for a fragment shape that is currently parsed
     // through VocativeFree when it appears in source text.
     #[allow(dead_code)]
     Vocative {
-        vocative_markers: Vec<WordWithModifiers>,
+        vocative_markers: Vec<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
         vocative_argument: Option<ArgumentSyntax>,
-        dohu: Option<WordWithModifiers>,
+        dohu: Option<WithIndicators<WordLike>>,
         dohu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Ijek {
-        i: WordWithModifiers,
+        i: WithIndicators<WordLike>,
         connective: ConnectiveSyntax,
     },
     Prenex {
         terms: Vec<TermSyntax>,
-        zohu: WordWithModifiers,
+        zohu: WithIndicators<WordLike>,
         zohu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     BeLink {
-        be: WordWithModifiers,
+        be: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
-        fa: Option<WordWithModifiers>,
+        fa: Option<WithIndicators<WordLike>>,
         fa_free_modifiers: Vec<FreeModifierSyntax>,
         first_argument: Option<ArgumentSyntax>,
         bei_links: Vec<BeiLinkSyntax>,
-        beho: Option<WordWithModifiers>,
+        beho: Option<WithIndicators<WordLike>>,
         beho_free_modifiers: Vec<FreeModifierSyntax>,
     },
     BeiLink(Vec<BeiLinkSyntax>),
@@ -334,7 +335,7 @@ pub enum FragmentSyntax {
     MathExpression(MathExpressionSyntax),
     Term {
         terms: Vec<TermSyntax>,
-        vau: Option<WordWithModifiers>,
+        vau: Option<WithIndicators<WordLike>>,
         vau_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Relation(RelationSyntax),
@@ -344,84 +345,84 @@ pub enum FragmentSyntax {
 #[invariant(true)]
 pub enum TermSyntax {
     NuhiTermset {
-        nuhi: WordWithModifiers,
+        nuhi: WithIndicators<WordLike>,
         nuhi_free_modifiers: Vec<FreeModifierSyntax>,
         termset: Vec<TermSyntax>,
-        nuhu: Option<WordWithModifiers>,
+        nuhu: Option<WithIndicators<WordLike>>,
         nuhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     GekNuhiTermset {
-        m_nuhi: Option<WordWithModifiers>,
+        m_nuhi: Option<WithIndicators<WordLike>>,
         nuhi_free_modifiers: Vec<FreeModifierSyntax>,
         gek: ConnectiveSyntax,
         terms: Vec<TermSyntax>,
-        nuhu: Option<WordWithModifiers>,
+        nuhu: Option<WithIndicators<WordLike>>,
         nuhu_free_modifiers: Vec<FreeModifierSyntax>,
         gik: ConnectiveSyntax,
         gik_terms: Vec<TermSyntax>,
-        gik_nuhu: Option<WordWithModifiers>,
+        gik_nuhu: Option<WithIndicators<WordLike>>,
         gik_nuhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Cehe {
         leading_terms: Vec<TermSyntax>,
-        cehe: WordWithModifiers,
+        cehe: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         trailing_terms: Vec<TermSyntax>,
     },
     Pehe {
         leading_terms: Vec<TermSyntax>,
-        pehe: WordWithModifiers,
+        pehe: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         connective: ConnectiveSyntax,
         trailing_terms: Vec<TermSyntax>,
     },
     Argument(ArgumentSyntax),
     Fa {
-        fa: WordWithModifiers,
+        fa: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         argument: ArgumentSyntax,
-        ku: Option<WordWithModifiers>,
+        ku: Option<WithIndicators<WordLike>>,
         ku_free_modifiers: Vec<FreeModifierSyntax>,
     },
     NaKu {
-        na: WordWithModifiers,
-        na_ku: WordWithModifiers,
+        na: WithIndicators<WordLike>,
+        na_ku: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     BareNa {
-        na: WordWithModifiers,
+        na: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     NoihaAdverbial {
-        noiha: WordWithModifiers,
+        noiha: WithIndicators<WordLike>,
         leading_free_modifiers: Vec<FreeModifierSyntax>,
         tail_elements: Vec<ArgumentTailElementSyntax>,
         relation: Option<RelationSyntax>,
         relative_clauses: Vec<RelativeClauseSyntax>,
-        fehu: Option<WordWithModifiers>,
+        fehu: Option<WithIndicators<WordLike>>,
         trailing_free_modifiers: Vec<FreeModifierSyntax>,
     },
     PoihaBrigahi {
-        poiha: WordWithModifiers,
+        poiha: WithIndicators<WordLike>,
         leading_free_modifiers: Vec<FreeModifierSyntax>,
         tail_elements: Vec<ArgumentTailElementSyntax>,
         relation: Option<RelationSyntax>,
         relative_clauses: Vec<RelativeClauseSyntax>,
-        brigahi_ku: WordWithModifiers,
+        brigahi_ku: WithIndicators<WordLike>,
         trailing_free_modifiers: Vec<FreeModifierSyntax>,
     },
     FihoiAdverbial {
-        fihoi: WordWithModifiers,
+        fihoi: WithIndicators<WordLike>,
         leading_free_modifiers: Vec<FreeModifierSyntax>,
         subsentence: Box<SubsentenceSyntax>,
-        fihau: Option<WordWithModifiers>,
+        fihau: Option<WithIndicators<WordLike>>,
         trailing_free_modifiers: Vec<FreeModifierSyntax>,
     },
     SoiAdverbial {
-        soi: WordWithModifiers,
+        soi: WithIndicators<WordLike>,
         leading_free_modifiers: Vec<FreeModifierSyntax>,
         subsentence: Box<SubsentenceSyntax>,
-        sehu: Option<WordWithModifiers>,
+        sehu: Option<WithIndicators<WordLike>>,
         trailing_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Tagged {
@@ -438,7 +439,7 @@ pub enum TermSyntax {
         leading_terms: Vec<TermSyntax>,
         bo_connective: Option<ConnectiveSyntax>,
         tense_modal: Option<TenseModalSyntax>,
-        bo: WordWithModifiers,
+        bo: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         trailing_term: Box<TermSyntax>,
     },
@@ -467,15 +468,15 @@ pub enum ArgumentSyntax {
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     MathExpression {
-        li: WordWithModifiers,
+        li: WithIndicators<WordLike>,
         li_free_modifiers: Vec<FreeModifierSyntax>,
         expression: MathExpressionSyntax,
-        loho: Option<WordWithModifiers>,
+        loho: Option<WithIndicators<WordLike>>,
         loho_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Letter {
-        letter: Vec<WordWithModifiers>,
-        boi: Option<WordWithModifiers>,
+        letter: Vec<WithIndicators<WordLike>>,
+        boi: Option<WithIndicators<WordLike>>,
         boi_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Quantified {
@@ -484,75 +485,75 @@ pub enum ArgumentSyntax {
     },
     RelativeClause {
         base_argument: Box<ArgumentSyntax>,
-        vuho: Option<WordWithModifiers>,
+        vuho: Option<WithIndicators<WordLike>>,
         vuho_free_modifiers: Vec<FreeModifierSyntax>,
         relative_clauses: Vec<RelativeClauseSyntax>,
     },
     Vuho {
         base_argument: Box<ArgumentSyntax>,
-        vuho_marker: WordWithModifiers,
+        vuho_marker: WithIndicators<WordLike>,
         vuho_free_modifiers: Vec<FreeModifierSyntax>,
         relative_clauses: Vec<RelativeClauseSyntax>,
         connected_argument: Option<ArgumentConnectionSyntax>,
     },
     BridiDescription {
-        lohoi: WordWithModifiers,
+        lohoi: WithIndicators<WordLike>,
         lohoi_free_modifiers: Vec<FreeModifierSyntax>,
         subsentence: Box<SubsentenceSyntax>,
-        kuhau: Option<WordWithModifiers>,
+        kuhau: Option<WithIndicators<WordLike>>,
         kuhau_free_modifiers: Vec<FreeModifierSyntax>,
     },
     NaKu {
-        na: WordWithModifiers,
-        ku: WordWithModifiers,
+        na: WithIndicators<WordLike>,
+        ku: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Tagged {
-        tag_words: Vec<WordWithModifiers>,
+        tag_words: Vec<WithIndicators<WordLike>>,
         tag_tense_modal: Option<TenseModalSyntax>,
-        tag_fa: Option<WordWithModifiers>,
+        tag_fa: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_argument: Box<ArgumentSyntax>,
     },
     NaheBo {
-        nahe: WordWithModifiers,
-        bo: WordWithModifiers,
+        nahe: WithIndicators<WordLike>,
+        bo: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_argument: Box<ArgumentSyntax>,
-        luhu: Option<WordWithModifiers>,
+        luhu: Option<WithIndicators<WordLike>>,
         luhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Nahe {
-        nahe: WordWithModifiers,
+        nahe: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_argument: Box<ArgumentSyntax>,
-        luhu: Option<WordWithModifiers>,
+        luhu: Option<WithIndicators<WordLike>>,
         luhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     TermWrapped {
         term_wrapper_kind: TermWrapperKindSyntax,
-        wrapper: WordWithModifiers,
-        wrapper_bo: Option<WordWithModifiers>,
+        wrapper: WithIndicators<WordLike>,
+        wrapper_bo: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_term: Box<TermSyntax>,
-        luhu: Option<WordWithModifiers>,
+        luhu: Option<WithIndicators<WordLike>>,
         luhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Koha {
-        koha: WordWithModifiers,
+        koha: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Zohe {
-        tag_words: Vec<WordWithModifiers>,
-        maybe_ku: Option<WordWithModifiers>,
+        tag_words: Vec<WithIndicators<WordLike>>,
+        maybe_ku: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Lahe {
-        lahe: WordWithModifiers,
+        lahe: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         relative_clauses: Vec<RelativeClauseSyntax>,
         inner_argument: Box<ArgumentSyntax>,
-        luhu: Option<WordWithModifiers>,
+        luhu: Option<WithIndicators<WordLike>>,
         luhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Connected {
@@ -561,17 +562,17 @@ pub enum ArgumentSyntax {
         trailing_argument: Box<ArgumentSyntax>,
     },
     Ke {
-        ke: WordWithModifiers,
+        ke: WithIndicators<WordLike>,
         ke_free_modifiers: Vec<FreeModifierSyntax>,
         inner_argument: Box<ArgumentSyntax>,
-        kehe: Option<WordWithModifiers>,
+        kehe: Option<WithIndicators<WordLike>>,
         kehe_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Bo {
         leading_argument: Box<ArgumentSyntax>,
         bo_connective: Option<ConnectiveSyntax>,
         bo_tense_modal: Option<TenseModalSyntax>,
-        bo: WordWithModifiers,
+        bo: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         trailing_argument: Box<ArgumentSyntax>,
     },
@@ -584,13 +585,13 @@ pub enum ArgumentSyntax {
     Descriptor(DescriptorSyntax),
     ConnectedDescriptor(ConnectedDescriptorSyntax),
     Name {
-        la: WordWithModifiers,
+        la: WithIndicators<WordLike>,
         la_free_modifiers: Vec<FreeModifierSyntax>,
-        names: Vec<WordWithModifiers>,
+        names: Vec<WithIndicators<WordLike>>,
         name_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Cmevla {
-        cmevla: Vec<WordWithModifiers>,
+        cmevla: Vec<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     RelationVocative {
@@ -605,21 +606,21 @@ pub enum ArgumentSyntax {
 pub enum RelativeClauseSyntax {
     Goi(GoiRelativeClauseSyntax),
     Noi {
-        noi: WordWithModifiers,
+        noi: WithIndicators<WordLike>,
         leading_free_modifiers: Vec<FreeModifierSyntax>,
         subsentence: SubsentenceSyntax,
-        kuho: Option<WordWithModifiers>,
+        kuho: Option<WithIndicators<WordLike>>,
         trailing_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Poi {
-        poi: WordWithModifiers,
+        poi: WithIndicators<WordLike>,
         leading_free_modifiers: Vec<FreeModifierSyntax>,
         subsentence: SubsentenceSyntax,
-        kuho: Option<WordWithModifiers>,
+        kuho: Option<WithIndicators<WordLike>>,
         trailing_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Zihe {
-        zihe: WordWithModifiers,
+        zihe: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner: Box<RelativeClauseSyntax>,
     },
@@ -632,20 +633,20 @@ pub enum RelativeClauseSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct GoiRelativeClauseSyntax {
-    pub goi: WordWithModifiers,
+    pub goi: WithIndicators<WordLike>,
     pub leading_free_modifiers: Vec<FreeModifierSyntax>,
     pub argument: ArgumentSyntax,
-    pub gehu: Option<WordWithModifiers>,
+    pub gehu: Option<WithIndicators<WordLike>>,
     pub trailing_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct SelbriRelativeClauseSyntax {
-    pub nohoi: WordWithModifiers,
+    pub nohoi: WithIndicators<WordLike>,
     pub leading_free_modifiers: Vec<FreeModifierSyntax>,
     pub relation: RelationSyntax,
-    pub kuhoi: Option<WordWithModifiers>,
+    pub kuhoi: Option<WithIndicators<WordLike>>,
     pub trailing_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
@@ -653,26 +654,26 @@ pub struct SelbriRelativeClauseSyntax {
 #[invariant(true)]
 pub enum QuoteSyntax {
     Lu {
-        lu: WordWithModifiers,
+        lu: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         text: TextSyntax,
-        lihu: Option<WordWithModifiers>,
+        lihu: Option<WithIndicators<WordLike>>,
         lihu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Zo {
-        zo: WordWithModifiers,
-        word: WordWithModifiers,
+        zo: WithIndicators<WordLike>,
+        word: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     ZohOi {
-        zohoi: WordWithModifiers,
+        zohoi: WithIndicators<WordLike>,
         quoted_text: String,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Zoi {
-        zoi: WordWithModifiers,
-        opening_delimiter: WordWithModifiers,
-        closing_delimiter: WordWithModifiers,
+        zoi: WithIndicators<WordLike>,
+        opening_delimiter: WithIndicators<WordLike>,
+        closing_delimiter: WithIndicators<WordLike>,
         quoted_text: String,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
@@ -680,23 +681,23 @@ pub enum QuoteSyntax {
     // classifies morphology-level LAhO quotes as ZoiQuote.
     #[allow(dead_code)]
     Laho {
-        laho: WordWithModifiers,
-        opening_delimiter: WordWithModifiers,
-        closing_delimiter: WordWithModifiers,
+        laho: WithIndicators<WordLike>,
+        opening_delimiter: WithIndicators<WordLike>,
+        closing_delimiter: WithIndicators<WordLike>,
         quoted_text: String,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Lohu {
-        lohu: WordWithModifiers,
-        quoted_words: Vec<WordWithModifiers>,
-        lehu: WordWithModifiers,
+        lohu: WithIndicators<WordLike>,
+        quoted_words: Vec<WithIndicators<WordLike>>,
+        lehu: WithIndicators<WordLike>,
         lehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     // v0 exposes this constructor in the Quote ADT; current v0 grammar parses
     // ordinary `me'o` through MathExpressionArgument.
     #[allow(dead_code)]
     Meho {
-        meho: WordWithModifiers,
+        meho: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         math_expression: MathExpressionSyntax,
     },
@@ -705,20 +706,20 @@ pub enum QuoteSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct DescriptorSyntax {
-    pub descriptor: Option<WordWithModifiers>,
+    pub descriptor: Option<WithIndicators<WordLike>>,
     pub descriptor_free_modifiers: Vec<FreeModifierSyntax>,
     pub outer_quantifier: Option<QuantifierSyntax>,
     pub tail_elements: Vec<ArgumentTailElementSyntax>,
     pub relation: Option<RelationSyntax>,
     pub relative_clauses: Vec<RelativeClauseSyntax>,
-    pub ku: Option<WordWithModifiers>,
+    pub ku: Option<WithIndicators<WordLike>>,
     pub ku_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct DescriptorHeadSyntax {
-    pub descriptor: WordWithModifiers,
+    pub descriptor: WithIndicators<WordLike>,
     pub descriptor_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
@@ -731,7 +732,7 @@ pub struct ConnectedDescriptorSyntax {
     pub tail_elements: Vec<ArgumentTailElementSyntax>,
     pub relation: Option<RelationSyntax>,
     pub relative_clauses: Vec<RelativeClauseSyntax>,
-    pub ku: Option<WordWithModifiers>,
+    pub ku: Option<WithIndicators<WordLike>>,
     pub ku_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
@@ -739,20 +740,20 @@ pub struct ConnectedDescriptorSyntax {
 #[invariant(true)]
 pub struct ConnectiveSyntax {
     pub kind: ConnectiveKind,
-    pub se: Option<WordWithModifiers>,
-    pub nahe: Option<WordWithModifiers>,
-    pub na: Option<WordWithModifiers>,
-    pub cmavo: Vec<WordWithModifiers>,
-    pub nai: Option<WordWithModifiers>,
+    pub se: Option<WithIndicators<WordLike>>,
+    pub nahe: Option<WithIndicators<WordLike>>,
+    pub na: Option<WithIndicators<WordLike>>,
+    pub cmavo: Vec<WithIndicators<WordLike>>,
+    pub nai: Option<WithIndicators<WordLike>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct BeiLinkSyntax {
-    pub bei: WordWithModifiers,
+    pub bei: WithIndicators<WordLike>,
     pub bei_free_modifiers: Vec<FreeModifierSyntax>,
-    pub fa: Option<WordWithModifiers>,
+    pub fa: Option<WithIndicators<WordLike>>,
     pub fa_free_modifiers: Vec<FreeModifierSyntax>,
     pub argument: Option<ArgumentSyntax>,
 }
@@ -760,7 +761,7 @@ pub struct BeiLinkSyntax {
 #[invariant(self.fa.is_none() || self.argument.is_some(), "lifted FA link tags must have an argument")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LinkArgumentSyntax {
-    pub fa: Option<WordWithModifiers>,
+    pub fa: Option<WithIndicators<WordLike>>,
     pub fa_free_modifiers: Vec<FreeModifierSyntax>,
     pub argument: Option<ArgumentSyntax>,
 }
@@ -768,13 +769,13 @@ pub struct LinkArgumentSyntax {
 #[invariant(self.fa.is_none() || self.first_argument.is_some(), "lifted FA link tags must have an argument")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BeLinkSyntax {
-    pub be: WordWithModifiers,
+    pub be: WithIndicators<WordLike>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
-    pub fa: Option<WordWithModifiers>,
+    pub fa: Option<WithIndicators<WordLike>>,
     pub fa_free_modifiers: Vec<FreeModifierSyntax>,
     pub first_argument: Option<ArgumentSyntax>,
     pub bei_links: Vec<BeiLinkSyntax>,
-    pub beho: Option<WordWithModifiers>,
+    pub beho: Option<WithIndicators<WordLike>>,
     pub beho_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
@@ -801,15 +802,15 @@ pub enum ArgumentTailElementSyntax {
 #[invariant(true)]
 pub enum QuantifierSyntax {
     Number {
-        number: Vec<WordWithModifiers>,
-        boi: Option<WordWithModifiers>,
+        number: Vec<WithIndicators<WordLike>>,
+        boi: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Vei {
-        vei: WordWithModifiers,
+        vei: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         math_expression: Box<MathExpressionSyntax>,
-        veho: Option<WordWithModifiers>,
+        veho: Option<WithIndicators<WordLike>>,
         veho_free_modifiers: Vec<FreeModifierSyntax>,
     },
 }
@@ -819,15 +820,15 @@ pub enum QuantifierSyntax {
 pub enum MathExpressionSyntax {
     Number(QuantifierSyntax),
     Letter {
-        letter: Vec<WordWithModifiers>,
-        boi: Option<WordWithModifiers>,
+        letter: Vec<WithIndicators<WordLike>>,
+        boi: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Vei {
-        vei: WordWithModifiers,
+        vei: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_expression: Box<MathExpressionSyntax>,
-        veho: Option<WordWithModifiers>,
+        veho: Option<WithIndicators<WordLike>>,
         veho_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Gek {
@@ -837,45 +838,45 @@ pub enum MathExpressionSyntax {
         right_expression: Box<MathExpressionSyntax>,
     },
     Forethought {
-        peho: Option<WordWithModifiers>,
+        peho: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
         operator: MathOperatorSyntax,
         operands: Vec<MathExpressionSyntax>,
-        kuhe: Option<WordWithModifiers>,
+        kuhe: Option<WithIndicators<WordLike>>,
         kuhe_free_modifiers: Vec<FreeModifierSyntax>,
     },
     ReversePolish {
-        fuha: WordWithModifiers,
+        fuha: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         operands: Vec<MathExpressionSyntax>,
         operators: Vec<MathOperatorSyntax>,
     },
     Nihe {
-        nihe: WordWithModifiers,
+        nihe: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         relation: RelationSyntax,
-        tehu: Option<WordWithModifiers>,
+        tehu: Option<WithIndicators<WordLike>>,
         tehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Mohe {
-        mohe: WordWithModifiers,
+        mohe: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         argument: Box<ArgumentSyntax>,
-        tehu: Option<WordWithModifiers>,
+        tehu: Option<WithIndicators<WordLike>>,
         tehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Johi {
-        johi: WordWithModifiers,
+        johi: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         expressions: Vec<MathExpressionSyntax>,
-        tehu: Option<WordWithModifiers>,
+        tehu: Option<WithIndicators<WordLike>>,
         tehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Lahe {
-        markers: Vec<WordWithModifiers>,
+        markers: Vec<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_expression: Box<MathExpressionSyntax>,
-        luhu: Option<WordWithModifiers>,
+        luhu: Option<WithIndicators<WordLike>>,
         luhu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Connected {
@@ -890,7 +891,7 @@ pub enum MathExpressionSyntax {
     },
     Bihe {
         left_expression: Box<MathExpressionSyntax>,
-        bihe: WordWithModifiers,
+        bihe: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         operator: MathOperatorSyntax,
         right_expression: Box<MathExpressionSyntax>,
@@ -908,7 +909,7 @@ pub enum MathExpressionSyntax {
     Bo {
         left_expression: Box<MathExpressionSyntax>,
         operator: MathOperatorSyntax,
-        bo: WordWithModifiers,
+        bo: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         right_expression: Box<MathExpressionSyntax>,
     },
@@ -918,41 +919,41 @@ pub enum MathExpressionSyntax {
 #[invariant(true)]
 pub enum MathOperatorSyntax {
     Vuhu {
-        vuhu: WordWithModifiers,
+        vuhu: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Maho {
-        maho: WordWithModifiers,
+        maho: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         math_expression: Box<MathExpressionSyntax>,
-        tehu: Option<WordWithModifiers>,
+        tehu: Option<WithIndicators<WordLike>>,
         tehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Se {
-        se: WordWithModifiers,
+        se: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_operator: Box<MathOperatorSyntax>,
     },
     Nahe {
-        nahe: WordWithModifiers,
+        nahe: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_operator: Box<MathOperatorSyntax>,
     },
     Nahu {
-        nahu: WordWithModifiers,
+        nahu: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         relation: RelationSyntax,
-        tehu: Option<WordWithModifiers>,
+        tehu: Option<WithIndicators<WordLike>>,
         tehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     // v0 exposes this constructor; parser support is being ported with the
     // operator precedence rules.
     #[allow(dead_code)]
     Ke {
-        ke: WordWithModifiers,
+        ke: WithIndicators<WordLike>,
         ke_free_modifiers: Vec<FreeModifierSyntax>,
         inner_operator: Box<MathOperatorSyntax>,
-        kehe: Option<WordWithModifiers>,
+        kehe: Option<WithIndicators<WordLike>>,
         kehe_free_modifiers: Vec<FreeModifierSyntax>,
     },
     // v0 exposes this constructor; parser support is being ported with the
@@ -960,7 +961,7 @@ pub enum MathOperatorSyntax {
     #[allow(dead_code)]
     Bo {
         left_operator: Box<MathOperatorSyntax>,
-        bo: WordWithModifiers,
+        bo: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         right_operator: Box<MathOperatorSyntax>,
     },
@@ -968,15 +969,17 @@ pub enum MathOperatorSyntax {
     // JohiExpression for the ordinary JOhI operand form.
     #[allow(dead_code)]
     Johi {
-        johi: WordWithModifiers,
+        johi: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         expressions: Vec<MathExpressionSyntax>,
-        tehu: Option<WordWithModifiers>,
+        tehu: Option<WithIndicators<WordLike>>,
         tehu_free_modifiers: Vec<FreeModifierSyntax>,
     },
     // v0 exposes this constructor for operator slots accepting numeric forms.
     #[allow(dead_code)]
-    Number { number: Vec<WordWithModifiers> },
+    Number {
+        number: Vec<WithIndicators<WordLike>>,
+    },
     Connected {
         left_operator: Box<MathOperatorSyntax>,
         connective: ConnectiveSyntax,
@@ -994,7 +997,7 @@ pub enum RelationSyntax {
     },
     Co {
         leading_relation: Box<RelationSyntax>,
-        co: WordWithModifiers,
+        co: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         trailing_relation: Box<RelationSyntax>,
     },
@@ -1002,27 +1005,27 @@ pub enum RelationSyntax {
         leading_relation: Box<RelationSyntax>,
         bo_connective: Option<ConnectiveSyntax>,
         bo_tense_modal: Option<TenseModalSyntax>,
-        bo: WordWithModifiers,
+        bo: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         trailing_relation: Box<RelationSyntax>,
     },
     Na {
-        na: WordWithModifiers,
+        na: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_relation: Box<RelationSyntax>,
     },
-    Base(WordWithModifiers),
+    Base(WithIndicators<WordLike>),
     Se {
-        se: WordWithModifiers,
+        se: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_relation: Box<RelationSyntax>,
     },
     Ke {
         ke_tense_modal: Option<TenseModalSyntax>,
-        ke: WordWithModifiers,
+        ke: WithIndicators<WordLike>,
         ke_free_modifiers: Vec<FreeModifierSyntax>,
         relation: Box<RelationSyntax>,
-        kehe: Option<WordWithModifiers>,
+        kehe: Option<WithIndicators<WordLike>>,
         kehe_free_modifiers: Vec<FreeModifierSyntax>,
     },
     TenseModal {
@@ -1042,48 +1045,48 @@ pub enum RelationSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct TimeTenseSyntax {
-    pub direction: Vec<WordWithModifiers>,
-    pub distance: Option<WordWithModifiers>,
-    pub interval: Option<WordWithModifiers>,
-    pub nai: Option<WordWithModifiers>,
+    pub direction: Vec<WithIndicators<WordLike>>,
+    pub distance: Option<WithIndicators<WordLike>>,
+    pub interval: Option<WithIndicators<WordLike>>,
+    pub nai: Option<WithIndicators<WordLike>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct SpaceTenseSyntax {
-    pub direction: Vec<WordWithModifiers>,
-    pub distance: Vec<WordWithModifiers>,
-    pub interval: Vec<WordWithModifiers>,
-    pub dimensions: Vec<WordWithModifiers>,
-    pub mohi: Option<WordWithModifiers>,
-    pub fehe: Option<WordWithModifiers>,
+    pub direction: Vec<WithIndicators<WordLike>>,
+    pub distance: Vec<WithIndicators<WordLike>>,
+    pub interval: Vec<WithIndicators<WordLike>>,
+    pub dimensions: Vec<WithIndicators<WordLike>>,
+    pub mohi: Option<WithIndicators<WordLike>>,
+    pub fehe: Option<WithIndicators<WordLike>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct IntervalTenseSyntax {
-    pub number: Vec<WordWithModifiers>,
-    pub roi_or_tahe: WordWithModifiers,
-    pub nai: Option<WordWithModifiers>,
+    pub number: Vec<WithIndicators<WordLike>>,
+    pub roi_or_tahe: WithIndicators<WordLike>,
+    pub nai: Option<WithIndicators<WordLike>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct SimpleTenseModalSyntax {
-    pub nahe: Option<WordWithModifiers>,
-    pub se: Option<WordWithModifiers>,
-    pub bai: Option<WordWithModifiers>,
-    pub nai: Option<WordWithModifiers>,
+    pub nahe: Option<WithIndicators<WordLike>>,
+    pub se: Option<WithIndicators<WordLike>>,
+    pub bai: Option<WithIndicators<WordLike>>,
+    pub nai: Option<WithIndicators<WordLike>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct FihoModalSyntax {
-    pub nahe: Option<WordWithModifiers>,
-    pub fiho: WordWithModifiers,
+    pub nahe: Option<WithIndicators<WordLike>>,
+    pub fiho: WithIndicators<WordLike>,
     pub fiho_free_modifiers: Vec<FreeModifierSyntax>,
     pub relation: RelationSyntax,
-    pub fehu: Option<WordWithModifiers>,
+    pub fehu: Option<WithIndicators<WordLike>>,
     pub fehu_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
@@ -1091,83 +1094,83 @@ pub struct FihoModalSyntax {
 #[invariant(true)]
 pub enum TenseModalSyntax {
     Composite {
-        leaves: Vec<WordWithModifiers>,
+        leaves: Vec<WithIndicators<WordLike>>,
         time: Option<TimeTenseSyntax>,
         space: Option<SpaceTenseSyntax>,
         simple: Option<SimpleTenseModalSyntax>,
         interval: Option<IntervalTenseSyntax>,
-        zaho: Vec<WordWithModifiers>,
-        caha: Option<WordWithModifiers>,
-        ki: Option<WordWithModifiers>,
-        cuhe: Option<WordWithModifiers>,
+        zaho: Vec<WithIndicators<WordLike>>,
+        caha: Option<WithIndicators<WordLike>>,
+        ki: Option<WithIndicators<WordLike>>,
+        cuhe: Option<WithIndicators<WordLike>>,
         fiho: Vec<FihoModalSyntax>,
-        connectives: Vec<WordWithModifiers>,
+        connectives: Vec<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Pu {
-        word: WordWithModifiers,
+        word: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     PuDistance {
-        pu: WordWithModifiers,
-        distance: WordWithModifiers,
+        pu: WithIndicators<WordLike>,
+        distance: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     TimeInterval {
-        word: WordWithModifiers,
+        word: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     PuCaha {
-        pu: WordWithModifiers,
-        caha: WordWithModifiers,
+        pu: WithIndicators<WordLike>,
+        caha: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     SpaceDistance {
-        word: WordWithModifiers,
+        word: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     SpaceDirection {
-        word: WordWithModifiers,
+        word: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     SpaceMovement {
-        mohi: WordWithModifiers,
-        direction: WordWithModifiers,
-        distance: Option<WordWithModifiers>,
+        mohi: WithIndicators<WordLike>,
+        direction: WithIndicators<WordLike>,
+        distance: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Simple {
-        nahe: Option<WordWithModifiers>,
-        se: Option<WordWithModifiers>,
-        bai: WordWithModifiers,
-        nai: Option<WordWithModifiers>,
-        ki: Option<WordWithModifiers>,
-        connectives: Vec<WordWithModifiers>,
-        extra_leaves: Vec<WordWithModifiers>,
+        nahe: Option<WithIndicators<WordLike>>,
+        se: Option<WithIndicators<WordLike>>,
+        bai: WithIndicators<WordLike>,
+        nai: Option<WithIndicators<WordLike>>,
+        ki: Option<WithIndicators<WordLike>>,
+        connectives: Vec<WithIndicators<WordLike>>,
+        extra_leaves: Vec<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Ki {
-        ki: WordWithModifiers,
+        ki: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Fiho {
-        fiho: WordWithModifiers,
+        fiho: WithIndicators<WordLike>,
         relation: Box<RelationSyntax>,
-        fehu: Option<WordWithModifiers>,
+        fehu: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Caha {
-        word: WordWithModifiers,
+        word: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Zaho {
-        words: Vec<WordWithModifiers>,
+        words: Vec<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Interval {
-        number: Vec<WordWithModifiers>,
-        roi_or_tahe: WordWithModifiers,
-        nai: Option<WordWithModifiers>,
+        number: Vec<WithIndicators<WordLike>>,
+        roi_or_tahe: WithIndicators<WordLike>,
+        nai: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
 }
@@ -1175,12 +1178,12 @@ pub enum TenseModalSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct AbstractionSyntax {
-    pub nu: WordWithModifiers,
-    pub nai: Option<WordWithModifiers>,
+    pub nu: WithIndicators<WordLike>,
+    pub nai: Option<WithIndicators<WordLike>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
     pub additional_nu: Vec<AdditionalNuSyntax>,
     pub subsentence: Box<SubsentenceSyntax>,
-    pub kei: Option<WordWithModifiers>,
+    pub kei: Option<WithIndicators<WordLike>>,
     pub kei_free_modifiers: Vec<FreeModifierSyntax>,
 }
 
@@ -1188,8 +1191,8 @@ pub struct AbstractionSyntax {
 #[invariant(true)]
 pub struct AdditionalNuSyntax {
     pub connective: ConnectiveSyntax,
-    pub nu: WordWithModifiers,
-    pub nai: Option<WordWithModifiers>,
+    pub nu: WithIndicators<WordLike>,
+    pub nai: Option<WithIndicators<WordLike>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
@@ -1197,29 +1200,29 @@ pub struct AdditionalNuSyntax {
 #[invariant(true)]
 pub enum RelationUnitSyntax {
     Word {
-        word: WordWithModifiers,
+        word: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Goha {
-        goha: WordWithModifiers,
-        raho: Option<WordWithModifiers>,
+        goha: WithIndicators<WordLike>,
+        raho: Option<WithIndicators<WordLike>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Se {
-        se: WordWithModifiers,
+        se: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_unit: Box<RelationUnitSyntax>,
     },
     Ke {
         ke_tense_modal: Option<TenseModalSyntax>,
-        ke: WordWithModifiers,
+        ke: WithIndicators<WordLike>,
         ke_free_modifiers: Vec<FreeModifierSyntax>,
         relation: RelationSyntax,
-        kehe: Option<WordWithModifiers>,
+        kehe: Option<WithIndicators<WordLike>>,
         kehe_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Nahe {
-        nahe: WordWithModifiers,
+        nahe: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         inner_unit: Box<RelationUnitSyntax>,
     },
@@ -1227,7 +1230,7 @@ pub enum RelationUnitSyntax {
         leading_unit: Box<RelationUnitSyntax>,
         bo_connective: Option<ConnectiveSyntax>,
         bo_tense_modal: Option<TenseModalSyntax>,
-        bo: WordWithModifiers,
+        bo: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         trailing_unit: Box<RelationUnitSyntax>,
     },
@@ -1242,79 +1245,79 @@ pub enum RelationUnitSyntax {
     },
     Wrapped(RelationSyntax),
     Jai {
-        jai: WordWithModifiers,
+        jai: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         tense_modal: Option<TenseModalSyntax>,
         inner_unit: Box<RelationUnitSyntax>,
     },
     Be {
         base: Box<RelationUnitSyntax>,
-        be: WordWithModifiers,
+        be: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
-        fa: Option<WordWithModifiers>,
+        fa: Option<WithIndicators<WordLike>>,
         fa_free_modifiers: Vec<FreeModifierSyntax>,
         first_argument: Option<ArgumentSyntax>,
         bei_links: Vec<BeiLinkSyntax>,
-        beho: Option<WordWithModifiers>,
+        beho: Option<WithIndicators<WordLike>>,
         beho_free_modifiers: Vec<FreeModifierSyntax>,
     },
     PreposedBe {
-        be: WordWithModifiers,
+        be: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
-        fa: Option<WordWithModifiers>,
+        fa: Option<WithIndicators<WordLike>>,
         fa_free_modifiers: Vec<FreeModifierSyntax>,
         first_argument: Option<ArgumentSyntax>,
         bei_links: Vec<BeiLinkSyntax>,
-        beho: Option<WordWithModifiers>,
+        beho: Option<WithIndicators<WordLike>>,
         beho_free_modifiers: Vec<FreeModifierSyntax>,
         base: Box<RelationUnitSyntax>,
     },
     Abstraction(AbstractionSyntax),
     Me {
-        me: WordWithModifiers,
+        me: WithIndicators<WordLike>,
         me_free_modifiers: Vec<FreeModifierSyntax>,
         argument: ArgumentSyntax,
-        mehu: Option<WordWithModifiers>,
+        mehu: Option<WithIndicators<WordLike>>,
         mehu_free_modifiers: Vec<FreeModifierSyntax>,
-        moi_marker: Option<WordWithModifiers>,
+        moi_marker: Option<WithIndicators<WordLike>>,
         moi_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Mehoi {
-        mehoi: WordWithModifiers,
+        mehoi: WithIndicators<WordLike>,
         quoted_text: String,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Gohoi {
-        gohoi: WordWithModifiers,
+        gohoi: WithIndicators<WordLike>,
         quoted_text: String,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Muhoi {
-        muhoi: WordWithModifiers,
-        opening_delimiter: WordWithModifiers,
-        closing_delimiter: WordWithModifiers,
+        muhoi: WithIndicators<WordLike>,
+        opening_delimiter: WithIndicators<WordLike>,
+        closing_delimiter: WithIndicators<WordLike>,
         quoted_text: String,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Luhei {
-        luhei: WordWithModifiers,
+        luhei: WithIndicators<WordLike>,
         luhei_free_modifiers: Vec<FreeModifierSyntax>,
         text: TextSyntax,
-        liau: Option<WordWithModifiers>,
+        liau: Option<WithIndicators<WordLike>>,
         liau_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Moi {
-        number: Vec<WordWithModifiers>,
-        moi: WordWithModifiers,
+        number: Vec<WithIndicators<WordLike>>,
+        moi: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Nuha {
-        nuha: WordWithModifiers,
+        nuha: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         math_operator: MathOperatorSyntax,
     },
     Xohi {
-        xohi: WordWithModifiers,
+        xohi: WithIndicators<WordLike>,
         free_modifiers: Vec<FreeModifierSyntax>,
         tag: TenseModalSyntax,
     },
@@ -1327,7 +1330,7 @@ pub enum RelationUnitSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct CeiAssignmentSyntax {
-    pub cei: WordWithModifiers,
+    pub cei: WithIndicators<WordLike>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
     pub relation_unit: RelationUnitSyntax,
 }
@@ -1335,7 +1338,7 @@ pub struct CeiAssignmentSyntax {
 impl StatementSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             StatementSyntax::Tuhe {
                 tense_modal,
@@ -1434,7 +1437,7 @@ impl StatementSyntax {
 impl PredicateStatementContinuationSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.connective.words();
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
@@ -1471,7 +1474,7 @@ impl PredicateStatementContinuationSyntax {
 impl TextSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.leading_nai;
         words.extend(self.leading_cmevla);
         for indicator in self.leading_indicators {
@@ -1493,7 +1496,7 @@ impl TextSyntax {
 impl ParagraphSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.i.into_iter().collect::<Vec<_>>();
         words.extend(self.niho);
         for free_modifier in self.free_modifiers {
@@ -1509,7 +1512,7 @@ impl ParagraphSyntax {
 impl ParagraphStatementSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.i.into_iter().collect::<Vec<_>>();
         if let Some(connective) = self.connective {
             words.extend(connective.words());
@@ -1527,7 +1530,7 @@ impl ParagraphStatementSyntax {
 impl FreeModifierSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             FreeModifierSyntax::Sei {
                 sei,
@@ -1666,7 +1669,7 @@ impl FreeModifierSyntax {
 impl PredicateSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = Vec::new();
         for term in self.leading_terms {
             words.extend(term.words());
@@ -1686,7 +1689,7 @@ impl PredicateSyntax {
 impl PredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.first.words();
         if let Some(ke_continuation) = self.ke_continuation {
             words.extend(ke_continuation.words());
@@ -1698,7 +1701,7 @@ impl PredicateTailSyntax {
 impl KePredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.connective.words();
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
@@ -1723,7 +1726,7 @@ impl KePredicateTailSyntax {
 impl PredicateTail1Syntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.first.words();
         for continuation in self.continuations {
             words.extend(continuation.words());
@@ -1735,7 +1738,7 @@ impl PredicateTail1Syntax {
 impl PredicateTailContinuationSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.connective.words();
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
@@ -1759,7 +1762,7 @@ impl PredicateTailContinuationSyntax {
 impl PredicateTail2Syntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.first.words();
         if let Some(bo_continuation) = self.bo_continuation {
             words.extend(bo_continuation.words());
@@ -1771,7 +1774,7 @@ impl PredicateTail2Syntax {
 impl BoPredicateTailSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.connective.words();
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
@@ -1796,7 +1799,7 @@ impl BoPredicateTailSyntax {
 impl PredicateTail3Syntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             PredicateTail3Syntax::Relation {
                 relation,
@@ -1822,7 +1825,7 @@ impl PredicateTail3Syntax {
 impl GekSentenceSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             GekSentenceSyntax::Pair {
                 gek,
@@ -1888,7 +1891,7 @@ impl GekSentenceSyntax {
 impl SubsentenceSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             SubsentenceSyntax::Plain(predicate) => predicate.words(),
             SubsentenceSyntax::Prenex {
@@ -1915,7 +1918,7 @@ impl SubsentenceSyntax {
 impl FragmentSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             FragmentSyntax::Argument(argument) => argument.words(),
             FragmentSyntax::Ek {
@@ -2042,7 +2045,7 @@ impl FragmentSyntax {
 impl TermSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             TermSyntax::NuhiTermset {
                 nuhi,
@@ -2329,7 +2332,7 @@ impl TermSyntax {
 impl MathExpressionSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             MathExpressionSyntax::Number(quantifier) => quantifier.words(),
             MathExpressionSyntax::Letter {
@@ -2554,7 +2557,7 @@ impl MathExpressionSyntax {
 impl ArgumentSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             ArgumentSyntax::Quote {
                 quote,
@@ -2900,7 +2903,7 @@ impl ArgumentSyntax {
 impl GoiRelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = vec![self.goi];
         for free_modifier in self.leading_free_modifiers {
             words.extend(free_modifier.words());
@@ -2917,7 +2920,7 @@ impl GoiRelativeClauseSyntax {
 impl SelbriRelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = vec![self.nohoi];
         for free_modifier in self.leading_free_modifiers {
             words.extend(free_modifier.words());
@@ -2934,7 +2937,7 @@ impl SelbriRelativeClauseSyntax {
 impl RelativeClauseSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             RelativeClauseSyntax::Goi(relative_clause) => relative_clause.words(),
             RelativeClauseSyntax::Noi {
@@ -2997,7 +3000,7 @@ impl RelativeClauseSyntax {
 impl QuoteSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             QuoteSyntax::Lu {
                 lu,
@@ -3096,7 +3099,7 @@ impl QuoteSyntax {
 impl DescriptorSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self
             .outer_quantifier
             .into_iter()
@@ -3126,7 +3129,7 @@ impl DescriptorSyntax {
 impl DescriptorHeadSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = vec![self.descriptor];
         for free_modifier in self.descriptor_free_modifiers {
             words.extend(free_modifier.words());
@@ -3138,7 +3141,7 @@ impl DescriptorHeadSyntax {
 impl ConnectedDescriptorSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.leading_descriptor_head.words();
         words.extend(self.connective.words());
         words.extend(self.trailing_descriptor_head.words());
@@ -3162,7 +3165,7 @@ impl ConnectedDescriptorSyntax {
 impl ConnectiveSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         [
             self.se.into_iter().collect(),
             self.nahe.into_iter().collect(),
@@ -3181,7 +3184,7 @@ impl ConnectiveSyntax {
 impl BeiLinkSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = vec![self.bei];
         for free_modifier in self.bei_free_modifiers {
             words.extend(free_modifier.words());
@@ -3200,7 +3203,7 @@ impl BeiLinkSyntax {
 impl ArgumentTailElementSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             ArgumentTailElementSyntax::Argument(argument) => argument.words(),
             ArgumentTailElementSyntax::RelativeClauses(relative_clauses) => relative_clauses
@@ -3215,7 +3218,7 @@ impl ArgumentTailElementSyntax {
 impl QuantifierSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             QuantifierSyntax::Number {
                 number,
@@ -3253,7 +3256,7 @@ impl QuantifierSyntax {
 impl MathOperatorSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             MathOperatorSyntax::Vuhu {
                 vuhu,
@@ -3395,7 +3398,7 @@ impl MathOperatorSyntax {
 impl RelationSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             RelationSyntax::Connected {
                 connective,
@@ -3519,7 +3522,7 @@ impl RelationSyntax {
 impl RelationUnitSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             RelationUnitSyntax::Word {
                 word,
@@ -3837,7 +3840,7 @@ impl RelationUnitSyntax {
 impl AbstractionSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = vec![self.nu];
         words.extend(self.nai);
         for free_modifier in self.free_modifiers {
@@ -3858,7 +3861,7 @@ impl AbstractionSyntax {
 impl AdditionalNuSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.connective.words();
         words.push(self.nu);
         words.extend(self.nai);
@@ -3872,7 +3875,7 @@ impl AdditionalNuSyntax {
 impl TenseModalSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn leaf_words(self) -> Vec<WordWithModifiers> {
+    pub fn leaf_words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             TenseModalSyntax::Composite { leaves, .. } => leaves,
             TenseModalSyntax::Pu { word, .. } | TenseModalSyntax::Caha { word, .. } => vec![word],
@@ -3930,7 +3933,7 @@ impl TenseModalSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WordWithModifiers> {
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         let mut words = self.clone().leaf_words();
         for free_modifier in self.free_modifiers() {
             words.extend(free_modifier.words());

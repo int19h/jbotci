@@ -34,12 +34,12 @@ impl Indicator {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(&self) -> Vec<WordWithModifiers> {
-        let mut words = vec![WordWithModifiers::bare(WordLike::bare(
+    pub fn words(&self) -> Vec<WithIndicators<WordLike>> {
+        let mut words = vec![WithIndicators::bare(WordLike::bare(
             (*self.indicator).clone(),
         ))];
         if let Some(nai) = &self.nai {
-            words.push(WordWithModifiers::bare(WordLike::bare((**nai).clone())));
+            words.push(WithIndicators::bare(WordLike::bare((**nai).clone())));
         }
         words
     }
@@ -55,54 +55,58 @@ fn indicator_data_is_valid(indicator: &IndicatorData) -> bool {
             .is_none_or(|nai| nai.is_cmavo_text("nai"))
 }
 
-#[invariant(word_with_modifiers_data_is_valid(self.as_data()))]
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum WordWithModifiers {
-    Bare(Box<WordLike>),
+pub enum WithIndicators<T> {
+    Bare(Box<T>),
     Emphasized {
         bahe: Box<Word>,
-        word_like: Box<WordLike>,
+        word_like: Box<T>,
     },
     WithIndicator {
-        base: Box<WordWithModifiers>,
+        base: Box<WithIndicators<T>>,
         indicator: Box<Word>,
         nai: Option<Box<Word>>,
     },
 }
 
-impl WordWithModifiers {
+impl<T> WithIndicators<T> {
     #[requires(true)]
     #[ensures(true)]
-    pub fn bare(word_like: WordLike) -> Self {
-        new!(WordWithModifiers::Bare(Box::new(word_like)))
+    pub fn bare(word_like: T) -> Self {
+        WithIndicators::Bare(Box::new(word_like))
     }
 
-    #[requires(true)]
+    #[requires(bahe.selmaho() == Some("BAhE"))]
     #[ensures(true)]
-    pub fn emphasized(bahe: Word, word_like: WordLike) -> Self {
-        new!(WordWithModifiers::Emphasized {
+    pub fn emphasized(bahe: Word, word_like: T) -> Self {
+        WithIndicators::Emphasized {
             bahe: Box::new(bahe),
             word_like: Box::new(word_like),
-        })
+        }
     }
 
-    #[requires(true)]
+    #[requires(is_indicator_word(&indicator))]
+    #[requires(nai.as_ref().is_none_or(|nai| nai.is_cmavo_text("nai")))]
     #[ensures(true)]
-    pub fn with_indicator(base: WordWithModifiers, indicator: Word, nai: Option<Word>) -> Self {
-        new!(WordWithModifiers::WithIndicator {
+    pub fn with_indicator(base: WithIndicators<T>, indicator: Word, nai: Option<Word>) -> Self {
+        WithIndicators::WithIndicator {
             base: Box::new(base),
             indicator: Box::new(indicator),
             nai: nai.map(Box::new),
-        })
+        }
     }
+}
 
+impl WithIndicators<WordLike> {
     #[requires(true)]
     #[ensures(true)]
     pub fn word_like(&self) -> Option<&WordLike> {
-        match self.as_data() {
-            data!(WordWithModifiers::Bare(word_like))
-            | data!(WordWithModifiers::Emphasized { word_like, .. }) => Some(word_like),
-            data!(WordWithModifiers::WithIndicator { base, .. }) => base.word_like(),
+        match self {
+            WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
+                Some(word_like)
+            }
+            WithIndicators::WithIndicator { base, .. } => base.word_like(),
         }
     }
 
@@ -113,39 +117,26 @@ impl WordWithModifiers {
     }
 }
 
-impl fmt::Display for WordWithModifiers {
+impl<T: fmt::Display> fmt::Display for WithIndicators<T> {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.as_data() {
-            data!(WordWithModifiers::Bare(word_like)) => write!(f, "{word_like}"),
-            data!(WordWithModifiers::Emphasized { bahe, word_like }) => {
+        match self {
+            WithIndicators::Bare(word_like) => write!(f, "{word_like}"),
+            WithIndicators::Emphasized { bahe, word_like } => {
                 write!(f, "{bahe}-{word_like}")
             }
-            data!(WordWithModifiers::WithIndicator {
+            WithIndicators::WithIndicator {
                 base,
                 indicator,
                 nai,
-            }) => {
+            } => {
                 write!(f, "{base}-{indicator}")?;
                 if let Some(nai) = nai {
                     write!(f, "-{nai}")?;
                 }
                 Ok(())
             }
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn word_with_modifiers_data_is_valid(word: &WordWithModifiersData) -> bool {
-    match word {
-        data!(WordWithModifiers::Bare(..)) => true,
-        data!(WordWithModifiers::Emphasized { bahe, .. }) => bahe.selmaho() == Some("BAhE"),
-        data!(WordWithModifiers::WithIndicator { indicator, nai, .. }) => {
-            is_indicator_word(indicator)
-                && nai.as_deref().is_none_or(|nai| nai.is_cmavo_text("nai"))
         }
     }
 }
@@ -185,8 +176,8 @@ impl ParseOptions {
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LojbanText {
-    pub leading_nai: Vec<WordWithModifiers>,
-    pub leading_cmevla: Vec<WordWithModifiers>,
+    pub leading_nai: Vec<WithIndicators<WordLike>>,
+    pub leading_cmevla: Vec<WithIndicators<WordLike>>,
     pub leading_indicators: Vec<Indicator>,
     pub leading_free_modifiers: Vec<FreeModifier>,
     pub leading_connective: Option<Connective>,
@@ -196,8 +187,8 @@ pub struct LojbanText {
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Paragraph {
-    pub i: Option<WordWithModifiers>,
-    pub niho: Vec<WordWithModifiers>,
+    pub i: Option<WithIndicators<WordLike>>,
+    pub niho: Vec<WithIndicators<WordLike>>,
     pub free_modifiers: Vec<FreeModifier>,
     pub statements: Vec<ParagraphStatement>,
 }
@@ -205,7 +196,7 @@ pub struct Paragraph {
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParagraphStatement {
-    pub i: Option<WordWithModifiers>,
+    pub i: Option<WithIndicators<WordLike>>,
     pub connective: Option<Connective>,
     pub free_modifiers: Vec<FreeModifier>,
     pub statement: Option<Statement>,
@@ -237,13 +228,15 @@ impl Statement {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum Fragment {
-    Other { words: Vec<WordWithModifiers> },
+    Other {
+        words: Vec<WithIndicators<WordLike>>,
+    },
 }
 
 impl Fragment {
     #[requires(true)]
     #[ensures(true)]
-    pub fn other(words: Vec<WordWithModifiers>) -> Self {
+    pub fn other(words: Vec<WithIndicators<WordLike>>) -> Self {
         Fragment::Other { words }
     }
 }
@@ -252,13 +245,15 @@ impl Fragment {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum FreeModifier {
-    Words { words: Vec<WordWithModifiers> },
+    Words {
+        words: Vec<WithIndicators<WordLike>>,
+    },
 }
 
 impl FreeModifier {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(words: Vec<WordWithModifiers>) -> Self {
+    pub fn words(words: Vec<WithIndicators<WordLike>>) -> Self {
         FreeModifier::Words { words }
     }
 }
@@ -267,13 +262,15 @@ impl FreeModifier {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum Connective {
-    Words { words: Vec<WordWithModifiers> },
+    Words {
+        words: Vec<WithIndicators<WordLike>>,
+    },
 }
 
 impl Connective {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(words: Vec<WordWithModifiers>) -> Self {
+    pub fn words(words: Vec<WithIndicators<WordLike>>) -> Self {
         Connective::Words { words }
     }
 }
@@ -487,7 +484,7 @@ impl ExperimentalConstruct {
 pub struct SyntaxWarning {
     pub kind: ExperimentalConstruct,
     pub anchor_index: usize,
-    pub anchor: WordWithModifiers,
+    pub anchor: WithIndicators<WordLike>,
 }
 
 impl SyntaxWarning {
@@ -496,7 +493,7 @@ impl SyntaxWarning {
     pub fn experimental_construct(
         construct: ExperimentalConstruct,
         anchor_index: usize,
-        anchor: WordWithModifiers,
+        anchor: WithIndicators<WordLike>,
     ) -> Self {
         new!(SyntaxWarning {
             kind: construct,

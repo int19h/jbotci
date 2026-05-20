@@ -264,13 +264,10 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
             &fixture.test_case.lojban,
             &syntax_options,
         ) {
-            if refresh_syntax
-                && let Some(syntax) = &mut fixture.test_case.expectations.syntax
-            {
+            if refresh_syntax && let Some(syntax) = &mut fixture.test_case.expectations.syntax {
                 syntax.parse_tree = Some(compact_json_value(&parsed.parse_tree)?);
             }
-            if refresh_warnings
-                && let Some(warnings) = &mut fixture.test_case.expectations.warnings
+            if refresh_warnings && let Some(warnings) = &mut fixture.test_case.expectations.warnings
             {
                 warnings.value = Some(compact_json_value(&parsed.warnings)?);
             }

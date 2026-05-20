@@ -1,5 +1,7 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
+use std::collections::VecDeque;
+
 use chumsky::Boxed;
 use chumsky::error::Rich;
 use chumsky::input::MappedInput;
@@ -12,7 +14,7 @@ use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData, canonicalize_tex
 use crate::{
     Connective, ExperimentalConstruct, Fragment, FreeModifier, LojbanText, Paragraph,
     ParagraphStatement, ParseOptions, Statement, SyntaxError, SyntaxParse, SyntaxWarning,
-    WordWithModifiers, WordWithModifiersData,
+    WithIndicators,
 };
 
 pub(crate) mod ast;
@@ -22,7 +24,7 @@ mod tense;
 pub(crate) mod tokens;
 
 type Span = SimpleSpan;
-type Token = WordWithModifiers;
+type Token = WithIndicators<WordLike>;
 type SpannedToken = Spanned<Token, Span>;
 type ParserInput<'tokens> = MappedInput<'tokens, Token, Span, &'tokens [SpannedToken]>;
 type ParseExtra<'tokens> = extra::Full<Rich<'tokens, Token, Span>, ParserState, ()>;
@@ -46,7 +48,7 @@ pub(super) struct ParserState {
 impl ParserState {
     #[requires(true)]
     #[ensures(ret.anchor_byte_starts.len() == words.len())]
-    pub(super) fn new(words: &[WordWithModifiers]) -> Self {
+    pub(super) fn new(words: &[WithIndicators<WordLike>]) -> Self {
         Self {
             anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
             warnings: Vec::new(),
@@ -55,7 +57,11 @@ impl ParserState {
 
     #[requires(true)]
     #[ensures(self.warnings.len() == old(self.warnings.len()) + 1)]
-    pub(super) fn warn(&mut self, construct: ExperimentalConstruct, anchor: &WordWithModifiers) {
+    pub(super) fn warn(
+        &mut self,
+        construct: ExperimentalConstruct,
+        anchor: &WithIndicators<WordLike>,
+    ) {
         let anchor_index = self.anchor_index(anchor);
         self.warnings.push(SyntaxWarning::experimental_construct(
             construct,
@@ -78,7 +84,7 @@ impl ParserState {
 
     #[requires(true)]
     #[ensures(ret < self.anchor_byte_starts.len() || self.anchor_byte_starts.is_empty())]
-    fn anchor_index(&self, anchor: &WordWithModifiers) -> usize {
+    fn anchor_index(&self, anchor: &WithIndicators<WordLike>) -> usize {
         if let Some(anchor_start) = word_anchor_byte_start(anchor)
             && let Some(index) = self
                 .anchor_byte_starts
@@ -116,7 +122,7 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState {
 
 #[requires(true)]
 #[ensures(true)]
-fn word_anchor_byte_start(word: &WordWithModifiers) -> Option<usize> {
+fn word_anchor_byte_start(word: &WithIndicators<WordLike>) -> Option<usize> {
     word.visible_word().map(|word| word.span.byte_start)
 }
 
@@ -183,37 +189,41 @@ pub(crate) fn parse_raw_text(
 
 #[requires(true)]
 #[ensures(true)]
-fn syntax_tokens(words: &[WordLike]) -> Vec<WordWithModifiers> {
+fn syntax_tokens(words: &[WordLike]) -> Vec<WithIndicators<WordLike>> {
     attach_indicators(attach_bahe(
-        words.iter().cloned().map(WordWithModifiers::bare).collect(),
+        words.iter().cloned().map(WithIndicators::bare).collect(),
     ))
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn attach_bahe(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
+fn attach_bahe(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators<WordLike>> {
+    let mut reversed: VecDeque<_> = words.into_iter().rev().collect();
     let mut out = Vec::new();
-    let mut iter = words.into_iter().peekable();
-    while let Some(word) = iter.next() {
-        if modifier_word(&word)
-            .is_some_and(|word| word.is_cmavo_text("ba'e") || word.is_cmavo_text("za'e"))
+    while let Some(word) = reversed.pop_front() {
+        if reversed.front().is_some_and(is_bahe_word)
+            && let Some(bahe_token) = reversed.pop_front()
+            && let Some(bahe) = modifier_word(&bahe_token)
+            && let Some(word_like) = word.word_like()
         {
-            if let Some(next) = iter.next()
-                && let Some(bahe) = modifier_word(&word)
-                && let Some(word_like) = next.word_like()
-            {
-                out.push(WordWithModifiers::emphasized(bahe, word_like.clone()));
-                continue;
-            }
+            reversed.push_front(WithIndicators::emphasized(bahe, word_like.clone()));
+        } else {
+            out.push(word);
         }
-        out.push(word);
     }
+    out.reverse();
     out
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn attach_indicators(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
+fn is_bahe_word(word: &WithIndicators<WordLike>) -> bool {
+    modifier_word(word).is_some_and(|word| word.is_cmavo_text("ba'e") || word.is_cmavo_text("za'e"))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_indicators(words: Vec<WithIndicators<WordLike>>) -> Vec<WithIndicators<WordLike>> {
     let mut out = Vec::new();
     let mut iter = words.into_iter().peekable();
     while let Some(word) = iter.next() {
@@ -239,15 +249,15 @@ fn attach_indicators(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
                     out.push(prev);
                     out.push(word);
                     if let Some(nai) = nai {
-                        out.push(WordWithModifiers::bare(WordLike::bare(nai)));
+                        out.push(WithIndicators::bare(WordLike::bare(nai)));
                     }
                 } else {
-                    out.push(WordWithModifiers::with_indicator(prev, indicator, nai));
+                    out.push(WithIndicators::with_indicator(prev, indicator, nai));
                 }
             } else {
                 out.push(word);
                 if let Some(nai) = nai {
-                    out.push(WordWithModifiers::bare(WordLike::bare(nai)));
+                    out.push(WithIndicators::bare(WordLike::bare(nai)));
                 }
             }
         } else {
@@ -259,14 +269,15 @@ fn attach_indicators(words: Vec<WordWithModifiers>) -> Vec<WordWithModifiers> {
 
 #[requires(true)]
 #[ensures(true)]
-fn modifier_word(word: &WordWithModifiers) -> Option<Word> {
-    match word.as_data() {
-        data!(WordWithModifiers::Bare(word_like))
-        | data!(WordWithModifiers::Emphasized { word_like, .. }) => match word_like.as_data() {
-            data!(WordLike::Bare(word)) => Some((**word).clone()),
-            _ => None,
-        },
-        data!(WordWithModifiers::WithIndicator { base, .. }) => modifier_word(base),
+fn modifier_word(word: &WithIndicators<WordLike>) -> Option<Word> {
+    match word {
+        WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
+            match word_like.as_data() {
+                data!(WordLike::Bare(word)) => Some((**word).clone()),
+                _ => None,
+            }
+        }
+        WithIndicators::WithIndicator { base, .. } => modifier_word(base),
     }
 }
 

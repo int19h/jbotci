@@ -602,7 +602,7 @@ pub fn pretty_brackets_with_options(
         .clone()
         .words()
         .iter()
-        .map(|word| sexpr::leaf(surface::format_word_with_modifiers(word, source)))
+        .map(|word| sexpr::leaf(surface::format_with_indicators(word, source)))
         .collect::<Vec<_>>();
     let sexpr = sexpr::node(words);
     Ok(sexpr::render_bracketed_with_options(

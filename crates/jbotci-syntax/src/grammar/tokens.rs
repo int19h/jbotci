@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::{ExperimentalConstruct, Indicator, WordWithModifiers, WordWithModifiersData};
+use crate::{ExperimentalConstruct, Indicator, WithIndicators};
 use bityzba::{data, requires};
 use chumsky::error::{Rich, RichReason};
 use chumsky::prelude::*;
@@ -73,7 +73,7 @@ pub(super) const COI_WORDS: &[&str] = &[
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn cmavo<'tokens>(text: &'static str) -> BoxedParser<'tokens, WordWithModifiers> {
+pub(super) fn cmavo<'tokens>(text: &'static str) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching("cmavo", move |word| cmavo_text_matches(word, text))
 }
 
@@ -82,7 +82,7 @@ pub(super) fn cmavo<'tokens>(text: &'static str) -> BoxedParser<'tokens, WordWit
 pub(super) fn cmavo_of<'tokens>(
     label: &'static str,
     texts: &'static [&'static str],
-) -> BoxedParser<'tokens, WordWithModifiers> {
+) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching(label, move |word| {
         texts.iter().any(|text| cmavo_text_matches(word, text))
     })
@@ -90,7 +90,7 @@ pub(super) fn cmavo_of<'tokens>(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn le_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
+pub(super) fn le_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     cmavo_of(
         "LE",
         &["lei", "loi", "le'i", "lo'i", "le'e", "lo'e", "lo", "le"],
@@ -99,13 +99,13 @@ pub(super) fn le_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn la_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
+pub(super) fn la_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     cmavo_of("LA", &["lai", "la'i", "la"])
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn lahe_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
+pub(super) fn lahe_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     cmavo_of(
         "LAhE",
         &["tu'a", "lu'a", "lu'o", "la'e", "vu'i", "lu'i", "lu'e"],
@@ -134,43 +134,43 @@ pub(super) fn leading_indicator<'tokens>() -> BoxedParser<'tokens, Indicator> {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn pa_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
+pub(super) fn pa_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     cmavo_of("PA", PA_WORDS)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn na_cmavo<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
+pub(super) fn na_cmavo<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     cmavo_of("NA", &["na", "ja'a"])
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
+pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching("KOhA argument", is_koha_argument)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn relation_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
+pub(super) fn relation_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching("relation word", is_relation_word)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn brivla_relation_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
+pub(super) fn brivla_relation_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching("BRIVLA", is_brivla_relation_word)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
+pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching("CMEVLA", is_cmevla_word)
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> {
+pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching("letter word", is_letter_word)
 }
 
@@ -178,8 +178,8 @@ pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, WordWithModifiers> 
 #[ensures(true)]
 pub(super) fn token_matching<'tokens>(
     label: &'static str,
-    predicate: impl Fn(&WordWithModifiers) -> bool + Clone + 'tokens,
-) -> BoxedParser<'tokens, WordWithModifiers> {
+    predicate: impl Fn(&WithIndicators<WordLike>) -> bool + Clone + 'tokens,
+) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     custom(move |input| {
         let checkpoint = input.save();
         let cursor = input.cursor();
@@ -200,7 +200,7 @@ pub(super) fn token_matching<'tokens>(
 
 #[requires(!label.is_empty())]
 #[ensures(true)]
-fn warn_experimental_cmavo(state: &mut ParserState, label: &str, word: &WordWithModifiers) {
+fn warn_experimental_cmavo(state: &mut ParserState, label: &str, word: &WithIndicators<WordLike>) {
     let Some(construct) = experimental_construct_for_cmavo(label, word) else {
         return;
     };
@@ -211,7 +211,7 @@ fn warn_experimental_cmavo(state: &mut ParserState, label: &str, word: &WordWith
 #[ensures(true)]
 fn experimental_construct_for_cmavo(
     label: &str,
-    word: &WordWithModifiers,
+    word: &WithIndicators<WordLike>,
 ) -> Option<ExperimentalConstruct> {
     let canonical = word.visible_word()?.canonical_phonemes();
     match (label, canonical.as_str()) {
@@ -271,34 +271,34 @@ fn experimental_construct_for_cmavo(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn is_koha_argument(word: &WordWithModifiers) -> bool {
+pub(super) fn is_koha_argument(word: &WithIndicators<WordLike>) -> bool {
     KOHA_WORDS.iter().any(|text| cmavo_text_matches(word, text))
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn is_relation_word(word: &WordWithModifiers) -> bool {
-    match word.as_data() {
-        data!(WordWithModifiers::WithIndicator { base, .. }) => return is_relation_word(base),
-        data!(WordWithModifiers::Emphasized { word_like, .. }) => {
+pub(super) fn is_relation_word(word: &WithIndicators<WordLike>) -> bool {
+    match word {
+        WithIndicators::WithIndicator { base, .. } => return is_relation_word(base),
+        WithIndicators::Emphasized { word_like, .. } => {
             return word_like_is_relation_word(word_like);
         }
-        data!(WordWithModifiers::Bare(..)) => {}
+        WithIndicators::Bare(..) => {}
     }
 
     if GOHA_WORDS.iter().any(|text| cmavo_text_matches(word, text)) {
         return true;
     }
 
-    match word.as_data() {
-        data!(WordWithModifiers::Bare(word_like)) => word_like_is_relation_word(word_like),
+    match word {
+        WithIndicators::Bare(word_like) => word_like_is_relation_word(word_like),
         _ => false,
     }
 }
 
 #[requires(true)]
 #[ensures(ret == (is_relation_word(word) && !GOHA_WORDS.iter().any(|text| cmavo_text_matches(word, text))))]
-pub(super) fn is_brivla_relation_word(word: &WordWithModifiers) -> bool {
+pub(super) fn is_brivla_relation_word(word: &WithIndicators<WordLike>) -> bool {
     is_relation_word(word) && !GOHA_WORDS.iter().any(|text| cmavo_text_matches(word, text))
 }
 
@@ -319,61 +319,61 @@ pub(super) fn word_like_is_relation_word(word_like: &WordLike) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn is_cmevla_word(word: &WordWithModifiers) -> bool {
-    match word.as_data() {
-        data!(WordWithModifiers::Bare(word_like))
-        | data!(WordWithModifiers::Emphasized { word_like, .. }) => {
+pub(super) fn is_cmevla_word(word: &WithIndicators<WordLike>) -> bool {
+    match word {
+        WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
             word_like_kind(word_like).is_some_and(|kind| kind == WordKind::Cmevla)
         }
-        data!(WordWithModifiers::WithIndicator { base, .. }) => is_cmevla_word(base),
+        WithIndicators::WithIndicator { base, .. } => is_cmevla_word(base),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn is_letter_word(word: &WordWithModifiers) -> bool {
-    match word.as_data() {
-        data!(WordWithModifiers::Bare(word_like))
-        | data!(WordWithModifiers::Emphasized { word_like, .. }) => match word_like.as_data() {
-            data!(WordLike::Letter { .. }) => true,
-            data!(WordLike::Bare(word)) => {
-                word.kind == WordKind::Cmavo
-                    && ((word.phonemes != "bu" && word.phonemes.ends_with("bu"))
-                        || matches!(
-                            word.phonemes.as_str(),
-                            "jo'o"
-                                | "ru'o"
-                                | "ge'o"
-                                | "je'o"
-                                | "lo'a"
-                                | "na'a"
-                                | "se'e"
-                                | "to'a"
-                                | "ga'e"
-                                | "y'y"
-                                | "y"
-                                | "by"
-                                | "cy"
-                                | "dy"
-                                | "fy"
-                                | "gy"
-                                | "jy"
-                                | "ky"
-                                | "ly"
-                                | "my"
-                                | "ny"
-                                | "py"
-                                | "ry"
-                                | "sy"
-                                | "ty"
-                                | "vy"
-                                | "xy"
-                                | "zy"
-                        ))
+pub(super) fn is_letter_word(word: &WithIndicators<WordLike>) -> bool {
+    match word {
+        WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
+            match word_like.as_data() {
+                data!(WordLike::Letter { .. }) => true,
+                data!(WordLike::Bare(word)) => {
+                    word.kind == WordKind::Cmavo
+                        && ((word.phonemes != "bu" && word.phonemes.ends_with("bu"))
+                            || matches!(
+                                word.phonemes.as_str(),
+                                "jo'o"
+                                    | "ru'o"
+                                    | "ge'o"
+                                    | "je'o"
+                                    | "lo'a"
+                                    | "na'a"
+                                    | "se'e"
+                                    | "to'a"
+                                    | "ga'e"
+                                    | "y'y"
+                                    | "y"
+                                    | "by"
+                                    | "cy"
+                                    | "dy"
+                                    | "fy"
+                                    | "gy"
+                                    | "jy"
+                                    | "ky"
+                                    | "ly"
+                                    | "my"
+                                    | "ny"
+                                    | "py"
+                                    | "ry"
+                                    | "sy"
+                                    | "ty"
+                                    | "vy"
+                                    | "xy"
+                                    | "zy"
+                            ))
+                }
+                _ => false,
             }
-            _ => false,
-        },
-        data!(WordWithModifiers::WithIndicator { base, .. }) => is_letter_word(base),
+        }
+        WithIndicators::WithIndicator { base, .. } => is_letter_word(base),
     }
 }
 
@@ -388,13 +388,12 @@ pub(super) fn word_like_kind(word_like: &WordLike) -> Option<WordKind> {
 
 #[requires(!expected.is_empty())]
 #[ensures(true)]
-pub(super) fn cmavo_text_matches(word: &WordWithModifiers, expected: &str) -> bool {
-    match word.as_data() {
-        data!(WordWithModifiers::Bare(word_like))
-        | data!(WordWithModifiers::Emphasized { word_like, .. }) => {
+pub(super) fn cmavo_text_matches(word: &WithIndicators<WordLike>, expected: &str) -> bool {
+    match word {
+        WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
             word_like_cmavo_text_matches(word_like, expected)
         }
-        data!(WordWithModifiers::WithIndicator { base, .. }) => cmavo_text_matches(base, expected),
+        WithIndicators::WithIndicator { base, .. } => cmavo_text_matches(base, expected),
     }
 }
 
@@ -421,8 +420,10 @@ pub(super) fn phonemes_match_syntax_text(actual: &str, expected: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn bare_word_kind_and_phonemes(word: &WordWithModifiers) -> Option<(WordKind, &str)> {
-    let data!(WordWithModifiers::Bare(word_like)) = word.as_data() else {
+pub(super) fn bare_word_kind_and_phonemes(
+    word: &WithIndicators<WordLike>,
+) -> Option<(WordKind, &str)> {
+    let WithIndicators::Bare(word_like) = word else {
         return None;
     };
     let data!(WordLike::Bare(word)) = word_like.as_data() else {
@@ -433,8 +434,8 @@ pub(super) fn bare_word_kind_and_phonemes(word: &WordWithModifiers) -> Option<(W
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn base_word_from_record(word: Word) -> WordWithModifiers {
-    WordWithModifiers::bare(WordLike::bare(word))
+pub(super) fn base_word_from_record(word: Word) -> WithIndicators<WordLike> {
+    WithIndicators::bare(WordLike::bare(word))
 }
 
 #[requires(span.byte_start <= span.byte_end)]
@@ -448,7 +449,7 @@ pub(super) fn source_text(source: Option<&str>, span: &SourceSpan) -> String {
 
 #[requires(true)]
 #[ensures(ret.iter().all(|token| token.span.start <= token.span.end))]
-pub(super) fn spanned_tokens(words: &[WordWithModifiers]) -> Vec<SpannedToken> {
+pub(super) fn spanned_tokens(words: &[WithIndicators<WordLike>]) -> Vec<SpannedToken> {
     words
         .iter()
         .cloned()
@@ -464,16 +465,16 @@ pub(super) fn spanned_tokens(words: &[WordWithModifiers]) -> Vec<SpannedToken> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
-pub(super) fn word_byte_range(word: &WordWithModifiers) -> Option<Range<usize>> {
-    match word.as_data() {
-        data!(WordWithModifiers::Bare(word_like)) => word_like_byte_range(word_like),
-        data!(WordWithModifiers::Emphasized { bahe, word_like }) => word_like_byte_range(word_like)
+pub(super) fn word_byte_range(word: &WithIndicators<WordLike>) -> Option<Range<usize>> {
+    match word {
+        WithIndicators::Bare(word_like) => word_like_byte_range(word_like),
+        WithIndicators::Emphasized { bahe, word_like } => word_like_byte_range(word_like)
             .map(|range| bahe.span.byte_start.min(range.start)..bahe.span.byte_end.max(range.end)),
-        data!(WordWithModifiers::WithIndicator {
+        WithIndicators::WithIndicator {
             base,
             indicator,
             nai,
-        }) => word_byte_range(base).map(|range| {
+        } => word_byte_range(base).map(|range| {
             range.start
                 ..nai
                     .as_ref()
@@ -514,7 +515,7 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
 
 #[requires(true)]
 #[ensures(matches!(ret, SyntaxError::Parse { ref reason, .. } if !reason.is_empty()) || !matches!(ret, SyntaxError::Parse { .. }))]
-pub(super) fn syntax_error(errors: Vec<Rich<'_, WordWithModifiers, Span>>) -> SyntaxError {
+pub(super) fn syntax_error(errors: Vec<Rich<'_, WithIndicators<WordLike>, Span>>) -> SyntaxError {
     let Some(error) = errors.into_iter().next() else {
         return SyntaxError::Parse {
             byte_offset: 0,
