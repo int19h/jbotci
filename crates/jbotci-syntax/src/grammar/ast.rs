@@ -46,12 +46,35 @@ impl<T: Serialize> Serialize for WithFreeModifiers<T> {
     }
 }
 
+impl WithFreeModifiers<WithIndicators<WordLike>> {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+        let mut words = vec![self.value];
+        for free_modifier in self.free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        words
+    }
+}
+
+impl WithFreeModifiers<Vec<WithIndicators<WordLike>>> {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+        let mut words = self.value;
+        for free_modifier in self.free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        words
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateSyntax {
     pub leading_terms: Vec<TermSyntax>,
-    pub cu: Option<WithIndicators<WordLike>>,
-    pub cu_free_modifiers: Vec<FreeModifierSyntax>,
+    pub cu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub predicate_tail: PredicateTailSyntax,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
@@ -68,11 +91,9 @@ pub struct PredicateTailSyntax {
 pub struct KePredicateTailSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<TenseModalSyntax>,
-    pub ke: WithIndicators<WordLike>,
-    pub ke_free_modifiers: Vec<FreeModifierSyntax>,
+    pub ke: WithFreeModifiers<WithIndicators<WordLike>>,
     pub predicate_tail: Box<PredicateTailSyntax>,
-    pub kehe: Option<WithIndicators<WordLike>>,
-    pub kehe_free_modifiers: Vec<FreeModifierSyntax>,
+    pub kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub tail_terms: Vec<TermSyntax>,
     pub vau: Option<WithIndicators<WordLike>>,
 }
@@ -89,8 +110,7 @@ pub struct PredicateTail1Syntax {
 pub struct PredicateTailContinuationSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<TenseModalSyntax>,
-    pub cu: Option<WithIndicators<WordLike>>,
-    pub cu_free_modifiers: Vec<FreeModifierSyntax>,
+    pub cu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub predicate_tail: PredicateTail2Syntax,
     pub tail_terms: Vec<TermSyntax>,
     pub vau: Option<WithIndicators<WordLike>>,
@@ -111,8 +131,7 @@ pub struct BoPredicateTailSyntax {
     pub tense_modal: Option<TenseModalSyntax>,
     pub bo: WithIndicators<WordLike>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
-    pub cu: Option<WithIndicators<WordLike>>,
-    pub cu_free_modifiers: Vec<FreeModifierSyntax>,
+    pub cu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub predicate_tail: Box<PredicateTail2Syntax>,
     pub tail_terms: Vec<TermSyntax>,
     pub vau: Option<WithIndicators<WordLike>>,
@@ -144,11 +163,9 @@ pub enum GekSentenceSyntax {
     },
     Ke {
         tense_modal: Option<TenseModalSyntax>,
-        ke: WithIndicators<WordLike>,
-        ke_free_modifiers: Vec<FreeModifierSyntax>,
+        ke: WithFreeModifiers<WithIndicators<WordLike>>,
         inner: Box<GekSentenceSyntax>,
-        kehe: Option<WithIndicators<WordLike>>,
-        kehe_free_modifiers: Vec<FreeModifierSyntax>,
+        kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Na {
         na: WithIndicators<WordLike>,
@@ -163,8 +180,7 @@ pub enum SubsentenceSyntax {
     Plain(PredicateSyntax),
     Prenex {
         prenex_terms: Vec<TermSyntax>,
-        zohu: WithIndicators<WordLike>,
-        zohu_free_modifiers: Vec<FreeModifierSyntax>,
+        zohu: WithFreeModifiers<WithIndicators<WordLike>>,
         inner_subsentence: Box<SubsentenceSyntax>,
     },
 }
@@ -1711,9 +1727,8 @@ impl PredicateSyntax {
         for term in self.leading_terms {
             words.extend(term.words());
         }
-        words.extend(self.cu);
-        for free_modifier in self.cu_free_modifiers {
-            words.extend(free_modifier.words());
+        if let Some(cu) = self.cu {
+            words.extend(cu.words());
         }
         words.extend(self.predicate_tail.words());
         for free_modifier in self.free_modifiers {
@@ -1743,14 +1758,10 @@ impl KePredicateTailSyntax {
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
         }
-        words.push(self.ke);
-        for free_modifier in self.ke_free_modifiers {
-            words.extend(free_modifier.words());
-        }
+        words.extend(self.ke.words());
         words.extend(self.predicate_tail.words());
-        words.extend(self.kehe);
-        for free_modifier in self.kehe_free_modifiers {
-            words.extend(free_modifier.words());
+        if let Some(kehe) = self.kehe {
+            words.extend(kehe.words());
         }
         for term in self.tail_terms {
             words.extend(term.words());
@@ -1780,9 +1791,8 @@ impl PredicateTailContinuationSyntax {
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
         }
-        words.extend(self.cu);
-        for free_modifier in self.cu_free_modifiers {
-            words.extend(free_modifier.words());
+        if let Some(cu) = self.cu {
+            words.extend(cu.words());
         }
         words.extend(self.predicate_tail.words());
         for term in self.tail_terms {
@@ -1820,9 +1830,8 @@ impl BoPredicateTailSyntax {
         for free_modifier in self.free_modifiers {
             words.extend(free_modifier.words());
         }
-        words.extend(self.cu);
-        for free_modifier in self.cu_free_modifiers {
-            words.extend(free_modifier.words());
+        if let Some(cu) = self.cu {
+            words.extend(cu.words());
         }
         words.extend(self.predicate_tail.words());
         for term in self.tail_terms {
@@ -1889,23 +1898,17 @@ impl GekSentenceSyntax {
             GekSentenceSyntax::Ke {
                 tense_modal,
                 ke,
-                ke_free_modifiers,
                 inner,
                 kehe,
-                kehe_free_modifiers,
             } => {
                 let mut words = Vec::new();
                 if let Some(tense_modal) = tense_modal {
                     words.extend(tense_modal.words());
                 }
-                words.push(ke);
-                for free_modifier in ke_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(ke.words());
                 words.extend(inner.words());
-                words.extend(kehe);
-                for free_modifier in kehe_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(kehe) = kehe {
+                    words.extend(kehe.words());
                 }
                 words
             }
@@ -1934,17 +1937,13 @@ impl SubsentenceSyntax {
             SubsentenceSyntax::Prenex {
                 prenex_terms,
                 zohu,
-                zohu_free_modifiers,
                 inner_subsentence,
             } => {
                 let mut words = prenex_terms
                     .into_iter()
                     .flat_map(TermSyntax::words)
                     .collect::<Vec<_>>();
-                words.push(zohu);
-                for free_modifier in zohu_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(zohu.words());
                 words.extend(inner_subsentence.words());
                 words
             }
@@ -2625,15 +2624,9 @@ impl ArgumentSyntax {
                 words
             }
             ArgumentSyntax::Letter { letter, boi } => {
-                let mut words = letter.value;
-                for free_modifier in letter.free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = letter.words();
                 if let Some(boi) = boi {
-                    words.push(boi.value);
-                    for free_modifier in boi.free_modifiers {
-                        words.extend(free_modifier.words());
-                    }
+                    words.extend(boi.words());
                 }
                 words
             }
