@@ -4711,6 +4711,35 @@ fn math_operator<'tokens>() -> BoxedParser<'tokens, MathOperatorSyntax> {
 
 #[requires(true)]
 #[ensures(true)]
+fn wrapped_word(
+    word: WithIndicators<WordLike>,
+    free_modifiers: Vec<FreeModifierSyntax>,
+) -> WithFreeModifiers<WithIndicators<WordLike>> {
+    WithFreeModifiers::new(word, free_modifiers)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn goha_relation_unit(
+    goha: WithIndicators<WordLike>,
+    raho: Option<WithIndicators<WordLike>>,
+    free_modifiers: Vec<FreeModifierSyntax>,
+) -> RelationUnitSyntax {
+    if let Some(raho) = raho {
+        RelationUnitSyntax::Goha {
+            goha: wrapped_word(goha, Vec::new()),
+            raho: Some(wrapped_word(raho, free_modifiers)),
+        }
+    } else {
+        RelationUnitSyntax::Goha {
+            goha: wrapped_word(goha, free_modifiers),
+            raho: None,
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn math_operator_with<'tokens, E, O>(
     expression: E,
     operator: O,
@@ -5027,22 +5056,23 @@ where
     let me_unit = cmavo("me")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(me_argument)
-        .then(cmavo("me'u").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(cmavo_of("MOI", MOI_WORDS).or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("me'u")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
+        .then(
+            cmavo_of("MOI", MOI_WORDS)
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |(
-                (((((me, me_free_modifiers), argument), mehu), mehu_free_modifiers), moi_marker),
-                moi_free_modifiers,
-            )| RelationUnitSyntax::Me {
-                me,
-                me_free_modifiers,
+            |((((me, me_free_modifiers), argument), mehu), moi_marker)| RelationUnitSyntax::Me {
+                me: wrapped_word(me, me_free_modifiers),
                 argument,
-                mehu,
-                mehu_free_modifiers,
-                moi_marker,
-                moi_free_modifiers,
+                mehu: mehu.map(|(mehu, free_modifiers)| wrapped_word(mehu, free_modifiers)),
+                moi_marker: moi_marker
+                    .map(|(moi_marker, free_modifiers)| wrapped_word(moi_marker, free_modifiers)),
             },
         );
     let mehoi_unit = single_word_quoted_relation_unit(
@@ -5050,9 +5080,8 @@ where
         source,
         free_modifier.clone(),
         |mehoi, quoted_text, free_modifiers| RelationUnitSyntax::Mehoi {
-            mehoi,
+            mehoi: wrapped_word(mehoi, free_modifiers),
             quoted_text,
-            free_modifiers,
         },
     );
     let gohoi_unit = single_word_quoted_relation_unit(
@@ -5060,9 +5089,8 @@ where
         source,
         free_modifier.clone(),
         |gohoi, quoted_text, free_modifiers| RelationUnitSyntax::Gohoi {
-            gohoi,
+            gohoi: wrapped_word(gohoi, free_modifiers),
             quoted_text,
-            free_modifiers,
         },
     );
     let muhoi_unit = delimited_quoted_relation_unit(
@@ -5073,26 +5101,24 @@ where
             RelationUnitSyntax::Muhoi {
                 muhoi,
                 opening_delimiter,
-                closing_delimiter,
+                closing_delimiter: wrapped_word(closing_delimiter, free_modifiers),
                 quoted_text,
-                free_modifiers,
             }
         },
     );
     let luhei_unit = cmavo("lu'ei")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(text.clone())
-        .then(cmavo("li'au").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("li'au")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |((((luhei, luhei_free_modifiers), text), liau), liau_free_modifiers)| {
-                RelationUnitSyntax::Luhei {
-                    luhei,
-                    luhei_free_modifiers,
-                    text,
-                    liau,
-                    liau_free_modifiers,
-                }
+            |(((luhei, luhei_free_modifiers), text), liau)| RelationUnitSyntax::Luhei {
+                luhei: wrapped_word(luhei, luhei_free_modifiers),
+                text,
+                liau: liau.map(|(liau, free_modifiers)| wrapped_word(liau, free_modifiers)),
             },
         )
         .boxed();
@@ -5100,8 +5126,7 @@ where
     let brivla_word_unit = brivla_relation_word()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(word, free_modifiers)| RelationUnitSyntax::Word {
-            word,
-            free_modifiers,
+            word: wrapped_word(word, free_modifiers),
         });
     let goha_word_unit = cmavo_of("GOhA", GOHA_WORDS)
         .then_ignore(
@@ -5115,33 +5140,23 @@ where
             .not(),
         )
         .map(|word| RelationUnitSyntax::Word {
-            word,
-            free_modifiers: Vec::new(),
+            word: wrapped_word(word, Vec::new()),
         });
     let word_unit = choice((brivla_word_unit, goha_word_unit)).boxed();
     let goha_unit = cmavo_of("GOhA", GOHA_WORDS)
         .then(cmavo("ra'o").or_not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|((goha, raho), free_modifiers)| RelationUnitSyntax::Goha {
-            goha,
-            raho,
-            free_modifiers,
-        });
+        .map(|((goha, raho), free_modifiers)| goha_relation_unit(goha, raho, free_modifiers));
     let goha_raho_unit = cmavo_of("GOhA", GOHA_WORDS)
         .then(cmavo("ra'o"))
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|((goha, raho), free_modifiers)| RelationUnitSyntax::Goha {
-            goha,
-            raho: Some(raho),
-            free_modifiers,
-        });
+        .map(|((goha, raho), free_modifiers)| goha_relation_unit(goha, Some(raho), free_modifiers));
     let moi_unit = number_or_letter_words()
         .then(cmavo_of("MOI", MOI_WORDS))
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|((number, moi), free_modifiers)| RelationUnitSyntax::Moi {
             number,
-            moi,
-            free_modifiers,
+            moi: wrapped_word(moi, free_modifiers),
         });
     let contextual_math_operator =
         math_parser_pair_with_context(argument.clone(), relation.clone(), free_modifier.clone()).1;
@@ -5150,8 +5165,7 @@ where
         .then(contextual_math_operator)
         .map(
             |((nuha, free_modifiers), math_operator)| RelationUnitSyntax::Nuha {
-                nuha,
-                free_modifiers,
+                nuha: wrapped_word(nuha, free_modifiers),
                 math_operator,
             },
         );
@@ -5159,8 +5173,7 @@ where
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(tense_modal_with_free_modifiers.clone())
         .map(|((xohi, free_modifiers), tag)| RelationUnitSyntax::Xohi {
-            xohi,
-            free_modifiers,
+            xohi: wrapped_word(xohi, free_modifiers),
             tag,
         });
 
@@ -5173,18 +5186,17 @@ where
             free_modifier.clone(),
             source,
         ))
-        .then(cmavo("ke'e").or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("ke'e")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |((((ke, ke_free_modifiers), relation), kehe), kehe_free_modifiers)| {
-                RelationUnitSyntax::Ke {
-                    ke_tense_modal: None,
-                    ke,
-                    ke_free_modifiers,
-                    relation,
-                    kehe,
-                    kehe_free_modifiers,
-                }
+            |(((ke, ke_free_modifiers), relation), kehe)| RelationUnitSyntax::Ke {
+                ke_tense_modal: None,
+                ke: wrapped_word(ke, ke_free_modifiers),
+                relation,
+                kehe: kehe.map(|(kehe, free_modifiers)| wrapped_word(kehe, free_modifiers)),
             },
         );
 
@@ -5206,8 +5218,7 @@ where
             )))
             .map(
                 |((nahe, free_modifiers), inner_unit)| RelationUnitSyntax::Nahe {
-                    nahe,
-                    free_modifiers,
+                    nahe: wrapped_word(nahe, free_modifiers),
                     inner_unit: Box::new(inner_unit),
                 },
             );
@@ -5224,8 +5235,7 @@ where
             )))
             .map(
                 |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
-                    se,
-                    free_modifiers,
+                    se: wrapped_word(se, free_modifiers),
                     inner_unit: Box::new(inner_unit),
                 },
             )
@@ -5254,8 +5264,7 @@ where
             .then(jai_inner_unit.clone())
             .map(
                 |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
-                    se,
-                    free_modifiers,
+                    se: wrapped_word(se, free_modifiers),
                     inner_unit: Box::new(inner_unit),
                 },
             );
@@ -5264,8 +5273,7 @@ where
             .then(jai_inner_unit.clone())
             .map(
                 |((nahe, free_modifiers), inner_unit)| RelationUnitSyntax::Nahe {
-                    nahe,
-                    free_modifiers,
+                    nahe: wrapped_word(nahe, free_modifiers),
                     inner_unit: Box::new(inner_unit),
                 },
             );
@@ -5292,8 +5300,7 @@ where
         .then(jai_inner_unit)
         .map(
             |(((jai, free_modifiers), tense_modal), inner_unit)| RelationUnitSyntax::Jai {
-                jai,
-                free_modifiers,
+                jai: wrapped_word(jai, free_modifiers),
                 tense_modal,
                 inner_unit: Box::new(inner_unit),
             },
@@ -5303,8 +5310,7 @@ where
         .then(jai_unit.clone())
         .map(
             |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
-                se,
-                free_modifiers,
+                se: wrapped_word(se, free_modifiers),
                 inner_unit: Box::new(inner_unit),
             },
         );
@@ -5331,8 +5337,7 @@ where
             )))
             .map(
                 |((nahe, free_modifiers), inner_unit)| RelationUnitSyntax::Nahe {
-                    nahe,
-                    free_modifiers,
+                    nahe: wrapped_word(nahe, free_modifiers),
                     inner_unit: Box::new(inner_unit),
                 },
             )
@@ -5382,8 +5387,7 @@ where
         .then(abstraction_subsentence_unit.clone())
         .map(
             |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
-                se,
-                free_modifiers,
+                se: wrapped_word(se, free_modifiers),
                 inner_unit: Box::new(inner_unit),
             },
         );
@@ -5524,8 +5528,7 @@ where
             assignments: be_link
                 .into_iter()
                 .map(|(cei, relation_unit)| CeiAssignmentSyntax {
-                    cei,
-                    free_modifiers: Vec::new(),
+                    cei: wrapped_word(cei, Vec::new()),
                     relation_unit,
                 })
                 .collect(),
@@ -5586,8 +5589,7 @@ where
                             leading_unit: Box::new(leading_unit),
                             bo_connective,
                             bo_tense_modal,
-                            bo,
-                            free_modifiers,
+                            bo: wrapped_word(bo, free_modifiers),
                             trailing_unit: Box::new(trailing_unit),
                         }
                     },
@@ -5644,8 +5646,7 @@ where
         .then(relation)
         .map(
             |((na, free_modifiers), inner_relation)| RelationSyntax::Na {
-                na,
-                free_modifiers,
+                na: wrapped_word(na, free_modifiers),
                 inner_relation: Box::new(inner_relation),
             },
         );
@@ -5663,8 +5664,7 @@ where
                     leading_relation.clone(),
                     |((co, free_modifiers), trailing_relation)| RelationSyntax::Co {
                         leading_relation: Box::new(leading_relation),
-                        co,
-                        free_modifiers,
+                        co: wrapped_word(co, free_modifiers),
                         trailing_relation: Box::new(trailing_relation),
                     },
                 )
@@ -5712,25 +5712,26 @@ where
         let me_unit = cmavo("me")
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(me_argument)
-            .then(cmavo("me'u").or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(cmavo_of("MOI", MOI_WORDS).or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(
+                cmavo("me'u")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .then(
+                cmavo_of("MOI", MOI_WORDS)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
             .map(
-                |(
-                    (
-                        ((((me, me_free_modifiers), argument), mehu), mehu_free_modifiers),
-                        moi_marker,
-                    ),
-                    moi_free_modifiers,
-                )| RelationUnitSyntax::Me {
-                    me,
-                    me_free_modifiers,
-                    argument,
-                    mehu,
-                    mehu_free_modifiers,
-                    moi_marker,
-                    moi_free_modifiers,
+                |((((me, me_free_modifiers), argument), mehu), moi_marker)| {
+                    RelationUnitSyntax::Me {
+                        me: wrapped_word(me, me_free_modifiers),
+                        argument,
+                        mehu: mehu.map(|(mehu, free_modifiers)| wrapped_word(mehu, free_modifiers)),
+                        moi_marker: moi_marker.map(|(moi_marker, free_modifiers)| {
+                            wrapped_word(moi_marker, free_modifiers)
+                        }),
+                    }
                 },
             );
         let mehoi_unit = single_word_quoted_relation_unit(
@@ -5738,9 +5739,8 @@ where
             source,
             free_modifier.clone(),
             |mehoi, quoted_text, free_modifiers| RelationUnitSyntax::Mehoi {
-                mehoi,
+                mehoi: wrapped_word(mehoi, free_modifiers),
                 quoted_text,
-                free_modifiers,
             },
         );
         let gohoi_unit = single_word_quoted_relation_unit(
@@ -5748,9 +5748,8 @@ where
             source,
             free_modifier.clone(),
             |gohoi, quoted_text, free_modifiers| RelationUnitSyntax::Gohoi {
-                gohoi,
+                gohoi: wrapped_word(gohoi, free_modifiers),
                 quoted_text,
-                free_modifiers,
             },
         );
         let muhoi_unit = delimited_quoted_relation_unit(
@@ -5761,34 +5760,31 @@ where
                 RelationUnitSyntax::Muhoi {
                     muhoi,
                     opening_delimiter,
-                    closing_delimiter,
+                    closing_delimiter: wrapped_word(closing_delimiter, free_modifiers),
                     quoted_text,
-                    free_modifiers,
                 }
             },
         );
         let luhei_unit = cmavo("lu'ei")
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(text.clone())
-            .then(cmavo("li'au").or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(
+                cmavo("li'au")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
             .map(
-                |((((luhei, luhei_free_modifiers), text), liau), liau_free_modifiers)| {
-                    RelationUnitSyntax::Luhei {
-                        luhei,
-                        luhei_free_modifiers,
-                        text,
-                        liau,
-                        liau_free_modifiers,
-                    }
+                |(((luhei, luhei_free_modifiers), text), liau)| RelationUnitSyntax::Luhei {
+                    luhei: wrapped_word(luhei, luhei_free_modifiers),
+                    text,
+                    liau: liau.map(|(liau, free_modifiers)| wrapped_word(liau, free_modifiers)),
                 },
             )
             .boxed();
         let brivla_word_unit = brivla_relation_word()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(|(word, free_modifiers)| RelationUnitSyntax::Word {
-                word,
-                free_modifiers,
+                word: wrapped_word(word, free_modifiers),
             });
         let goha_word_unit = cmavo_of("GOhA", GOHA_WORDS)
             .then_ignore(
@@ -5802,41 +5798,32 @@ where
                 .not(),
             )
             .map(|word| RelationUnitSyntax::Word {
-                word,
-                free_modifiers: Vec::new(),
+                word: wrapped_word(word, Vec::new()),
             });
         let word_unit = choice((brivla_word_unit, goha_word_unit)).boxed();
         let goha_unit = cmavo_of("GOhA", GOHA_WORDS)
             .then(cmavo("ra'o").or_not())
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .map(|((goha, raho), free_modifiers)| RelationUnitSyntax::Goha {
-                goha,
-                raho,
-                free_modifiers,
-            });
+            .map(|((goha, raho), free_modifiers)| goha_relation_unit(goha, raho, free_modifiers));
         let goha_raho_unit = cmavo_of("GOhA", GOHA_WORDS)
             .then(cmavo("ra'o"))
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .map(|((goha, raho), free_modifiers)| RelationUnitSyntax::Goha {
-                goha,
-                raho: Some(raho),
-                free_modifiers,
+            .map(|((goha, raho), free_modifiers)| {
+                goha_relation_unit(goha, Some(raho), free_modifiers)
             });
         let moi_unit = number_or_letter_words()
             .then(cmavo_of("MOI", MOI_WORDS))
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(|((number, moi), free_modifiers)| RelationUnitSyntax::Moi {
                 number,
-                moi,
-                free_modifiers,
+                moi: wrapped_word(moi, free_modifiers),
             });
         let nuha_unit = cmavo("nu'a")
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(math_operator())
             .map(
                 |((nuha, free_modifiers), math_operator)| RelationUnitSyntax::Nuha {
-                    nuha,
-                    free_modifiers,
+                    nuha: wrapped_word(nuha, free_modifiers),
                     math_operator,
                 },
             );
@@ -5844,8 +5831,7 @@ where
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(tense_modal())
             .map(|((xohi, free_modifiers), tag)| RelationUnitSyntax::Xohi {
-                xohi,
-                free_modifiers,
+                xohi: wrapped_word(xohi, free_modifiers),
                 tag,
             });
         let nu_cmavo = || cmavo_of("NU", NU_WORDS);
@@ -5890,26 +5876,24 @@ where
             .then(abstraction_subsentence_unit.clone())
             .map(
                 |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
-                    se,
-                    free_modifiers,
+                    se: wrapped_word(se, free_modifiers),
                     inner_unit: Box::new(inner_unit),
                 },
             );
         let ke_unit = cmavo("ke")
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(inner_relation.clone())
-            .then(cmavo("ke'e").or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(
+                cmavo("ke'e")
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
             .map(
-                |((((ke, ke_free_modifiers), relation), kehe), kehe_free_modifiers)| {
-                    RelationUnitSyntax::Ke {
-                        ke_tense_modal: None,
-                        ke,
-                        ke_free_modifiers,
-                        relation,
-                        kehe,
-                        kehe_free_modifiers,
-                    }
+                |(((ke, ke_free_modifiers), relation), kehe)| RelationUnitSyntax::Ke {
+                    ke_tense_modal: None,
+                    ke: wrapped_word(ke, ke_free_modifiers),
+                    relation,
+                    kehe: kehe.map(|(kehe, free_modifiers)| wrapped_word(kehe, free_modifiers)),
                 },
             );
         let se_unit = recursive(|se_unit| {
@@ -5925,8 +5909,7 @@ where
                 )))
                 .map(
                     |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
-                        se,
-                        free_modifiers,
+                        se: wrapped_word(se, free_modifiers),
                         inner_unit: Box::new(inner_unit),
                     },
                 )
@@ -5938,8 +5921,7 @@ where
                 .then(jai_inner_unit.clone())
                 .map(
                     |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
-                        se,
-                        free_modifiers,
+                        se: wrapped_word(se, free_modifiers),
                         inner_unit: Box::new(inner_unit),
                     },
                 );
@@ -5948,8 +5930,7 @@ where
                 .then(jai_inner_unit.clone())
                 .map(
                     |((nahe, free_modifiers), inner_unit)| RelationUnitSyntax::Nahe {
-                        nahe,
-                        free_modifiers,
+                        nahe: wrapped_word(nahe, free_modifiers),
                         inner_unit: Box::new(inner_unit),
                     },
                 );
@@ -5975,8 +5956,7 @@ where
             .then(jai_inner_unit)
             .map(
                 |(((jai, free_modifiers), tense_modal), inner_unit)| RelationUnitSyntax::Jai {
-                    jai,
-                    free_modifiers,
+                    jai: wrapped_word(jai, free_modifiers),
                     tense_modal,
                     inner_unit: Box::new(inner_unit),
                 },
@@ -5986,8 +5966,7 @@ where
             .then(jai_unit.clone())
             .map(
                 |((se, free_modifiers), inner_unit)| RelationUnitSyntax::Se {
-                    se,
-                    free_modifiers,
+                    se: wrapped_word(se, free_modifiers),
                     inner_unit: Box::new(inner_unit),
                 },
             );
@@ -6003,8 +5982,7 @@ where
             )))
             .map(
                 |((nahe, free_modifiers), inner_unit)| RelationUnitSyntax::Nahe {
-                    nahe,
-                    free_modifiers,
+                    nahe: wrapped_word(nahe, free_modifiers),
                     inner_unit: Box::new(inner_unit),
                 },
             );
@@ -6145,8 +6123,7 @@ where
                 assignments: be_link
                     .into_iter()
                     .map(|(cei, relation_unit)| CeiAssignmentSyntax {
-                        cei,
-                        free_modifiers: Vec::new(),
+                        cei: wrapped_word(cei, Vec::new()),
                         relation_unit,
                     })
                     .collect(),
@@ -6206,8 +6183,7 @@ where
                                 leading_unit: Box::new(leading_unit),
                                 bo_connective,
                                 bo_tense_modal,
-                                bo,
-                                free_modifiers,
+                                bo: wrapped_word(bo, free_modifiers),
                                 trailing_unit: Box::new(trailing_unit),
                             }
                         },
@@ -6244,49 +6220,31 @@ where
 #[ensures(true)]
 fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
     match units.as_slice() {
-        [
-            RelationUnitSyntax::Word {
-                word,
-                free_modifiers,
-            },
-        ] if free_modifiers.is_empty() => RelationSyntax::Base(word.clone()),
-        [
-            RelationUnitSyntax::Goha {
-                goha,
-                raho: None,
-                free_modifiers,
-            },
-        ] if free_modifiers.is_empty() => RelationSyntax::Base(goha.clone()),
+        [RelationUnitSyntax::Word { word }] if word.free_modifiers.is_empty() => {
+            RelationSyntax::Base(word.value.clone())
+        }
+        [RelationUnitSyntax::Goha { goha, raho: None }] if goha.free_modifiers.is_empty() => {
+            RelationSyntax::Base(goha.value.clone())
+        }
         [RelationUnitSyntax::Word { .. } | RelationUnitSyntax::Goha { .. }] => {
             RelationSyntax::Compound(units)
         }
-        [
-            RelationUnitSyntax::Se {
-                se,
-                free_modifiers,
-                inner_unit,
-            },
-        ] => RelationSyntax::Se {
+        [RelationUnitSyntax::Se { se, inner_unit }] => RelationSyntax::Se {
             se: se.clone(),
-            free_modifiers: free_modifiers.clone(),
             inner_relation: Box::new(relation_unit_to_relation(inner_unit.as_ref())),
         },
         [
             RelationUnitSyntax::Ke {
                 ke_tense_modal,
                 ke,
-                ke_free_modifiers,
                 relation,
                 kehe,
-                kehe_free_modifiers,
             },
         ] => RelationSyntax::Ke {
             ke_tense_modal: ke_tense_modal.clone(),
             ke: ke.clone(),
-            ke_free_modifiers: ke_free_modifiers.clone(),
             relation: Box::new(relation.clone()),
             kehe: kehe.clone(),
-            kehe_free_modifiers: kehe_free_modifiers.clone(),
         },
         [RelationUnitSyntax::Abstraction(abstraction)] => {
             RelationSyntax::Abstraction(abstraction.clone())
@@ -6297,7 +6255,6 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
                 bo_connective,
                 bo_tense_modal,
                 bo,
-                free_modifiers,
                 trailing_unit,
             },
         ] => RelationSyntax::Bo {
@@ -6305,7 +6262,6 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
             bo_connective: bo_connective.clone(),
             bo_tense_modal: bo_tense_modal.clone(),
             bo: bo.clone(),
-            free_modifiers: free_modifiers.clone(),
             trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
         },
         [
@@ -6328,38 +6284,26 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
 #[ensures(true)]
 fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
     match unit {
-        RelationUnitSyntax::Word {
-            word,
-            free_modifiers,
-        } if free_modifiers.is_empty() => RelationSyntax::Base(word.clone()),
-        RelationUnitSyntax::Goha {
-            goha,
-            raho: None,
-            free_modifiers,
-        } if free_modifiers.is_empty() => RelationSyntax::Base(goha.clone()),
-        RelationUnitSyntax::Se {
-            se,
-            free_modifiers,
-            inner_unit,
-        } => RelationSyntax::Se {
+        RelationUnitSyntax::Word { word } if word.free_modifiers.is_empty() => {
+            RelationSyntax::Base(word.value.clone())
+        }
+        RelationUnitSyntax::Goha { goha, raho: None } if goha.free_modifiers.is_empty() => {
+            RelationSyntax::Base(goha.value.clone())
+        }
+        RelationUnitSyntax::Se { se, inner_unit } => RelationSyntax::Se {
             se: se.clone(),
-            free_modifiers: free_modifiers.clone(),
             inner_relation: Box::new(relation_unit_to_relation(inner_unit)),
         },
         RelationUnitSyntax::Ke {
             ke_tense_modal,
             ke,
-            ke_free_modifiers,
             relation,
             kehe,
-            kehe_free_modifiers,
         } => RelationSyntax::Ke {
             ke_tense_modal: ke_tense_modal.clone(),
             ke: ke.clone(),
-            ke_free_modifiers: ke_free_modifiers.clone(),
             relation: Box::new(relation.clone()),
             kehe: kehe.clone(),
-            kehe_free_modifiers: kehe_free_modifiers.clone(),
         },
         RelationUnitSyntax::Abstraction(abstraction) => {
             RelationSyntax::Abstraction(abstraction.clone())
@@ -6369,14 +6313,12 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
             bo_connective,
             bo_tense_modal,
             bo,
-            free_modifiers,
             trailing_unit,
         } => RelationSyntax::Bo {
             leading_relation: Box::new(relation_unit_to_relation(leading_unit)),
             bo_connective: bo_connective.clone(),
             bo_tense_modal: bo_tense_modal.clone(),
             bo: bo.clone(),
-            free_modifiers: free_modifiers.clone(),
             trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
         },
         RelationUnitSyntax::Connected {
@@ -6423,14 +6365,12 @@ fn relation_to_empty_predicate(relation: RelationSyntax) -> PredicateSyntax {
 fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
     let relation = recursive(|relation| {
         let word_unit = relation_word().map(|word| RelationUnitSyntax::Word {
-            word,
-            free_modifiers: Vec::new(),
+            word: wrapped_word(word, Vec::new()),
         });
         let se_unit = cmavo_of("SE", &["se", "te", "ve", "xe"])
             .then(word_unit.clone())
             .map(|(se, inner_unit)| RelationUnitSyntax::Se {
-                se,
-                free_modifiers: Vec::new(),
+                se: wrapped_word(se, Vec::new()),
                 inner_unit: Box::new(inner_unit),
             });
         let ke_unit = cmavo("ke")
@@ -6438,11 +6378,9 @@ fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             .then(cmavo("ke'e").or_not())
             .map(|((ke, relation), kehe)| RelationUnitSyntax::Ke {
                 ke_tense_modal: None,
-                ke,
-                ke_free_modifiers: Vec::new(),
+                ke: wrapped_word(ke, Vec::new()),
                 relation,
-                kehe,
-                kehe_free_modifiers: Vec::new(),
+                kehe: kehe.map(|kehe| wrapped_word(kehe, Vec::new())),
             });
         let simple_unit = choice((ke_unit, se_unit, word_unit)).boxed();
         let bo_unit = recursive(|bo_unit| {
@@ -6455,8 +6393,7 @@ fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                             leading_unit: Box::new(leading_unit),
                             bo_connective: None,
                             bo_tense_modal: None,
-                            bo,
-                            free_modifiers: Vec::new(),
+                            bo: wrapped_word(bo, Vec::new()),
                             trailing_unit: Box::new(trailing_unit),
                         }
                     })

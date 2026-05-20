@@ -40,70 +40,72 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {WordRelationUnit = {
-                                                        word = {WithIndicator = {
-                                                            base = {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Word = {
+                                                    word = {WithIndicator = {
+                                                        base = {Bare = {
+                                                            Bare = {
                                                                 kind = "gismu",
                                                                 phonemes = "bongu",
                                                                 span = [0, 5]
-                                                            }},
-                                                            indicator = {
-                                                                kind = "cmavo",
-                                                                phonemes = "xu",
-                                                                span = [6, 8]
                                                             }
-                                                        }}
-                                                    }},
-                                                    [
-                                                        {WordRelationUnit = {
-                                                            free_modifiers = [
-                                                                {VocativeFree = {
-                                                                    argument = {CmevlaArgument = {
-                                                                        cmevla = [
-                                                                            {Bare = {
-                                                                                kind = "cmevla",
-                                                                                phonemes = "norpan",
-                                                                                span = [19, 25]
-                                                                            }},
-                                                                        ]
-                                                                    }},
-                                                                    vocative_markers = [
-                                                                        {Bare = {
-                                                                            kind = "cmavo",
-                                                                            phonemes = "doĭ",
-                                                                            span = [15, 18]
-                                                                        }},
-                                                                    ]
-                                                                }},
-                                                            ],
-                                                            word = {Bare = {
+                                                        }},
+                                                        indicator = {
+                                                            kind = "cmavo",
+                                                            phonemes = "xu",
+                                                            span = [6, 8]
+                                                        }
+                                                    }}
+                                                }},
+                                                {Word = {
+                                                    word = [
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "gismu",
                                                                 phonemes = "julne",
                                                                 span = [9, 14]
-                                                            }}
+                                                            }
                                                         }},
-                                                    ],
-                                                ]
-                                            }}
-                                        }}
+                                                        {Vocative = {
+                                                            argument = {Cmevla = {
+                                                                cmevla = [
+                                                                    {Bare = {
+                                                                        Bare = {
+                                                                            kind = "cmevla",
+                                                                            phonemes = "norpan",
+                                                                            span = [19, 25]
+                                                                        }
+                                                                    }},
+                                                                ]
+                                                            }},
+                                                            vocative_markers = [
+                                                                {Bare = {
+                                                                    Bare = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "doĭ",
+                                                                        span = [15, 18]
+                                                                    }
+                                                                }},
+                                                            ]
+                                                        }},
+                                                    ]
+                                                }},
+                                            ] }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

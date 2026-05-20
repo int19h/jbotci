@@ -35,65 +35,69 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Koha = {
+                                    koha = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "mi",
                                             span = [0, 2]
-                                        }}
+                                        }
                                     }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {WordRelationUnit = {
-                                                        free_modifiers = [
-                                                            {VocativeFree = {
-                                                                argument = {CmevlaArgument = {
-                                                                    cmevla = [
-                                                                        {Bare = {
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Word = {
+                                                    word = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "gismu",
+                                                                phonemes = "tugni",
+                                                                span = [3, 8]
+                                                            }
+                                                        }},
+                                                        {Vocative = {
+                                                            argument = {Cmevla = {
+                                                                cmevla = [
+                                                                    {Bare = {
+                                                                        Bare = {
                                                                             kind = "cmevla",
                                                                             phonemes = "frac",
                                                                             span = [13, 17]
-                                                                        }},
-                                                                    ]
-                                                                }},
-                                                                vocative_markers = [
-                                                                    {Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "doĭ",
-                                                                        span = [9, 12]
+                                                                        }
                                                                     }},
                                                                 ]
                                                             }},
-                                                        ],
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "tugni",
-                                                            span = [3, 8]
-                                                        }}
-                                                    }},
-                                                ]
-                                            }}
-                                        }}
+                                                            vocative_markers = [
+                                                                {Bare = {
+                                                                    Bare = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "doĭ",
+                                                                        span = [9, 12]
+                                                                    }
+                                                                }},
+                                                            ]
+                                                        }},
+                                                    ]
+                                                }},
+                                            ] }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -984,36 +984,30 @@ pub enum RelationSyntax {
     },
     Co {
         leading_relation: Box<RelationSyntax>,
-        co: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        co: WithFreeModifiers<WithIndicators<WordLike>>,
         trailing_relation: Box<RelationSyntax>,
     },
     Bo {
         leading_relation: Box<RelationSyntax>,
         bo_connective: Option<ConnectiveSyntax>,
         bo_tense_modal: Option<TenseModalSyntax>,
-        bo: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        bo: WithFreeModifiers<WithIndicators<WordLike>>,
         trailing_relation: Box<RelationSyntax>,
     },
     Na {
-        na: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        na: WithFreeModifiers<WithIndicators<WordLike>>,
         inner_relation: Box<RelationSyntax>,
     },
     Base(WithIndicators<WordLike>),
     Se {
-        se: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        se: WithFreeModifiers<WithIndicators<WordLike>>,
         inner_relation: Box<RelationSyntax>,
     },
     Ke {
         ke_tense_modal: Option<TenseModalSyntax>,
-        ke: WithIndicators<WordLike>,
-        ke_free_modifiers: Vec<FreeModifierSyntax>,
+        ke: WithFreeModifiers<WithIndicators<WordLike>>,
         relation: Box<RelationSyntax>,
-        kehe: Option<WithIndicators<WordLike>>,
-        kehe_free_modifiers: Vec<FreeModifierSyntax>,
+        kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     TenseModal {
         tense_modal: TenseModalSyntax,
@@ -1187,38 +1181,31 @@ pub struct AdditionalNuSyntax {
 #[invariant(true)]
 pub enum RelationUnitSyntax {
     Word {
-        word: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        word: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     Goha {
-        goha: WithIndicators<WordLike>,
-        raho: Option<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        goha: WithFreeModifiers<WithIndicators<WordLike>>,
+        raho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Se {
-        se: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        se: WithFreeModifiers<WithIndicators<WordLike>>,
         inner_unit: Box<RelationUnitSyntax>,
     },
     Ke {
         ke_tense_modal: Option<TenseModalSyntax>,
-        ke: WithIndicators<WordLike>,
-        ke_free_modifiers: Vec<FreeModifierSyntax>,
+        ke: WithFreeModifiers<WithIndicators<WordLike>>,
         relation: RelationSyntax,
-        kehe: Option<WithIndicators<WordLike>>,
-        kehe_free_modifiers: Vec<FreeModifierSyntax>,
+        kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Nahe {
-        nahe: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        nahe: WithFreeModifiers<WithIndicators<WordLike>>,
         inner_unit: Box<RelationUnitSyntax>,
     },
     Bo {
         leading_unit: Box<RelationUnitSyntax>,
         bo_connective: Option<ConnectiveSyntax>,
         bo_tense_modal: Option<TenseModalSyntax>,
-        bo: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        bo: WithFreeModifiers<WithIndicators<WordLike>>,
         trailing_unit: Box<RelationUnitSyntax>,
     },
     Connected {
@@ -1232,8 +1219,7 @@ pub enum RelationUnitSyntax {
     },
     Wrapped(RelationSyntax),
     Jai {
-        jai: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        jai: WithFreeModifiers<WithIndicators<WordLike>>,
         tense_modal: Option<TenseModalSyntax>,
         inner_unit: Box<RelationUnitSyntax>,
     },
@@ -1255,51 +1241,40 @@ pub enum RelationUnitSyntax {
     },
     Abstraction(AbstractionSyntax),
     Me {
-        me: WithIndicators<WordLike>,
-        me_free_modifiers: Vec<FreeModifierSyntax>,
+        me: WithFreeModifiers<WithIndicators<WordLike>>,
         argument: ArgumentSyntax,
-        mehu: Option<WithIndicators<WordLike>>,
-        mehu_free_modifiers: Vec<FreeModifierSyntax>,
-        moi_marker: Option<WithIndicators<WordLike>>,
-        moi_free_modifiers: Vec<FreeModifierSyntax>,
+        mehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+        moi_marker: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Mehoi {
-        mehoi: WithIndicators<WordLike>,
+        mehoi: WithFreeModifiers<WithIndicators<WordLike>>,
         quoted_text: String,
-        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Gohoi {
-        gohoi: WithIndicators<WordLike>,
+        gohoi: WithFreeModifiers<WithIndicators<WordLike>>,
         quoted_text: String,
-        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Muhoi {
         muhoi: WithIndicators<WordLike>,
         opening_delimiter: WithIndicators<WordLike>,
-        closing_delimiter: WithIndicators<WordLike>,
+        closing_delimiter: WithFreeModifiers<WithIndicators<WordLike>>,
         quoted_text: String,
-        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Luhei {
-        luhei: WithIndicators<WordLike>,
-        luhei_free_modifiers: Vec<FreeModifierSyntax>,
+        luhei: WithFreeModifiers<WithIndicators<WordLike>>,
         text: TextSyntax,
-        liau: Option<WithIndicators<WordLike>>,
-        liau_free_modifiers: Vec<FreeModifierSyntax>,
+        liau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Moi {
         number: Vec<WithIndicators<WordLike>>,
-        moi: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        moi: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     Nuha {
-        nuha: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        nuha: WithFreeModifiers<WithIndicators<WordLike>>,
         math_operator: MathOperatorSyntax,
     },
     Xohi {
-        xohi: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        xohi: WithFreeModifiers<WithIndicators<WordLike>>,
         tag: TenseModalSyntax,
     },
     Cei {
@@ -1311,8 +1286,7 @@ pub enum RelationUnitSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct CeiAssignmentSyntax {
-    pub cei: WithIndicators<WordLike>,
-    pub free_modifiers: Vec<FreeModifierSyntax>,
+    pub cei: WithFreeModifiers<WithIndicators<WordLike>>,
     pub relation_unit: RelationUnitSyntax,
 }
 
@@ -3160,14 +3134,10 @@ impl RelationSyntax {
             RelationSyntax::Co {
                 leading_relation,
                 co,
-                free_modifiers,
                 trailing_relation,
             } => {
                 let mut words = leading_relation.words();
-                words.push(co);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(co.words());
                 words.extend(trailing_relation.words());
                 words
             }
@@ -3176,7 +3146,6 @@ impl RelationSyntax {
                 bo_connective,
                 bo_tense_modal,
                 bo,
-                free_modifiers,
                 trailing_relation,
             } => {
                 let mut words = leading_relation.words();
@@ -3186,54 +3155,28 @@ impl RelationSyntax {
                 if let Some(tense_modal) = bo_tense_modal {
                     words.extend(tense_modal.words());
                 }
-                words.push(bo);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(bo.words());
                 words.extend(trailing_relation.words());
                 words
             }
-            RelationSyntax::Na {
-                na,
-                free_modifiers,
-                inner_relation,
-            } => {
-                let mut words = vec![na];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            RelationSyntax::Na { na, inner_relation } => {
+                let mut words = na.words();
                 words.extend(inner_relation.words());
                 words
             }
             RelationSyntax::Base(word) => vec![word],
-            RelationSyntax::Se {
-                se,
-                free_modifiers,
-                inner_relation,
-            } => {
-                let mut words = vec![se];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            RelationSyntax::Se { se, inner_relation } => {
+                let mut words = se.words();
                 words.extend(inner_relation.words());
                 words
             }
             RelationSyntax::Ke {
-                ke,
-                ke_free_modifiers,
-                relation,
-                kehe,
-                kehe_free_modifiers,
-                ..
+                ke, relation, kehe, ..
             } => {
-                let mut words = vec![ke];
-                for free_modifier in ke_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = ke.words();
                 words.extend(relation.words());
-                words.extend(kehe);
-                for free_modifier in kehe_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(kehe) = kehe {
+                    words.extend(kehe.words());
                 }
                 words
             }
@@ -3271,68 +3214,31 @@ impl RelationUnitSyntax {
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
-            RelationUnitSyntax::Word {
-                word,
-                free_modifiers,
-            } => {
-                let mut words = vec![word];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
+            RelationUnitSyntax::Word { word } => word.words(),
+            RelationUnitSyntax::Goha { goha, raho } => {
+                let mut words = goha.words();
+                if let Some(raho) = raho {
+                    words.extend(raho.words());
                 }
                 words
             }
-            RelationUnitSyntax::Goha {
-                goha,
-                raho,
-                free_modifiers,
-            } => {
-                let mut words = vec![goha];
-                words.extend(raho);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
-                words
-            }
-            RelationUnitSyntax::Se {
-                se,
-                free_modifiers,
-                inner_unit,
-            } => {
-                let mut words = vec![se];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            RelationUnitSyntax::Se { se, inner_unit } => {
+                let mut words = se.words();
                 words.extend(inner_unit.words());
                 words
             }
             RelationUnitSyntax::Ke {
-                ke,
-                ke_free_modifiers,
-                relation,
-                kehe,
-                kehe_free_modifiers,
-                ..
+                ke, relation, kehe, ..
             } => {
-                let mut words = vec![ke];
-                for free_modifier in ke_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = ke.words();
                 words.extend(relation.words());
-                words.extend(kehe);
-                for free_modifier in kehe_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(kehe) = kehe {
+                    words.extend(kehe.words());
                 }
                 words
             }
-            RelationUnitSyntax::Nahe {
-                nahe,
-                free_modifiers,
-                inner_unit,
-            } => {
-                let mut words = vec![nahe];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            RelationUnitSyntax::Nahe { nahe, inner_unit } => {
+                let mut words = nahe.words();
                 words.extend(inner_unit.words());
                 words
             }
@@ -3341,7 +3247,6 @@ impl RelationUnitSyntax {
                 bo_connective,
                 bo_tense_modal,
                 bo,
-                free_modifiers,
                 trailing_unit,
             } => {
                 let mut words = leading_unit.words();
@@ -3351,10 +3256,7 @@ impl RelationUnitSyntax {
                 if let Some(tense_modal) = bo_tense_modal {
                     words.extend(tense_modal.words());
                 }
-                words.push(bo);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(bo.words());
                 words.extend(trailing_unit.words());
                 words
             }
@@ -3381,14 +3283,10 @@ impl RelationUnitSyntax {
             RelationUnitSyntax::Wrapped(relation) => relation.words(),
             RelationUnitSyntax::Jai {
                 jai,
-                free_modifiers,
                 tense_modal,
                 inner_unit,
             } => {
-                let mut words = vec![jai];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = jai.words();
                 if let Some(tense_modal) = tense_modal {
                     words.extend(tense_modal.words());
                 }
@@ -3442,124 +3340,62 @@ impl RelationUnitSyntax {
             RelationUnitSyntax::Abstraction(abstraction) => abstraction.words(),
             RelationUnitSyntax::Me {
                 me,
-                me_free_modifiers,
                 argument,
                 mehu,
-                mehu_free_modifiers,
                 moi_marker,
-                moi_free_modifiers,
             } => {
-                let mut words = vec![me];
-                for free_modifier in me_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = me.words();
                 words.extend(argument.words());
-                words.extend(mehu);
-                for free_modifier in mehu_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(mehu) = mehu {
+                    words.extend(mehu.words());
                 }
-                words.extend(moi_marker);
-                for free_modifier in moi_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(moi_marker) = moi_marker {
+                    words.extend(moi_marker.words());
                 }
                 words
             }
-            RelationUnitSyntax::Mehoi {
-                mehoi,
-                free_modifiers,
-                ..
-            } => {
-                let mut words = vec![mehoi];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
-                words
-            }
-            RelationUnitSyntax::Gohoi {
-                gohoi,
-                free_modifiers,
-                ..
-            } => {
-                let mut words = vec![gohoi];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
-                words
-            }
+            RelationUnitSyntax::Mehoi { mehoi, .. } => mehoi.words(),
+            RelationUnitSyntax::Gohoi { gohoi, .. } => gohoi.words(),
             RelationUnitSyntax::Muhoi {
                 muhoi,
                 opening_delimiter,
                 closing_delimiter,
-                free_modifiers,
                 ..
             } => {
-                let mut words = vec![muhoi, opening_delimiter, closing_delimiter];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = vec![muhoi, opening_delimiter];
+                words.extend(closing_delimiter.words());
                 words
             }
-            RelationUnitSyntax::Luhei {
-                luhei,
-                luhei_free_modifiers,
-                text,
-                liau,
-                liau_free_modifiers,
-            } => {
-                let mut words = vec![luhei];
-                for free_modifier in luhei_free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            RelationUnitSyntax::Luhei { luhei, text, liau } => {
+                let mut words = luhei.words();
                 words.extend(text.words());
-                words.extend(liau);
-                for free_modifier in liau_free_modifiers {
-                    words.extend(free_modifier.words());
+                if let Some(liau) = liau {
+                    words.extend(liau.words());
                 }
                 words
             }
-            RelationUnitSyntax::Moi {
-                number,
-                moi,
-                free_modifiers,
-            } => {
+            RelationUnitSyntax::Moi { number, moi } => {
                 let mut words = number;
-                words.push(moi);
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                words.extend(moi.words());
                 words
             }
             RelationUnitSyntax::Nuha {
                 nuha,
-                free_modifiers,
                 math_operator,
             } => {
-                let mut words = vec![nuha];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = nuha.words();
                 words.extend(math_operator.words());
                 words
             }
-            RelationUnitSyntax::Xohi {
-                xohi,
-                free_modifiers,
-                tag,
-            } => {
-                let mut words = vec![xohi];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            RelationUnitSyntax::Xohi { xohi, tag } => {
+                let mut words = xohi.words();
                 words.extend(tag.words());
                 words
             }
             RelationUnitSyntax::Cei { base, assignments } => {
                 let mut words = base.words();
                 for assignment in assignments {
-                    words.push(assignment.cei);
-                    for free_modifier in assignment.free_modifiers {
-                        words.extend(free_modifier.words());
-                    }
+                    words.extend(assignment.cei.words());
                     words.extend(assignment.relation_unit.words());
                 }
                 words

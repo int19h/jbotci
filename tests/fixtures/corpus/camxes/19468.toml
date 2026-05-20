@@ -30,55 +30,57 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {WordRelationUnit = {
-                                                        free_modifiers = [
-                                                            {VocativeFree = {
-                                                                argument = {CmevlaArgument = {
-                                                                    cmevla = [
-                                                                        {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Compound = [
+                                                {Word = {
+                                                    word = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "gismu",
+                                                                phonemes = "tsali",
+                                                                span = [1, 6]
+                                                            }
+                                                        }},
+                                                        {Vocative = {
+                                                            argument = {Cmevla = {
+                                                                cmevla = [
+                                                                    {Bare = {
+                                                                        Bare = {
                                                                             kind = "cmevla",
                                                                             phonemes = "robin",
                                                                             span = [12, 17]
-                                                                        }},
-                                                                    ]
-                                                                }},
-                                                                vocative_markers = [
-                                                                    {Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "coĭ",
-                                                                        span = [8, 11]
+                                                                        }
                                                                     }},
                                                                 ]
                                                             }},
-                                                        ],
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "tsali",
-                                                            span = [1, 6]
-                                                        }}
-                                                    }},
-                                                ]
-                                            }}
-                                        }}
+                                                            vocative_markers = [
+                                                                {Bare = {
+                                                                    Bare = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "coĭ",
+                                                                        span = [8, 11]
+                                                                    }
+                                                                }},
+                                                            ]
+                                                        }},
+                                                    ]
+                                                }},
+                                            ] }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
