@@ -183,6 +183,24 @@ fn attach_tense_modal_free_modifiers(
 
 #[requires(true)]
 #[ensures(true)]
+fn split_optional_word_free_modifiers(
+    word: Option<WithIndicators<WordLike>>,
+    free_modifiers: Vec<FreeModifierSyntax>,
+) -> (
+    Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    Vec<FreeModifierSyntax>,
+) {
+    match word {
+        Some(word) => (
+            Some(WithFreeModifiers::new(word, free_modifiers)),
+            Vec::new(),
+        ),
+        None => (None, free_modifiers),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub(super) fn parse_statement(
     words: &[WithIndicators<WordLike>],
     source: Option<&str>,
@@ -631,6 +649,8 @@ fn statement_parser<'tokens>(
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .map(
                     |((((((gek, first), gik), second), tail_terms), vau), free_modifiers)| {
+                        let (vau, free_modifiers) =
+                            split_optional_word_free_modifiers(vau, free_modifiers);
                         GekSentenceSyntax::Pair {
                             gek,
                             first: Box::new(first),
@@ -667,8 +687,7 @@ fn statement_parser<'tokens>(
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .then(gek_sentence.clone())
                 .map(|((na, free_modifiers), inner)| GekSentenceSyntax::Na {
-                    na,
-                    free_modifiers,
+                    na: WithFreeModifiers::new(na, free_modifiers),
                     inner: Box::new(inner),
                 });
             choice((pair, ke, na)).boxed()
@@ -692,7 +711,11 @@ fn statement_parser<'tokens>(
             .repeated()
             .collect::<Vec<_>>()
             .then(cmavo("vau").or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>());
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|((tail_terms, vau), free_modifiers)| {
+                let (vau, free_modifiers) = split_optional_word_free_modifiers(vau, free_modifiers);
+                (tail_terms, vau, free_modifiers)
+            });
         let experimental_predicate_tail_cu = cu
             .clone()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -701,7 +724,7 @@ fn statement_parser<'tokens>(
         let predicate_tail = recursive(|predicate_tail| {
             let predicate_tail2 = recursive(|predicate_tail2| {
                 let relation_tail3 = relation.clone().then(predicate_tail_terms.clone()).map(
-                    |(relation, ((terms, vau), free_modifiers))| PredicateTail3Syntax::Relation {
+                    |(relation, (terms, vau, free_modifiers))| PredicateTail3Syntax::Relation {
                         relation,
                         terms,
                         vau,
@@ -719,19 +742,19 @@ fn statement_parser<'tokens>(
                     .map(
                         |(
                             (
-                                ((((connective, tense_modal), bo), free_modifiers), cu),
+                                ((((connective, tense_modal), bo), bo_free_modifiers), cu),
                                 predicate_tail,
                             ),
-                            ((tail_terms, vau), _tail_free_modifiers),
+                            (tail_terms, vau, tail_free_modifiers),
                         )| BoPredicateTailSyntax {
                             connective,
                             tense_modal,
-                            bo,
-                            free_modifiers,
+                            bo: WithFreeModifiers::new(bo, bo_free_modifiers),
                             cu,
                             predicate_tail: Box::new(predicate_tail),
                             tail_terms,
                             vau,
+                            free_modifiers: tail_free_modifiers,
                         },
                     )
                     .boxed();
@@ -756,7 +779,7 @@ fn statement_parser<'tokens>(
                 .map(
                     |(
                         (((connective, free_modifiers), cu), predicate_tail),
-                        ((tail_terms, vau), _tail_free_modifiers),
+                        (tail_terms, vau, tail_free_modifiers),
                     )| {
                         let mut connective = connective;
                         connective.free_modifiers.extend(free_modifiers);
@@ -767,7 +790,7 @@ fn statement_parser<'tokens>(
                             predicate_tail,
                             tail_terms,
                             vau,
-                            free_modifiers: Vec::new(),
+                            free_modifiers: tail_free_modifiers,
                         }
                     },
                 )
@@ -801,7 +824,7 @@ fn statement_parser<'tokens>(
                             ((((connective, tense_modal), ke), ke_free_modifiers), predicate_tail),
                             kehe,
                         ),
-                        ((tail_terms, vau), _tail_free_modifiers),
+                        (tail_terms, vau, free_modifiers),
                     )| {
                         KePredicateTailSyntax {
                             connective,
@@ -813,6 +836,7 @@ fn statement_parser<'tokens>(
                             }),
                             tail_terms,
                             vau,
+                            free_modifiers,
                         }
                     },
                 )

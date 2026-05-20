@@ -95,7 +95,8 @@ pub struct KePredicateTailSyntax {
     pub predicate_tail: Box<PredicateTailSyntax>,
     pub kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub tail_terms: Vec<TermSyntax>,
-    pub vau: Option<WithIndicators<WordLike>>,
+    pub vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -113,7 +114,7 @@ pub struct PredicateTailContinuationSyntax {
     pub cu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub predicate_tail: PredicateTail2Syntax,
     pub tail_terms: Vec<TermSyntax>,
-    pub vau: Option<WithIndicators<WordLike>>,
+    pub vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
@@ -129,12 +130,12 @@ pub struct PredicateTail2Syntax {
 pub struct BoPredicateTailSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<TenseModalSyntax>,
-    pub bo: WithIndicators<WordLike>,
-    pub free_modifiers: Vec<FreeModifierSyntax>,
+    pub bo: WithFreeModifiers<WithIndicators<WordLike>>,
     pub cu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub predicate_tail: Box<PredicateTail2Syntax>,
     pub tail_terms: Vec<TermSyntax>,
-    pub vau: Option<WithIndicators<WordLike>>,
+    pub vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -143,7 +144,7 @@ pub enum PredicateTail3Syntax {
     Relation {
         relation: RelationSyntax,
         terms: Vec<TermSyntax>,
-        vau: Option<WithIndicators<WordLike>>,
+        vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     GekSentence(GekSentenceSyntax),
@@ -158,7 +159,7 @@ pub enum GekSentenceSyntax {
         gik: ConnectiveSyntax,
         second: Box<SubsentenceSyntax>,
         tail_terms: Vec<TermSyntax>,
-        vau: Option<WithIndicators<WordLike>>,
+        vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Ke {
@@ -168,8 +169,7 @@ pub enum GekSentenceSyntax {
         kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Na {
-        na: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        na: WithFreeModifiers<WithIndicators<WordLike>>,
         inner: Box<GekSentenceSyntax>,
     },
 }
@@ -1502,7 +1502,12 @@ impl KePredicateTailSyntax {
         for term in self.tail_terms {
             words.extend(term.words());
         }
-        words.extend(self.vau);
+        if let Some(vau) = self.vau {
+            words.extend(vau.words());
+        }
+        for free_modifier in self.free_modifiers {
+            words.extend(free_modifier.words());
+        }
         words
     }
 }
@@ -1534,7 +1539,9 @@ impl PredicateTailContinuationSyntax {
         for term in self.tail_terms {
             words.extend(term.words());
         }
-        words.extend(self.vau);
+        if let Some(vau) = self.vau {
+            words.extend(vau.words());
+        }
         for free_modifier in self.free_modifiers {
             words.extend(free_modifier.words());
         }
@@ -1562,10 +1569,7 @@ impl BoPredicateTailSyntax {
         if let Some(tense_modal) = self.tense_modal {
             words.extend(tense_modal.words());
         }
-        words.push(self.bo);
-        for free_modifier in self.free_modifiers {
-            words.extend(free_modifier.words());
-        }
+        words.extend(self.bo.words());
         if let Some(cu) = self.cu {
             words.extend(cu.words());
         }
@@ -1573,7 +1577,12 @@ impl BoPredicateTailSyntax {
         for term in self.tail_terms {
             words.extend(term.words());
         }
-        words.extend(self.vau);
+        if let Some(vau) = self.vau {
+            words.extend(vau.words());
+        }
+        for free_modifier in self.free_modifiers {
+            words.extend(free_modifier.words());
+        }
         words
     }
 }
@@ -1593,7 +1602,9 @@ impl PredicateTail3Syntax {
                 for term in terms {
                     words.extend(term.words());
                 }
-                words.extend(vau);
+                if let Some(vau) = vau {
+                    words.extend(vau.words());
+                }
                 for free_modifier in free_modifiers {
                     words.extend(free_modifier.words());
                 }
@@ -1625,7 +1636,9 @@ impl GekSentenceSyntax {
                 for term in tail_terms {
                     words.extend(term.words());
                 }
-                words.extend(vau);
+                if let Some(vau) = vau {
+                    words.extend(vau.words());
+                }
                 for free_modifier in free_modifiers {
                     words.extend(free_modifier.words());
                 }
@@ -1648,15 +1661,8 @@ impl GekSentenceSyntax {
                 }
                 words
             }
-            GekSentenceSyntax::Na {
-                na,
-                free_modifiers,
-                inner,
-            } => {
-                let mut words = vec![na];
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+            GekSentenceSyntax::Na { na, inner } => {
+                let mut words = na.words();
                 words.extend(inner.words());
                 words
             }
