@@ -32,28 +32,32 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             niho = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "ni'o",
-                    span = [0, 4]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "ni'o",
+                        span = [0, 4]
+                    }
                 }},
             ],
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {ZoQuote = {
-                                            word = {Bare = {
+                                {Argument = {
+                                    Quote = {Zo = {
+                                        word = {Bare = {
+                                            Bare = {
                                                 kind = "lujvo",
                                                 phonemes = "kafkylerfu",
                                                 span = [8, 18]
-                                            }},
-                                            zo = {ZoQuote = {
+                                            }
+                                        }},
+                                        zo = {Bare = {
+                                            ZoQuote = {
                                                 word = {
                                                     kind = "lujvo",
                                                     phonemes = "kafkylerfu",
@@ -64,15 +68,15 @@ parse-tree = {
                                                     phonemes = "zo",
                                                     span = [5, 7]
                                                 }
-                                            }}
+                                            }
                                         }}
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

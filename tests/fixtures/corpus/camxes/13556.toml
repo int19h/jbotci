@@ -32,33 +32,39 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            argument = {QuoteArgument = {
-                quote = {ZoQuote = {
+        {Vocative = {
+            argument = {Quote = {
+                Zo = {
                     word = {Bare = {
-                        kind = "gismu",
-                        phonemes = "parbi",
-                        span = [8, 13]
-                    }},
-                    zo = {ZoQuote = {
-                        word = {
+                        Bare = {
                             kind = "gismu",
                             phonemes = "parbi",
                             span = [8, 13]
-                        },
-                        zo = {
-                            kind = "cmavo",
-                            phonemes = "zo",
-                            span = [5, 7]
+                        }
+                    }},
+                    zo = {Bare = {
+                        ZoQuote = {
+                            word = {
+                                kind = "gismu",
+                                phonemes = "parbi",
+                                span = [8, 13]
+                            },
+                            zo = {
+                                kind = "cmavo",
+                                phonemes = "zo",
+                                span = [5, 7]
+                            }
                         }
                     }}
-                }}
+                }
             }},
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "je'e",
-                    span = [0, 4]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "je'e",
+                        span = [0, 4]
+                    }
                 }},
             ]
         }},

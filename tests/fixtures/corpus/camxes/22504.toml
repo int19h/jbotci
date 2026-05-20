@@ -45,27 +45,31 @@ status = "success"
 parse-tree = {
     leading_cmevla = [
         {Bare = {
-            kind = "cmevla",
-            phonemes = "ánd",
-            span = [0, 3]
+            Bare = {
+                kind = "cmevla",
+                phonemes = "ánd",
+                span = [0, 3]
+            }
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {LohuQuote = {
-                                            lehu = {Bare = {
+                                {Argument = {
+                                    Quote = {Lohu = {
+                                        lehu = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le'u",
                                                 span = [15, 19]
-                                            }},
-                                            lohu = {LohuQuote = {
+                                            }
+                                        }},
+                                        lohu = {Bare = {
+                                            LohuQuote = {
                                                 lehu = {
                                                     kind = "cmavo",
                                                     phonemes = "le'u",
@@ -88,27 +92,31 @@ parse-tree = {
                                                         span = [12, 14]
                                                     },
                                                 ]
-                                            }},
-                                            quoted_words = [
-                                                {Bare = {
+                                            }
+                                        }},
+                                        quoted_words = [
+                                            {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "si",
                                                     span = [9, 11]
-                                                }},
-                                                {Bare = {
+                                                }
+                                            }},
+                                            {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "mi",
                                                     span = [12, 14]
-                                                }},
-                                            ]
-                                        }}
+                                                }
+                                            }},
+                                        ]
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

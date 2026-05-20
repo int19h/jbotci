@@ -47,72 +47,81 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {ConnectedArgument = {
-                                        connective = {Connective = {
+                                {Argument = {
+                                    Connected = {
+                                        connective = {
                                             cmavo = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "e",
-                                                    span = [10, 11]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "e",
+                                                        span = [10, 11]
+                                                    }
                                                 }},
                                             ],
+                                            kind = "Afterthought",
                                             nai = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "naĭ",
-                                                span = [11, 14]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "naĭ",
+                                                    span = [11, 14]
+                                                }
                                             }}
-                                        }},
-                                        leading_argument = {QuoteArgument = {
-                                            quote = {ZoQuote = {
+                                        },
+                                        leading_argument = {Quote = {
+                                            Zo = {
                                                 word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "porpi",
-                                                    span = [3, 8]
-                                                }},
-                                                zo = {ZoQuote = {
-                                                    word = {
+                                                    Bare = {
                                                         kind = "gismu",
                                                         phonemes = "porpi",
                                                         span = [3, 8]
-                                                    },
-                                                    zo = {
-                                                        kind = "cmavo",
-                                                        phonemes = "zo",
-                                                        span = [0, 2]
+                                                    }
+                                                }},
+                                                zo = {Bare = {
+                                                    ZoQuote = {
+                                                        word = {
+                                                            kind = "gismu",
+                                                            phonemes = "porpi",
+                                                            span = [3, 8]
+                                                        },
+                                                        zo = {
+                                                            kind = "cmavo",
+                                                            phonemes = "zo",
+                                                            span = [0, 2]
+                                                        }
                                                     }
                                                 }}
-                                            }}
+                                            }
                                         }},
-                                        trailing_argument = {DescriptorArgument = {
-                                            descriptor = {Descriptor = {
-                                                descriptor = {Bare = {
+                                        trailing_argument = {Descriptor = {
+                                            descriptor = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "la",
                                                     span = [15, 17]
-                                                }},
-                                                relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "porpi",
-                                                        span = [18, 23]
-                                                    }}
+                                                }
+                                            }},
+                                            relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "porpi",
+                                                    span = [18, 23]
                                                 }}
                                             }}
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

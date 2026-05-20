@@ -58,99 +58,105 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "le",
-                                                span = [0, 2]
-                                            }},
-                                            relation = {SeRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "fanva",
-                                                        span = [6, 11]
-                                                    }}
-                                                }},
-                                                se = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "xe",
-                                                    span = [3, 5]
-                                                }}
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Descriptor = {
+                                    descriptor = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "le",
+                                            span = [0, 2]
+                                        }
+                                    }},
+                                    relation = {Se = {
+                                        inner_relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "fanva",
+                                                span = [6, 11]
                                             }}
+                                        }},
+                                        se = {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "xe",
+                                                span = [3, 5]
+                                            }
                                         }}
                                     }}
-                                }},
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {ZoiQuote = {
-                                            closing_delimiter = {Bare = {
+                                }
+                            }},
+                            {Argument = {
+                                Quote = {Zoi = {
+                                    closing_delimiter = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "gy",
+                                            span = [29, 31]
+                                        }
+                                    }},
+                                    opening_delimiter = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "gy",
+                                            span = [16, 18]
+                                        }
+                                    }},
+                                    quoted_text = "I meant",
+                                    zoi = {Bare = {
+                                        ZoiQuote = {
+                                            closing_delimiter = {
                                                 kind = "cmavo",
                                                 phonemes = "gy",
                                                 span = [29, 31]
-                                            }},
-                                            opening_delimiter = {Bare = {
+                                            },
+                                            opening_delimiter = {
                                                 kind = "cmavo",
                                                 phonemes = "gy",
                                                 span = [16, 18]
+                                            },
+                                            quoted_text = [20, 27],
+                                            zoi = {
+                                                kind = "cmavo",
+                                                phonemes = "zoĭ",
+                                                span = [12, 15]
+                                            }
+                                        }
+                                    }}
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Na = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "vajni",
+                                                    span = [36, 41]
+                                                }}
                                             }},
-                                            quoted_text = "I meant",
-                                            zoi = {ZoiQuote = {
-                                                closing_delimiter = {
+                                            na = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
-                                                    phonemes = "gy",
-                                                    span = [29, 31]
-                                                },
-                                                opening_delimiter = {
-                                                    kind = "cmavo",
-                                                    phonemes = "gy",
-                                                    span = [16, 18]
-                                                },
-                                                quoted_text = [20, 27],
-                                                zoi = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zoĭ",
-                                                    span = [12, 15]
+                                                    phonemes = "na",
+                                                    span = [33, 35]
                                                 }
                                             }}
                                         }}
                                     }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {NaRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "vajni",
-                                                        span = [36, 41]
-                                                    }}
-                                                }},
-                                                na = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "na",
-                                                    span = [33, 35]
-                                                }}
-                                            }}
-                                        }}
-                                    }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -322,24 +322,14 @@ pub enum FragmentSyntax {
     // TermFragment for parsed standalone arguments.
     #[allow(dead_code)]
     Argument(ArgumentSyntax),
-    Ek {
-        connective: ConnectiveSyntax,
-        free_modifiers: Vec<FreeModifierSyntax>,
-    },
-    Gihek {
-        connective: ConnectiveSyntax,
-        free_modifiers: Vec<FreeModifierSyntax>,
-    },
-    Other {
-        words: Vec<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
-    },
+    Ek(ConnectiveSyntax),
+    Gihek(ConnectiveSyntax),
+    Other(WithFreeModifiers<Vec<WithIndicators<WordLike>>>),
     // v0 exposes this constructor for a fragment shape that is currently parsed
     // through VocativeFree when it appears in source text.
     #[allow(dead_code)]
     Vocative {
-        vocative_markers: Vec<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        vocative_markers: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
         vocative_argument: Option<ArgumentSyntax>,
         dohu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -433,7 +423,6 @@ pub enum TermSyntax {
     },
     Tagged {
         tense_modal: Option<TenseModalSyntax>,
-        free_modifiers: Vec<FreeModifierSyntax>,
         argument: ArgumentSyntax,
     },
     Connected {
@@ -468,10 +457,7 @@ pub struct ArgumentConnectionSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum ArgumentSyntax {
-    Quote {
-        quote: QuoteSyntax,
-        free_modifiers: Vec<FreeModifierSyntax>,
-    },
+    Quote(QuoteSyntax),
     MathExpression {
         li: WithIndicators<WordLike>,
         li_free_modifiers: Vec<FreeModifierSyntax>,
@@ -1699,40 +1685,16 @@ impl FragmentSyntax {
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
             FragmentSyntax::Argument(argument) => argument.words(),
-            FragmentSyntax::Ek {
-                connective,
-                free_modifiers,
+            FragmentSyntax::Ek(connective) | FragmentSyntax::Gihek(connective) => {
+                connective.words()
             }
-            | FragmentSyntax::Gihek {
-                connective,
-                free_modifiers,
-            } => {
-                let mut words = connective.words();
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
-                words
-            }
-            FragmentSyntax::Other {
-                words,
-                free_modifiers,
-            } => {
-                let mut all_words = words;
-                for free_modifier in free_modifiers {
-                    all_words.extend(free_modifier.words());
-                }
-                all_words
-            }
+            FragmentSyntax::Other(words) => words.words(),
             FragmentSyntax::Vocative {
                 vocative_markers,
-                free_modifiers,
                 vocative_argument,
                 dohu,
             } => {
-                let mut words = vocative_markers;
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = vocative_markers.words();
                 if let Some(vocative_argument) = vocative_argument {
                     words.extend(vocative_argument.words());
                 }
@@ -1961,16 +1923,12 @@ impl TermSyntax {
             }
             TermSyntax::Tagged {
                 tense_modal,
-                free_modifiers,
                 argument,
             } => {
                 let mut words = tense_modal
                     .into_iter()
                     .flat_map(TenseModalSyntax::words)
                     .collect::<Vec<_>>();
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
                 words.extend(argument.words());
                 words
             }
@@ -2195,16 +2153,7 @@ impl ArgumentSyntax {
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
-            ArgumentSyntax::Quote {
-                quote,
-                free_modifiers,
-            } => {
-                let mut words = quote.words();
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
-                words
-            }
+            ArgumentSyntax::Quote(quote) => quote.words(),
             ArgumentSyntax::MathExpression {
                 li,
                 li_free_modifiers,

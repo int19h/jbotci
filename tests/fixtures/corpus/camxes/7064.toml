@@ -25,29 +25,32 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [0, 1]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [0, 1]
+                        }
                     }},
-                    statement = {StatementFragment = {
-                        fragment = {EkFragment = {
-                            connective = {Connective = {
-                                cmavo = [
-                                    {Bare = {
+                    statement = {Fragment = {
+                        Ek = {
+                            cmavo = [
+                                {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "e",
                                         span = [2, 3]
-                                    }},
-                                ]
-                            }}
-                        }}
+                                    }
+                                }},
+                            ],
+                            kind = "Afterthought"
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

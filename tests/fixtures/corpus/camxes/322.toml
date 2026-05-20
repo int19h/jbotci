@@ -39,69 +39,71 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {LohuQuote = {
-                                            lehu = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Quote = {Lohu = {
+                                    lehu = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "le'u",
+                                            span = [8, 12]
+                                        }
+                                    }},
+                                    lohu = {Bare = {
+                                        LohuQuote = {
+                                            lehu = {
                                                 kind = "cmavo",
                                                 phonemes = "le'u",
                                                 span = [8, 12]
-                                            }},
-                                            lohu = {LohuQuote = {
-                                                lehu = {
-                                                    kind = "cmavo",
-                                                    phonemes = "le'u",
-                                                    span = [8, 12]
-                                                },
-                                                lohu = {
-                                                    kind = "cmavo",
-                                                    phonemes = "lo'u",
-                                                    span = [0, 4]
-                                                },
-                                                quoted_words = [
-                                                    {
-                                                        kind = "cmavo",
-                                                        phonemes = "mi",
-                                                        span = [5, 7]
-                                                    },
-                                                ]
-                                            }},
+                                            },
+                                            lohu = {
+                                                kind = "cmavo",
+                                                phonemes = "lo'u",
+                                                span = [0, 4]
+                                            },
                                             quoted_words = [
-                                                {Bare = {
+                                                {
                                                     kind = "cmavo",
                                                     phonemes = "mi",
                                                     span = [5, 7]
-                                                }},
+                                                },
                                             ]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "klama",
-                                                    span = [27, 32]
-                                                }}
+                                        }
+                                    }},
+                                    quoted_words = [
+                                        {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "mi",
+                                                span = [5, 7]
+                                            }
+                                        }},
+                                    ]
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "klama",
+                                                span = [27, 32]
                                             }}
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

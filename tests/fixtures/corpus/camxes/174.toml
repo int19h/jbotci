@@ -33,27 +33,31 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {ZoiQuote = {
-                                            closing_delimiter = {Bare = {
+                                {Argument = {
+                                    Quote = {Zoi = {
+                                        closing_delimiter = {Bare = {
+                                            Bare = {
                                                 kind = "cmevla",
                                                 phonemes = "bar",
                                                 span = [33, 36]
-                                            }},
-                                            opening_delimiter = {Bare = {
+                                            }
+                                        }},
+                                        opening_delimiter = {Bare = {
+                                            Bare = {
                                                 kind = "cmevla",
                                                 phonemes = "bar",
                                                 span = [25, 28]
-                                            }},
-                                            quoted_text = " baz",
-                                            zoi = {ZoiQuote = {
+                                            }
+                                        }},
+                                        quoted_text = " baz",
+                                        zoi = {Bare = {
+                                            ZoiQuote = {
                                                 closing_delimiter = {
                                                     kind = "cmevla",
                                                     phonemes = "bar",
@@ -70,15 +74,15 @@ parse-tree = {
                                                     phonemes = "zoĭ",
                                                     span = [21, 24]
                                                 }
-                                            }}
+                                            }
                                         }}
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

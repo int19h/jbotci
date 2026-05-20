@@ -328,7 +328,6 @@ fn statement_parser<'tokens>(
                 tense_modal,
                 free_modifiers,
             )),
-            free_modifiers: Vec::new(),
             argument: implicit_zohe_argument(),
         },
     );
@@ -350,7 +349,6 @@ fn statement_parser<'tokens>(
                     tense_modal,
                     free_modifiers,
                 )),
-                free_modifiers: Vec::new(),
                 argument,
             },
         );
@@ -697,7 +695,6 @@ fn statement_parser<'tokens>(
             .then(cmavo("ke").rewind())
             .map(|(tense_modal, _)| TermSyntax::Tagged {
                 tense_modal: Some(tense_modal),
-                free_modifiers: Vec::new(),
                 argument: implicit_zohe_argument(),
             });
         let non_grouped_gek_term = cmavo("ke").rewind().not().ignore_then(term.clone());
@@ -1035,18 +1032,18 @@ fn statement_parser<'tokens>(
     let ek_fragment = ek_connective()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(connective, free_modifiers)| {
-            StatementSyntax::Fragment(FragmentSyntax::Ek {
+            StatementSyntax::Fragment(FragmentSyntax::Ek(append_connective_free_modifiers(
                 connective,
                 free_modifiers,
-            })
+            )))
         });
     let gihek_fragment = gihek_connective()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(connective, free_modifiers)| {
-            StatementSyntax::Fragment(FragmentSyntax::Gihek {
+            StatementSyntax::Fragment(FragmentSyntax::Gihek(append_connective_free_modifiers(
                 connective,
                 free_modifiers,
-            })
+            )))
         });
 
     let multiple_na_fragment = na_cmavo()
@@ -1061,10 +1058,10 @@ fn statement_parser<'tokens>(
         .map(|((((first_na, second_na), rest_na), _), free_modifiers)| {
             let mut words = vec![first_na, second_na];
             words.extend(rest_na);
-            StatementSyntax::Fragment(FragmentSyntax::Other {
+            StatementSyntax::Fragment(FragmentSyntax::Other(WithFreeModifiers::new(
                 words,
                 free_modifiers,
-            })
+            )))
         });
     let single_na_fragment_blocker = choice((
         cmavo("ku").ignored(),
@@ -1077,10 +1074,10 @@ fn statement_parser<'tokens>(
         .then(single_na_fragment_blocker.rewind().not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|((na, _), free_modifiers)| {
-            StatementSyntax::Fragment(FragmentSyntax::Other {
-                words: vec![na],
+            StatementSyntax::Fragment(FragmentSyntax::Other(WithFreeModifiers::new(
+                vec![na],
                 free_modifiers,
-            })
+            )))
         });
 
     let be_link_fragment = be_link_parser(argument.clone(), free_modifier.clone()).map(|link| {
@@ -3517,73 +3514,60 @@ where
             };
 
             match word_like.as_data() {
-                data!(WordLike::ZoQuote { word: quoted, .. }) => Ok(ArgumentSyntax::Quote {
-                    quote: QuoteSyntax::Zo {
+                data!(WordLike::ZoQuote { word: quoted, .. }) => Ok(ArgumentSyntax::Quote(
+                    QuoteSyntax::Zo {
                         zo: word.clone(),
                         word: WithFreeModifiers::new(
                             base_word_from_record((**quoted).clone()),
                             Vec::new(),
                         ),
                     },
-                    free_modifiers: Vec::new(),
-                }),
+                )),
                 data!(WordLike::ZoiQuote {
                     zoi: _,
                     opening_delimiter,
                     quoted_text,
                     closing_delimiter,
                     ..
-                }) => Ok(ArgumentSyntax::Quote {
-                    quote: QuoteSyntax::Zoi {
-                        zoi: word.clone(),
-                        opening_delimiter: base_word_from_record((**opening_delimiter).clone()),
-                        closing_delimiter: WithFreeModifiers::new(
+                }) => Ok(ArgumentSyntax::Quote(QuoteSyntax::Zoi {
+                    zoi: word.clone(),
+                    opening_delimiter: base_word_from_record((**opening_delimiter).clone()),
+                    closing_delimiter: WithFreeModifiers::new(
                             base_word_from_record((**closing_delimiter).clone()),
                             Vec::new(),
-                        ),
-                        quoted_text: source_text(source, quoted_text),
-                    },
-                    free_modifiers: Vec::new(),
-                }),
+                    ),
+                    quoted_text: source_text(source, quoted_text),
+                })),
                 data!(WordLike::LohuQuote {
                     quoted_words,
                     lehu,
                     ..
-                }) => Ok(ArgumentSyntax::Quote {
-                    quote: QuoteSyntax::Lohu {
-                        lohu: word.clone(),
-                        quoted_words: quoted_words
-                            .iter()
+                }) => Ok(ArgumentSyntax::Quote(QuoteSyntax::Lohu {
+                    lohu: word.clone(),
+                    quoted_words: quoted_words
+                        .iter()
                             .cloned()
                             .map(base_word_from_record)
                             .collect(),
                         lehu: WithFreeModifiers::new(
-                            base_word_from_record((**lehu).clone()),
-                            Vec::new(),
-                        ),
-                    },
-                    free_modifiers: Vec::new(),
-                }),
+                        base_word_from_record((**lehu).clone()),
+                        Vec::new(),
+                    ),
+                })),
                 data!(WordLike::SingleWordQuote {
                     marker: _,
                     quoted_text,
-                }) => Ok(ArgumentSyntax::Quote {
-                    quote: QuoteSyntax::ZohOi {
-                        zohoi: WithFreeModifiers::new(word.clone(), Vec::new()),
-                        quoted_text: source_text(source, quoted_text),
-                    },
-                    free_modifiers: Vec::new(),
-                }),
+                }) => Ok(ArgumentSyntax::Quote(QuoteSyntax::ZohOi {
+                    zohoi: WithFreeModifiers::new(word.clone(), Vec::new()),
+                    quoted_text: source_text(source, quoted_text),
+                })),
                 _ => Err(Rich::custom(span, "expected quote")),
             }
         })
         .map_with(
             |argument,
              extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
-            if let ArgumentSyntax::Quote {
-                quote: QuoteSyntax::ZohOi { zohoi, .. },
-                ..
-            } = &argument
+            if let ArgumentSyntax::Quote(QuoteSyntax::ZohOi { zohoi, .. }) = &argument
             {
                 extra
                     .state()
@@ -3602,17 +3586,14 @@ where
                 .then(free_modifier.repeated().collect::<Vec<_>>())
                 .or_not(),
         )
-        .map(
-            |(((lu, free_modifiers), text), lihu)| ArgumentSyntax::Quote {
-                quote: QuoteSyntax::Lu {
-                    lu: WithFreeModifiers::new(lu, free_modifiers),
-                    text,
-                    lihu: lihu
-                        .map(|(lihu, free_modifiers)| WithFreeModifiers::new(lihu, free_modifiers)),
-                },
-                free_modifiers: Vec::new(),
-            },
-        );
+        .map(|(((lu, free_modifiers), text), lihu)| {
+            ArgumentSyntax::Quote(QuoteSyntax::Lu {
+                lu: WithFreeModifiers::new(lu, free_modifiers),
+                text,
+                lihu: lihu
+                    .map(|(lihu, free_modifiers)| WithFreeModifiers::new(lihu, free_modifiers)),
+            })
+        });
 
     choice((compound_quote, lu_quote)).boxed()
 }
@@ -3624,13 +3605,9 @@ fn attach_quote_free_modifiers(
     free_modifiers: Vec<FreeModifierSyntax>,
 ) -> ArgumentSyntax {
     match argument {
-        ArgumentSyntax::Quote {
-            quote,
-            free_modifiers: argument_free_modifiers,
-        } => ArgumentSyntax::Quote {
-            quote: quote_with_free_modifiers(quote, free_modifiers),
-            free_modifiers: argument_free_modifiers,
-        },
+        ArgumentSyntax::Quote(quote) => {
+            ArgumentSyntax::Quote(quote_with_free_modifiers(quote, free_modifiers))
+        }
         other => other,
     }
 }

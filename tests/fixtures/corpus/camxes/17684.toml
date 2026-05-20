@@ -20,30 +20,30 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {LuQuote = {
-                                            lu = {Bare = {
+                                {Argument = {
+                                    Quote = {Lu = {
+                                        lu = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "lu",
                                                 span = [2, 4]
-                                            }},
-                                            text = {}
-                                        }}
+                                            }
+                                        }},
+                                        text = {}
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

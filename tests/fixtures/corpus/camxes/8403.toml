@@ -31,55 +31,57 @@ status = "success"
 parse-tree = {
     leading_cmevla = [
         {Bare = {
-            kind = "cmevla",
-            phonemes = "velut",
-            span = [0, 5]
+            Bare = {
+                kind = "cmevla",
+                phonemes = "velut",
+                span = [0, 5]
+            }
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {LuQuote = {
-                                            lu = {Bare = {
+                                {Argument = {
+                                    Quote = {Lu = {
+                                        lu = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "lu",
                                                 span = [6, 8]
-                                            }},
-                                            text = {
-                                                paragraphs = [
-                                                    {Paragraph = {
-                                                        statements = [
-                                                            {ParagraphStatement = {
-                                                                statement = {StatementFragment = {
-                                                                    fragment = {OtherFragment = {
-                                                                        other_words = [
-                                                                            {Bare = {
-                                                                                kind = "cmavo",
-                                                                                phonemes = "na",
-                                                                                span = [8, 10]
-                                                                            }},
-                                                                        ]
-                                                                    }}
-                                                                }}
-                                                            }},
-                                                        ]
-                                                    }},
-                                                ]
                                             }
-                                        }}
+                                        }},
+                                        text = {
+                                            paragraphs = [
+                                                {
+                                                    statements = [
+                                                        {
+                                                            statement = {Fragment = {
+                                                                Other = [
+                                                                    {Bare = {
+                                                                        Bare = {
+                                                                            kind = "cmavo",
+                                                                            phonemes = "na",
+                                                                            span = [8, 10]
+                                                                        }
+                                                                    }},
+                                                                ]
+                                                            }}
+                                                        },
+                                                    ]
+                                                },
+                                            ]
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

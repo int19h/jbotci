@@ -43,30 +43,34 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {ToFree = {
+        {To = {
             text = {
                 paragraphs = [
-                    {Paragraph = {
+                    {
                         statements = [
-                            {ParagraphStatement = {
-                                statement = {StatementFragment = {
-                                    fragment = {TermFragment = {
+                            {
+                                statement = {Fragment = {
+                                    Term = {
                                         terms = [
-                                            {ArgumentTerm = {
-                                                argument = {QuoteArgument = {
-                                                    quote = {ZoiQuote = {
-                                                        closing_delimiter = {Bare = {
+                                            {Argument = {
+                                                Quote = {Zoi = {
+                                                    closing_delimiter = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "xy",
                                                             span = [42, 44]
-                                                        }},
-                                                        opening_delimiter = {Bare = {
+                                                        }
+                                                    }},
+                                                    opening_delimiter = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "xy",
                                                             span = [7, 9]
-                                                        }},
-                                                        quoted_text = "e mult mai simplu decat crezi",
-                                                        zoi = {ZoiQuote = {
+                                                        }
+                                                    }},
+                                                    quoted_text = "e mult mai simplu decat crezi",
+                                                    zoi = {Bare = {
+                                                        ZoiQuote = {
                                                             closing_delimiter = {
                                                                 kind = "cmavo",
                                                                 phonemes = "xy",
@@ -83,27 +87,31 @@ parse-tree = {
                                                                 phonemes = "zoĭ",
                                                                 span = [3, 6]
                                                             }
-                                                        }}
+                                                        }
                                                     }}
                                                 }}
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }}
-                            }},
+                            },
                         ]
-                    }},
+                    },
                 ]
             },
             to = {Bare = {
-                kind = "cmavo",
-                phonemes = "to",
-                span = [0, 2]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "to",
+                    span = [0, 2]
+                }
             }},
             toi = {Bare = {
-                kind = "cmavo",
-                phonemes = "toĭ",
-                span = [46, 49]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "toĭ",
+                    span = [46, 49]
+                }
             }}
         }},
     ]

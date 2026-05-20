@@ -38,28 +38,32 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {ZoiQuote = {
-                                            closing_delimiter = {Bare = {
+                                {Argument = {
+                                    Quote = {Zoi = {
+                                        closing_delimiter = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "gy",
                                                 span = [18, 20]
-                                            }},
-                                            opening_delimiter = {Bare = {
+                                            }
+                                        }},
+                                        opening_delimiter = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "gy",
                                                 span = [5, 7]
-                                            }},
-                                            quoted_text = " seperanto",
-                                            zoi = {WithIndicator = {
-                                                base = {ZoiQuote = {
+                                            }
+                                        }},
+                                        quoted_text = " seperanto",
+                                        zoi = {WithIndicator = {
+                                            base = {Bare = {
+                                                ZoiQuote = {
                                                     closing_delimiter = {
                                                         kind = "cmavo",
                                                         phonemes = "gy",
@@ -76,21 +80,21 @@ parse-tree = {
                                                         phonemes = "la'o",
                                                         span = [0, 4]
                                                     }
-                                                }},
-                                                indicator = {
-                                                    kind = "cmavo",
-                                                    phonemes = "u'i",
-                                                    span = [21, 24]
                                                 }
-                                            }}
+                                            }},
+                                            indicator = {
+                                                kind = "cmavo",
+                                                phonemes = "u'i",
+                                                span = [21, 24]
+                                            }
                                         }}
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

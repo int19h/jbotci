@@ -25,35 +25,38 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {EkFragment = {
-                            connective = {Connective = {
-                                cmavo = [
-                                    {Bare = {
+                {
+                    statement = {Fragment = {
+                        Ek = {
+                            cmavo = [
+                                {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "e",
                                         span = [0, 1]
-                                    }},
-                                ]
-                            }},
+                                    }
+                                }},
+                            ],
                             free_modifiers = [
-                                {VocativeFree = {
+                                {Vocative = {
                                     vocative_markers = [
                                         {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "coĭ",
-                                            span = [2, 5]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "coĭ",
+                                                span = [2, 5]
+                                            }
                                         }},
                                     ]
                                 }},
-                            ]
-                        }}
+                            ],
+                            kind = "Afterthought"
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -37,24 +37,26 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {ToFree = {
+        {To = {
             text = {
                 paragraphs = [
-                    {Paragraph = {
+                    {
                         statements = [
-                            {ParagraphStatement = {
-                                statement = {StatementFragment = {
-                                    fragment = {TermFragment = {
+                            {
+                                statement = {Fragment = {
+                                    Term = {
                                         terms = [
-                                            {ArgumentTerm = {
-                                                argument = {QuoteArgument = {
-                                                    quote = {ZoQuote = {
-                                                        word = {Bare = {
+                                            {Argument = {
+                                                Quote = {Zo = {
+                                                    word = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "bo",
                                                             span = [6, 8]
-                                                        }},
-                                                        zo = {ZoQuote = {
+                                                        }
+                                                    }},
+                                                    zo = {Bare = {
+                                                        ZoQuote = {
                                                             word = {
                                                                 kind = "cmavo",
                                                                 phonemes = "bo",
@@ -65,27 +67,31 @@ parse-tree = {
                                                                 phonemes = "zo",
                                                                 span = [3, 5]
                                                             }
-                                                        }}
+                                                        }
                                                     }}
                                                 }}
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }}
-                            }},
+                            },
                         ]
-                    }},
+                    },
                 ]
             },
             to = {Bare = {
-                kind = "cmavo",
-                phonemes = "to",
-                span = [0, 2]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "to",
+                    span = [0, 2]
+                }
             }},
             toi = {Bare = {
-                kind = "cmavo",
-                phonemes = "toĭ",
-                span = [9, 12]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "toĭ",
+                    span = [9, 12]
+                }
             }}
         }},
     ]

@@ -35,48 +35,52 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "xu",
-            span = [0, 2]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "xu",
+                span = [0, 2]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {LuQuote = {
-                                            lihu = {Bare = {
+                                {Argument = {
+                                    Quote = {Lu = {
+                                        lihu = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "li'u",
                                                 span = [11, 15]
-                                            }},
-                                            lu = {WithIndicator = {
-                                                base = {Bare = {
+                                            }
+                                        }},
+                                        lu = {WithIndicator = {
+                                            base = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "lu",
                                                     span = [3, 5]
-                                                }},
-                                                indicator = {
-                                                    kind = "cmavo",
-                                                    phonemes = "ja'o",
-                                                    span = [6, 10]
                                                 }
                                             }},
-                                            text = {}
-                                        }}
+                                            indicator = {
+                                                kind = "cmavo",
+                                                phonemes = "ja'o",
+                                                span = [6, 10]
+                                            }
+                                        }},
+                                        text = {}
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

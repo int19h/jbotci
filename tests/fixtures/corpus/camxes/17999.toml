@@ -40,74 +40,84 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "peĭ",
-            span = [0, 3]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "peĭ",
+                span = [0, 3]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {LuQuote = {
-                                            lihu = {Bare = {
+                                {Argument = {
+                                    Quote = {Lu = {
+                                        lihu = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "li'u",
                                                 span = [13, 17]
-                                            }},
-                                            lu = {Bare = {
+                                            }
+                                        }},
+                                        lu = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "lu",
                                                 span = [4, 6]
-                                            }},
-                                            text = {
-                                                paragraphs = [
-                                                    {Paragraph = {
-                                                        statements = [
-                                                            {ParagraphStatement = {
-                                                                statement = {StatementFragment = {
-                                                                    fragment = {TermFragment = {
-                                                                        terms = [
-                                                                            {ArgumentTerm = {
-                                                                                argument = {MathExpressionArgument = {
-                                                                                    li = {Bare = {
+                                            }
+                                        }},
+                                        text = {
+                                            paragraphs = [
+                                                {
+                                                    statements = [
+                                                        {
+                                                            statement = {Fragment = {
+                                                                Term = {
+                                                                    terms = [
+                                                                        {Argument = {
+                                                                            MathExpression = {
+                                                                                expression = {Number = {
+                                                                                    Number = {
+                                                                                        number = [
+                                                                                            {Bare = {
+                                                                                                Bare = {
+                                                                                                    kind = "cmavo",
+                                                                                                    phonemes = "vo",
+                                                                                                    span = [10, 12]
+                                                                                                }
+                                                                                            }},
+                                                                                        ]
+                                                                                    }
+                                                                                }},
+                                                                                li = {Bare = {
+                                                                                    Bare = {
                                                                                         kind = "cmavo",
                                                                                         phonemes = "li",
                                                                                         span = [7, 9]
-                                                                                    }},
-                                                                                    math_expression = {NumberExpression = {
-                                                                                        number = [
-                                                                                            {Bare = {
-                                                                                                kind = "cmavo",
-                                                                                                phonemes = "vo",
-                                                                                                span = [10, 12]
-                                                                                            }},
-                                                                                        ]
-                                                                                    }}
+                                                                                    }
                                                                                 }}
-                                                                            }},
-                                                                        ]
-                                                                    }}
-                                                                }}
-                                                            }},
-                                                        ]
-                                                    }},
-                                                ]
-                                            }
-                                        }}
+                                                                            }
+                                                                        }},
+                                                                    ]
+                                                                }
+                                                            }}
+                                                        },
+                                                    ]
+                                                },
+                                            ]
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

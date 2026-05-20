@@ -34,29 +34,32 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {GihekFragment = {
-                            connective = {Connective = {
-                                cmavo = [
-                                    {Bare = {
+                {
+                    statement = {Fragment = {
+                        Gihek = {
+                            cmavo = [
+                                {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "gi'o",
                                         span = [2, 6]
-                                    }},
-                                ],
-                                na = {Bare = {
+                                    }
+                                }},
+                            ],
+                            kind = "PredicateTail",
+                            na = {Bare = {
+                                Bare = {
                                     kind = "cmavo",
                                     phonemes = "na",
                                     span = [0, 2]
-                                }}
+                                }
                             }}
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

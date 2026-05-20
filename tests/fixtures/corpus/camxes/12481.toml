@@ -32,22 +32,24 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuoteArgument = {
-                                        quote = {ZoQuote = {
-                                            word = {Bare = {
+                                {Argument = {
+                                    Quote = {Zo = {
+                                        word = {Bare = {
+                                            Bare = {
                                                 kind = "lujvo",
                                                 phonemes = "vajnyraĭ",
                                                 span = [3, 11]
-                                            }},
-                                            zo = {WithIndicator = {
-                                                base = {ZoQuote = {
+                                            }
+                                        }},
+                                        zo = {WithIndicator = {
+                                            base = {Bare = {
+                                                ZoQuote = {
                                                     word = {
                                                         kind = "lujvo",
                                                         phonemes = "vajnyraĭ",
@@ -58,21 +60,21 @@ parse-tree = {
                                                         phonemes = "zo",
                                                         span = [0, 2]
                                                     }
-                                                }},
-                                                indicator = {
-                                                    kind = "cmavo",
-                                                    phonemes = "xu",
-                                                    span = [12, 14]
                                                 }
-                                            }}
+                                            }},
+                                            indicator = {
+                                                kind = "cmavo",
+                                                phonemes = "xu",
+                                                span = [12, 14]
+                                            }
                                         }}
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

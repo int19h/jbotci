@@ -37,46 +37,54 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [1, 2]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [1, 2]
+                        }
                     }},
-                    statement = {StatementFragment = {
-                        fragment = {BeLinkFragment = {
+                    statement = {Fragment = {
+                        BeLink = {
                             be = {Bare = {
-                                kind = "cmavo",
-                                phonemes = "be",
-                                span = [3, 5]
+                                Bare = {
+                                    kind = "cmavo",
+                                    phonemes = "be",
+                                    span = [3, 5]
+                                }
                             }},
-                            first_argument = {QuoteArgument = {
-                                quote = {ZoQuote = {
+                            first_argument = {Quote = {
+                                Zo = {
                                     word = {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "go'a",
-                                        span = [9, 13]
-                                    }},
-                                    zo = {ZoQuote = {
-                                        word = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "go'a",
                                             span = [9, 13]
-                                        },
-                                        zo = {
-                                            kind = "cmavo",
-                                            phonemes = "zo",
-                                            span = [6, 8]
+                                        }
+                                    }},
+                                    zo = {Bare = {
+                                        ZoQuote = {
+                                            word = {
+                                                kind = "cmavo",
+                                                phonemes = "go'a",
+                                                span = [9, 13]
+                                            },
+                                            zo = {
+                                                kind = "cmavo",
+                                                phonemes = "zo",
+                                                span = [6, 8]
+                                            }
                                         }
                                     }}
-                                }}
+                                }
                             }}
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

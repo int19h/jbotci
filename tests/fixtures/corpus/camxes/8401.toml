@@ -26,30 +26,33 @@ status = "success"
 parse-tree = {
     leading_cmevla = [
         {Bare = {
-            kind = "cmevla",
-            phonemes = "arent",
-            span = [0, 5]
+            Bare = {
+                kind = "cmevla",
+                phonemes = "arent",
+                span = [0, 5]
+            }
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {EkFragment = {
-                            connective = {Connective = {
-                                cmavo = [
-                                    {Bare = {
+                {
+                    statement = {Fragment = {
+                        Ek = {
+                            cmavo = [
+                                {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "u",
                                         span = [6, 7]
-                                    }},
-                                ]
-                            }}
-                        }}
+                                    }
+                                }},
+                            ],
+                            kind = "Afterthought"
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

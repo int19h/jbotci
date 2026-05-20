@@ -40,14 +40,16 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {WithIndicator = {
                         base = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [1, 2]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "i",
+                                span = [1, 2]
+                            }
                         }},
                         indicator = {
                             kind = "cmavo",
@@ -55,13 +57,15 @@ parse-tree = {
                             span = [3, 5]
                         }
                     }}
-                }},
-                {ParagraphStatement = {
+                },
+                {
                     i = {WithIndicator = {
                         base = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [6, 7]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "i",
+                                span = [6, 7]
+                            }
                         }},
                         indicator = {
                             kind = "cmavo",
@@ -69,21 +73,22 @@ parse-tree = {
                             span = [8, 10]
                         }
                     }},
-                    statement = {StatementFragment = {
-                        fragment = {EkFragment = {
-                            connective = {Connective = {
-                                cmavo = [
-                                    {Bare = {
+                    statement = {Fragment = {
+                        Ek = {
+                            cmavo = [
+                                {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "o",
                                         span = [11, 12]
-                                    }},
-                                ]
-                            }}
-                        }}
+                                    }
+                                }},
+                            ],
+                            kind = "Afterthought"
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

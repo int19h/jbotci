@@ -48,58 +48,62 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {PrenexStatement = {
-                        inner_statement = {StatementPredicate = {
-                            predicate = {Predicate = {
-                                leading_terms = [
-                                    {ArgumentTerm = {
-                                        argument = {LetterArgument = {
-                                            letter = [
-                                                {Bare = {
+                {
+                    statement = {Prenex = {
+                        inner_statement = {Predicate = {
+                            leading_terms = [
+                                {Argument = {
+                                    Letter = {
+                                        letter = [
+                                            {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "fy",
                                                     span = [26, 28]
-                                                }},
-                                            ]
-                                        }}
-                                    }},
-                                ],
-                                predicate_tail = {PredicateTail = {
-                                    first = {PredicateTail1 = {
-                                        first = {PredicateTail2 = {
-                                            first = {RelationPredicateTail3 = {
-                                                relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "mo",
-                                                        span = [29, 31]
-                                                    }}
+                                                }
+                                            }},
+                                        ]
+                                    }
+                                }},
+                            ],
+                            predicate_tail = {
+                                first = {
+                                    first = {
+                                        first = {Relation = {
+                                            relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "mo",
+                                                    span = [29, 31]
                                                 }}
                                             }}
                                         }}
-                                    }}
-                                }}
-                            }}
+                                    }
+                                }
+                            }
                         }},
                         prenex_terms = [
-                            {ArgumentTerm = {
-                                argument = {QuoteArgument = {
-                                    quote = {ZoiQuote = {
-                                        closing_delimiter = {Bare = {
+                            {Argument = {
+                                Quote = {Zoi = {
+                                    closing_delimiter = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "gy",
                                             span = [18, 20]
-                                        }},
-                                        opening_delimiter = {Bare = {
+                                        }
+                                    }},
+                                    opening_delimiter = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "gy",
                                             span = [5, 7]
-                                        }},
-                                        quoted_text = " IRC topic",
-                                        zoi = {ZoiQuote = {
+                                        }
+                                    }},
+                                    quoted_text = " IRC topic",
+                                    zoi = {Bare = {
+                                        ZoiQuote = {
                                             closing_delimiter = {
                                                 kind = "cmavo",
                                                 phonemes = "gy",
@@ -116,19 +120,21 @@ parse-tree = {
                                                 phonemes = "la'o",
                                                 span = [0, 4]
                                             }
-                                        }}
+                                        }
                                     }}
                                 }}
                             }},
                         ],
                         zohu = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "zo'u",
-                            span = [21, 25]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "zo'u",
+                                span = [21, 25]
+                            }
                         }}
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

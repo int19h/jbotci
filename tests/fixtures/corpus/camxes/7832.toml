@@ -45,86 +45,94 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuantifiedArgument = {
-                                        inner_argument = {QuoteArgument = {
-                                            quote = {LuQuote = {
+                                {Argument = {
+                                    Quantified = {
+                                        inner_argument = {Quote = {
+                                            Lu = {
                                                 lu = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "lu",
-                                                    span = [4, 6]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "lu",
+                                                        span = [4, 6]
+                                                    }
                                                 }},
                                                 text = {
                                                     paragraphs = [
-                                                        {Paragraph = {
+                                                        {
                                                             statements = [
-                                                                {ParagraphStatement = {
-                                                                    statement = {StatementFragment = {
-                                                                        fragment = {TermFragment = {
+                                                                {
+                                                                    statement = {Fragment = {
+                                                                        Term = {
                                                                             terms = [
-                                                                                {ArgumentTerm = {
-                                                                                    argument = {NameArgument = {
+                                                                                {Argument = {
+                                                                                    Name = {
                                                                                         la = {Bare = {
-                                                                                            kind = "cmavo",
-                                                                                            phonemes = "la",
-                                                                                            span = [7, 9]
+                                                                                            Bare = {
+                                                                                                kind = "cmavo",
+                                                                                                phonemes = "la",
+                                                                                                span = [7, 9]
+                                                                                            }
                                                                                         }},
                                                                                         names = [
                                                                                             {Bare = {
-                                                                                                kind = "cmevla",
-                                                                                                phonemes = "lojban",
-                                                                                                span = [10, 16]
+                                                                                                Bare = {
+                                                                                                    kind = "cmevla",
+                                                                                                    phonemes = "lojban",
+                                                                                                    span = [10, 16]
+                                                                                                }
                                                                                             }},
-                                                                                            [
-                                                                                                {Bare = {
+                                                                                            {Bare = {
+                                                                                                Bare = {
                                                                                                     kind = "cmevla",
                                                                                                     phonemes = "on",
                                                                                                     span = [17, 19]
-                                                                                                }},
-                                                                                            ],
+                                                                                                }
+                                                                                            }},
                                                                                         ]
-                                                                                    }}
+                                                                                    }
                                                                                 }},
                                                                             ]
-                                                                        }}
+                                                                        }
                                                                     }}
-                                                                }},
+                                                                },
                                                             ]
-                                                        }},
+                                                        },
                                                     ]
                                                 }
-                                            }}
+                                            }
                                         }},
-                                        quantifier = {NumberExpression = {
+                                        quantifier = {Number = {
                                             number = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "pa",
-                                                    span = [0, 2]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "pa",
+                                                        span = [0, 2]
+                                                    }
                                                 }},
-                                                [
-                                                    {Bare = {
+                                                {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "ro",
                                                         span = [2, 4]
-                                                    }},
-                                                ],
+                                                    }
+                                                }},
                                             ]
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

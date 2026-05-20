@@ -43,28 +43,32 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {LaheArgument = {
-                                        inner_argument = {QuoteArgument = {
-                                            quote = {ZoiQuote = {
-                                                closing_delimiter = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Lahe = {
+                                    inner_argument = {Quote = {
+                                        Zoi = {
+                                            closing_delimiter = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "gy",
                                                     span = [46, 48]
-                                                }},
-                                                opening_delimiter = {Bare = {
+                                                }
+                                            }},
+                                            opening_delimiter = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "gy",
                                                     span = [9, 11]
-                                                }},
-                                                quoted_text = " http://www.zompist.com/sounds.htm",
-                                                zoi = {ZoiQuote = {
+                                                }
+                                            }},
+                                            quoted_text = " http://www.zompist.com/sounds.htm",
+                                            zoi = {Bare = {
+                                                ZoiQuote = {
                                                     closing_delimiter = {
                                                         kind = "cmavo",
                                                         phonemes = "gy",
@@ -81,36 +85,38 @@ parse-tree = {
                                                         phonemes = "zoĭ",
                                                         span = [5, 8]
                                                     }
-                                                }}
+                                                }
                                             }}
-                                        }},
-                                        lahe = {Bare = {
+                                        }
+                                    }},
+                                    lahe = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "tu'a",
                                             span = [0, 4]
-                                        }}
+                                        }
                                     }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "lujvo",
-                                                    phonemes = "tolbanzu",
-                                                    span = [49, 57]
-                                                }}
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "lujvo",
+                                                phonemes = "tolbanzu",
+                                                span = [49, 57]
                                             }}
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
