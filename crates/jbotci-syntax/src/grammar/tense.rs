@@ -4,7 +4,7 @@ use jbotci_morphology::WordLike;
 
 use super::ast::{
     FihoModalSyntax, FreeModifierSyntax, IntervalTenseSyntax, SimpleTenseModalSyntax,
-    SpaceTenseSyntax, TenseModalSyntax, TimeTenseSyntax,
+    SpaceTenseSyntax, TenseModalSyntax, TimeTenseSyntax, WithFreeModifiers,
 };
 use super::tokens::{BAI_WORDS, CAHA_WORDS, FA_WORDS, ROI_WORDS, ZAHO_WORDS, cmavo_text_matches};
 
@@ -134,7 +134,7 @@ pub(super) fn tense_modal_from_leaves(
     });
 
     TenseModalSyntax::Composite {
-        leaves,
+        leaves: WithFreeModifiers::new(leaves, free_modifiers),
         time,
         space,
         simple,
@@ -145,7 +145,6 @@ pub(super) fn tense_modal_from_leaves(
         cuhe,
         fiho: Vec::new(),
         connectives,
-        free_modifiers,
     }
 }
 
@@ -158,9 +157,8 @@ pub(super) fn tense_modal_as_composite(tense_modal: TenseModalSyntax) -> TenseMo
             fiho,
             relation,
             fehu,
-            free_modifiers,
         } => TenseModalSyntax::Composite {
-            leaves: Vec::new(),
+            leaves: WithFreeModifiers::new(Vec::new(), Vec::new()),
             time: None,
             space: None,
             simple: None,
@@ -172,13 +170,10 @@ pub(super) fn tense_modal_as_composite(tense_modal: TenseModalSyntax) -> TenseMo
             fiho: vec![FihoModalSyntax {
                 nahe: None,
                 fiho,
-                fiho_free_modifiers: Vec::new(),
                 relation: *relation,
                 fehu,
-                fehu_free_modifiers: Vec::new(),
             }],
             connectives: Vec::new(),
-            free_modifiers,
         },
         other => tense_modal_from_leaves(other.clone().leaf_words(), other.free_modifiers()),
     }
@@ -207,7 +202,7 @@ pub(super) fn connective_tense_modal_from_leaves(
         .cloned()
         .collect();
     TenseModalSyntax::Composite {
-        leaves,
+        leaves: WithFreeModifiers::new(leaves, Vec::new()),
         time: None,
         space: None,
         simple: None,
@@ -218,7 +213,6 @@ pub(super) fn connective_tense_modal_from_leaves(
         cuhe: None,
         fiho: Vec::new(),
         connectives,
-        free_modifiers: Vec::new(),
     }
 }
 

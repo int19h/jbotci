@@ -1013,18 +1013,16 @@ pub struct SimpleTenseModalSyntax {
 #[invariant(true)]
 pub struct FihoModalSyntax {
     pub nahe: Option<WithIndicators<WordLike>>,
-    pub fiho: WithIndicators<WordLike>,
-    pub fiho_free_modifiers: Vec<FreeModifierSyntax>,
+    pub fiho: WithFreeModifiers<WithIndicators<WordLike>>,
     pub relation: RelationSyntax,
-    pub fehu: Option<WithIndicators<WordLike>>,
-    pub fehu_free_modifiers: Vec<FreeModifierSyntax>,
+    pub fehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum TenseModalSyntax {
     Composite {
-        leaves: Vec<WithIndicators<WordLike>>,
+        leaves: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
         time: Option<TimeTenseSyntax>,
         space: Option<SpaceTenseSyntax>,
         simple: Option<SimpleTenseModalSyntax>,
@@ -1035,73 +1033,59 @@ pub enum TenseModalSyntax {
         cuhe: Option<WithIndicators<WordLike>>,
         fiho: Vec<FihoModalSyntax>,
         connectives: Vec<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
     },
     Pu {
-        word: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        word: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     PuDistance {
         pu: WithIndicators<WordLike>,
-        distance: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        distance: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     TimeInterval {
-        word: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        word: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     PuCaha {
         pu: WithIndicators<WordLike>,
-        caha: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        caha: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     SpaceDistance {
-        word: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        word: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     SpaceDirection {
-        word: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        word: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     SpaceMovement {
         mohi: WithIndicators<WordLike>,
-        direction: WithIndicators<WordLike>,
-        distance: Option<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        direction: WithFreeModifiers<WithIndicators<WordLike>>,
+        distance: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Simple {
-        nahe: Option<WithIndicators<WordLike>>,
-        se: Option<WithIndicators<WordLike>>,
-        bai: WithIndicators<WordLike>,
-        nai: Option<WithIndicators<WordLike>>,
-        ki: Option<WithIndicators<WordLike>>,
-        connectives: Vec<WithIndicators<WordLike>>,
-        extra_leaves: Vec<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        nahe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+        se: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+        bai: WithFreeModifiers<WithIndicators<WordLike>>,
+        nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+        ki: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+        connectives: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        extra_leaves: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
     },
     Ki {
-        ki: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        ki: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     Fiho {
-        fiho: WithIndicators<WordLike>,
+        fiho: WithFreeModifiers<WithIndicators<WordLike>>,
         relation: Box<RelationSyntax>,
-        fehu: Option<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        fehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Caha {
-        word: WithIndicators<WordLike>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        word: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     Zaho {
-        words: Vec<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        words: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
     },
     Interval {
         number: Vec<WithIndicators<WordLike>>,
-        roi_or_tahe: WithIndicators<WordLike>,
-        nai: Option<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        roi_or_tahe: WithFreeModifiers<WithIndicators<WordLike>>,
+        nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
 }
 
@@ -3207,19 +3191,28 @@ impl TenseModalSyntax {
     #[ensures(true)]
     pub fn leaf_words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
-            TenseModalSyntax::Composite { leaves, .. } => leaves,
-            TenseModalSyntax::Pu { word, .. } | TenseModalSyntax::Caha { word, .. } => vec![word],
-            TenseModalSyntax::PuDistance { pu, distance, .. } => vec![pu, distance],
-            TenseModalSyntax::TimeInterval { word, .. } => vec![word],
-            TenseModalSyntax::PuCaha { pu, caha, .. } => vec![pu, caha],
-            TenseModalSyntax::SpaceDistance { word, .. } => vec![word],
-            TenseModalSyntax::SpaceDirection { word, .. } => vec![word],
+            TenseModalSyntax::Composite { leaves, .. } => leaves.value,
+            TenseModalSyntax::Pu { word, .. } | TenseModalSyntax::Caha { word, .. } => {
+                vec![word.value]
+            }
+            TenseModalSyntax::PuDistance { pu, distance, .. } => vec![pu, distance.value],
+            TenseModalSyntax::TimeInterval { word, .. } => vec![word.value],
+            TenseModalSyntax::PuCaha { pu, caha, .. } => vec![pu, caha.value],
+            TenseModalSyntax::SpaceDistance { word, .. } => vec![word.value],
+            TenseModalSyntax::SpaceDirection { word, .. } => vec![word.value],
             TenseModalSyntax::SpaceMovement {
                 mohi,
                 direction,
                 distance,
                 ..
-            } => [vec![mohi, direction], distance.into_iter().collect()].concat(),
+            } => [
+                vec![mohi, direction.value],
+                distance
+                    .into_iter()
+                    .map(|distance| distance.value)
+                    .collect(),
+            ]
+            .concat(),
             TenseModalSyntax::Simple {
                 nahe,
                 se,
@@ -3230,34 +3223,39 @@ impl TenseModalSyntax {
                 extra_leaves,
                 ..
             } => [
-                nahe.into_iter().collect::<Vec<_>>(),
-                se.into_iter().collect(),
-                vec![bai],
-                nai.into_iter().collect(),
-                ki.into_iter().collect(),
-                connectives,
-                extra_leaves,
+                nahe.into_iter().map(|nahe| nahe.value).collect::<Vec<_>>(),
+                se.into_iter().map(|se| se.value).collect(),
+                vec![bai.value],
+                nai.into_iter().map(|nai| nai.value).collect(),
+                ki.into_iter().map(|ki| ki.value).collect(),
+                connectives.value,
+                extra_leaves.value,
             ]
             .concat(),
-            TenseModalSyntax::Ki { ki, .. } => vec![ki],
+            TenseModalSyntax::Ki { ki, .. } => vec![ki.value],
             TenseModalSyntax::Fiho {
                 fiho,
                 relation,
                 fehu,
                 ..
             } => {
-                let mut words = vec![fiho];
+                let mut words = vec![fiho.value];
                 words.extend((*relation).words());
-                words.extend(fehu);
+                words.extend(fehu.into_iter().map(|fehu| fehu.value));
                 words
             }
-            TenseModalSyntax::Zaho { words, .. } => words,
+            TenseModalSyntax::Zaho { words, .. } => words.value,
             TenseModalSyntax::Interval {
                 number,
                 roi_or_tahe,
                 nai,
                 ..
-            } => [number, vec![roi_or_tahe], nai.into_iter().collect()].concat(),
+            } => [
+                number,
+                vec![roi_or_tahe.value],
+                nai.into_iter().map(|nai| nai.value).collect(),
+            ]
+            .concat(),
         }
     }
 
@@ -3275,20 +3273,54 @@ impl TenseModalSyntax {
     #[ensures(true)]
     pub fn free_modifiers(self) -> Vec<FreeModifierSyntax> {
         match self {
-            TenseModalSyntax::Composite { free_modifiers, .. }
-            | TenseModalSyntax::Pu { free_modifiers, .. }
-            | TenseModalSyntax::PuDistance { free_modifiers, .. }
-            | TenseModalSyntax::TimeInterval { free_modifiers, .. }
-            | TenseModalSyntax::PuCaha { free_modifiers, .. }
-            | TenseModalSyntax::SpaceDistance { free_modifiers, .. }
-            | TenseModalSyntax::SpaceDirection { free_modifiers, .. }
-            | TenseModalSyntax::SpaceMovement { free_modifiers, .. }
-            | TenseModalSyntax::Simple { free_modifiers, .. }
-            | TenseModalSyntax::Ki { free_modifiers, .. }
-            | TenseModalSyntax::Fiho { free_modifiers, .. }
-            | TenseModalSyntax::Caha { free_modifiers, .. }
-            | TenseModalSyntax::Zaho { free_modifiers, .. }
-            | TenseModalSyntax::Interval { free_modifiers, .. } => free_modifiers,
+            TenseModalSyntax::Composite { leaves, .. } => leaves.free_modifiers,
+            TenseModalSyntax::Pu { word, .. }
+            | TenseModalSyntax::TimeInterval { word, .. }
+            | TenseModalSyntax::SpaceDistance { word, .. }
+            | TenseModalSyntax::SpaceDirection { word, .. }
+            | TenseModalSyntax::Caha { word, .. } => word.free_modifiers,
+            TenseModalSyntax::PuDistance { distance, .. } => distance.free_modifiers,
+            TenseModalSyntax::PuCaha { caha, .. } => caha.free_modifiers,
+            TenseModalSyntax::SpaceMovement {
+                direction,
+                distance,
+                ..
+            } => distance.map_or(direction.free_modifiers, |distance| distance.free_modifiers),
+            TenseModalSyntax::Simple {
+                nahe,
+                se,
+                bai,
+                nai,
+                ki,
+                connectives,
+                extra_leaves,
+            } => {
+                if !extra_leaves.value.is_empty() {
+                    extra_leaves.free_modifiers
+                } else if !connectives.value.is_empty() {
+                    connectives.free_modifiers
+                } else if let Some(ki) = ki {
+                    ki.free_modifiers
+                } else if let Some(nai) = nai {
+                    nai.free_modifiers
+                } else if !bai.free_modifiers.is_empty() {
+                    bai.free_modifiers
+                } else if let Some(se) = se {
+                    se.free_modifiers
+                } else if let Some(nahe) = nahe {
+                    nahe.free_modifiers
+                } else {
+                    bai.free_modifiers
+                }
+            }
+            TenseModalSyntax::Ki { ki, .. } => ki.free_modifiers,
+            TenseModalSyntax::Fiho { fiho, fehu, .. } => {
+                fehu.map_or(fiho.free_modifiers, |fehu| fehu.free_modifiers)
+            }
+            TenseModalSyntax::Zaho { words, .. } => words.free_modifiers,
+            TenseModalSyntax::Interval {
+                roi_or_tahe, nai, ..
+            } => nai.map_or(roi_or_tahe.free_modifiers, |nai| nai.free_modifiers),
         }
     }
 }

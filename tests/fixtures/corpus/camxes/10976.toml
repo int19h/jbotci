@@ -30,52 +30,47 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {ZoheArgument = {} },
-                                    tense_modal = {TenseModal = {
-                                        free_modifiers = [
-                                            {SeiFree = {
-                                                relation = {BaseRelation = {
-                                                    word = {Bare = {
+                                {Tagged = {
+                                    argument = {Zohe = {} },
+                                    tense_modal = {Simple = {
+                                        bai = [
+                                            {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "baĭ",
+                                                    span = [0, 3]
+                                                }
+                                            }},
+                                            {Sei = {
+                                                relation = {Base = {
+                                                    Bare = {Bare = {
                                                         kind = "gismu",
                                                         phonemes = "nibli",
                                                         span = [8, 13]
                                                     }}
                                                 }},
                                                 sei = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "seĭ",
-                                                    span = [4, 7]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "seĭ",
+                                                        span = [4, 7]
+                                                    }
                                                 }}
                                             }},
-                                        ],
-                                        leaves = [
-                                            {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "baĭ",
-                                                span = [0, 3]
-                                            }},
-                                        ],
-                                        simple = {SimpleTenseModal = {
-                                            bai = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "baĭ",
-                                                span = [0, 3]
-                                            }}
-                                        }}
+                                        ]
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
