@@ -7,6 +7,44 @@ use crate::{Indicator, WithIndicators};
 use bityzba::{ensures, invariant, requires};
 use jbotci_morphology::WordLike;
 use serde::Serialize;
+use serde::ser::{SerializeSeq, Serializer};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+pub struct WithFreeModifiers<T> {
+    pub value: T,
+    pub free_modifiers: Vec<FreeModifierSyntax>,
+}
+
+impl<T> WithFreeModifiers<T> {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn new(value: T, free_modifiers: Vec<FreeModifierSyntax>) -> Self {
+        Self {
+            value,
+            free_modifiers,
+        }
+    }
+}
+
+impl<T: Serialize> Serialize for WithFreeModifiers<T> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if self.free_modifiers.is_empty() {
+            return self.value.serialize(serializer);
+        }
+        let mut seq = serializer.serialize_seq(Some(1 + self.free_modifiers.len()))?;
+        seq.serialize_element(&self.value)?;
+        for free_modifier in &self.free_modifiers {
+            seq.serialize_element(free_modifier)?;
+        }
+        seq.end()
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
@@ -475,9 +513,8 @@ pub enum ArgumentSyntax {
         loho_free_modifiers: Vec<FreeModifierSyntax>,
     },
     Letter {
-        letter: Vec<WithIndicators<WordLike>>,
-        boi: Option<WithIndicators<WordLike>>,
-        boi_free_modifiers: Vec<FreeModifierSyntax>,
+        letter: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        boi: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Quantified {
         quantifier: QuantifierSyntax,
@@ -2587,15 +2624,16 @@ impl ArgumentSyntax {
                 }
                 words
             }
-            ArgumentSyntax::Letter {
-                letter,
-                boi,
-                boi_free_modifiers,
-            } => {
-                let mut words = letter;
-                words.extend(boi);
-                for free_modifier in boi_free_modifiers {
+            ArgumentSyntax::Letter { letter, boi } => {
+                let mut words = letter.value;
+                for free_modifier in letter.free_modifiers {
                     words.extend(free_modifier.words());
+                }
+                if let Some(boi) = boi {
+                    words.push(boi.value);
+                    for free_modifier in boi.free_modifiers {
+                        words.extend(free_modifier.words());
+                    }
                 }
                 words
             }

@@ -55,82 +55,100 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {LetterArgument = {
-                                        boi = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "boĭ",
-                                            span = [3, 6]
-                                        }},
-                                        boi_free_modifiers = [
-                                            {XiFree = {
-                                                math_expression = {VeiExpression = {
-                                                    inner_expression = {BinaryExpression = {
-                                                        left_expression = {LetterExpression = {
+                                {Argument = {
+                                    Letter = {
+                                        boi = [
+                                            {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "boĭ",
+                                                    span = [3, 6]
+                                                }
+                                            }},
+                                            {Xi = {
+                                                expression = {Vei = {
+                                                    inner_expression = {Binary = {
+                                                        left_expression = {Letter = {
                                                             letter = [
                                                                 {Bare = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "ny",
-                                                                    span = [13, 15]
+                                                                    Bare = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "ny",
+                                                                        span = [13, 15]
+                                                                    }
                                                                 }},
                                                             ]
                                                         }},
-                                                        operator = {VuhuOperator = {
+                                                        operator = {Vuhu = {
                                                             vuhu = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "su'i",
-                                                                span = [17, 21]
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "su'i",
+                                                                    span = [17, 21]
+                                                                }
                                                             }}
                                                         }},
-                                                        right_expression = {NumberExpression = {
-                                                            number = [
-                                                                {Bare = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "pa",
-                                                                    span = [22, 24]
-                                                                }},
-                                                            ]
+                                                        right_expression = {Number = {
+                                                            Number = {
+                                                                number = [
+                                                                    {Bare = {
+                                                                        Bare = {
+                                                                            kind = "cmavo",
+                                                                            phonemes = "pa",
+                                                                            span = [22, 24]
+                                                                        }
+                                                                    }},
+                                                                ]
+                                                            }
                                                         }}
                                                     }},
                                                     veho = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "ve'o",
-                                                        span = [26, 30]
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "ve'o",
+                                                            span = [26, 30]
+                                                        }
                                                     }},
                                                     vei = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "veĭ",
-                                                        span = [9, 12]
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "veĭ",
+                                                            span = [9, 12]
+                                                        }
                                                     }}
                                                 }},
                                                 xi = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "xi",
-                                                    span = [6, 8]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "xi",
+                                                        span = [6, 8]
+                                                    }
                                                 }}
                                             }},
                                         ],
                                         letter = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "xy",
-                                                span = [0, 2]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "xy",
+                                                    span = [0, 2]
+                                                }
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

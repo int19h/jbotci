@@ -30,47 +30,55 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {LetterArgument = {
-                                        boi_free_modifiers = [
-                                            {XiFree = {
-                                                math_expression = {NumberExpression = {
-                                                    number = [
-                                                        {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "re",
-                                                            span = [10, 12]
-                                                        }},
-                                                    ]
+                                {Argument = {
+                                    Letter = {
+                                        letter = [
+                                            [
+                                                {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "ry",
+                                                        span = [3, 5]
+                                                    }
+                                                }},
+                                            ],
+                                            {Xi = {
+                                                expression = {Number = {
+                                                    Number = {
+                                                        number = [
+                                                            {Bare = {
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "re",
+                                                                    span = [10, 12]
+                                                                }
+                                                            }},
+                                                        ]
+                                                    }
                                                 }},
                                                 xi = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "xi",
-                                                    span = [7, 9]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "xi",
+                                                        span = [7, 9]
+                                                    }
                                                 }}
                                             }},
-                                        ],
-                                        letter = [
-                                            {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ry",
-                                                span = [3, 5]
-                                            }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

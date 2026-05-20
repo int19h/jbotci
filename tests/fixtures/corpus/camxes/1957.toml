@@ -35,51 +35,61 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {LetterArgument = {
-                                        boi = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "boĭ",
-                                            span = [3, 6]
-                                        }},
-                                        boi_free_modifiers = [
-                                            {XiFree = {
-                                                math_expression = {NumberExpression = {
-                                                    number = [
-                                                        {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "ny",
-                                                            span = [8, 10]
-                                                        }},
-                                                    ]
+                                {Argument = {
+                                    Letter = {
+                                        boi = [
+                                            {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "boĭ",
+                                                    span = [3, 6]
+                                                }
+                                            }},
+                                            {Xi = {
+                                                expression = {Number = {
+                                                    Number = {
+                                                        number = [
+                                                            {Bare = {
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "ny",
+                                                                    span = [8, 10]
+                                                                }
+                                                            }},
+                                                        ]
+                                                    }
                                                 }},
                                                 xi = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "xi",
-                                                    span = [6, 8]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "xi",
+                                                        span = [6, 8]
+                                                    }
                                                 }}
                                             }},
                                         ],
                                         letter = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "xy",
-                                                span = [0, 2]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "xy",
+                                                    span = [0, 2]
+                                                }
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

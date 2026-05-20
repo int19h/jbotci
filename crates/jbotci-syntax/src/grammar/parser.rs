@@ -2848,13 +2848,16 @@ where
     let letter = letter_string()
         .then_ignore(cmavo_of("MOI", MOI_WORDS).rewind().not())
         .then_ignore(cmavo_of("MAI", MAI_WORDS).rewind().not())
-        .then(cmavo("boi").or_not())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(
+            cmavo("boi")
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
         .map(
-            |((letter, boi), boi_free_modifiers)| ArgumentSyntax::Letter {
-                letter,
-                boi,
-                boi_free_modifiers,
+            |((letter, letter_free_modifiers), boi)| ArgumentSyntax::Letter {
+                letter: WithFreeModifiers::new(letter, letter_free_modifiers),
+                boi: boi.map(|(boi, free_modifiers)| WithFreeModifiers::new(boi, free_modifiers)),
             },
         );
 
@@ -5091,9 +5094,8 @@ where
     let me_argument = argument
         .clone()
         .or(letter_string().map(|letter| ArgumentSyntax::Letter {
-            letter,
+            letter: WithFreeModifiers::new(letter, Vec::new()),
             boi: None,
-            boi_free_modifiers: Vec::new(),
         }));
     let me_unit = cmavo("me")
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -5789,9 +5791,8 @@ where
             argument
                 .clone()
                 .or(letter_string().map(|letter| ArgumentSyntax::Letter {
-                    letter,
+                    letter: WithFreeModifiers::new(letter, Vec::new()),
                     boi: None,
-                    boi_free_modifiers: Vec::new(),
                 }));
         let me_unit = cmavo("me")
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
