@@ -449,6 +449,13 @@ pub enum TermWrapperKindSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+pub enum ArgumentTagSyntax {
+    TenseModal(TenseModalSyntax),
+    Fa(WithFreeModifiers<WithIndicators<WordLike>>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[invariant(true)]
 pub struct ArgumentConnectionSyntax {
     pub connective: ConnectiveSyntax,
     pub argument: Box<ArgumentSyntax>,
@@ -498,10 +505,7 @@ pub enum ArgumentSyntax {
         ku: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     Tagged {
-        tag_words: Vec<WithIndicators<WordLike>>,
-        tag_tense_modal: Option<TenseModalSyntax>,
-        tag_fa: Option<WithIndicators<WordLike>>,
-        free_modifiers: Vec<FreeModifierSyntax>,
+        tag: ArgumentTagSyntax,
         inner_argument: Box<ArgumentSyntax>,
     },
     NaheBo {
@@ -527,8 +531,8 @@ pub enum ArgumentSyntax {
     },
     Koha(WithFreeModifiers<WithIndicators<WordLike>>),
     Zohe {
-        tag_words: Vec<WithIndicators<WordLike>>,
-        maybe_ku: Option<WithIndicators<WordLike>>,
+        tag: Option<ArgumentTagSyntax>,
+        maybe_ku: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Lahe {
@@ -1972,6 +1976,17 @@ impl TermSyntax {
     }
 }
 
+impl ArgumentTagSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+        match self {
+            ArgumentTagSyntax::TenseModal(tense_modal) => tense_modal.words(),
+            ArgumentTagSyntax::Fa(fa) => fa.words(),
+        }
+    }
+}
+
 impl MathExpressionSyntax {
     #[requires(true)]
     #[ensures(true)]
@@ -2248,15 +2263,10 @@ impl ArgumentSyntax {
                 words
             }
             ArgumentSyntax::Tagged {
-                tag_words,
-                free_modifiers,
+                tag,
                 inner_argument,
-                ..
             } => {
-                let mut words = tag_words;
-                for free_modifier in free_modifiers {
-                    words.extend(free_modifier.words());
-                }
+                let mut words = tag.words();
                 words.extend(inner_argument.words());
                 words
             }
@@ -2311,11 +2321,17 @@ impl ArgumentSyntax {
             }
             ArgumentSyntax::Koha(koha) => koha.words(),
             ArgumentSyntax::Zohe {
-                tag_words,
+                tag,
                 maybe_ku,
                 free_modifiers,
             } => {
-                let mut words = [tag_words, maybe_ku.into_iter().collect()].concat();
+                let mut words = tag
+                    .into_iter()
+                    .flat_map(ArgumentTagSyntax::words)
+                    .collect::<Vec<_>>();
+                if let Some(ku) = maybe_ku {
+                    words.extend(ku.words());
+                }
                 for free_modifier in free_modifiers {
                     words.extend(free_modifier.words());
                 }

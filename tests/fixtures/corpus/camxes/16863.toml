@@ -25,29 +25,31 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {BeLinkFragment = {
+                {
+                    statement = {Fragment = {
+                        BeLink = {
                             be = {Bare = {
-                                kind = "cmavo",
-                                phonemes = "be",
-                                span = [0, 2]
+                                Bare = {
+                                    kind = "cmavo",
+                                    phonemes = "be",
+                                    span = [0, 2]
+                                }
                             }},
-                            first_argument = {ZoheArgument = {
-                                tag_words = [
-                                    {Bare = {
+                            first_argument = {Zohe = {
+                                tag = {Fa = {
+                                    Bare = {Bare = {
                                         kind = "cmavo",
                                         phonemes = "fo",
                                         span = [3, 5]
-                                    }},
-                                ]
+                                    }}
+                                }}
                             }}
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

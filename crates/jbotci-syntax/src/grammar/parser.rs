@@ -201,6 +201,21 @@ fn split_optional_word_free_modifiers(
 
 #[requires(true)]
 #[ensures(true)]
+fn build_zohe_argument(
+    tag: Option<ArgumentTagSyntax>,
+    maybe_ku: Option<WithIndicators<WordLike>>,
+    free_modifiers: Vec<FreeModifierSyntax>,
+) -> ArgumentSyntax {
+    let (maybe_ku, free_modifiers) = split_optional_word_free_modifiers(maybe_ku, free_modifiers);
+    ArgumentSyntax::Zohe {
+        tag,
+        maybe_ku,
+        free_modifiers,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub(super) fn parse_statement(
     words: &[WithIndicators<WordLike>],
     source: Option<&str>,
@@ -271,11 +286,7 @@ fn statement_parser<'tokens>(
     let elided_argument = cmavo("ku")
         .or_not()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|(maybe_ku, free_modifiers)| ArgumentSyntax::Zohe {
-            tag_words: Vec::new(),
-            maybe_ku,
-            free_modifiers,
-        });
+        .map(|(maybe_ku, free_modifiers)| build_zohe_argument(None, maybe_ku, free_modifiers));
     let fa_term = cmavo_of("FA", FA_WORDS)
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(argument.clone().or(elided_argument))
@@ -337,10 +348,8 @@ fn statement_parser<'tokens>(
             argument.clone().or(cmavo("ku")
                 .or_not()
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .map(|(maybe_ku, free_modifiers)| ArgumentSyntax::Zohe {
-                    tag_words: Vec::new(),
-                    maybe_ku,
-                    free_modifiers,
+                .map(|(maybe_ku, free_modifiers)| {
+                    build_zohe_argument(None, maybe_ku, free_modifiers)
                 })),
         )
         .map(
@@ -3296,7 +3305,7 @@ where
 #[ensures(true)]
 fn implicit_zohe_argument() -> ArgumentSyntax {
     ArgumentSyntax::Zohe {
-        tag_words: Vec::new(),
+        tag: None,
         maybe_ku: None,
         free_modifiers: Vec::new(),
     }
@@ -3815,27 +3824,18 @@ where
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(tagged_tail.clone())
         .map(
-            |(
-                (tense_modal, mut tag_free_modifiers),
-                (argument, maybe_ku, trailing_free_modifiers),
-            )| {
-                let tag_words = tense_modal.clone().leaf_words();
-                tag_free_modifiers.extend(tense_modal.clone().free_modifiers());
+            |((tense_modal, tag_free_modifiers), (argument, maybe_ku, trailing_free_modifiers))| {
+                let tag = ArgumentTagSyntax::TenseModal(attach_tense_modal_free_modifiers(
+                    tense_modal,
+                    tag_free_modifiers,
+                ));
                 if let Some(argument) = argument {
                     ArgumentSyntax::Tagged {
-                        tag_words,
-                        tag_tense_modal: Some(tense_modal),
-                        tag_fa: None,
-                        free_modifiers: tag_free_modifiers,
+                        tag,
                         inner_argument: Box::new(argument),
                     }
                 } else {
-                    tag_free_modifiers.extend(trailing_free_modifiers);
-                    ArgumentSyntax::Zohe {
-                        tag_words,
-                        maybe_ku,
-                        free_modifiers: tag_free_modifiers,
-                    }
+                    build_zohe_argument(Some(tag), maybe_ku, trailing_free_modifiers)
                 }
             },
         );
@@ -3843,22 +3843,15 @@ where
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(tagged_tail)
         .map(
-            |((fa, mut fa_free_modifiers), (argument, maybe_ku, trailing_free_modifiers))| {
+            |((fa, fa_free_modifiers), (argument, maybe_ku, trailing_free_modifiers))| {
+                let tag = ArgumentTagSyntax::Fa(WithFreeModifiers::new(fa, fa_free_modifiers));
                 if let Some(argument) = argument {
                     ArgumentSyntax::Tagged {
-                        tag_words: vec![fa.clone()],
-                        tag_tense_modal: None,
-                        tag_fa: Some(fa),
-                        free_modifiers: fa_free_modifiers,
+                        tag,
                         inner_argument: Box::new(argument),
                     }
                 } else {
-                    fa_free_modifiers.extend(trailing_free_modifiers);
-                    ArgumentSyntax::Zohe {
-                        tag_words: vec![fa],
-                        maybe_ku,
-                        free_modifiers: fa_free_modifiers,
-                    }
+                    build_zohe_argument(Some(tag), maybe_ku, trailing_free_modifiers)
                 }
             },
         );
@@ -7407,21 +7400,21 @@ where
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(fa_tail)
         .map(
-            |((fa, mut fa_free_modifiers), (argument, maybe_ku, trailing_free_modifiers))| {
+            |((fa, fa_free_modifiers), (argument, maybe_ku, trailing_free_modifiers))| {
                 if let Some(argument) = argument {
                     new!(LinkArgumentSyntax {
                         fa: Some(WithFreeModifiers::new(fa, fa_free_modifiers)),
                         argument: Some(argument),
                     })
                 } else {
-                    fa_free_modifiers.extend(trailing_free_modifiers);
+                    let tag = ArgumentTagSyntax::Fa(WithFreeModifiers::new(fa, fa_free_modifiers));
                     new!(LinkArgumentSyntax {
                         fa: None,
-                        argument: Some(ArgumentSyntax::Zohe {
-                            tag_words: vec![fa],
+                        argument: Some(build_zohe_argument(
+                            Some(tag),
                             maybe_ku,
-                            free_modifiers: fa_free_modifiers,
-                        }),
+                            trailing_free_modifiers,
+                        )),
                     })
                 }
             },
@@ -7437,32 +7430,27 @@ where
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(tagged_tail)
         .map(
-            |(
-                (tense_modal, mut tag_free_modifiers),
-                (argument, maybe_ku, trailing_free_modifiers),
-            )| {
-                let tag_words = tense_modal.clone().leaf_words();
-                tag_free_modifiers.extend(tense_modal.clone().free_modifiers());
+            |((tense_modal, tag_free_modifiers), (argument, maybe_ku, trailing_free_modifiers))| {
+                let tag = ArgumentTagSyntax::TenseModal(attach_tense_modal_free_modifiers(
+                    tense_modal,
+                    tag_free_modifiers,
+                ));
                 if let Some(argument) = argument {
                     new!(LinkArgumentSyntax {
                         fa: None,
                         argument: Some(ArgumentSyntax::Tagged {
-                            tag_words,
-                            tag_tense_modal: Some(tense_modal),
-                            tag_fa: None,
-                            free_modifiers: tag_free_modifiers,
+                            tag,
                             inner_argument: Box::new(argument),
                         }),
                     })
                 } else {
-                    tag_free_modifiers.extend(trailing_free_modifiers);
                     new!(LinkArgumentSyntax {
                         fa: None,
-                        argument: Some(ArgumentSyntax::Zohe {
-                            tag_words,
+                        argument: Some(build_zohe_argument(
+                            Some(tag),
                             maybe_ku,
-                            free_modifiers: tag_free_modifiers,
-                        }),
+                            trailing_free_modifiers,
+                        )),
                     })
                 }
             },
