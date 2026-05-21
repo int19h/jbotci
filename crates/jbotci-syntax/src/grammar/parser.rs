@@ -2090,7 +2090,7 @@ where
         .map(
             |((letter, boi), free_modifiers)| MathExpressionSyntax::Letter {
                 letter: WithFreeModifiers::new(
-                    letter,
+                    word_run(letter),
                     if boi.is_some() {
                         Vec::new()
                     } else {
@@ -2132,7 +2132,7 @@ where
             |((((johi, free_modifiers), expressions), tehu), tehu_free_modifiers)| {
                 MathExpressionSyntax::Johi {
                     johi: WithFreeModifiers::new(johi, free_modifiers),
-                    expressions,
+                    expressions: math_expression_vec(expressions),
                     tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, tehu_free_modifiers)),
                 }
             },
@@ -2395,7 +2395,7 @@ where
         .then_ignore(cmavo_of("MOI", MOI_WORDS).rewind().not())
         .then(cmavo("boi").or_not())
         .map(|(letter, boi)| MathExpressionSyntax::Letter {
-            letter: WithFreeModifiers::new(letter, Vec::new()),
+            letter: WithFreeModifiers::new(word_run(letter), Vec::new()),
             boi: boi.map(|boi| WithFreeModifiers::new(boi, Vec::new())),
         });
     let vei = cmavo("vei")
@@ -2424,7 +2424,7 @@ where
             |((((johi, free_modifiers), expressions), tehu), tehu_free_modifiers)| {
                 MathExpressionSyntax::Johi {
                     johi: WithFreeModifiers::new(johi, free_modifiers),
-                    expressions,
+                    expressions: math_expression_vec(expressions),
                     tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, tehu_free_modifiers)),
                 }
             },
@@ -2715,7 +2715,7 @@ where
         )
         .map(
             |((letter, letter_free_modifiers), boi)| ArgumentSyntax::Letter {
-                letter: WithFreeModifiers::new(letter, letter_free_modifiers),
+                letter: WithFreeModifiers::new(word_run(letter), letter_free_modifiers),
                 boi: boi.map(|(boi, free_modifiers)| WithFreeModifiers::new(boi, free_modifiers)),
             },
         );
@@ -2776,7 +2776,7 @@ where
         .map(
             |(((la, la_free_modifiers), names), name_free_modifiers)| ArgumentSyntax::Name {
                 la: WithFreeModifiers::new(la, la_free_modifiers),
-                names: WithFreeModifiers::new(names, name_free_modifiers),
+                names: WithFreeModifiers::new(word_run(names), name_free_modifiers),
             },
         );
 
@@ -3327,7 +3327,7 @@ fn number_quantifier<'tokens>() -> BoxedParser<'tokens, QuantifierSyntax> {
     number_words()
         .then(cmavo("boi").or_not())
         .map(|(number, boi)| QuantifierSyntax::Number {
-            number: WithFreeModifiers::new(number, Vec::new()),
+            number: WithFreeModifiers::new(word_run(number), Vec::new()),
             boi: boi.map(|boi| WithFreeModifiers::new(boi, Vec::new())),
         })
         .boxed()
@@ -3781,7 +3781,7 @@ where
         .map(|((number, boi), free_modifiers)| {
             MathExpressionSyntax::Number(QuantifierSyntax::Number {
                 number: WithFreeModifiers::new(
-                    number,
+                    word_run(number),
                     if boi.is_some() {
                         Vec::new()
                     } else {
@@ -3817,7 +3817,7 @@ where
         .then(cmavo_of("MAI", MAI_WORDS))
         .then(free_modifier.repeated().collect::<Vec<_>>())
         .map(|((number, mai), free_modifiers)| FreeModifierSyntax::Mai {
-            number,
+            number: word_run(number),
             mai: WithFreeModifiers::new(mai, free_modifiers),
         })
         .boxed()
@@ -3899,8 +3899,10 @@ where
         .then(optional_relative_clauses)
         .map(
             |(((leading_relative_clauses, cmevla), free_modifiers), trailing_relative_clauses)| {
-                let argument =
-                    ArgumentSyntax::Cmevla(WithFreeModifiers::new(cmevla, free_modifiers));
+                let argument = ArgumentSyntax::Cmevla(WithFreeModifiers::new(
+                    word_run(cmevla),
+                    free_modifiers,
+                ));
                 let relative_clauses = leading_relative_clauses
                     .into_iter()
                     .chain(trailing_relative_clauses)
@@ -4473,6 +4475,25 @@ fn wrapped_words(
     WithFreeModifiers::new(words, free_modifiers)
 }
 
+#[requires(!words.is_empty(), "syntax word runs must be non-empty")]
+#[ensures(!ret.is_empty())]
+fn word_run(words: Vec<WithIndicators<WordLike>>) -> WordRun {
+    WordRun::try_from_vec(words).expect("precondition guarantees non-empty words")
+}
+
+#[requires(!expressions.is_empty(), "math expression runs must be non-empty")]
+#[ensures(!ret.is_empty())]
+fn math_expression_vec(expressions: Vec<MathExpressionSyntax>) -> MathExpressionVec {
+    MathExpressionVec::try_from_vec(expressions)
+        .expect("precondition guarantees non-empty expressions")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_run_leaves(words: &WordRun) -> Vec<WithIndicators<WordLike>> {
+    words.iter().cloned().collect()
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn connective_syntax(
@@ -4813,7 +4834,7 @@ where
     let me_argument = argument
         .clone()
         .or(letter_string().map(|letter| ArgumentSyntax::Letter {
-            letter: WithFreeModifiers::new(letter, Vec::new()),
+            letter: WithFreeModifiers::new(word_run(letter), Vec::new()),
             boi: None,
         }));
     let me_unit = cmavo("me")
@@ -4914,7 +4935,7 @@ where
         .then(cmavo_of("MOI", MOI_WORDS))
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|((number, moi), free_modifiers)| RelationUnitSyntax::Moi {
-            number,
+            number: word_run(number),
             moi: wrapped_word(moi, free_modifiers),
         });
     let contextual_math_operator =
@@ -5477,7 +5498,7 @@ where
             argument
                 .clone()
                 .or(letter_string().map(|letter| ArgumentSyntax::Letter {
-                    letter: WithFreeModifiers::new(letter, Vec::new()),
+                    letter: WithFreeModifiers::new(word_run(letter), Vec::new()),
                     boi: None,
                 }));
         let me_unit = cmavo("me")
@@ -5584,7 +5605,7 @@ where
             .then(cmavo_of("MOI", MOI_WORDS))
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .map(|((number, moi), free_modifiers)| RelationUnitSyntax::Moi {
-                number,
+                number: word_run(number),
                 moi: wrapped_word(moi, free_modifiers),
             });
         let nuha_unit = cmavo("nu'a")
@@ -6342,7 +6363,8 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         .then(cmavo_of("ROI", ROI_WORDS))
         .then(cmavo("nai").or_not())
         .map(|((number, roi_or_tahe), nai)| {
-            let mut leaves = number.clone();
+            let number = word_run(number);
+            let mut leaves = word_run_leaves(&number);
             leaves.push(roi_or_tahe.clone());
             leaves.extend(nai.clone());
             TenseModalSyntax::Composite {
@@ -6351,7 +6373,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 space: None,
                 simple: None,
                 interval: Some(IntervalTenseSyntax {
-                    number,
+                    number: Some(number),
                     roi_or_tahe,
                     nai,
                 }),
@@ -6374,7 +6396,7 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 space: None,
                 simple: None,
                 interval: Some(IntervalTenseSyntax {
-                    number: Vec::new(),
+                    number: None,
                     roi_or_tahe,
                     nai,
                 }),
@@ -7008,7 +7030,8 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
         .then(cmavo_of("ROI", ROI_WORDS))
         .then(cmavo("nai").or_not())
         .map(|((number, roi_or_tahe), nai)| {
-            let mut leaves = number.clone();
+            let number = word_run(number);
+            let mut leaves = word_run_leaves(&number);
             leaves.push(roi_or_tahe.clone());
             leaves.extend(nai.clone());
             TenseModalSyntax::Composite {
@@ -7017,7 +7040,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
                 space: None,
                 simple: None,
                 interval: Some(IntervalTenseSyntax {
-                    number,
+                    number: Some(number),
                     roi_or_tahe,
                     nai,
                 }),
@@ -7040,7 +7063,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
                 space: None,
                 simple: None,
                 interval: Some(IntervalTenseSyntax {
-                    number: Vec::new(),
+                    number: None,
                     roi_or_tahe,
                     nai,
                 }),
@@ -7194,14 +7217,14 @@ fn tense_modal_atom<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             )
             .then(cmavo("nai").or_not())
             .map(|((number, roi_or_tahe), nai)| TenseModalSyntax::Interval {
-                number,
+                number: Some(word_run(number)),
                 roi_or_tahe: WithFreeModifiers::new(roi_or_tahe, Vec::new()),
                 nai: nai.map(|nai| WithFreeModifiers::new(nai, Vec::new())),
             }),
         cmavo_of("TAhE", &["di'i", "na'o", "ru'i", "ta'e"])
             .then(cmavo("nai").or_not())
             .map(|(roi_or_tahe, nai)| TenseModalSyntax::Interval {
-                number: Vec::new(),
+                number: None,
                 roi_or_tahe: WithFreeModifiers::new(roi_or_tahe, Vec::new()),
                 nai: nai.map(|nai| WithFreeModifiers::new(nai, Vec::new())),
             }),

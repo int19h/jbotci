@@ -101,7 +101,7 @@ pub(super) fn tense_modal_from_leaves(
             || cmavo_matches_any(leaf, &["di'i", "na'o", "ru'i", "ta'e"])
         {
             interval = Some(IntervalTenseSyntax {
-                number: Vec::new(),
+                number: None,
                 roi_or_tahe: leaf.clone(),
                 nai: None,
             });

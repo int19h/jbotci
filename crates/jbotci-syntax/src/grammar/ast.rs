@@ -8,7 +8,10 @@ use bityzba::{ensures, invariant, requires};
 use jbotci_morphology::WordLike;
 use serde::Serialize;
 use serde::ser::{SerializeSeq, Serializer};
-use vec1::smallvec_v1::SmallVec1;
+use vec1::{Vec1, smallvec_v1::SmallVec1};
+
+pub type WordRun = SmallVec1<[WithIndicators<WordLike>; 2]>;
+pub type MathExpressionVec = Vec1<MathExpressionSyntax>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -131,6 +134,53 @@ impl WithFreeModifiers<Vec<WithIndicators<WordLike>>> {
                 .iter()
                 .find_map(FreeModifierSyntax::first_word)
         })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+        let mut words = Vec::new();
+        self.extend_words_into(&mut words);
+        words
+    }
+}
+
+impl WithFreeModifiers<WordRun> {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn extend_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
+        out.extend(self.value);
+        for free_modifier in self.free_modifiers {
+            free_modifier.extend_words_into(out);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        for word in &self.value {
+            visitor(word);
+        }
+        for free_modifier in &self.free_modifiers {
+            free_modifier.visit_words(visitor);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret >= self.value.len())]
+    pub fn word_count(&self) -> usize {
+        self.value.len()
+            + self
+                .free_modifiers
+                .iter()
+                .map(FreeModifierSyntax::word_count)
+                .sum::<usize>()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some())]
+    pub fn first_word(&self) -> Option<&WithIndicators<WordLike>> {
+        Some(self.value.first())
     }
 
     #[requires(true)]
@@ -317,7 +367,7 @@ pub enum FreeModifierSyntax {
         expression: MathExpressionSyntax,
     },
     Mai {
-        number: Vec<WithIndicators<WordLike>>,
+        number: WordRun,
         mai: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     Soi {
@@ -554,7 +604,7 @@ pub enum ArgumentSyntax {
         loho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Letter {
-        letter: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        letter: WithFreeModifiers<WordRun>,
         boi: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Quantified {
@@ -642,9 +692,9 @@ pub enum ArgumentSyntax {
     ConnectedDescriptor(ConnectedDescriptorSyntax),
     Name {
         la: WithFreeModifiers<WithIndicators<WordLike>>,
-        names: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        names: WithFreeModifiers<WordRun>,
     },
-    Cmevla(WithFreeModifiers<Vec<WithIndicators<WordLike>>>),
+    Cmevla(WithFreeModifiers<WordRun>),
     RelationVocative {
         leading_relative_clauses: Vec<RelativeClauseSyntax>,
         relation: RelationSyntax,
@@ -841,7 +891,7 @@ pub enum ArgumentTailElementSyntax {
 #[invariant(true)]
 pub enum QuantifierSyntax {
     Number {
-        number: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        number: WithFreeModifiers<WordRun>,
         boi: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Vei {
@@ -856,7 +906,7 @@ pub enum QuantifierSyntax {
 pub enum MathExpressionSyntax {
     Number(QuantifierSyntax),
     Letter {
-        letter: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        letter: WithFreeModifiers<WordRun>,
         boi: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Vei {
@@ -893,7 +943,7 @@ pub enum MathExpressionSyntax {
     },
     Johi {
         johi: WithFreeModifiers<WithIndicators<WordLike>>,
-        expressions: Vec<MathExpressionSyntax>,
+        expressions: MathExpressionVec,
         tehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Lahe {
@@ -978,12 +1028,12 @@ pub enum MathOperatorSyntax {
     #[allow(dead_code)]
     Johi {
         johi: WithFreeModifiers<WithIndicators<WordLike>>,
-        expressions: Vec<MathExpressionSyntax>,
+        expressions: MathExpressionVec,
         tehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     // v0 exposes this constructor for operator slots accepting numeric forms.
     #[allow(dead_code)]
-    Number(Vec<WithIndicators<WordLike>>),
+    Number(WordRun),
     Connected {
         left_operator: Box<MathOperatorSyntax>,
         connective: ConnectiveSyntax,
@@ -1065,7 +1115,7 @@ pub struct SpaceTenseSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct IntervalTenseSyntax {
-    pub number: Vec<WithIndicators<WordLike>>,
+    pub number: Option<WordRun>,
     pub roi_or_tahe: WithIndicators<WordLike>,
     pub nai: Option<WithIndicators<WordLike>>,
 }
@@ -1139,7 +1189,7 @@ pub enum TenseModalSyntax {
     Caha(WithFreeModifiers<WithIndicators<WordLike>>),
     Zaho(WithFreeModifiers<Vec<WithIndicators<WordLike>>>),
     Interval {
-        number: Vec<WithIndicators<WordLike>>,
+        number: Option<WordRun>,
         roi_or_tahe: WithFreeModifiers<WithIndicators<WordLike>>,
         nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -1250,7 +1300,7 @@ pub enum RelationUnitSyntax {
         liau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Moi {
-        number: Vec<WithIndicators<WordLike>>,
+        number: WordRun,
         moi: WithFreeModifiers<WithIndicators<WordLike>>,
     },
     Nuha {
@@ -1479,7 +1529,7 @@ impl FreeModifierSyntax {
                 words
             }
             FreeModifierSyntax::Mai { number, mai } => {
-                let mut words = number;
+                let mut words = number.into_vec();
                 words.extend(mai.words());
                 words
             }
@@ -3313,7 +3363,9 @@ impl TenseModalSyntax {
                 roi_or_tahe,
                 nai,
             } => {
-                visit_word_slice(number, visitor);
+                if let Some(number) = number {
+                    visit_word_slice(number, visitor);
+                }
                 roi_or_tahe.visit_words(visitor);
                 if let Some(nai) = nai {
                     nai.visit_words(visitor);
@@ -4400,7 +4452,7 @@ impl MathOperatorSyntax {
                 }
                 words
             }
-            MathOperatorSyntax::Number(number) => number,
+            MathOperatorSyntax::Number(number) => number.into_vec(),
             MathOperatorSyntax::Connected {
                 left_operator,
                 connective,
@@ -4675,7 +4727,7 @@ impl RelationUnitSyntax {
                 words
             }
             RelationUnitSyntax::Moi { number, moi } => {
-                let mut words = number;
+                let mut words = number.into_vec();
                 words.extend(moi.words());
                 words
             }
@@ -4916,7 +4968,7 @@ impl TenseModalSyntax {
                 roi_or_tahe,
                 nai,
             } => {
-                let mut words = number;
+                let mut words = number.map_or_else(Vec::new, WordRun::into_vec);
                 words.push(roi_or_tahe.value);
                 let mut free_modifiers = roi_or_tahe.free_modifiers;
                 if let Some(nai) = nai {
@@ -5231,7 +5283,7 @@ impl FreeModifierSyntax {
             FreeModifierSyntax::Sei { sei, .. } => sei.first_word(),
             FreeModifierSyntax::To { to, .. } => to.first_word(),
             FreeModifierSyntax::Xi { xi, .. } => xi.first_word(),
-            FreeModifierSyntax::Mai { number, mai } => number.first().or_else(|| mai.first_word()),
+            FreeModifierSyntax::Mai { number, .. } => Some(number.first()),
             FreeModifierSyntax::Soi { soi, .. } => soi.first_word(),
             FreeModifierSyntax::Vocative {
                 vocative_markers, ..

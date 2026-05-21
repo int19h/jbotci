@@ -1918,7 +1918,9 @@ fn tense_modal_syntax(value: &TenseModalSyntax, source: &str) -> sexpr::SExpr {
             roi_or_tahe,
             nai,
         } => {
-            let mut children = words(number, source);
+            let mut children = number
+                .as_ref()
+                .map_or_else(Vec::new, |number| words(number, source));
             children.push(with_free_word(roi_or_tahe, source));
             if let Some(nai) = nai {
                 children.push(with_free_word(nai, source));
@@ -2242,10 +2244,10 @@ fn with_free_word(
 #[requires(true)]
 #[ensures(true)]
 fn with_free_words(
-    value: &WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+    value: &WithFreeModifiers<impl AsRef<[WithIndicators<WordLike>]>>,
     source: &str,
 ) -> sexpr::SExpr {
-    let mut children = words(&value.value, source);
+    let mut children = words(value.value.as_ref(), source);
     children.extend(
         value
             .free_modifiers
