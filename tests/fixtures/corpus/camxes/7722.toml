@@ -20,36 +20,40 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {ZoheArgument = {} },
-                                    tense_modal = {TenseModal = {
+                                {Tagged = {
+                                    argument = {Zohe = {} },
+                                    tense_modal = {Composite = {
                                         leaves = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "za",
-                                                span = [0, 2]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "za",
+                                                    span = [0, 2]
+                                                }
                                             }},
                                         ],
-                                        time = {Time = {
+                                        time = {
                                             distance = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "za",
-                                                span = [0, 2]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "za",
+                                                    span = [0, 2]
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

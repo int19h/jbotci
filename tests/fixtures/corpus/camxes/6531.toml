@@ -35,55 +35,58 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {ConnectedRelation = {
-                                                connective = {Connective = {
-                                                    cmavo = [
-                                                        {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Connected = {
+                                            connective = {
+                                                cmavo = [
+                                                    {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "ja",
                                                             span = [6, 8]
-                                                        }},
-                                                    ]
-                                                }},
-                                                leading_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "pemci",
-                                                        span = [0, 5]
-                                                    }}
-                                                }},
-                                                trailing_relation = {BaseRelation = {
-                                                    word = {WithIndicator = {
-                                                        base = {Bare = {
+                                                        }
+                                                    }},
+                                                ],
+                                                kind = "Relation"
+                                            },
+                                            leading_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "pemci",
+                                                    span = [0, 5]
+                                                }}
+                                            }},
+                                            trailing_relation = {Base = {
+                                                WithIndicator = {
+                                                    base = {Bare = {
+                                                        Bare = {
                                                             kind = "gismu",
                                                             phonemes = "prosa",
                                                             span = [9, 14]
-                                                        }},
-                                                        indicator = {
-                                                            kind = "cmavo",
-                                                            phonemes = "xu",
-                                                            span = [15, 17]
                                                         }
-                                                    }}
-                                                }}
+                                                    }},
+                                                    indicator = {
+                                                        kind = "cmavo",
+                                                        phonemes = "xu",
+                                                        span = [15, 17]
+                                                    }
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

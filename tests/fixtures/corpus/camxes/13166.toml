@@ -30,40 +30,42 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {FaTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Fa = {
+                                    argument = {Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [15, 17]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "fraso",
-                                                    span = [18, 23]
-                                                }}
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "fraso",
+                                                span = [18, 23]
                                             }}
                                         }}
                                     }},
                                     fa = {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "fo",
-                                        span = [0, 2]
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "fo",
+                                            span = [0, 2]
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

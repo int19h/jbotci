@@ -30,14 +30,14 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     free_modifiers = [
-                        {VocativeFree = {
-                            argument = {RelationVocativeArgument = {
-                                relation = {BaseRelation = {
-                                    word = {Bare = {
+                        {Vocative = {
+                            argument = {RelationVocative = {
+                                relation = {Base = {
+                                    Bare = {Bare = {
                                         kind = "gismu",
                                         phonemes = "tirno",
                                         span = [7, 12]
@@ -46,20 +46,24 @@ parse-tree = {
                             }},
                             vocative_markers = [
                                 {Bare = {
-                                    kind = "cmavo",
-                                    phonemes = "mi'e",
-                                    span = [2, 6]
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "mi'e",
+                                        span = [2, 6]
+                                    }
                                 }},
                             ]
                         }},
                     ],
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [0, 1]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [0, 1]
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

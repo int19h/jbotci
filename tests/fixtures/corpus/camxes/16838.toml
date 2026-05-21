@@ -30,16 +30,18 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    connective = {Connective = {
+                {
+                    connective = {
                         cmavo = [
                             {WithIndicator = {
                                 base = {Bare = {
-                                    kind = "cmavo",
-                                    phonemes = "je",
-                                    span = [6, 8]
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "je",
+                                        span = [6, 8]
+                                    }
                                 }},
                                 indicator = {
                                     kind = "cmavo",
@@ -47,15 +49,18 @@ parse-tree = {
                                     span = [9, 13]
                                 }
                             }},
-                        ]
-                    }},
+                        ],
+                        kind = "Relation"
+                    },
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [5, 6]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [5, 6]
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

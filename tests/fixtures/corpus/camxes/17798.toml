@@ -30,44 +30,37 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {WithIndicator = {
-            base = {Bare = {
+        {
+            indicator = {
                 kind = "cmavo",
                 phonemes = "ru'a",
                 span = [0, 4]
-            }},
-            indicator = {
-                kind = "cmavo",
-                phonemes = "da'i",
-                span = [5, 9]
             }
-        }},
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "kukte",
-                                                    span = [10, 15]
-                                                }}
-                                            }}
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                kind = "gismu",
+                                                phonemes = "kukte",
+                                                span = [10, 15]
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

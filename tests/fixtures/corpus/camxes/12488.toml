@@ -30,38 +30,42 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {RelativeClauseFragment = {
-                            relative_clauses = [
-                                {GoiRelativeClause = {
-                                    argument = {NameArgument = {
-                                        la = {Bare = {
+                {
+                    statement = {Fragment = {
+                        RelativeClause = [
+                            {Goi = {
+                                argument = {Name = {
+                                    la = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "la",
                                             span = [3, 5]
-                                        }},
-                                        names = [
-                                            {Bare = {
+                                        }
+                                    }},
+                                    names = [
+                                        {Bare = {
+                                            Bare = {
                                                 kind = "cmevla",
                                                 phonemes = "lojban",
                                                 span = [6, 12]
-                                            }},
-                                        ]
-                                    }},
-                                    goi = {Bare = {
+                                            }
+                                        }},
+                                    ]
+                                }},
+                                goi = {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "po",
                                         span = [0, 2]
-                                    }}
-                                }},
-                            ]
-                        }}
+                                    }
+                                }}
+                            }},
+                        ]
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -35,68 +35,74 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {TenseModalRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "lujvo",
-                                                        phonemes = "xrukla",
-                                                        span = [3, 9]
-                                                    }}
-                                                }},
-                                                tense_modal = {TenseModal = {
-                                                    leaves = [
-                                                        {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        TenseModal = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "lujvo",
+                                                    phonemes = "xrukla",
+                                                    span = [3, 9]
+                                                }}
+                                            }},
+                                            tense_modal = {Composite = {
+                                                leaves = [
+                                                    {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "ca",
                                                             span = [0, 2]
-                                                        }},
-                                                    ],
-                                                    time = {Time = {
-                                                        direction = [
-                                                            {Bare = {
+                                                        }
+                                                    }},
+                                                ],
+                                                time = {
+                                                    direction = [
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "ca",
                                                                 span = [0, 2]
-                                                            }},
-                                                        ]
-                                                    }}
-                                                }}
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
-                {ParagraphStatement = {
+                },
+                {
                     free_modifiers = [
-                        {VocativeFree = {
+                        {Vocative = {
                             vocative_markers = [
                                 {Bare = {
-                                    kind = "cmavo",
-                                    phonemes = "coĭ",
-                                    span = [13, 16]
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "coĭ",
+                                        span = [13, 16]
+                                    }
                                 }},
                             ]
                         }},
                     ],
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [11, 12]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [11, 12]
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

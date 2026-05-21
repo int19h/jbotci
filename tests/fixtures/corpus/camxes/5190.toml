@@ -52,63 +52,95 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "ba'a",
-            span = [0, 4]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "ba'a",
+                span = [0, 4]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Tagged = {
+                                    argument = {Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "la",
                                                 span = [8, 10]
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "xabju",
+                                                span = [18, 23]
+                                            }}
+                                        }},
+                                        tail_elements = [
+                                            {Argument = {
+                                                Letter = {
+                                                    letter = [
+                                                        {Bare = {
+                                                            Letter = {
+                                                                base = {Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "u",
+                                                                    span = [11, 12]
+                                                                }},
+                                                                bu = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "bu",
+                                                                    span = [12, 14]
+                                                                }
+                                                            }
+                                                        }},
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "ty",
+                                                                span = [14, 16]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }},
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "xabju",
-                                                    span = [18, 23]
-                                                }}
-                                            }},
-                                            tail_elements = [
-                                                {ArgumentTailArgument = {} },
-                                            ]
-                                        }}
+                                        ]
                                     }},
-                                    tense_modal = {TenseModal = {
+                                    tense_modal = {Composite = {
                                         leaves = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "vi",
-                                                span = [5, 7]
-                                            }},
-                                        ],
-                                        space = {Space = {
-                                            distance = [
-                                                {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "vi",
                                                     span = [5, 7]
+                                                }
+                                            }},
+                                        ],
+                                        space = {
+                                            distance = [
+                                                {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "vi",
+                                                        span = [5, 7]
+                                                    }
                                                 }},
                                             ]
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

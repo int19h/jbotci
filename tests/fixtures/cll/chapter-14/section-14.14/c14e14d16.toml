@@ -64,91 +64,110 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {ConnectedArgument = {
-                                        connective = {Connective = {
-                                            cmavo = [
-                                                {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Connected = {
+                                    connective = {
+                                        cmavo = [
+                                            {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "fa'u",
                                                     span = [12, 16]
-                                                }},
-                                            ]
-                                        }},
-                                        leading_argument = {NameArgument = {
-                                            la = {Bare = {
+                                                }
+                                            }},
+                                        ],
+                                        kind = "NonLogical"
+                                    },
+                                    leading_argument = {Name = {
+                                        la = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "la",
                                                 span = [0, 2]
-                                            }},
-                                            names = [
-                                                {Bare = {
-                                                    kind = "cmevla",
-                                                    phonemes = "djeimyz",
-                                                    span = [3, 10]
-                                                }},
-                                            ]
+                                            }
                                         }},
-                                        trailing_argument = {NameArgument = {
-                                            la = {Bare = {
+                                        names = [
+                                            {Bare = {
+                                                Bare = {
+                                                    kind = "cmevla",
+                                                    phonemes = "djeĭmyz",
+                                                    span = [3, 10]
+                                                }
+                                            }},
+                                        ]
+                                    }},
+                                    trailing_argument = {Name = {
+                                        la = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "la",
                                                 span = [17, 19]
-                                            }},
-                                            names = [
-                                                {Bare = {
+                                            }
+                                        }},
+                                        names = [
+                                            {Bare = {
+                                                Bare = {
                                                     kind = "cmevla",
                                                     phonemes = "djordj",
                                                     span = [20, 26]
-                                                }},
-                                            ]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "prami",
-                                                    span = [28, 33]
-                                                }}
+                                                }
                                             }},
-                                            terms = [
-                                                {ArgumentTerm = {
-                                                    argument = {DescriptorArgument = {
-                                                        descriptor = {Descriptor = {
-                                                            relation = {BaseRelation = {
-                                                                word = {Bare = {
-                                                                    kind = "gismu",
-                                                                    phonemes = "mensi",
-                                                                    span = [37, 42]
-                                                                }}
-                                                            }},
-                                                            tail_elements = [
-                                                                {ArgumentTailQuantifier = {} },
-                                                            ]
-                                                        }}
-                                                    }}
-                                                }},
-                                            ]
-                                        }}
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "prami",
+                                                span = [28, 33]
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Argument = {
+                                                Descriptor = {
+                                                    relation = {Base = {
+                                                        Bare = {Bare = {
+                                                            kind = "gismu",
+                                                            phonemes = "mensi",
+                                                            span = [37, 42]
+                                                        }}
+                                                    }},
+                                                    tail_elements = [
+                                                        {Quantifier = {
+                                                            Number = {
+                                                                number = [
+                                                                    {Bare = {
+                                                                        Bare = {
+                                                                            kind = "cmavo",
+                                                                            phonemes = "re",
+                                                                            span = [34, 36]
+                                                                        }
+                                                                    }},
+                                                                ]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
+                                            }},
+                                        ]
+                                    }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

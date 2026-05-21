@@ -69,31 +69,36 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {ConnectedStatement = {
-                        connective = {Connective = {
+                {
+                    statement = {Connected = {
+                        connective = {
                             cmavo = [
                                 {Bare = {
-                                    kind = "cmavo",
-                                    phonemes = "je",
-                                    span = [12, 14]
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "je",
+                                        span = [12, 14]
+                                    }
                                 }},
-                            ]
-                        }},
+                            ],
+                            kind = "Relation"
+                        },
                         i = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [11, 12]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "i",
+                                span = [11, 12]
+                            }
                         }},
-                        leading_statement = {StatementPredicate = {
-                            predicate = {Predicate = {
-                                leading_terms = [
-                                    {ArgumentTerm = {
-                                        argument = {LetterArgument = {
-                                            letter = [
-                                                {Letter = {
+                        leading_statement = {Predicate = {
+                            leading_terms = [
+                                {Argument = {
+                                    Letter = {
+                                        letter = [
+                                            {Bare = {
+                                                Letter = {
                                                     base = {Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "a",
@@ -104,72 +109,76 @@ parse-tree = {
                                                         phonemes = "bu",
                                                         span = [1, 3]
                                                     }
-                                                }},
-                                            ]
-                                        }}
-                                    }},
-                                ],
-                                predicate_tail = {PredicateTail = {
-                                    first = {PredicateTail1 = {
-                                        first = {PredicateTail2 = {
-                                            first = {RelationPredicateTail3 = {
-                                                relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "du",
-                                                        span = [4, 6]
-                                                    }}
-                                                }},
-                                                terms = [
-                                                    {ArgumentTerm = {
-                                                        argument = {LetterArgument = {
-                                                            letter = [
-                                                                {Bare = {
+                                                }
+                                            }},
+                                        ]
+                                    }
+                                }},
+                            ],
+                            predicate_tail = {
+                                first = {
+                                    first = {
+                                        first = {Relation = {
+                                            relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "du",
+                                                    span = [4, 6]
+                                                }}
+                                            }},
+                                            terms = [
+                                                {Argument = {
+                                                    Letter = {
+                                                        letter = [
+                                                            {Bare = {
+                                                                Bare = {
                                                                     kind = "cmavo",
                                                                     phonemes = "ny",
                                                                     span = [7, 9]
-                                                                }},
-                                                            ]
-                                                        }}
-                                                    }},
-                                                ]
-                                            }}
-                                        }}
-                                    }}
-                                }}
-                            }}
-                        }},
-                        trailing_statement = {StatementPredicate = {
-                            predicate = {Predicate = {
-                                leading_terms = [
-                                    {ArgumentTerm = {
-                                        argument = {LetterArgument = {
-                                            letter = [
-                                                {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "by",
-                                                    span = [15, 17]
+                                                                }
+                                                            }},
+                                                        ]
+                                                    }
                                                 }},
                                             ]
                                         }}
-                                    }},
-                                ],
-                                predicate_tail = {PredicateTail = {
-                                    first = {PredicateTail1 = {
-                                        first = {PredicateTail2 = {
-                                            first = {RelationPredicateTail3 = {
-                                                relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "du",
-                                                        span = [18, 20]
-                                                    }}
-                                                }},
-                                                terms = [
-                                                    {ArgumentTerm = {
-                                                        argument = {LetterArgument = {
-                                                            letter = [
-                                                                {Letter = {
+                                    }
+                                }
+                            }
+                        }},
+                        trailing_statement = {Predicate = {
+                            leading_terms = [
+                                {Argument = {
+                                    Letter = {
+                                        letter = [
+                                            {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "by",
+                                                    span = [15, 17]
+                                                }
+                                            }},
+                                        ]
+                                    }
+                                }},
+                            ],
+                            predicate_tail = {
+                                first = {
+                                    first = {
+                                        first = {Relation = {
+                                            relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "du",
+                                                    span = [18, 20]
+                                                }}
+                                            }},
+                                            terms = [
+                                                {Argument = {
+                                                    Letter = {
+                                                        letter = [
+                                                            {Bare = {
+                                                                Letter = {
                                                                     base = {Bare = {
                                                                         kind = "cmavo",
                                                                         phonemes = "o",
@@ -180,20 +189,20 @@ parse-tree = {
                                                                         phonemes = "bu",
                                                                         span = [22, 24]
                                                                     }
-                                                                }},
-                                                            ]
-                                                        }}
-                                                    }},
-                                                ]
-                                            }}
+                                                                }
+                                                            }},
+                                                        ]
+                                                    }
+                                                }},
+                                            ]
                                         }}
-                                    }}
-                                }}
-                            }}
+                                    }
+                                }
+                            }
                         }}
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

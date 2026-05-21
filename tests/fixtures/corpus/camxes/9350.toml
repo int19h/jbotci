@@ -50,14 +50,16 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {WithIndicator = {
                         base = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [1, 2]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "i",
+                                span = [1, 2]
+                            }
                         }},
                         indicator = {
                             kind = "cmavo",
@@ -65,72 +67,76 @@ parse-tree = {
                             span = [3, 5]
                         }
                     }},
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {NaRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "gunka",
-                                                        span = [9, 14]
-                                                    }}
-                                                }},
-                                                na = {Bare = {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Na = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "gunka",
+                                                    span = [9, 14]
+                                                }}
+                                            }},
+                                            na = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "na",
                                                     span = [6, 8]
-                                                }}
-                                            }},
-                                            terms = [
-                                                {TaggedTerm = {
-                                                    argument = {DescriptorArgument = {
-                                                        descriptor = {Descriptor = {
-                                                            descriptor = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "le",
-                                                                span = [18, 20]
-                                                            }},
-                                                            relation = {BaseRelation = {
-                                                                word = {Bare = {
-                                                                    kind = "lujvo",
-                                                                    phonemes = "bavlamdeĭ",
-                                                                    span = [21, 30]
-                                                                }}
-                                                            }}
-                                                        }}
+                                                }
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Tagged = {
+                                                argument = {Descriptor = {
+                                                    descriptor = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "le",
+                                                            span = [18, 20]
+                                                        }
                                                     }},
-                                                    tense_modal = {TenseModal = {
-                                                        leaves = [
-                                                            {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "ca",
-                                                                span = [15, 17]
-                                                            }},
-                                                        ],
-                                                        time = {Time = {
-                                                            direction = [
-                                                                {Bare = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "ca",
-                                                                    span = [15, 17]
-                                                                }},
-                                                            ]
+                                                    relation = {Base = {
+                                                        Bare = {Bare = {
+                                                            kind = "lujvo",
+                                                            phonemes = "bavlamdeĭ",
+                                                            span = [21, 30]
                                                         }}
                                                     }}
                                                 }},
-                                            ]
-                                        }}
+                                                tense_modal = {Composite = {
+                                                    leaves = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "ca",
+                                                                span = [15, 17]
+                                                            }
+                                                        }},
+                                                    ],
+                                                    time = {
+                                                        direction = [
+                                                            {Bare = {
+                                                                Bare = {
+                                                                    kind = "cmavo",
+                                                                    phonemes = "ca",
+                                                                    span = [15, 17]
+                                                                }
+                                                            }},
+                                                        ]
+                                                    }
+                                                }}
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

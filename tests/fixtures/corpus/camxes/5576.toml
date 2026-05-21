@@ -30,28 +30,36 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {XiFree = {
-            math_expression = {NumberExpression = {
-                number = [
-                    {Bare = {
-                        kind = "cmavo",
-                        phonemes = "pa",
-                        span = [4, 6]
-                    }},
-                ]
+        {Xi = {
+            expression = {Number = {
+                Number = {
+                    number = [
+                        {Bare = {
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "pa",
+                                span = [4, 6]
+                            }
+                        }},
+                    ]
+                }
             }},
             xi = {Bare = {
-                kind = "cmavo",
-                phonemes = "xi",
-                span = [2, 4]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "xi",
+                    span = [2, 4]
+                }
             }}
         }},
     ],
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "ŭi",
-            span = [0, 2]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "ŭi",
+                span = [0, 2]
+            }
+        },
     ]
 }

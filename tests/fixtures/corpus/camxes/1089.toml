@@ -50,95 +50,105 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            cu = {Bare = {
+                {
+                    statement = {Predicate = {
+                        cu = {Bare = {
+                            Bare = {
                                 kind = "cmavo",
                                 phonemes = "cu",
                                 span = [11, 13]
-                            }},
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "le",
-                                                span = [0, 2]
-                                            }},
-                                            relation = {TenseModalRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "sfani",
-                                                        span = [5, 10]
-                                                    }}
+                            }
+                        }},
+                        leading_terms = [
+                            {Argument = {
+                                Descriptor = {
+                                    descriptor = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "le",
+                                            span = [0, 2]
+                                        }
+                                    }},
+                                    relation = {TenseModal = {
+                                        inner_relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "sfani",
+                                                span = [5, 10]
+                                            }}
+                                        }},
+                                        tense_modal = {Composite = {
+                                            leaves = [
+                                                {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "vi",
+                                                        span = [2, 4]
+                                                    }
                                                 }},
-                                                tense_modal = {TenseModal = {
-                                                    leaves = [
-                                                        {Bare = {
+                                            ],
+                                            space = {
+                                                distance = [
+                                                    {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "vi",
                                                             span = [2, 4]
-                                                        }},
-                                                    ],
-                                                    space = {Space = {
-                                                        distance = [
-                                                            {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "vi",
-                                                                span = [2, 4]
-                                                            }},
-                                                        ]
-                                                    }}
-                                                }}
-                                            }}
+                                                        }
+                                                    }},
+                                                ]
+                                            }
                                         }}
                                     }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "grake",
-                                                    span = [14, 19]
-                                                }}
-                                            }},
-                                            terms = [
-                                                {ArgumentTerm = {
-                                                    argument = {MathExpressionArgument = {
-                                                        li = {Bare = {
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "grake",
+                                                span = [14, 19]
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Argument = {
+                                                MathExpression = {
+                                                    expression = {Number = {
+                                                        Number = {
+                                                            number = [
+                                                                {Bare = {
+                                                                    Bare = {
+                                                                        kind = "cmavo",
+                                                                        phonemes = "ci",
+                                                                        span = [23, 25]
+                                                                    }
+                                                                }},
+                                                            ]
+                                                        }
+                                                    }},
+                                                    li = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "li",
                                                             span = [20, 22]
-                                                        }},
-                                                        math_expression = {NumberExpression = {
-                                                            number = [
-                                                                {Bare = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "ci",
-                                                                    span = [23, 25]
-                                                                }},
-                                                            ]
-                                                        }}
+                                                        }
                                                     }}
-                                                }},
-                                            ]
-                                        }}
+                                                }
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

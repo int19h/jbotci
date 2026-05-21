@@ -30,51 +30,44 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Tagged = {
+                                    argument = {Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [4, 6]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "glico",
-                                                    span = [7, 12]
-                                                }}
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "glico",
+                                                span = [7, 12]
                                             }}
                                         }}
                                     }},
-                                    tense_modal = {TenseModal = {
-                                        leaves = [
-                                            {Bare = {
+                                    tense_modal = {Simple = {
+                                        bai = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "baŭ",
                                                 span = [0, 3]
-                                            }},
-                                        ],
-                                        simple = {SimpleTenseModal = {
-                                            bai = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "baŭ",
-                                                span = [0, 3]
-                                            }}
+                                            }
                                         }}
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -30,44 +30,46 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {NaRelation = {
-                                                inner_relation = {SeRelation = {
-                                                    inner_relation = {BaseRelation = {
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "smuni",
-                                                            span = [6, 11]
-                                                        }}
-                                                    }},
-                                                    se = {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Na = {
+                                            inner_relation = {Se = {
+                                                inner_relation = {Base = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "smuni",
+                                                        span = [6, 11]
+                                                    }}
+                                                }},
+                                                se = {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "te",
                                                         span = [3, 5]
-                                                    }}
-                                                }},
-                                                na = {Bare = {
+                                                    }
+                                                }}
+                                            }},
+                                            na = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "na",
                                                     span = [0, 2]
-                                                }}
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

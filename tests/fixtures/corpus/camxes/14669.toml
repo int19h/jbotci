@@ -49,33 +49,43 @@ parse-tree = {
         },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "brode",
-                                                    span = [10, 15]
-                                                }}
+                                {Argument = {
+                                    Descriptor = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "brode",
+                                                span = [10, 15]
+                                            }}
+                                        }},
+                                        tail_elements = [
+                                            {Quantifier = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "no",
+                                                                span = [7, 9]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailQuantifier = {} },
-                                            ]
-                                        }}
-                                    }}
+                                        ]
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

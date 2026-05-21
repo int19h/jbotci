@@ -45,85 +45,91 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {ConnectedStatement = {
-                        connective = {Connective = {
+                {
+                    statement = {Connected = {
+                        connective = {
                             cmavo = [
                                 {Bare = {
-                                    kind = "cmavo",
-                                    phonemes = "je",
-                                    span = [9, 11]
-                                }},
-                            ]
-                        }},
-                        i = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [6, 7]
-                        }},
-                        leading_statement = {StatementPredicate = {
-                            predicate = {Predicate = {
-                                predicate_tail = {PredicateTail = {
-                                    first = {PredicateTail1 = {
-                                        first = {PredicateTail2 = {
-                                            first = {RelationPredicateTail3 = {
-                                                relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "broda",
-                                                        span = [0, 5]
-                                                    }}
-                                                }}
-                                            }}
-                                        }}
-                                    }}
-                                }}
-                            }}
-                        }},
-                        trailing_statement = {StatementPredicate = {
-                            predicate = {Predicate = {
-                                predicate_tail = {PredicateTail = {
-                                    first = {PredicateTail1 = {
-                                        first = {PredicateTail2 = {
-                                            first = {RelationPredicateTail3 = {
-                                                relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "broda",
-                                                        span = [12, 17]
-                                                    }}
-                                                }}
-                                            }}
-                                        }}
-                                    }}
-                                }}
-                            }}
-                        }}
-                    }}
-                }},
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {IjekFragment = {
-                            connective = {Connective = {
-                                cmavo = [
-                                    {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
-                                        phonemes = "ja",
-                                        span = [20, 22]
-                                    }},
-                                ]
-                            }},
-                            i = {Bare = {
+                                        phonemes = "je",
+                                        span = [9, 11]
+                                    }
+                                }},
+                            ],
+                            kind = "Relation"
+                        },
+                        i = {Bare = {
+                            Bare = {
                                 kind = "cmavo",
                                 phonemes = "i",
-                                span = [18, 19]
-                            }}
+                                span = [6, 7]
+                            }
+                        }},
+                        leading_statement = {Predicate = {
+                            predicate_tail = {
+                                first = {
+                                    first = {
+                                        first = {Relation = {
+                                            Base = {Bare = {
+                                                Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "broda",
+                                                    span = [0, 5]
+                                                }
+                                            }}
+                                        }}
+                                    }
+                                }
+                            }
+                        }},
+                        trailing_statement = {Predicate = {
+                            predicate_tail = {
+                                first = {
+                                    first = {
+                                        first = {Relation = {
+                                            Base = {Bare = {
+                                                Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "broda",
+                                                    span = [12, 17]
+                                                }
+                                            }}
+                                        }}
+                                    }
+                                }
+                            }
                         }}
                     }}
-                }},
+                },
+                {
+                    statement = {Fragment = {
+                        Ijek = {
+                            connective = {
+                                cmavo = [
+                                    {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "ja",
+                                            span = [20, 22]
+                                        }
+                                    }},
+                                ],
+                                kind = "Relation"
+                            },
+                            i = {Bare = {
+                                Bare = {
+                                    kind = "cmavo",
+                                    phonemes = "i",
+                                    span = [18, 19]
+                                }
+                            }}
+                        }
+                    }}
+                },
             ]
-        }},
+        },
     ]
 }

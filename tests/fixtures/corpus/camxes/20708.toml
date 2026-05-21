@@ -35,53 +35,69 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            relation = {CompoundRelation = {
-                                                relation_units = [
-                                                    {MeRelationUnit = {
-                                                        argument = {MathExpressionArgument = {
-                                                            li = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        relation = {Compound = [
+                                                {Me = {
+                                                    argument = {MathExpression = {
+                                                        expression = {Number = {
+                                                            Number = {
+                                                                number = [
+                                                                    {Bare = {
+                                                                        Bare = {
+                                                                            kind = "cmavo",
+                                                                            phonemes = "re",
+                                                                            span = [9, 11]
+                                                                        }
+                                                                    }},
+                                                                ]
+                                                            }
+                                                        }},
+                                                        li = {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "li",
                                                                 span = [6, 8]
-                                                            }},
-                                                            math_expression = {NumberExpression = {
-                                                                number = [
-                                                                    {Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "re",
-                                                                        span = [9, 11]
-                                                                    }},
-                                                                ]
-                                                            }}
-                                                        }},
-                                                        me = {Bare = {
+                                                            }
+                                                        }}
+                                                    }},
+                                                    me = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "me",
                                                             span = [3, 5]
-                                                        }}
-                                                    }},
-                                                ]
+                                                        }
+                                                    }}
+                                                }},
+                                            ] },
+                                        tail_elements = [
+                                            {Quantifier = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "re",
+                                                                span = [0, 2]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailQuantifier = {} },
-                                            ]
-                                        }}
-                                    }}
+                                        ]
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

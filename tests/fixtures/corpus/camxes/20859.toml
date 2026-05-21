@@ -25,33 +25,43 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "fagri",
-                                                    span = [5, 10]
-                                                }}
+                                {Argument = {
+                                    Descriptor = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "fagri",
+                                                span = [5, 10]
+                                            }}
+                                        }},
+                                        tail_elements = [
+                                            {Quantifier = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "du'e",
+                                                                span = [0, 4]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailQuantifier = {} },
-                                            ]
-                                        }}
-                                    }}
+                                        ]
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

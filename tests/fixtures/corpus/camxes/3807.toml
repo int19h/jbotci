@@ -30,44 +30,42 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "xu",
-            span = [0, 2]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "xu",
+                span = [0, 2]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Emphasized = {
-                                                    bahe = {
-                                                        kind = "cmavo",
-                                                        phonemes = "ba'e",
-                                                        span = [3, 7]
-                                                    },
-                                                    word_like = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "vamtu",
-                                                        span = [8, 13]
-                                                    }}
-                                                }}
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Emphasized = {
+                                            bahe = {
+                                                kind = "cmavo",
+                                                phonemes = "ba'e",
+                                                span = [3, 7]
+                                            },
+                                            word_like = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "vamtu",
+                                                span = [8, 13]
                                             }}
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

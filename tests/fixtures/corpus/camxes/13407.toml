@@ -30,40 +30,52 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            relation = {BaseRelation = {
-                                                word = {WithIndicator = {
-                                                    base = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        relation = {Base = {
+                                            WithIndicator = {
+                                                base = {Bare = {
+                                                    Bare = {
                                                         kind = "gismu",
                                                         phonemes = "viska",
                                                         span = [5, 10]
-                                                    }},
-                                                    indicator = {
-                                                        kind = "cmavo",
-                                                        phonemes = "po'o",
-                                                        span = [11, 15]
                                                     }
-                                                }}
+                                                }},
+                                                indicator = {
+                                                    kind = "cmavo",
+                                                    phonemes = "po'o",
+                                                    span = [11, 15]
+                                                }
+                                            }
+                                        }},
+                                        tail_elements = [
+                                            {Quantifier = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "so'u",
+                                                                span = [0, 4]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailQuantifier = {} },
-                                            ]
-                                        }}
-                                    }}
+                                        ]
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

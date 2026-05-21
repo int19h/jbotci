@@ -30,53 +30,57 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Tagged = {
+                                    argument = {Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [3, 5]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "lujvo",
-                                                    phonemes = "cabdeĭ",
-                                                    span = [6, 12]
-                                                }}
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "lujvo",
+                                                phonemes = "cabdeĭ",
+                                                span = [6, 12]
                                             }}
                                         }}
                                     }},
-                                    tense_modal = {TenseModal = {
+                                    tense_modal = {Composite = {
                                         leaves = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ca",
-                                                span = [0, 2]
-                                            }},
-                                        ],
-                                        time = {Time = {
-                                            direction = [
-                                                {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "ca",
                                                     span = [0, 2]
+                                                }
+                                            }},
+                                        ],
+                                        time = {
+                                            direction = [
+                                                {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "ca",
+                                                        span = [0, 2]
+                                                    }
                                                 }},
                                             ]
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

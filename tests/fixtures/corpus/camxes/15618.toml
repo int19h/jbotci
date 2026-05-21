@@ -30,50 +30,52 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "ĭi",
-            span = [1, 3]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "ĭi",
+                span = [1, 3]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "xebni",
-                                                    span = [4, 9]
-                                                }}
-                                            }},
-                                            terms = [
-                                                {ArgumentTerm = {
-                                                    argument = {LetterArgument = {
-                                                        letter = [
-                                                            {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "xebni",
+                                                span = [4, 9]
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Argument = {
+                                                Letter = {
+                                                    letter = [
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "my",
                                                                 span = [10, 12]
-                                                            }},
-                                                        ]
-                                                    }}
-                                                }},
-                                            ]
-                                        }}
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

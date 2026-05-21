@@ -30,10 +30,10 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            argument = {RelationVocativeArgument = {
-                relation = {BaseRelation = {
-                    word = {Bare = {
+        {Vocative = {
+            argument = {RelationVocative = {
+                relation = {Base = {
+                    Bare = {Bare = {
                         kind = "cmavo",
                         phonemes = "mo",
                         span = [4, 6]
@@ -42,33 +42,37 @@ parse-tree = {
             }},
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "coĭ",
-                    span = [0, 3]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "coĭ",
+                        span = [0, 3]
+                    }
                 }},
             ]
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {FaTerm = {
-                                    argument = {ZoheArgument = {} },
+                                {Fa = {
+                                    argument = {Zohe = {} },
                                     fa = {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "fo",
-                                        span = [6, 8]
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "fo",
+                                            span = [6, 8]
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

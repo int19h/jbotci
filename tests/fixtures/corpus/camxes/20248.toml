@@ -35,51 +35,55 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
+        {Vocative = {
             dohu = {Bare = {
-                kind = "cmavo",
-                phonemes = "do'u",
-                span = [8, 12]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "do'u",
+                    span = [8, 12]
+                }
             }},
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "re'i",
-                    span = [0, 4]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "re'i",
+                        span = [0, 4]
+                    }
                 }},
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "naĭ",
-                    span = [4, 7]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "naĭ",
+                        span = [4, 7]
+                    }
                 }},
             ]
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "lujvo",
-                                                    phonemes = "mijysaĭ",
-                                                    span = [13, 20]
-                                                }}
-                                            }}
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                kind = "lujvo",
+                                                phonemes = "mijysaĭ",
+                                                span = [13, 20]
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

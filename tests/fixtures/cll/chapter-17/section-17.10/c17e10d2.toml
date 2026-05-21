@@ -51,27 +51,24 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            cu = {Bare = {
+                {
+                    statement = {Predicate = {
+                        cu = {Bare = {
+                            Bare = {
                                 kind = "cmavo",
                                 phonemes = "cu",
                                 span = [10, 12]
-                            }},
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {MathExpressionArgument = {
-                                        li = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "me'o",
-                                            span = [0, 4]
-                                        }},
-                                        math_expression = {LetterExpression = {
-                                            letter = [
-                                                {Letter = {
+                            }
+                        }},
+                        leading_terms = [
+                            {Argument = {
+                                MathExpression = {
+                                    expression = {Letter = {
+                                        letter = [
+                                            {Bare = {
+                                                Letter = {
                                                     base = {Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "a",
@@ -82,31 +79,38 @@ parse-tree = {
                                                         phonemes = "bu",
                                                         span = [7, 9]
                                                     }
-                                                }},
-                                            ]
+                                                }
+                                            }},
+                                        ]
+                                    }},
+                                    li = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "me'o",
+                                            span = [0, 4]
+                                        }
+                                    }}
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                kind = "gismu",
+                                                phonemes = "lerfu",
+                                                span = [13, 18]
+                                            }
                                         }}
                                     }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "lerfu",
-                                                    span = [13, 18]
-                                                }}
-                                            }}
-                                        }}
-                                    }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

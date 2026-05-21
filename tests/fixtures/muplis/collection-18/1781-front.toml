@@ -46,69 +46,77 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {TaggedTerm = {
-                                    argument = {ZoheArgument = {
-                                        maybe_ku = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Tagged = {
+                                argument = {Zohe = {
+                                    maybe_ku = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "ku",
                                             span = [5, 7]
-                                        }}
-                                    }},
-                                    tense_modal = {TenseModal = {
-                                        leaves = [
-                                            {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ze'u",
-                                                span = [0, 4]
-                                            }},
-                                        ],
-                                        time = {Time = {
-                                            interval = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ze'u",
-                                                span = [0, 4]
-                                            }}
-                                        }}
+                                        }
                                     }}
                                 }},
-                                {NaKuTerm = {
-                                    na = {Bare = {
+                                tense_modal = {Composite = {
+                                    leaves = [
+                                        {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "ze'u",
+                                                span = [0, 4]
+                                            }
+                                        }},
+                                    ],
+                                    time = {
+                                        interval = {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "ze'u",
+                                                span = [0, 4]
+                                            }
+                                        }}
+                                    }
+                                }}
+                            }},
+                            {NaKu = {
+                                na = {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "na",
                                         span = [8, 10]
-                                    }},
-                                    na_ku = {Bare = {
+                                    }
+                                }},
+                                na_ku = {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "ku",
                                         span = [11, 13]
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "penmi",
-                                                    span = [14, 19]
-                                                }}
-                                            }}
+                                    }
+                                }}
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                kind = "gismu",
+                                                phonemes = "penmi",
+                                                span = [14, 19]
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -45,67 +45,70 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {ConnectedRelation = {
-                                                connective = {Connective = {
-                                                    cmavo = [
-                                                        {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Connected = {
+                                            connective = {
+                                                cmavo = [
+                                                    {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "ju",
                                                             span = [9, 11]
-                                                        }},
-                                                    ]
-                                                }},
-                                                leading_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "lujvo",
-                                                        phonemes = "nalzasti",
-                                                        span = [0, 8]
-                                                    }}
-                                                }},
-                                                trailing_relation = {BaseRelation = {
-                                                    word = {WithIndicator = {
-                                                        base = {WithIndicator = {
-                                                            base = {Bare = {
+                                                        }
+                                                    }},
+                                                ],
+                                                kind = "Relation"
+                                            },
+                                            leading_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "lujvo",
+                                                    phonemes = "nalzasti",
+                                                    span = [0, 8]
+                                                }}
+                                            }},
+                                            trailing_relation = {Base = {
+                                                WithIndicator = {
+                                                    base = {WithIndicator = {
+                                                        base = {Bare = {
+                                                            Bare = {
                                                                 kind = "gismu",
                                                                 phonemes = "nupre",
                                                                 span = [12, 17]
-                                                            }},
-                                                            indicator = {
-                                                                kind = "cmavo",
-                                                                phonemes = "oĭ",
-                                                                span = [19, 21]
-                                                            },
-                                                            nai = {
-                                                                kind = "cmavo",
-                                                                phonemes = "naĭ",
-                                                                span = [21, 24]
                                                             }
                                                         }},
                                                         indicator = {
                                                             kind = "cmavo",
-                                                            phonemes = "o'o",
-                                                            span = [26, 29]
+                                                            phonemes = "oĭ",
+                                                            span = [19, 21]
+                                                        },
+                                                        nai = {
+                                                            kind = "cmavo",
+                                                            phonemes = "naĭ",
+                                                            span = [21, 24]
                                                         }
-                                                    }}
-                                                }}
+                                                    }},
+                                                    indicator = {
+                                                        kind = "cmavo",
+                                                        phonemes = "o'o",
+                                                        span = [26, 29]
+                                                    }
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

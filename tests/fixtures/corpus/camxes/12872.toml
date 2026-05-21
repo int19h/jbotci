@@ -25,34 +25,38 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {NameArgument = {
+                                {Argument = {
+                                    Name = {
                                         la = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "la",
-                                            span = [3, 5]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "la",
+                                                span = [3, 5]
+                                            }
                                         }},
                                         names = [
                                             {Bare = {
-                                                kind = "cmevla",
-                                                phonemes = "oŭebe'osting",
-                                                span = [6, 18]
+                                                Bare = {
+                                                    kind = "cmevla",
+                                                    phonemes = "oŭebe'osting",
+                                                    span = [6, 18]
+                                                }
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

@@ -30,36 +30,62 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            relation = {AbstractionRelation = {
-                                                abstraction = {Abstraction = {
-                                                    nu = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "ni",
-                                                        span = [5, 7]
-                                                    }},
-                                                    subsentence = {PlainSubsentence = {} }
-                                                }}
+                                {Argument = {
+                                    Descriptor = {
+                                        relation = {Abstraction = {
+                                            nu = {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ni",
+                                                    span = [5, 7]
+                                                }
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailQuantifier = {} },
-                                            ]
-                                        }}
-                                    }}
+                                            subsentence = {Plain = {
+                                                predicate_tail = {
+                                                    first = {
+                                                        first = {
+                                                            first = {Relation = {
+                                                                Base = {Bare = {
+                                                                    Bare = {
+                                                                        kind = "gismu",
+                                                                        phonemes = "sipna",
+                                                                        span = [8, 13]
+                                                                    }
+                                                                }}
+                                                            }}
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                        }},
+                                        tail_elements = [
+                                            {Quantifier = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "ji'i",
+                                                                span = [0, 4]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
+                                            }},
+                                        ]
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

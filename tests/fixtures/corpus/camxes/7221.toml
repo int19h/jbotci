@@ -45,69 +45,71 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "ku'i",
-            span = [0, 4]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "ku'i",
+                span = [0, 4]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            cu = {Bare = {
+                {
+                    statement = {Predicate = {
+                        cu = {Bare = {
+                            Bare = {
                                 kind = "cmavo",
                                 phonemes = "cu",
                                 span = [14, 16]
+                            }
+                        }},
+                        leading_terms = [
+                            {Argument = {
+                                Descriptor = {
+                                    descriptor = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "le",
+                                            span = [5, 7]
+                                        }
+                                    }},
+                                    relation = {Base = {
+                                        Bare = {Bare = {
+                                            kind = "gismu",
+                                            phonemes = "rinka",
+                                            span = [8, 13]
+                                        }}
+                                    }}
+                                }
                             }},
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "le",
-                                                span = [5, 7]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {WithIndicator = {
+                                            base = {Bare = {
+                                                Bare = {
                                                     kind = "gismu",
-                                                    phonemes = "rinka",
-                                                    span = [8, 13]
-                                                }}
-                                            }}
+                                                    phonemes = "purci",
+                                                    span = [17, 22]
+                                                }
+                                            }},
+                                            indicator = {
+                                                kind = "cmavo",
+                                                phonemes = "caĭ",
+                                                span = [23, 26]
+                                            }
                                         }}
                                     }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {WithIndicator = {
-                                                    base = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "purci",
-                                                        span = [17, 22]
-                                                    }},
-                                                    indicator = {
-                                                        kind = "cmavo",
-                                                        phonemes = "caĭ",
-                                                        span = [23, 26]
-                                                    }
-                                                }}
-                                            }}
-                                        }}
-                                    }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

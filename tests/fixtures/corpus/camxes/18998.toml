@@ -30,42 +30,44 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             niho = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "ni'o",
-                    span = [0, 4]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "ni'o",
+                        span = [0, 4]
+                    }
                 }},
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "ni'o",
-                    span = [4, 8]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "ni'o",
+                        span = [4, 8]
+                    }
                 }},
             ],
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "denpa",
-                                                    span = [9, 14]
-                                                }}
-                                            }}
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                kind = "gismu",
+                                                phonemes = "denpa",
+                                                span = [9, 14]
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

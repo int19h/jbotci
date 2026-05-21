@@ -45,48 +45,104 @@ words = [
 status = "failure"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "xu",
-            span = [3, 5]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "xu",
+                span = [3, 5]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {RelativeClauseArgument = {
-                                        base_argument = {LetterArgument = {
+                                {Argument = {
+                                    RelativeClause = {
+                                        base_argument = {Letter = {
                                             letter = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "cy",
-                                                    span = [6, 8]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "cy",
+                                                        span = [6, 8]
+                                                    }
                                                 }},
                                             ]
                                         }},
                                         relative_clauses = [
-                                            {NoiRelativeClause = {
+                                            {Noi = {
                                                 noi = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "noĭ",
-                                                    span = [9, 12]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "noĭ",
+                                                        span = [9, 12]
+                                                    }
                                                 }},
-                                                subsentence = {PlainSubsentence = {} }
+                                                subsentence = {Plain = {
+                                                    predicate_tail = {
+                                                        first = {
+                                                            first = {
+                                                                first = {Relation = {
+                                                                    TenseModal = {
+                                                                        inner_relation = {Base = {
+                                                                            Bare = {Bare = {
+                                                                                kind = "lujvo",
+                                                                                phonemes = "vizyzva",
+                                                                                span = [23, 30]
+                                                                            }}
+                                                                        }},
+                                                                        tense_modal = {Composite = {
+                                                                            caha = {WithIndicator = {
+                                                                                base = {Bare = {
+                                                                                    Bare = {
+                                                                                        kind = "cmavo",
+                                                                                        phonemes = "ka'e",
+                                                                                        span = [13, 17]
+                                                                                    }
+                                                                                }},
+                                                                                indicator = {
+                                                                                    kind = "cmavo",
+                                                                                    phonemes = "li'o",
+                                                                                    span = [18, 22]
+                                                                                }
+                                                                            }},
+                                                                            leaves = [
+                                                                                {WithIndicator = {
+                                                                                    base = {Bare = {
+                                                                                        Bare = {
+                                                                                            kind = "cmavo",
+                                                                                            phonemes = "ka'e",
+                                                                                            span = [13, 17]
+                                                                                        }
+                                                                                    }},
+                                                                                    indicator = {
+                                                                                        kind = "cmavo",
+                                                                                        phonemes = "li'o",
+                                                                                        span = [18, 22]
+                                                                                    }
+                                                                                }},
+                                                                            ]
+                                                                        }}
+                                                                    }
+                                                                }}
+                                                            }
+                                                        }
+                                                    }
+                                                }}
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

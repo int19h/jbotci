@@ -30,51 +30,59 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {NameArgument = {
+                                {Tagged = {
+                                    argument = {Name = {
                                         la = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "la",
-                                            span = [24, 26]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "la",
+                                                span = [24, 26]
+                                            }
                                         }},
                                         names = [
                                             {Bare = {
-                                                kind = "cmevla",
-                                                phonemes = "bolingbruk",
-                                                span = [27, 37]
+                                                Bare = {
+                                                    kind = "cmevla",
+                                                    phonemes = "bolingbruk",
+                                                    span = [27, 37]
+                                                }
                                             }},
                                         ]
                                     }},
-                                    tense_modal = {TenseModal = {
+                                    tense_modal = {Composite = {
                                         leaves = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ne'i",
-                                                span = [19, 23]
-                                            }},
-                                        ],
-                                        space = {Space = {
-                                            direction = [
-                                                {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "ne'i",
                                                     span = [19, 23]
+                                                }
+                                            }},
+                                        ],
+                                        space = {
+                                            direction = [
+                                                {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "ne'i",
+                                                        span = [19, 23]
+                                                    }
                                                 }},
                                             ]
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

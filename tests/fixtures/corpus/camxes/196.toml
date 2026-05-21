@@ -57,68 +57,68 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [0, 2]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {ZeiLujvo = {
-                                                    left = {Letter = {
-                                                        base = {ZoiQuote = {
-                                                            closing_delimiter = {
-                                                                kind = "cmavo",
-                                                                phonemes = "i",
-                                                                span = [19, 20]
-                                                            },
-                                                            opening_delimiter = {
-                                                                kind = "cmavo",
-                                                                phonemes = "i",
-                                                                span = [7, 8]
-                                                            },
-                                                            quoted_text = [8, 18],
-                                                            zoi = {
-                                                                kind = "cmavo",
-                                                                phonemes = "zoĭ",
-                                                                span = [3, 6]
-                                                            }
-                                                        }},
-                                                        bu = {
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            Bare = {ZeiLujvo = {
+                                                left = {Letter = {
+                                                    base = {ZoiQuote = {
+                                                        closing_delimiter = {
                                                             kind = "cmavo",
-                                                            phonemes = "bu",
-                                                            span = [20, 22]
+                                                            phonemes = "i",
+                                                            span = [19, 20]
+                                                        },
+                                                        opening_delimiter = {
+                                                            kind = "cmavo",
+                                                            phonemes = "i",
+                                                            span = [7, 8]
+                                                        },
+                                                        quoted_text = [8, 18],
+                                                        zoi = {
+                                                            kind = "cmavo",
+                                                            phonemes = "zoĭ",
+                                                            span = [3, 6]
                                                         }
                                                     }},
-                                                    right = {
-                                                        kind = "lujvo",
-                                                        phonemes = "samselpla",
-                                                        span = [27, 36]
-                                                    },
-                                                    zei = {
+                                                    bu = {
                                                         kind = "cmavo",
-                                                        phonemes = "zeĭ",
-                                                        span = [23, 26]
+                                                        phonemes = "bu",
+                                                        span = [20, 22]
                                                     }
-                                                }}
+                                                }},
+                                                right = {
+                                                    kind = "lujvo",
+                                                    phonemes = "samselpla",
+                                                    span = [27, 36]
+                                                },
+                                                zei = {
+                                                    kind = "cmavo",
+                                                    phonemes = "zeĭ",
+                                                    span = [23, 26]
+                                                }
                                             }}
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

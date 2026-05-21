@@ -45,14 +45,16 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {WithIndicator = {
                         base = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [0, 1]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "i",
+                                span = [0, 1]
+                            }
                         }},
                         indicator = {
                             kind = "cmavo",
@@ -65,41 +67,43 @@ parse-tree = {
                             span = [5, 8]
                         }
                     }},
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {SeRelation = {
-                                                inner_relation = {SeRelation = {
-                                                    inner_relation = {BaseRelation = {
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "klama",
-                                                            span = [13, 18]
-                                                        }}
-                                                    }},
-                                                    se = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "te",
-                                                        span = [10, 12]
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Se = {
+                                            inner_relation = {Se = {
+                                                inner_relation = {Base = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "klama",
+                                                        span = [13, 18]
                                                     }}
                                                 }},
                                                 se = {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "te",
+                                                        span = [10, 12]
+                                                    }
+                                                }}
+                                            }},
+                                            se = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "ve",
                                                     span = [8, 10]
-                                                }}
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

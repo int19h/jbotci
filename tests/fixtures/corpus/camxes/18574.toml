@@ -35,15 +35,17 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {WithIndicator = {
                         base = {WithIndicator = {
                             base = {Bare = {
-                                kind = "cmavo",
-                                phonemes = "i",
-                                span = [1, 2]
+                                Bare = {
+                                    kind = "cmavo",
+                                    phonemes = "i",
+                                    span = [1, 2]
+                                }
                             }},
                             indicator = {
                                 kind = "cmavo",
@@ -57,27 +59,25 @@ parse-tree = {
                             span = [8, 10]
                         }
                     }},
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "fagri",
-                                                    span = [11, 16]
-                                                }}
-                                            }}
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                kind = "gismu",
+                                                phonemes = "fagri",
+                                                span = [11, 16]
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

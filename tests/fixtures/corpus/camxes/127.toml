@@ -94,21 +94,23 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            cu = {Bare = {
+                {
+                    statement = {Predicate = {
+                        cu = {Bare = {
+                            Bare = {
                                 kind = "cmavo",
                                 phonemes = "cu",
                                 span = [36, 38]
-                            }},
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {LetterArgument = {
-                                        letter = [
-                                            {Letter = {
+                            }
+                        }},
+                        leading_terms = [
+                            {Argument = {
+                                Letter = {
+                                    letter = [
+                                        {Bare = {
+                                            Letter = {
                                                 base = {ZeiLujvo = {
                                                     left = {Letter = {
                                                         base = {ZeiLujvo = {
@@ -176,30 +178,30 @@ parse-tree = {
                                                     phonemes = "bu",
                                                     span = [33, 35]
                                                 }
-                                            }},
-                                        ]
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "broda",
-                                                    span = [39, 44]
-                                                }}
-                                            }}
+                                            }
+                                        }},
+                                    ]
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                kind = "gismu",
+                                                phonemes = "broda",
+                                                span = [39, 44]
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

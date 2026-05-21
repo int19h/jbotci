@@ -41,28 +41,25 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {WithIndicator = {
-            base = {Bare = {
+        {
+            indicator = {
                 kind = "cmavo",
                 phonemes = "be'u",
                 span = [0, 4]
-            }},
-            indicator = {
-                kind = "cmavo",
-                phonemes = "cu'i",
-                span = [5, 9]
             }
-        }},
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {WithIndicator = {
                         base = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [10, 11]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "i",
+                                span = [10, 11]
+                            }
                         }},
                         indicator = {
                             kind = "cmavo",
@@ -70,8 +67,8 @@ parse-tree = {
                             span = [12, 15]
                         }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

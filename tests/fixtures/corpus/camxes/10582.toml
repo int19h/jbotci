@@ -35,48 +35,52 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {FaTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Fa = {
+                                    argument = {Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [6, 8]
+                                            }
+                                        }},
+                                        relation = {Se = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "go'i",
+                                                    span = [12, 16]
+                                                }}
                                             }},
-                                            relation = {SeRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "go'i",
-                                                        span = [12, 16]
-                                                    }}
-                                                }},
-                                                se = {Bare = {
+                                            se = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "se",
                                                     span = [9, 11]
-                                                }}
+                                                }
                                             }}
                                         }}
                                     }},
                                     fa = {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "fa",
-                                        span = [3, 5]
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "fa",
+                                            span = [3, 5]
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

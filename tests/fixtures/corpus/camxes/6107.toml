@@ -45,90 +45,97 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {ConnectedStatement = {
-                        connective = {Connective = {
+                {
+                    statement = {Connected = {
+                        connective = {
                             cmavo = [
                                 {Bare = {
-                                    kind = "cmavo",
-                                    phonemes = "jo",
-                                    span = [11, 13]
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "jo",
+                                        span = [11, 13]
+                                    }
                                 }},
-                            ]
-                        }},
+                            ],
+                            kind = "Relation"
+                        },
                         i = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [10, 11]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "i",
+                                span = [10, 11]
+                            }
                         }},
-                        leading_statement = {StatementPredicate = {
-                            predicate = {Predicate = {
-                                predicate_tail = {PredicateTail = {
-                                    first = {PredicateTail1 = {
-                                        first = {PredicateTail2 = {
-                                            first = {RelationPredicateTail3 = {
-                                                relation = {NaRelation = {
-                                                    inner_relation = {BaseRelation = {
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "kukte",
-                                                            span = [3, 8]
-                                                        }}
-                                                    }},
-                                                    na = {Bare = {
+                        leading_statement = {Predicate = {
+                            predicate_tail = {
+                                first = {
+                                    first = {
+                                        first = {Relation = {
+                                            Na = {
+                                                inner_relation = {Base = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "kukte",
+                                                        span = [3, 8]
+                                                    }}
+                                                }},
+                                                na = {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "na",
                                                         span = [0, 2]
-                                                    }}
+                                                    }
                                                 }}
-                                            }}
+                                            }
                                         }}
-                                    }}
-                                }}
-                            }}
+                                    }
+                                }
+                            }
                         }},
-                        trailing_statement = {StatementPredicate = {
-                            predicate = {Predicate = {
-                                predicate_tail = {PredicateTail = {
-                                    first = {PredicateTail1 = {
-                                        first = {PredicateTail2 = {
-                                            first = {RelationPredicateTail3 = {
-                                                relation = {TenseModalRelation = {
-                                                    inner_relation = {BaseRelation = {
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "jukpa",
-                                                            span = [19, 24]
-                                                        }}
-                                                    }},
-                                                    tense_modal = {TenseModal = {
-                                                        leaves = [
-                                                            {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "za'o",
-                                                                span = [14, 18]
-                                                            }},
-                                                        ],
-                                                        zaho = [
-                                                            {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "za'o",
-                                                                span = [14, 18]
-                                                            }},
-                                                        ]
+                        trailing_statement = {Predicate = {
+                            predicate_tail = {
+                                first = {
+                                    first = {
+                                        first = {Relation = {
+                                            TenseModal = {
+                                                inner_relation = {Base = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "jukpa",
+                                                        span = [19, 24]
                                                     }}
+                                                }},
+                                                tense_modal = {Composite = {
+                                                    leaves = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "za'o",
+                                                                span = [14, 18]
+                                                            }
+                                                        }},
+                                                    ],
+                                                    zaho = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "za'o",
+                                                                span = [14, 18]
+                                                            }
+                                                        }},
+                                                    ]
                                                 }}
-                                            }}
+                                            }
                                         }}
-                                    }}
-                                }}
-                            }}
+                                    }
+                                }
+                            }
                         }}
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

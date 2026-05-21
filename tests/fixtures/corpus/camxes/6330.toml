@@ -30,48 +30,50 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "gunka",
-                                                    span = [0, 5]
-                                                }}
-                                            }}
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                kind = "gismu",
+                                                phonemes = "gunka",
+                                                span = [0, 5]
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
-                {ParagraphStatement = {
+                },
+                {
                     free_modifiers = [
-                        {VocativeFree = {
+                        {Vocative = {
                             vocative_markers = [
                                 {Bare = {
-                                    kind = "cmavo",
-                                    phonemes = "co'o",
-                                    span = [9, 13]
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "co'o",
+                                        span = [9, 13]
+                                    }
                                 }},
                             ]
                         }},
                     ],
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [7, 8]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [7, 8]
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

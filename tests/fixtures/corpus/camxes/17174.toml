@@ -35,48 +35,52 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {FaTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Fa = {
+                                    argument = {Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [6, 8]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {WithIndicator = {
-                                                    base = {Bare = {
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            WithIndicator = {
+                                                base = {Bare = {
+                                                    Bare = {
                                                         kind = "gismu",
                                                         phonemes = "lojbo",
                                                         span = [9, 14]
-                                                    }},
-                                                    indicator = {
-                                                        kind = "cmavo",
-                                                        phonemes = "li'o",
-                                                        span = [15, 19]
                                                     }
-                                                }}
-                                            }}
+                                                }},
+                                                indicator = {
+                                                    kind = "cmavo",
+                                                    phonemes = "li'o",
+                                                    span = [15, 19]
+                                                }
+                                            }
                                         }}
                                     }},
                                     fa = {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "fo",
-                                        span = [3, 5]
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "fo",
+                                            span = [3, 5]
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

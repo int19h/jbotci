@@ -58,22 +58,24 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {LetterArgument = {
+                                {Argument = {
+                                    Letter = {
                                         letter = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ky",
-                                                span = [0, 2]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ky",
+                                                    span = [0, 2]
+                                                }
                                             }},
-                                            [
-                                                {Letter = {
+                                            {Bare = {
+                                                Letter = {
                                                     base = {Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "o",
@@ -84,13 +86,17 @@ parse-tree = {
                                                         phonemes = "bu",
                                                         span = [6, 8]
                                                     }
-                                                }},
-                                                {Bare = {
+                                                }
+                                            }},
+                                            {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "y'y",
                                                     span = [10, 13]
-                                                }},
-                                                {Letter = {
+                                                }
+                                            }},
+                                            {Bare = {
+                                                Letter = {
                                                     base = {Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "a",
@@ -101,16 +107,16 @@ parse-tree = {
                                                         phonemes = "bu",
                                                         span = [17, 19]
                                                     }
-                                                }},
-                                            ],
+                                                }
+                                            }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

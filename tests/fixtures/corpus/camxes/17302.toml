@@ -31,52 +31,62 @@ status = "success"
 parse-tree = {
     leading_cmevla = [
         {Bare = {
-            kind = "cmevla",
-            phonemes = "ánd",
-            span = [0, 3]
+            Bare = {
+                kind = "cmevla",
+                phonemes = "ánd",
+                span = [0, 3]
+            }
         }},
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {ZoheArgument = {} },
-                                    tense_modal = {TenseModal = {
+                                {Tagged = {
+                                    argument = {Zohe = {} },
+                                    tense_modal = {Composite = {
                                         caha = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "ka'e",
-                                            span = [8, 12]
-                                        }},
-                                        leaves = [
-                                            {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "to'e",
-                                                span = [4, 8]
-                                            }},
-                                            {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "ka'e",
                                                 span = [8, 12]
+                                            }
+                                        }},
+                                        leaves = [
+                                            {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "to'e",
+                                                    span = [4, 8]
+                                                }
+                                            }},
+                                            {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ka'e",
+                                                    span = [8, 12]
+                                                }
                                             }},
                                         ],
-                                        simple = {SimpleTenseModal = {
+                                        simple = {
                                             nahe = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "to'e",
-                                                span = [4, 8]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "to'e",
+                                                    span = [4, 8]
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

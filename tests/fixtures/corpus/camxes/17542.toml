@@ -30,38 +30,54 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [0, 2]
+                                            }
+                                        }},
+                                        relation = {Abstraction = {
+                                            nu = {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "si'o",
+                                                    span = [2, 6]
+                                                }
                                             }},
-                                            relation = {AbstractionRelation = {
-                                                abstraction = {Abstraction = {
-                                                    nu = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "si'o",
-                                                        span = [2, 6]
-                                                    }},
-                                                    subsentence = {PlainSubsentence = {} }
-                                                }}
+                                            subsentence = {Plain = {
+                                                predicate_tail = {
+                                                    first = {
+                                                        first = {
+                                                            first = {Relation = {
+                                                                Base = {Bare = {
+                                                                    Bare = {
+                                                                        kind = "gismu",
+                                                                        phonemes = "jamna",
+                                                                        span = [7, 12]
+                                                                    }
+                                                                }}
+                                                            }}
+                                                        }
+                                                    }
+                                                }
                                             }}
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

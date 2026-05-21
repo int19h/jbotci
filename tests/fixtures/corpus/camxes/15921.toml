@@ -30,51 +30,55 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Tagged = {
+                                    argument = {Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [3, 5]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "lujvo",
-                                                    phonemes = "purlamjeftu",
-                                                    span = [6, 17]
-                                                }}
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "lujvo",
+                                                phonemes = "purlamjeftu",
+                                                span = [6, 17]
                                             }}
                                         }}
                                     }},
-                                    tense_modal = {TenseModal = {
+                                    tense_modal = {Composite = {
                                         leaves = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "za",
-                                                span = [0, 2]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "za",
+                                                    span = [0, 2]
+                                                }
                                             }},
                                         ],
-                                        time = {Time = {
+                                        time = {
                                             distance = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "za",
-                                                span = [0, 2]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "za",
+                                                    span = [0, 2]
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -30,44 +30,44 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "ŭo",
-            span = [0, 2]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "ŭo",
+                span = [0, 2]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {WithIndicator = {
-                                                    base = {Bare = {
-                                                        kind = "lujvo",
-                                                        phonemes = "mumdeĭ",
-                                                        span = [3, 9]
-                                                    }},
-                                                    indicator = {
-                                                        kind = "cmavo",
-                                                        phonemes = "ŭi",
-                                                        span = [10, 12]
-                                                    }
-                                                }}
-                                            }}
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {WithIndicator = {
+                                            base = {Bare = {
+                                                Bare = {
+                                                    kind = "lujvo",
+                                                    phonemes = "mumdeĭ",
+                                                    span = [3, 9]
+                                                }
+                                            }},
+                                            indicator = {
+                                                kind = "cmavo",
+                                                phonemes = "ŭi",
+                                                span = [10, 12]
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -45,47 +45,57 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "ru'a",
-            span = [0, 4]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "ru'a",
+                span = [0, 4]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {MathExpressionArgument = {
-                                        li = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "li",
-                                            span = [5, 7]
+                                {Argument = {
+                                    MathExpression = {
+                                        expression = {Number = {
+                                            Number = {
+                                                number = [
+                                                    {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "xa",
+                                                            span = [8, 10]
+                                                        }
+                                                    }},
+                                                ]
+                                            }
                                         }},
-                                        math_expression = {NumberExpression = {
-                                            number = [
-                                                {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "xa",
-                                                    span = [8, 10]
-                                                }},
-                                            ]
+                                        li = {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "li",
+                                                span = [5, 7]
+                                            }
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
-                {ParagraphStatement = {
+                },
+                {
                     i = {WithIndicator = {
                         base = {Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [12, 13]
+                            Bare = {
+                                kind = "cmavo",
+                                phonemes = "i",
+                                span = [12, 13]
+                            }
                         }},
                         indicator = {
                             kind = "cmavo",
@@ -93,27 +103,25 @@ parse-tree = {
                             span = [14, 16]
                         }
                     }},
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "cerni",
-                                                    span = [17, 22]
-                                                }}
-                                            }}
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                kind = "gismu",
+                                                phonemes = "cerni",
+                                                span = [17, 22]
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

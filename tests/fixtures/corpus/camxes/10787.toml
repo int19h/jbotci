@@ -30,10 +30,10 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            argument = {RelationVocativeArgument = {
-                relation = {BaseRelation = {
-                    word = {Bare = {
+        {Vocative = {
+            argument = {RelationVocative = {
+                relation = {Base = {
+                    Bare = {Bare = {
                         kind = "gismu",
                         phonemes = "srisa",
                         span = [7, 12]
@@ -43,9 +43,11 @@ parse-tree = {
             vocative_markers = [
                 {WithIndicator = {
                     base = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "coĭ",
-                        span = [0, 3]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "coĭ",
+                            span = [0, 3]
+                        }
                     }},
                     indicator = {
                         kind = "cmavo",

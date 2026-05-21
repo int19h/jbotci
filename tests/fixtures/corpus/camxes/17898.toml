@@ -50,71 +50,82 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [1, 2]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [1, 2]
+                        }
                     }},
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            relation = {BaseRelation = {
-                                                word = {WithIndicator = {
-                                                    base = {Bare = {
+                                {Tagged = {
+                                    argument = {Descriptor = {
+                                        relation = {Base = {
+                                            WithIndicator = {
+                                                base = {Bare = {
+                                                    Bare = {
                                                         kind = "lujvo",
                                                         phonemes = "jetka'u",
                                                         span = [15, 22]
-                                                    }},
-                                                    indicator = {
-                                                        kind = "cmavo",
-                                                        phonemes = "xu",
-                                                        span = [23, 25]
                                                     }
-                                                }}
+                                                }},
+                                                indicator = {
+                                                    kind = "cmavo",
+                                                    phonemes = "xu",
+                                                    span = [23, 25]
+                                                }
+                                            }
+                                        }},
+                                        tail_elements = [
+                                            {Quantifier = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "xa",
+                                                                span = [10, 12]
+                                                            }
+                                                        }},
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "vo",
+                                                                span = [12, 14]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailQuantifier = {} },
-                                            ]
-                                        }}
+                                        ]
                                     }},
-                                    tense_modal = {TenseModal = {
-                                        leaves = [
-                                            {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "se",
-                                                span = [3, 5]
-                                            }},
-                                            {Bare = {
+                                    tense_modal = {Simple = {
+                                        bai = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "pi'o",
                                                 span = [5, 9]
-                                            }},
-                                        ],
-                                        simple = {SimpleTenseModal = {
-                                            bai = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "pi'o",
-                                                span = [5, 9]
-                                            }},
-                                            se = {Bare = {
+                                            }
+                                        }},
+                                        se = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "se",
                                                 span = [3, 5]
-                                            }}
+                                            }
                                         }}
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

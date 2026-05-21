@@ -20,11 +20,13 @@ words = [
 status = "failure"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "saĭ",
-            span = [2, 5]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "saĭ",
+                span = [2, 5]
+            }
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

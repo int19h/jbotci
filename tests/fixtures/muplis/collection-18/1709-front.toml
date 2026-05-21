@@ -61,79 +61,81 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [1, 2]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [1, 2]
+                        }
                     }},
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            cu = {Bare = {
+                    statement = {Predicate = {
+                        cu = {Bare = {
+                            Bare = {
                                 kind = "cmavo",
                                 phonemes = "cu",
                                 span = [14, 16]
+                            }
+                        }},
+                        leading_terms = [
+                            {Argument = {
+                                Descriptor = {
+                                    descriptor = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "lo'e",
+                                            span = [3, 7]
+                                        }
+                                    }},
+                                    relation = {Base = {
+                                        Bare = {Bare = {
+                                            kind = "gismu",
+                                            phonemes = "margu",
+                                            span = [8, 13]
+                                        }}
+                                    }}
+                                }
                             }},
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "lo'e",
-                                                span = [3, 7]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "margu",
-                                                    span = [8, 13]
-                                                }}
-                                            }}
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {WithIndicator = {
-                                                    base = {WithIndicator = {
-                                                        base = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "jinme",
-                                                            span = [17, 22]
-                                                        }},
-                                                        indicator = {
-                                                            kind = "cmavo",
-                                                            phonemes = "pe'a",
-                                                            span = [23, 27]
-                                                        },
-                                                        nai = {
-                                                            kind = "cmavo",
-                                                            phonemes = "naĭ",
-                                                            span = [28, 31]
-                                                        }
-                                                    }},
-                                                    indicator = {
-                                                        kind = "cmavo",
-                                                        phonemes = "peĭ",
-                                                        span = [32, 35]
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {WithIndicator = {
+                                            base = {WithIndicator = {
+                                                base = {Bare = {
+                                                    Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "jinme",
+                                                        span = [17, 22]
                                                     }
-                                                }}
-                                            }}
+                                                }},
+                                                indicator = {
+                                                    kind = "cmavo",
+                                                    phonemes = "pe'a",
+                                                    span = [23, 27]
+                                                },
+                                                nai = {
+                                                    kind = "cmavo",
+                                                    phonemes = "naĭ",
+                                                    span = [28, 31]
+                                                }
+                                            }},
+                                            indicator = {
+                                                kind = "cmavo",
+                                                phonemes = "peĭ",
+                                                span = [32, 35]
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

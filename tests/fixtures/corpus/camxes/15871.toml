@@ -45,53 +45,59 @@ words = [
 status = "success"
 parse-tree = {
     leading_free_modifiers = [
-        {VocativeFree = {
-            argument = {DescriptorArgument = {
-                descriptor = {Descriptor = {
-                    descriptor = {Bare = {
+        {Vocative = {
+            argument = {Descriptor = {
+                descriptor = {Bare = {
+                    Bare = {
                         kind = "cmavo",
                         phonemes = "le",
                         span = [4, 6]
-                    }},
-                    relation = {BaseRelation = {
-                        word = {Bare = {
-                            kind = "gismu",
-                            phonemes = "jatna",
-                            span = [7, 12]
-                        }}
-                    }},
-                    relative_clauses = [
-                        {GoiRelativeClause = {
-                            argument = {LetterArgument = {
-                                letter = [
-                                    {Bare = {
+                    }
+                }},
+                relation = {Base = {
+                    Bare = {Bare = {
+                        kind = "gismu",
+                        phonemes = "jatna",
+                        span = [7, 12]
+                    }}
+                }},
+                relative_clauses = [
+                    {Goi = {
+                        argument = {Letter = {
+                            letter = [
+                                {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "by",
                                         span = [16, 18]
-                                    }},
-                                    [
-                                        {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "fy",
-                                            span = [18, 20]
-                                        }},
-                                    ],
-                                ]
-                            }},
-                            goi = {Bare = {
+                                    }
+                                }},
+                                {Bare = {
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "fy",
+                                        span = [18, 20]
+                                    }
+                                }},
+                            ]
+                        }},
+                        goi = {Bare = {
+                            Bare = {
                                 kind = "cmavo",
                                 phonemes = "pe",
                                 span = [13, 15]
-                            }}
-                        }},
-                    ]
-                }}
+                            }
+                        }}
+                    }},
+                ]
             }},
             vocative_markers = [
                 {Bare = {
-                    kind = "cmavo",
-                    phonemes = "doĭ",
-                    span = [0, 3]
+                    Bare = {
+                        kind = "cmavo",
+                        phonemes = "doĭ",
+                        span = [0, 3]
+                    }
                 }},
             ]
         }},

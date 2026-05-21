@@ -45,65 +45,82 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {MathExpressionArgument = {
-                                        li = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "li",
-                                            span = [0, 2]
-                                        }},
-                                        math_expression = {ConnectedExpression = {
-                                            connective = {Connective = {
+                                {Argument = {
+                                    MathExpression = {
+                                        expression = {Connected = {
+                                            connective = {
                                                 cmavo = [
                                                     {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "ga'o",
-                                                        span = [6, 10]
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "ga'o",
+                                                            span = [6, 10]
+                                                        }
                                                     }},
                                                     {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "bi'i",
-                                                        span = [11, 15]
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "bi'i",
+                                                            span = [11, 15]
+                                                        }
                                                     }},
                                                     {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "ke'i",
-                                                        span = [16, 20]
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "ke'i",
+                                                            span = [16, 20]
+                                                        }
                                                     }},
-                                                ]
+                                                ],
+                                                kind = "Interval"
+                                            },
+                                            left_expression = {Number = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "no",
+                                                                span = [3, 5]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }},
-                                            left_expression = {NumberExpression = {
-                                                number = [
-                                                    {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "no",
-                                                        span = [3, 5]
-                                                    }},
-                                                ]
-                                            }},
-                                            right_expression = {NumberExpression = {
-                                                number = [
-                                                    {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "pa",
-                                                        span = [21, 23]
-                                                    }},
-                                                ]
+                                            right_expression = {Number = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "pa",
+                                                                span = [21, 23]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }}
+                                        }},
+                                        li = {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "li",
+                                                span = [0, 2]
+                                            }
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

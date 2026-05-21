@@ -35,57 +35,61 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {MathExpressionArgument = {
-                                        li = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "li",
-                                            span = [0, 2]
-                                        }},
-                                        math_expression = {NumberExpression = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                MathExpression = {
+                                    expression = {Number = {
+                                        Number = {
                                             number = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "re",
-                                                    span = [3, 5]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "re",
+                                                        span = [3, 5]
+                                                    }
                                                 }},
-                                                [
-                                                    {Bare = {
+                                                {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "no",
                                                         span = [5, 7]
-                                                    }},
-                                                ],
+                                                    }
+                                                }},
                                             ]
+                                        }
+                                    }},
+                                    li = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "li",
+                                            span = [0, 2]
+                                        }
+                                    }}
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "go'u",
+                                                span = [8, 12]
+                                            }
                                         }}
                                     }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "go'u",
-                                                    span = [8, 12]
-                                                }}
-                                            }}
-                                        }}
-                                    }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

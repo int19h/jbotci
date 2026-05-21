@@ -25,46 +25,48 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {TenseModalRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "go'i",
-                                                        span = [5, 9]
-                                                    }}
-                                                }},
-                                                tense_modal = {TenseModal = {
-                                                    cuhe = {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        TenseModal = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "go'i",
+                                                    span = [5, 9]
+                                                }}
+                                            }},
+                                            tense_modal = {Composite = {
+                                                cuhe = {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "cu'e",
                                                         span = [0, 4]
-                                                    }},
-                                                    leaves = [
-                                                        {Bare = {
+                                                    }
+                                                }},
+                                                leaves = [
+                                                    {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "cu'e",
                                                             span = [0, 4]
-                                                        }},
-                                                    ]
-                                                }}
+                                                        }
+                                                    }},
+                                                ]
                                             }}
-                                        }}
+                                        }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

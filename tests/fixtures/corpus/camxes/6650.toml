@@ -30,34 +30,40 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "ge'e",
-            span = [0, 4]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "ge'e",
+                span = [0, 4]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     free_modifiers = [
-                        {VocativeFree = {
+                        {Vocative = {
                             vocative_markers = [
                                 {Bare = {
-                                    kind = "cmavo",
-                                    phonemes = "coĭ",
-                                    span = [8, 11]
+                                    Bare = {
+                                        kind = "cmavo",
+                                        phonemes = "coĭ",
+                                        span = [8, 11]
+                                    }
                                 }},
                             ]
                         }},
                     ],
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [6, 7]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [6, 7]
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

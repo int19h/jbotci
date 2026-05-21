@@ -40,60 +40,66 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "aŭ",
-            span = [1, 3]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "aŭ",
+                span = [1, 3]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "fanvi",
-                                                    span = [4, 9]
-                                                }}
-                                            }},
-                                            terms = [
-                                                {FaTerm = {
-                                                    argument = {NameArgument = {
-                                                        la = {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "fanvi",
+                                                span = [4, 9]
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Fa = {
+                                                argument = {Name = {
+                                                    la = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "la",
                                                             span = [13, 15]
-                                                        }},
-                                                        names = [
-                                                            {Bare = {
+                                                        }
+                                                    }},
+                                                    names = [
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "cmevla",
                                                                 phonemes = "lojban",
                                                                 span = [16, 22]
-                                                            }},
-                                                        ]
-                                                    }},
-                                                    fa = {Bare = {
+                                                            }
+                                                        }},
+                                                    ]
+                                                }},
+                                                fa = {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "fi",
                                                         span = [10, 12]
-                                                    }}
-                                                }},
-                                            ]
-                                        }}
+                                                    }
+                                                }}
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

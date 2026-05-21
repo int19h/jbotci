@@ -25,21 +25,23 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {ZoheArgument = {} },
-                                    tense_modal = {TenseModal = {
+                                {Tagged = {
+                                    argument = {Zohe = {} },
+                                    tense_modal = {Composite = {
                                         leaves = [
                                             {WithIndicator = {
                                                 base = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "mo'u",
-                                                    span = [0, 4]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "mo'u",
+                                                        span = [0, 4]
+                                                    }
                                                 }},
                                                 indicator = {
                                                     kind = "cmavo",
@@ -51,9 +53,11 @@ parse-tree = {
                                         zaho = [
                                             {WithIndicator = {
                                                 base = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "mo'u",
-                                                    span = [0, 4]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "mo'u",
+                                                        span = [0, 4]
+                                                    }
                                                 }},
                                                 indicator = {
                                                     kind = "cmavo",
@@ -65,10 +69,10 @@ parse-tree = {
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

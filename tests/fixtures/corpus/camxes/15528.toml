@@ -30,49 +30,63 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "cacra",
-                                                    span = [8, 13]
-                                                }}
+                                {Tagged = {
+                                    argument = {Descriptor = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "cacra",
+                                                span = [8, 13]
+                                            }}
+                                        }},
+                                        tail_elements = [
+                                            {Quantifier = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "pa",
+                                                                span = [5, 7]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
                                             }},
-                                            tail_elements = [
-                                                {ArgumentTailQuantifier = {} },
-                                            ]
-                                        }}
+                                        ]
                                     }},
-                                    tense_modal = {TenseModal = {
+                                    tense_modal = {Composite = {
                                         leaves = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ca'o",
-                                                span = [0, 4]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ca'o",
+                                                    span = [0, 4]
+                                                }
                                             }},
                                         ],
                                         zaho = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ca'o",
-                                                span = [0, 4]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ca'o",
+                                                    span = [0, 4]
+                                                }
                                             }},
                                         ]
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -30,40 +30,46 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "la'a",
-            span = [1, 5]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "la'a",
+                span = [1, 5]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {NameArgument = {
+                                {Argument = {
+                                    Name = {
                                         la = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "la",
-                                            span = [6, 8]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "la",
+                                                span = [6, 8]
+                                            }
                                         }},
                                         names = [
                                             {Bare = {
-                                                kind = "cmevla",
-                                                phonemes = "robin",
-                                                span = [9, 14]
+                                                Bare = {
+                                                    kind = "cmevla",
+                                                    phonemes = "robin",
+                                                    span = [9, 14]
+                                                }
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

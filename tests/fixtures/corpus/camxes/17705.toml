@@ -30,18 +30,20 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {MathExpressionFragment = {
-                            math_expression = {NumberExpression = {
+                {
+                    statement = {Fragment = {
+                        MathExpression = {Number = {
+                            Number = {
                                 number = [
                                     {WithIndicator = {
                                         base = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "no",
-                                            span = [0, 2]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "no",
+                                                span = [0, 2]
+                                            }
                                         }},
                                         indicator = {
                                             kind = "cmavo",
@@ -55,11 +57,11 @@ parse-tree = {
                                         }
                                     }},
                                 ]
-                            }}
+                            }
                         }}
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -30,40 +30,46 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "ŭi",
-            span = [0, 2]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "ŭi",
+                span = [0, 2]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {NameArgument = {
+                                {Argument = {
+                                    Name = {
                                         la = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "la",
-                                            span = [3, 5]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "la",
+                                                span = [3, 5]
+                                            }
                                         }},
                                         names = [
                                             {Bare = {
-                                                kind = "cmevla",
-                                                phonemes = "mirk",
-                                                span = [6, 10]
+                                                Bare = {
+                                                    kind = "cmevla",
+                                                    phonemes = "mirk",
+                                                    span = [6, 10]
+                                                }
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -35,67 +35,75 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "pe'i",
-            span = [0, 4]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "pe'i",
+                span = [0, 4]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {TenseModalRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "kakne",
-                                                        span = [14, 19]
-                                                    }}
-                                                }},
-                                                tense_modal = {TenseModal = {
-                                                    leaves = [
-                                                        {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "na'e",
-                                                            span = [5, 9]
-                                                        }},
-                                                        {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "ze'u",
-                                                            span = [9, 13]
-                                                        }},
-                                                    ],
-                                                    simple = {SimpleTenseModal = {
-                                                        nahe = {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "na'e",
-                                                            span = [5, 9]
-                                                        }}
-                                                    }},
-                                                    time = {Time = {
-                                                        interval = {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "ze'u",
-                                                            span = [9, 13]
-                                                        }}
-                                                    }}
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        TenseModal = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "kakne",
+                                                    span = [14, 19]
                                                 }}
+                                            }},
+                                            tense_modal = {Composite = {
+                                                leaves = [
+                                                    {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "na'e",
+                                                            span = [5, 9]
+                                                        }
+                                                    }},
+                                                    {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "ze'u",
+                                                            span = [9, 13]
+                                                        }
+                                                    }},
+                                                ],
+                                                simple = {
+                                                    nahe = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "na'e",
+                                                            span = [5, 9]
+                                                        }
+                                                    }}
+                                                },
+                                                time = {
+                                                    interval = {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "ze'u",
+                                                            span = [9, 13]
+                                                        }
+                                                    }}
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

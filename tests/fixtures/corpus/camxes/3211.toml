@@ -35,59 +35,63 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "pilno",
-                                                    span = [0, 5]
-                                                }}
-                                            }},
-                                            terms = [
-                                                {ArgumentTerm = {
-                                                    argument = {QuantifiedArgument = {
-                                                        inner_argument = {NameArgument = {
-                                                            la = {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "pilno",
+                                                span = [0, 5]
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Argument = {
+                                                Quantified = {
+                                                    inner_argument = {Name = {
+                                                        la = {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "laĭ",
                                                                 span = [9, 12]
-                                                            }},
-                                                            names = [
-                                                                {Bare = {
+                                                            }
+                                                        }},
+                                                        names = [
+                                                            {Bare = {
+                                                                Bare = {
                                                                     kind = "cmevla",
                                                                     phonemes = "ĭuniks",
                                                                     span = [13, 19]
-                                                                }},
-                                                            ]
-                                                        }},
-                                                        quantifier = {NumberExpression = {
-                                                            number = [
-                                                                {Bare = {
+                                                                }
+                                                            }},
+                                                        ]
+                                                    }},
+                                                    quantifier = {Number = {
+                                                        number = [
+                                                            {Bare = {
+                                                                Bare = {
                                                                     kind = "cmavo",
                                                                     phonemes = "pa",
                                                                     span = [6, 8]
-                                                                }},
-                                                            ]
-                                                        }}
+                                                                }
+                                                            }},
+                                                        ]
                                                     }}
-                                                }},
-                                            ]
-                                        }}
+                                                }
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

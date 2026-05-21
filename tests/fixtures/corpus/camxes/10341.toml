@@ -30,36 +30,38 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {BeLinkFragment = {
+                {
+                    statement = {Fragment = {
+                        BeLink = {
                             be = {Bare = {
-                                kind = "cmavo",
-                                phonemes = "be",
-                                span = [0, 2]
+                                Bare = {
+                                    kind = "cmavo",
+                                    phonemes = "be",
+                                    span = [0, 2]
+                                }
                             }},
-                            first_argument = {DescriptorArgument = {
-                                descriptor = {Descriptor = {
-                                    descriptor = {Bare = {
+                            first_argument = {Descriptor = {
+                                descriptor = {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "le",
                                         span = [3, 5]
-                                    }},
-                                    relation = {BaseRelation = {
-                                        word = {Bare = {
-                                            kind = "gismu",
-                                            phonemes = "lisri",
-                                            span = [6, 11]
-                                        }}
+                                    }
+                                }},
+                                relation = {Base = {
+                                    Bare = {Bare = {
+                                        kind = "gismu",
+                                        phonemes = "lisri",
+                                        span = [6, 11]
                                     }}
                                 }}
                             }}
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

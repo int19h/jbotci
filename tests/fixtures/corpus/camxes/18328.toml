@@ -31,46 +31,48 @@ status = "success"
 parse-tree = {
     leading_cmevla = [
         {Bare = {
-            kind = "cmevla",
-            phonemes = "closer",
-            span = [0, 6]
+            Bare = {
+                kind = "cmevla",
+                phonemes = "closer",
+                span = [0, 6]
+            }
         }},
     ],
     leading_free_modifiers = [
-        {ToFree = {
+        {To = {
             text = {
                 paragraphs = [
-                    {Paragraph = {
+                    {
                         statements = [
-                            {ParagraphStatement = {
-                                statement = {StatementPredicate = {
-                                    predicate = {Predicate = {
-                                        predicate_tail = {PredicateTail = {
-                                            first = {PredicateTail1 = {
-                                                first = {PredicateTail2 = {
-                                                    first = {RelationPredicateTail3 = {
-                                                        relation = {BaseRelation = {
-                                                            word = {Bare = {
-                                                                kind = "gismu",
-                                                                phonemes = "sinxa",
-                                                                span = [10, 15]
-                                                            }}
-                                                        }}
+                            {
+                                statement = {Predicate = {
+                                    predicate_tail = {
+                                        first = {
+                                            first = {
+                                                first = {Relation = {
+                                                    Base = {Bare = {
+                                                        Bare = {
+                                                            kind = "gismu",
+                                                            phonemes = "sinxa",
+                                                            span = [10, 15]
+                                                        }
                                                     }}
                                                 }}
-                                            }}
-                                        }}
-                                    }}
+                                            }
+                                        }
+                                    }
                                 }}
-                            }},
+                            },
                         ]
-                    }},
+                    },
                 ]
             },
             to = {Bare = {
-                kind = "cmavo",
-                phonemes = "to",
-                span = [7, 9]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "to",
+                    span = [7, 9]
+                }
             }}
         }},
     ]

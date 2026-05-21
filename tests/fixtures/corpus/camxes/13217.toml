@@ -30,36 +30,38 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {BeLinkFragment = {
+                {
+                    statement = {Fragment = {
+                        BeLink = {
                             be = {Bare = {
-                                kind = "cmavo",
-                                phonemes = "be",
-                                span = [3, 5]
+                                Bare = {
+                                    kind = "cmavo",
+                                    phonemes = "be",
+                                    span = [3, 5]
+                                }
                             }},
-                            first_argument = {DescriptorArgument = {
-                                descriptor = {Descriptor = {
-                                    descriptor = {Bare = {
+                            first_argument = {Descriptor = {
+                                descriptor = {Bare = {
+                                    Bare = {
                                         kind = "cmavo",
                                         phonemes = "le",
                                         span = [5, 7]
-                                    }},
-                                    relation = {BaseRelation = {
-                                        word = {Bare = {
-                                            kind = "gismu",
-                                            phonemes = "naxle",
-                                            span = [8, 13]
-                                        }}
+                                    }
+                                }},
+                                relation = {Base = {
+                                    Bare = {Bare = {
+                                        kind = "gismu",
+                                        phonemes = "naxle",
+                                        span = [8, 13]
                                     }}
                                 }}
                             }}
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

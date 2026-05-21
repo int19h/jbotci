@@ -59,84 +59,93 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "xu",
-            span = [0, 2]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "xu",
+                span = [0, 2]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {NameArgument = {
-                                        la = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Name = {
+                                    la = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "la",
                                             span = [3, 5]
-                                        }},
-                                        names = [
-                                            {Bare = {
+                                        }
+                                    }},
+                                    names = [
+                                        {Bare = {
+                                            Bare = {
                                                 kind = "cmevla",
-                                                phonemes = "faidon",
+                                                phonemes = "faĭdon",
                                                 span = [6, 12]
-                                            }},
-                                        ]
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    continuations = [
-                                        {PredicateTailContinuation = {
-                                            connective = {Connective = {
-                                                cmavo = [
-                                                    {Bare = {
+                                            }
+                                        }},
+                                    ]
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                continuations = [
+                                    {
+                                        connective = {
+                                            cmavo = [
+                                                {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "gi'o",
                                                         span = [20, 24]
-                                                    }},
-                                                ],
-                                                nai = {Bare = {
+                                                    }
+                                                }},
+                                            ],
+                                            kind = "PredicateTail",
+                                            nai = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
-                                                    phonemes = "nai",
+                                                    phonemes = "naĭ",
                                                     span = [24, 27]
-                                                }}
-                                            }},
-                                            predicate_tail = {PredicateTail2 = {
-                                                first = {RelationPredicateTail3 = {
-                                                    relation = {BaseRelation = {
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "mlatu",
-                                                            span = [28, 33]
-                                                        }}
-                                                    }}
+                                                }
+                                            }}
+                                        },
+                                        predicate_tail = {
+                                            first = {Relation = {
+                                                Base = {Bare = {
+                                                    Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "mlatu",
+                                                        span = [28, 33]
+                                                    }
                                                 }}
                                             }}
-                                        }},
-                                    ],
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "gerku",
-                                                    span = [14, 19]
-                                                }}
-                                            }}
+                                        }
+                                    },
+                                ],
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                kind = "gismu",
+                                                phonemes = "gerku",
+                                                span = [14, 19]
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

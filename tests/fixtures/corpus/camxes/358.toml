@@ -57,21 +57,23 @@ words = [
 status = "failure"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {LetterArgument = {
-                                        boi = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Letter = {
+                                    boi = {Bare = {
+                                        Bare = {
                                             kind = "cmavo",
                                             phonemes = "boĭ",
                                             span = [6, 9]
-                                        }},
-                                        letter = [
-                                            {Letter = {
+                                        }
+                                    }},
+                                    letter = [
+                                        {Bare = {
+                                            Letter = {
                                                 base = {Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "a",
@@ -82,65 +84,73 @@ parse-tree = {
                                                     phonemes = "bu",
                                                     span = [2, 4]
                                                 }
-                                            }},
-                                        ]
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "dunda",
-                                                    span = [11, 16]
-                                                }}
-                                            }},
-                                            terms = [
-                                                {ArgumentTerm = {
-                                                    argument = {LetterArgument = {
-                                                        boi = {Bare = {
+                                            }
+                                        }},
+                                    ]
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "dunda",
+                                                span = [11, 16]
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Argument = {
+                                                Letter = {
+                                                    boi = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "boĭ",
                                                             span = [21, 24]
-                                                        }},
-                                                        letter = [
-                                                            {Bare = {
+                                                        }
+                                                    }},
+                                                    letter = [
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "by",
                                                                 span = [17, 19]
-                                                            }},
-                                                        ]
-                                                    }}
-                                                }},
-                                                {ArgumentTerm = {
-                                                    argument = {LetterArgument = {
-                                                        boi = {Bare = {
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
+                                            }},
+                                            {Argument = {
+                                                Letter = {
+                                                    boi = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "boĭ",
                                                             span = [30, 33]
-                                                        }},
-                                                        letter = [
-                                                            {Bare = {
+                                                        }
+                                                    }},
+                                                    letter = [
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "cy",
                                                                 span = [25, 27]
-                                                            }},
-                                                        ]
-                                                    }}
-                                                }},
-                                            ]
-                                        }}
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
+                                            }},
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

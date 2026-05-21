@@ -25,41 +25,47 @@ words = [
 status = "success"
 parse-tree = {
     leading_indicators = [
-        {Bare = {
-            kind = "cmavo",
-            phonemes = "zo'o",
-            span = [0, 4]
-        }},
+        {
+            indicator = {
+                kind = "cmavo",
+                phonemes = "zo'o",
+                span = [0, 4]
+            }
+        },
     ],
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {ZoheArgument = {} },
-                                    tense_modal = {TenseModal = {
+                                {Tagged = {
+                                    argument = {Zohe = {} },
+                                    tense_modal = {Composite = {
                                         cuhe = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "cu'e",
-                                            span = [4, 8]
-                                        }},
-                                        leaves = [
-                                            {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "cu'e",
                                                 span = [4, 8]
+                                            }
+                                        }},
+                                        leaves = [
+                                            {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "cu'e",
+                                                    span = [4, 8]
+                                                }
                                             }},
                                         ]
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

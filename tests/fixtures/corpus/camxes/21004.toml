@@ -35,79 +35,89 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {TenseModalRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "cpare",
-                                                        span = [9, 14]
-                                                    }}
-                                                }},
-                                                tense_modal = {TenseModal = {
-                                                    caha = {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        relation = {TenseModal = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "cpare",
+                                                    span = [9, 14]
+                                                }}
+                                            }},
+                                            tense_modal = {Composite = {
+                                                caha = {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "ka'e",
                                                         span = [4, 8]
-                                                    }},
-                                                    leaves = [
-                                                        {Bare = {
+                                                    }
+                                                }},
+                                                leaves = [
+                                                    {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "na'e",
                                                             span = [0, 4]
-                                                        }},
-                                                        {Bare = {
+                                                        }
+                                                    }},
+                                                    {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "ka'e",
                                                             span = [4, 8]
-                                                        }},
-                                                    ],
-                                                    simple = {SimpleTenseModal = {
-                                                        nahe = {Bare = {
+                                                        }
+                                                    }},
+                                                ],
+                                                simple = {
+                                                    nahe = {Bare = {
+                                                        Bare = {
                                                             kind = "cmavo",
                                                             phonemes = "na'e",
                                                             span = [0, 4]
-                                                        }}
+                                                        }
                                                     }}
+                                                }
+                                            }}
+                                        }},
+                                        terms = [
+                                            {Tagged = {
+                                                argument = {Zohe = {} },
+                                                tense_modal = {Composite = {
+                                                    leaves = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "ze'i",
+                                                                span = [15, 19]
+                                                            }
+                                                        }},
+                                                    ],
+                                                    time = {
+                                                        interval = {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "ze'i",
+                                                                span = [15, 19]
+                                                            }
+                                                        }}
+                                                    }
                                                 }}
                                             }},
-                                            terms = [
-                                                {TaggedTerm = {
-                                                    argument = {ZoheArgument = {} },
-                                                    tense_modal = {TenseModal = {
-                                                        leaves = [
-                                                            {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "ze'i",
-                                                                span = [15, 19]
-                                                            }},
-                                                        ],
-                                                        time = {Time = {
-                                                            interval = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "ze'i",
-                                                                span = [15, 19]
-                                                            }}
-                                                        }}
-                                                    }}
-                                                }},
-                                            ]
-                                        }}
+                                        ]
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

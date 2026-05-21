@@ -24,41 +24,42 @@ words = [
 [expectations.syntax]
 status = "failure"
 parse-tree = {
-    leading_connective = {Connective = {
+    leading_connective = {
         cmavo = [
             {Bare = {
-                kind = "cmavo",
-                phonemes = "ju",
-                span = [3, 5]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "ju",
+                    span = [3, 5]
+                }
             }},
-        ]
-    }},
+        ],
+        kind = "Relation"
+    },
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "lujvo",
-                                                    phonemes = "selxrani",
-                                                    span = [6, 14]
-                                                }}
-                                            }}
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                kind = "lujvo",
+                                                phonemes = "selxrani",
+                                                span = [6, 14]
+                                            }
                                         }}
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }

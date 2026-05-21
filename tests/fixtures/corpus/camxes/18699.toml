@@ -40,66 +40,86 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "i",
-                        span = [1, 2]
+                        Bare = {
+                            kind = "cmavo",
+                            phonemes = "i",
+                            span = [1, 2]
+                        }
                     }},
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "jeftu",
-                                                    span = [16, 21]
-                                                }}
-                                            }},
-                                            tail_elements = [
-                                                {ArgumentTailQuantifier = {} },
-                                            ]
-                                        }}
-                                    }},
-                                    tense_modal = {TenseModal = {
-                                        leaves = [
-                                            {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ze'i",
-                                                span = [3, 7]
-                                            }},
-                                            {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ca'o",
-                                                span = [8, 12]
-                                            }},
-                                        ],
-                                        time = {Time = {
-                                            interval = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ze'i",
-                                                span = [3, 7]
+                                {Tagged = {
+                                    argument = {Descriptor = {
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "jeftu",
+                                                span = [16, 21]
                                             }}
                                         }},
+                                        tail_elements = [
+                                            {Quantifier = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "pa",
+                                                                span = [13, 15]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
+                                            }},
+                                        ]
+                                    }},
+                                    tense_modal = {Composite = {
+                                        leaves = [
+                                            {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ze'i",
+                                                    span = [3, 7]
+                                                }
+                                            }},
+                                            {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ca'o",
+                                                    span = [8, 12]
+                                                }
+                                            }},
+                                        ],
+                                        time = {
+                                            interval = {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ze'i",
+                                                    span = [3, 7]
+                                                }
+                                            }}
+                                        },
                                         zaho = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ca'o",
-                                                span = [8, 12]
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "ca'o",
+                                                    span = [8, 12]
+                                                }
                                             }},
                                         ]
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

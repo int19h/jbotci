@@ -31,53 +31,62 @@ status = "success"
 parse-tree = {
     leading_cmevla = [
         {Bare = {
-            kind = "cmevla",
-            phonemes = "and",
-            span = [0, 3]
+            Bare = {
+                kind = "cmevla",
+                phonemes = "and",
+                span = [0, 3]
+            }
         }},
     ],
-    leading_connective = {Connective = {
+    leading_connective = {
         cmavo = [
             {Bare = {
-                kind = "cmavo",
-                phonemes = "ja",
-                span = [4, 6]
+                Bare = {
+                    kind = "cmavo",
+                    phonemes = "ja",
+                    span = [4, 6]
+                }
             }},
-        ]
-    }},
+        ],
+        kind = "Relation"
+    },
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {ZoheArgument = {} },
-                                    tense_modal = {TenseModal = {
+                                {Tagged = {
+                                    argument = {Zohe = {} },
+                                    tense_modal = {Composite = {
                                         leaves = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "va",
-                                                span = [6, 8]
-                                            }},
-                                        ],
-                                        space = {Space = {
-                                            distance = [
-                                                {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "va",
                                                     span = [6, 8]
+                                                }
+                                            }},
+                                        ],
+                                        space = {
+                                            distance = [
+                                                {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "va",
+                                                        span = [6, 8]
+                                                    }
                                                 }},
                                             ]
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

@@ -40,15 +40,17 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
+                {
                     i = {WithIndicator = {
                         base = {WithIndicator = {
                             base = {Bare = {
-                                kind = "cmavo",
-                                phonemes = "i",
-                                span = [1, 2]
+                                Bare = {
+                                    kind = "cmavo",
+                                    phonemes = "i",
+                                    span = [1, 2]
+                                }
                             }},
                             indicator = {
                                 kind = "cmavo",
@@ -62,34 +64,34 @@ parse-tree = {
                             span = [6, 9]
                         }
                     }},
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {SeRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "vecnu",
-                                                        span = [13, 18]
-                                                    }}
-                                                }},
-                                                se = {Bare = {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Se = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "vecnu",
+                                                    span = [13, 18]
+                                                }}
+                                            }},
+                                            se = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "te",
                                                     span = [10, 12]
-                                                }}
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

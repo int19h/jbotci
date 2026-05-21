@@ -45,45 +45,92 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
+                                {Argument = {
+                                    Descriptor = {
+                                        descriptor = {Bare = {
+                                            Bare = {
                                                 kind = "cmavo",
                                                 phonemes = "le",
                                                 span = [0, 2]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "gerku",
-                                                    span = [3, 8]
-                                                }}
-                                            }},
-                                            relative_clauses = [
-                                                {PoiRelativeClause = {
-                                                    poi = {Bare = {
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "gerku",
+                                                span = [3, 8]
+                                            }}
+                                        }},
+                                        relative_clauses = [
+                                            {Poi = {
+                                                poi = {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
                                                         phonemes = "poĭ",
                                                         span = [9, 12]
-                                                    }},
-                                                    subsentence = {PlainSubsentence = {} }
+                                                    }
                                                 }},
-                                            ]
-                                        }}
-                                    }}
+                                                subsentence = {Plain = {
+                                                    predicate_tail = {
+                                                        first = {
+                                                            first = {
+                                                                first = {Relation = {
+                                                                    TenseModal = {
+                                                                        inner_relation = {Se = {
+                                                                            inner_relation = {Base = {
+                                                                                Bare = {Bare = {
+                                                                                    kind = "gismu",
+                                                                                    phonemes = "citka",
+                                                                                    span = [21, 26]
+                                                                                }}
+                                                                            }},
+                                                                            se = {Bare = {
+                                                                                Bare = {
+                                                                                    kind = "cmavo",
+                                                                                    phonemes = "se",
+                                                                                    span = [18, 20]
+                                                                                }
+                                                                            }}
+                                                                        }},
+                                                                        tense_modal = {Composite = {
+                                                                            caha = {Bare = {
+                                                                                Bare = {
+                                                                                    kind = "cmavo",
+                                                                                    phonemes = "nu'o",
+                                                                                    span = [13, 17]
+                                                                                }
+                                                                            }},
+                                                                            leaves = [
+                                                                                {Bare = {
+                                                                                    Bare = {
+                                                                                        kind = "cmavo",
+                                                                                        phonemes = "nu'o",
+                                                                                        span = [13, 17]
+                                                                                    }
+                                                                                }},
+                                                                            ]
+                                                                        }}
+                                                                    }
+                                                                }}
+                                                            }
+                                                        }
+                                                    }
+                                                }}
+                                            }},
+                                        ]
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

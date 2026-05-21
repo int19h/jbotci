@@ -35,53 +35,61 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {QuantifiedArgument = {
-                                        inner_argument = {MathExpressionArgument = {
-                                            li = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "li",
-                                                span = [5, 7]
-                                            }},
-                                            math_expression = {NumberExpression = {
-                                                number = [
-                                                    {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "mu",
-                                                        span = [8, 10]
-                                                    }},
-                                                    [
+                                {Argument = {
+                                    Quantified = {
+                                        inner_argument = {MathExpression = {
+                                            expression = {Number = {
+                                                Number = {
+                                                    number = [
                                                         {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "ki'o",
-                                                            span = [11, 15]
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "mu",
+                                                                span = [8, 10]
+                                                            }
                                                         }},
-                                                    ],
-                                                ]
+                                                        {Bare = {
+                                                            Bare = {
+                                                                kind = "cmavo",
+                                                                phonemes = "ki'o",
+                                                                span = [11, 15]
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
+                                            }},
+                                            li = {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "li",
+                                                    span = [5, 7]
+                                                }
                                             }}
                                         }},
-                                        quantifier = {NumberExpression = {
+                                        quantifier = {Number = {
                                             number = [
                                                 {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "su'o",
-                                                    span = [0, 4]
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "su'o",
+                                                        span = [0, 4]
+                                                    }
                                                 }},
                                             ]
                                         }}
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

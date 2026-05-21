@@ -35,26 +35,30 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {ArgumentTerm = {
-                                    argument = {NameArgument = {
+                                {Argument = {
+                                    Name = {
                                         la = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "la",
-                                            span = [0, 2]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "la",
+                                                span = [0, 2]
+                                            }
                                         }},
                                         names = [
                                             {WithIndicator = {
                                                 base = {WithIndicator = {
                                                     base = {Bare = {
-                                                        kind = "cmevla",
-                                                        phonemes = "perl",
-                                                        span = [3, 7]
+                                                        Bare = {
+                                                            kind = "cmevla",
+                                                            phonemes = "perl",
+                                                            span = [3, 7]
+                                                        }
                                                     }},
                                                     indicator = {
                                                         kind = "cmavo",
@@ -69,13 +73,13 @@ parse-tree = {
                                                 }
                                             }},
                                         ]
-                                    }}
+                                    }
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

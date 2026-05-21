@@ -25,38 +25,36 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {ZoheArgument = {} },
-                                    tense_modal = {TenseModal = {
-                                        fiho = [
-                                            {FihoModal = {
-                                                fiho = {Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "fi'o",
-                                                    span = [0, 4]
-                                                }},
-                                                relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "cpana",
-                                                        span = [5, 10]
-                                                    }}
-                                                }}
-                                            }},
-                                        ]
+                                {Tagged = {
+                                    argument = {Zohe = {} },
+                                    tense_modal = {Fiho = {
+                                        fiho = {Bare = {
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "fi'o",
+                                                span = [0, 4]
+                                            }
+                                        }},
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                kind = "gismu",
+                                                phonemes = "cpana",
+                                                span = [5, 10]
+                                            }}
+                                        }}
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

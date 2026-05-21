@@ -35,55 +35,58 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {NaRelation = {
-                                                inner_relation = {ConnectedRelation = {
-                                                    connective = {Connective = {
-                                                        cmavo = [
-                                                            {Bare = {
+                {
+                    statement = {Predicate = {
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        Na = {
+                                            inner_relation = {Connected = {
+                                                connective = {
+                                                    cmavo = [
+                                                        {Bare = {
+                                                            Bare = {
                                                                 kind = "cmavo",
                                                                 phonemes = "ju",
                                                                 span = [9, 11]
-                                                            }},
-                                                        ]
-                                                    }},
-                                                    leading_relation = {BaseRelation = {
-                                                        word = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "cizra",
-                                                            span = [3, 8]
-                                                        }}
-                                                    }},
-                                                    trailing_relation = {BaseRelation = {
-                                                        word = {Bare = {
-                                                            kind = "lujvo",
-                                                            phonemes = "selsrera",
-                                                            span = [12, 20]
-                                                        }}
+                                                            }
+                                                        }},
+                                                    ],
+                                                    kind = "Relation"
+                                                },
+                                                leading_relation = {Base = {
+                                                    Bare = {Bare = {
+                                                        kind = "gismu",
+                                                        phonemes = "cizra",
+                                                        span = [3, 8]
                                                     }}
                                                 }},
-                                                na = {Bare = {
+                                                trailing_relation = {Base = {
+                                                    Bare = {Bare = {
+                                                        kind = "lujvo",
+                                                        phonemes = "selsrera",
+                                                        span = [12, 20]
+                                                    }}
+                                                }}
+                                            }},
+                                            na = {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "na",
                                                     span = [0, 2]
-                                                }}
+                                                }
                                             }}
-                                        }}
+                                        }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

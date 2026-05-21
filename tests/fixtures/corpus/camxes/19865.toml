@@ -50,91 +50,99 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {DescriptorArgument = {
-                                        descriptor = {Descriptor = {
-                                            descriptor = {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "le",
-                                                span = [0, 2]
-                                            }},
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    kind = "lujvo",
-                                                    phonemes = "samselkeĭ",
-                                                    span = [3, 12]
-                                                }}
-                                            }},
-                                            relative_clauses = [
-                                                {GoiRelativeClause = {
-                                                    argument = {NameArgument = {
-                                                        la = {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "la",
-                                                            span = [16, 18]
-                                                        }},
-                                                        names = [
-                                                            {Bare = {
-                                                                kind = "cmevla",
-                                                                phonemes = "robin",
-                                                                span = [19, 24]
-                                                            }},
-                                                        ]
-                                                    }},
-                                                    goi = {Bare = {
+                {
+                    statement = {Predicate = {
+                        leading_terms = [
+                            {Argument = {
+                                Descriptor = {
+                                    descriptor = {Bare = {
+                                        Bare = {
+                                            kind = "cmavo",
+                                            phonemes = "le",
+                                            span = [0, 2]
+                                        }
+                                    }},
+                                    relation = {Base = {
+                                        Bare = {Bare = {
+                                            kind = "lujvo",
+                                            phonemes = "samselkeĭ",
+                                            span = [3, 12]
+                                        }}
+                                    }},
+                                    relative_clauses = [
+                                        {Goi = {
+                                            argument = {Name = {
+                                                la = {Bare = {
+                                                    Bare = {
                                                         kind = "cmavo",
-                                                        phonemes = "pe",
-                                                        span = [13, 15]
-                                                    }}
+                                                        phonemes = "la",
+                                                        span = [16, 18]
+                                                    }
                                                 }},
-                                            ]
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {TenseModalRelation = {
-                                                inner_relation = {BaseRelation = {
-                                                    word = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "spofu",
-                                                        span = [30, 35]
-                                                    }}
-                                                }},
-                                                tense_modal = {TenseModal = {
-                                                    leaves = [
-                                                        {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "co'u",
-                                                            span = [25, 29]
-                                                        }},
-                                                    ],
-                                                    zaho = [
-                                                        {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "co'u",
-                                                            span = [25, 29]
-                                                        }},
-                                                    ]
-                                                }}
+                                                names = [
+                                                    {Bare = {
+                                                        Bare = {
+                                                            kind = "cmevla",
+                                                            phonemes = "robin",
+                                                            span = [19, 24]
+                                                        }
+                                                    }},
+                                                ]
+                                            }},
+                                            goi = {Bare = {
+                                                Bare = {
+                                                    kind = "cmavo",
+                                                    phonemes = "pe",
+                                                    span = [13, 15]
+                                                }
                                             }}
-                                        }}
+                                        }},
+                                    ]
+                                }
+                            }},
+                        ],
+                        predicate_tail = {
+                            first = {
+                                first = {
+                                    first = {Relation = {
+                                        TenseModal = {
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    kind = "gismu",
+                                                    phonemes = "spofu",
+                                                    span = [30, 35]
+                                                }}
+                                            }},
+                                            tense_modal = {Composite = {
+                                                leaves = [
+                                                    {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "co'u",
+                                                            span = [25, 29]
+                                                        }
+                                                    }},
+                                                ],
+                                                zaho = [
+                                                    {Bare = {
+                                                        Bare = {
+                                                            kind = "cmavo",
+                                                            phonemes = "co'u",
+                                                            span = [25, 29]
+                                                        }
+                                                    }},
+                                                ]
+                                            }}
+                                        }
                                     }}
-                                }}
-                            }}
-                        }}
+                                }
+                            }
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }

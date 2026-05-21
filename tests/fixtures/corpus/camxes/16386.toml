@@ -25,44 +25,50 @@ words = [
 status = "success"
 parse-tree = {
     paragraphs = [
-        {Paragraph = {
+        {
             statements = [
-                {ParagraphStatement = {
-                    statement = {StatementFragment = {
-                        fragment = {TermFragment = {
+                {
+                    statement = {Fragment = {
+                        Term = {
                             terms = [
-                                {TaggedTerm = {
-                                    argument = {ZoheArgument = {
+                                {Tagged = {
+                                    argument = {Zohe = {
                                         maybe_ku = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "ku",
-                                            span = [3, 5]
+                                            Bare = {
+                                                kind = "cmavo",
+                                                phonemes = "ku",
+                                                span = [3, 5]
+                                            }
                                         }}
                                     }},
-                                    tense_modal = {TenseModal = {
+                                    tense_modal = {Composite = {
                                         leaves = [
                                             {Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "vi",
-                                                span = [0, 2]
-                                            }},
-                                        ],
-                                        space = {Space = {
-                                            distance = [
-                                                {Bare = {
+                                                Bare = {
                                                     kind = "cmavo",
                                                     phonemes = "vi",
                                                     span = [0, 2]
+                                                }
+                                            }},
+                                        ],
+                                        space = {
+                                            distance = [
+                                                {Bare = {
+                                                    Bare = {
+                                                        kind = "cmavo",
+                                                        phonemes = "vi",
+                                                        span = [0, 2]
+                                                    }
                                                 }},
                                             ]
-                                        }}
+                                        }
                                     }}
                                 }},
                             ]
-                        }}
+                        }
                     }}
-                }},
+                },
             ]
-        }},
+        },
     ]
 }
