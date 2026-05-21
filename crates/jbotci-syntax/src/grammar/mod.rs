@@ -9,6 +9,7 @@ use chumsky::input::{Checkpoint, Cursor};
 use chumsky::inspector::Inspector;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
+use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData, canonicalize_text};
 
 use crate::{
@@ -43,16 +44,24 @@ pub(super) struct ParsedStatement {
 pub(super) struct ParserState {
     anchor_byte_starts: Vec<Option<usize>>,
     warnings: Vec<SyntaxWarning>,
+    dialect_features: std::collections::BTreeSet<DialectFeature>,
 }
 
 impl ParserState {
     #[requires(true)]
     #[ensures(ret.anchor_byte_starts.len() == words.len())]
-    pub(super) fn new(words: &[WithIndicators<WordLike>]) -> Self {
+    pub(super) fn new(words: &[WithIndicators<WordLike>], options: &ParseOptions) -> Self {
         Self {
             anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
             warnings: Vec::new(),
+            dialect_features: options.dialect.features.clone(),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn feature_enabled(&self, feature: DialectFeature) -> bool {
+        self.dialect_features.contains(&feature)
     }
 
     #[requires(true)]
@@ -346,6 +355,7 @@ fn public_connective(connective: ConnectiveSyntax) -> Connective {
 #[cfg(test)]
 mod tests {
     use bityzba::requires;
+    use jbotci_dialect::parse_dialect_definition;
     use jbotci_morphology::segment_words_with_modifiers;
 
     use super::*;
@@ -401,6 +411,27 @@ mod tests {
             let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
 
             assert!(format!("{:#?}", parsed.parse_tree).contains("Bo"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gates_zantufa_quote_relation_units() {
+        run_on_large_stack(|| {
+            let words =
+                segment_words_with_modifiers("lu'ei mi klama li'au").expect("valid morphology");
+
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let dialect =
+                parse_dialect_definition("(+ZANTUFA-QUOTES)").expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let parsed = parse_syntax_tree(&words, &options).expect("valid zantufa quote syntax");
+
+            assert!(parsed.warnings.iter().any(|warning| {
+                warning.kind == ExperimentalConstruct::ExperimentalZantufaLuheiRelationUnit
+            }));
         });
     }
 

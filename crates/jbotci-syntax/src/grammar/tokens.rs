@@ -5,6 +5,7 @@ use bityzba::{data, requires};
 use chumsky::error::{Rich, RichReason};
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
+use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData, strip_diacritics_eq};
 use jbotci_source::SourceSpan;
 
@@ -76,6 +77,38 @@ pub(super) const COI_WORDS: &[&str] = &[
 #[ensures(true)]
 pub(super) fn cmavo<'tokens>(text: &'static str) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching("cmavo", move |word| cmavo_text_matches(word, text))
+}
+
+#[requires(!label.is_empty())]
+#[requires(!text.is_empty())]
+#[ensures(true)]
+pub(super) fn feature_cmavo<'tokens>(
+    label: &'static str,
+    text: &'static str,
+    feature: DialectFeature,
+) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+    custom(move |input| {
+        let checkpoint = input.save();
+        let cursor = input.cursor();
+        match input.next() {
+            Some(word) if cmavo_text_matches(&word, text) => {
+                let state: &mut ParserState = input.state();
+                if !state.feature_enabled(feature) {
+                    let span = input.span_since(&cursor);
+                    input.rewind(checkpoint);
+                    return Err(Rich::custom(span, format!("expected {label}")));
+                }
+                warn_experimental_cmavo(input.state(), label, &word);
+                Ok(word)
+            }
+            _ => {
+                let span = input.span_since(&cursor);
+                input.rewind(checkpoint);
+                Err(Rich::custom(span, format!("expected {label}")))
+            }
+        }
+    })
+    .boxed()
 }
 
 #[requires(true)]
@@ -156,7 +189,10 @@ pub(super) fn relation_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<Wo
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn brivla_relation_word<'tokens>() -> BoxedParser<'tokens, WithIndicators<WordLike>> {
-    token_matching("BRIVLA", is_brivla_relation_word)
+    token_matching_with_state("BRIVLA", |word, state| {
+        is_brivla_relation_word(word)
+            || (is_cmevla_word(word) && state.feature_enabled(DialectFeature::Cbm))
+    })
 }
 
 #[requires(true)]
@@ -182,7 +218,52 @@ pub(super) fn token_matching<'tokens>(
         let cursor = input.cursor();
         match input.next() {
             Some(word) if predicate(&word) => {
-                warn_experimental_cmavo(input.state(), label, &word);
+                let state: &mut ParserState = input.state();
+                if feature_required_for_cmavo(label, &word)
+                    .is_none_or(|feature| state.feature_enabled(feature))
+                {
+                    warn_experimental_cmavo(state, label, &word);
+                    Ok(word)
+                } else {
+                    let span = input.span_since(&cursor);
+                    input.rewind(checkpoint);
+                    Err(Rich::custom(span, format!("expected {label}")))
+                }
+            }
+            _ => {
+                let span = input.span_since(&cursor);
+                input.rewind(checkpoint);
+                Err(Rich::custom(span, format!("expected {label}")))
+            }
+        }
+    })
+    .boxed()
+}
+
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn token_matching_with_state<'tokens>(
+    label: &'static str,
+    predicate: impl Fn(&WithIndicators<WordLike>, &ParserState) -> bool + Clone + 'tokens,
+) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
+    custom(move |input| {
+        let checkpoint = input.save();
+        let cursor = input.cursor();
+        match input.next() {
+            Some(word) => {
+                let state: &mut ParserState = input.state();
+                if !predicate(&word, state) {
+                    let span = input.span_since(&cursor);
+                    input.rewind(checkpoint);
+                    return Err(Rich::custom(span, format!("expected {label}")));
+                }
+                if label == "BRIVLA" && is_cmevla_word(&word) {
+                    state.warn(
+                        ExperimentalConstruct::ExperimentalCbmCmevlaRelationWord,
+                        &word,
+                    );
+                }
+                warn_experimental_cmavo(state, label, &word);
                 Ok(word)
             }
             _ => {
@@ -193,6 +274,24 @@ pub(super) fn token_matching<'tokens>(
         }
     })
     .boxed()
+}
+
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn feature_required_for_cmavo(
+    label: &str,
+    word: &WithIndicators<WordLike>,
+) -> Option<DialectFeature> {
+    let canonical = word.visible_word()?.canonical_phonemes();
+    match (label, canonical.as_str()) {
+        ("NOIhA", "noi'o'a") => Some(DialectFeature::ZantufaAdverbials),
+        ("GIhI", "gi'i") => Some(DialectFeature::ZantufaConnectives),
+        ("LIhAU" | "LUhEI", _) => Some(DialectFeature::ZantufaQuotes),
+        ("LOhOI", "mau'a" | "xau'a") | ("ROI", "ba'oi" | "de'ei" | "xu'au") => {
+            Some(DialectFeature::ZantufaCmavo)
+        }
+        _ => None,
+    }
 }
 
 #[requires(!label.is_empty())]
@@ -246,6 +345,7 @@ fn experimental_construct_for_cmavo(
         ("PA", "su'ai" | "xe'e") => Some(ExperimentalConstruct::ExperimentalDictionaryPaNumber),
         ("SEI", "xoi") => Some(ExperimentalConstruct::ExperimentalDictionarySeiFreeModifier),
         ("UI" | "UI3a", "li'oi") => Some(ExperimentalConstruct::ExperimentalDictionaryUiIndicator),
+        ("NOIhA", "noi'o'a") => Some(ExperimentalConstruct::ExperimentalZantufaCmavo),
         ("NOIhA", _) => Some(ExperimentalConstruct::ExperimentalNoihaAdverbial),
         ("SOI", _) => Some(ExperimentalConstruct::ExperimentalSoiAdverbial),
         ("LOhOI", "lo'oi") => Some(ExperimentalConstruct::ExperimentalLohOiBridiDescription),
@@ -259,6 +359,7 @@ fn experimental_construct_for_cmavo(
         }
         ("cmavo", "no'oi") => Some(ExperimentalConstruct::ExperimentalNohoiSelbriRelativeClause),
         ("cmavo", "go'oi") => Some(ExperimentalConstruct::ExperimentalGohoiRelationUnit),
+        ("LIhAU" | "LUhEI", _) => Some(ExperimentalConstruct::ExperimentalZantufaLuheiRelationUnit),
         ("cmavo", "lu'ei") => Some(ExperimentalConstruct::ExperimentalZantufaLuheiRelationUnit),
         ("cmavo", "mu'oi") => Some(ExperimentalConstruct::ExperimentalZantufaMuhoiRelationUnit),
         ("cmavo", "xo'i") => Some(ExperimentalConstruct::ExperimentalXohiTagRelation),

@@ -199,7 +199,7 @@ pub(super) fn parse_statement(
 ) -> Result<ParsedStatement, SyntaxError> {
     let tokens = spanned_tokens(words);
     let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
-    let mut state = ParserState::new(words);
+    let mut state = ParserState::new(words, options);
 
     let text = statement_parser(source, options)
         .then_ignore(end())
@@ -234,6 +234,7 @@ fn statement_parser<'tokens>(
         .dialect
         .features
         .contains(&DialectFeature::TermHierarchy);
+    let cbm_enabled = options.dialect.features.contains(&DialectFeature::Cbm);
     argument.define(argument_parser_with(
         argument.clone(),
         relation.clone(),
@@ -1442,10 +1443,15 @@ fn statement_parser<'tokens>(
     .or_not()
     .map(Option::unwrap_or_default);
 
+    let leading_cmevla = if cbm_enabled {
+        empty().map(|_| Vec::new()).boxed()
+    } else {
+        cmevla_word().repeated().collect::<Vec<_>>().boxed()
+    };
     let text_body = cmavo("nai")
         .repeated()
         .collect::<Vec<_>>()
-        .then(cmevla_word().repeated().collect::<Vec<_>>())
+        .then(leading_cmevla)
         .then(leading_indicator().repeated().collect::<Vec<_>>())
         .then(free_modifier.repeated().collect::<Vec<_>>())
         .then(
@@ -4904,11 +4910,11 @@ where
             }
         },
     );
-    let luhei_unit = cmavo("lu'ei")
+    let luhei_unit = feature_cmavo("LUhEI", "lu'ei", DialectFeature::ZantufaQuotes)
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(text.clone())
         .then(
-            cmavo("li'au")
+            feature_cmavo("LIhAU", "li'au", DialectFeature::ZantufaQuotes)
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .or_not(),
         )
@@ -5571,11 +5577,11 @@ where
                 }
             },
         );
-        let luhei_unit = cmavo("lu'ei")
+        let luhei_unit = feature_cmavo("LUhEI", "lu'ei", DialectFeature::ZantufaQuotes)
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .then(text.clone())
             .then(
-                cmavo("li'au")
+                feature_cmavo("LIhAU", "li'au", DialectFeature::ZantufaQuotes)
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                     .or_not(),
             )

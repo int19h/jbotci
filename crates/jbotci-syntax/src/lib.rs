@@ -8,7 +8,7 @@ extern crate self as jbotci_syntax;
 use std::fmt;
 
 #[allow(unused_imports)]
-use bityzba::{data, expensive_invariant, invariant, new, requires};
+use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_dialect::DialectDefinition;
 use jbotci_morphology::{Word, WordLike};
 use serde::{Deserialize, Serialize};
@@ -558,6 +558,143 @@ impl SyntaxWarning {
     }
 }
 
+#[invariant(syntax_warning_display_data_is_valid(self.as_data()))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SyntaxWarningDisplay {
+    pub source_label: String,
+    pub kind: ExperimentalConstruct,
+    pub message: String,
+    pub line: usize,
+    pub column: usize,
+    pub selection_start: usize,
+    pub selection_length: usize,
+    pub experimental_cmavo: Option<String>,
+    pub context: String,
+}
+
+#[requires(!source_label.is_empty())]
+#[ensures(ret.len() == warnings.len())]
+pub fn syntax_warning_displays(
+    source_label: &str,
+    source: &str,
+    words: &[WithIndicators<WordLike>],
+    warnings: &[SyntaxWarning],
+) -> Vec<SyntaxWarningDisplay> {
+    warnings
+        .iter()
+        .map(|warning| syntax_warning_display(source_label, source, words, warning))
+        .collect()
+}
+
+#[requires(!source_label.is_empty())]
+#[ensures(!ret.source_label.is_empty())]
+pub fn syntax_warning_display(
+    source_label: &str,
+    source: &str,
+    words: &[WithIndicators<WordLike>],
+    warning: &SyntaxWarning,
+) -> SyntaxWarningDisplay {
+    let (selection_start, selection_length) = warning_selection(warning);
+    let (line, column) = char_offset_to_line_column(source, selection_start);
+    let experimental_cmavo = experimental_cmavo_text(warning);
+    let message = experimental_cmavo.as_ref().map_or_else(
+        || warning.message().to_owned(),
+        |cmavo| format!("{}: {cmavo}", warning.message()),
+    );
+    new!(SyntaxWarningDisplay {
+        source_label: source_label.to_owned(),
+        kind: warning.kind,
+        message: message,
+        line: line,
+        column: column,
+        selection_start: selection_start,
+        selection_length: selection_length,
+        experimental_cmavo: experimental_cmavo,
+        context: warning_context(words, warning.anchor_index),
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.0 >= 1 && ret.1 >= 1)]
+fn char_offset_to_line_column(source: &str, char_offset: usize) -> (usize, usize) {
+    let mut line = 1usize;
+    let mut column = 1usize;
+    for (index, ch) in source.chars().enumerate() {
+        if index == char_offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            column = 1;
+        } else {
+            column += 1;
+        }
+    }
+    (line, column)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn warning_selection(warning: &SyntaxWarning) -> (usize, usize) {
+    let mut spans = warning.anchor.source_spans();
+    spans.sort_by_key(|span| span.char_start);
+    let Some(first) = spans.first() else {
+        return (0, 0);
+    };
+    let last = spans.last().expect("first span exists");
+    (
+        first.char_start,
+        last.char_end.saturating_sub(first.char_start),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn experimental_cmavo_text(warning: &SyntaxWarning) -> Option<String> {
+    if warning.kind == ExperimentalConstruct::ExperimentalCmavo {
+        return warning
+            .anchor
+            .visible_word()
+            .map(jbotci_morphology::Word::canonical_phonemes)
+            .filter(|text| !text.trim().is_empty());
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn warning_context(words: &[WithIndicators<WordLike>], index: usize) -> String {
+    let before_all = words.get(..index).unwrap_or(words);
+    let before_count = before_all.len().min(3);
+    let before = &before_all[before_all.len().saturating_sub(before_count)..];
+    let after = if index + 1 < words.len() {
+        &words[index + 1..words.len().min(index + 4)]
+    } else {
+        &[]
+    };
+    let mut parts = Vec::new();
+    parts.extend(before.iter().map(warning_word_text));
+    let current = words.get(index).map_or_else(
+        || "👉<EOF>".to_owned(),
+        |word| format!("👉{}", warning_word_text(word)),
+    );
+    parts.push(current);
+    parts.extend(after.iter().map(warning_word_text));
+    let prefix = if index > 3 { "… " } else { "" };
+    let suffix = if words.len().saturating_sub(index + 1) > 3 {
+        " …"
+    } else {
+        ""
+    };
+    format!("{prefix}@ {index}: {}{suffix}", parts.join(" "))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn warning_word_text(word: &WithIndicators<WordLike>) -> String {
+    format!("{word}")
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_syntax_tree(words: &[WordLike]) -> Result<SyntaxParse, SyntaxError> {
@@ -617,4 +754,22 @@ fn syntax_parse_source_spans_are_ordered(data: &SyntaxParseData) -> bool {
 fn syntax_warning_data_is_valid(data: &SyntaxWarningData) -> bool {
     let data!(SyntaxWarning { .. }) = data;
     true
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_warning_display_data_is_valid(data: &SyntaxWarningDisplayData) -> bool {
+    let data!(SyntaxWarningDisplay {
+        source_label,
+        message,
+        line,
+        column,
+        context,
+        ..
+    }) = data;
+    !source_label.is_empty()
+        && !message.is_empty()
+        && *line > 0
+        && *column > 0
+        && !context.is_empty()
 }

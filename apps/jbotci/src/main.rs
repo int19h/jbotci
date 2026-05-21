@@ -10,8 +10,7 @@ use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options};
 use jbotci_output::{BracketRenderOptions, compact_json_string, pretty_brackets_with_options};
 use jbotci_syntax::{
-    ExperimentalConstruct, ParseOptions, SyntaxParse, SyntaxWarning,
-    parse_syntax_tree_with_source_and_options,
+    ParseOptions, SyntaxParse, parse_syntax_tree_with_source_and_options, syntax_warning_displays,
 };
 use owo_colors::{OwoColorize, Stream};
 
@@ -285,56 +284,19 @@ fn render_syntax_warnings<W: Write>(
     source_label: &str,
     stderr: &mut W,
 ) -> Result<()> {
-    for warning in &parsed.warnings {
-        let (line, column) = warning_line_column(source, warning);
+    let mut syntax_words = Vec::new();
+    parsed
+        .parse_tree
+        .visit_words(&mut |word| syntax_words.push(word.clone()));
+    for warning in syntax_warning_displays(source_label, source, &syntax_words, &parsed.warnings) {
         writeln!(
             stderr,
-            "{source_label}:{line}:{column}: warning: experimental syntax: {}",
-            syntax_warning_message(warning)
+            "{}:{}:{}: warning: experimental syntax: {}",
+            warning.source_label, warning.line, warning.column, warning.message
         )?;
+        writeln!(stderr, "  {}", warning.context)?;
     }
     Ok(())
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn syntax_warning_message(warning: &SyntaxWarning) -> String {
-    let message = warning.message();
-    if warning.kind == ExperimentalConstruct::ExperimentalCmavo
-        && let Some(word) = warning.anchor.visible_word()
-    {
-        return format!("{message}: {}", word.canonical_phonemes());
-    }
-    message.to_owned()
-}
-
-#[requires(true)]
-#[ensures(ret.0 > 0 && ret.1 > 0)]
-fn warning_line_column(source: &str, warning: &SyntaxWarning) -> (usize, usize) {
-    let char_offset = warning
-        .anchor
-        .visible_word()
-        .map_or(0, |word| word.span.char_start);
-    char_offset_to_line_column(source, char_offset)
-}
-
-#[requires(true)]
-#[ensures(ret.0 > 0 && ret.1 > 0)]
-fn char_offset_to_line_column(source: &str, char_offset: usize) -> (usize, usize) {
-    let mut line = 1usize;
-    let mut column = 1usize;
-    for (index, ch) in source.chars().enumerate() {
-        if index == char_offset {
-            break;
-        }
-        if ch == '\n' {
-            line += 1;
-            column = 1;
-        } else {
-            column += 1;
-        }
-    }
-    (line, column)
 }
 
 #[requires(true)]
@@ -713,6 +675,8 @@ mod tests {
                 assert!(!stdout.contains("warning:"));
                 assert!(stderr.contains("warning: experimental syntax"));
                 assert!(stderr.contains("FIhOI bridi/subsentence adverbial term"));
+                assert!(stderr.contains("@ "));
+                assert!(stderr.contains("👉"));
             })
             .expect("spawn warning test")
             .join()
