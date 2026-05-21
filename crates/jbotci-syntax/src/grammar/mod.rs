@@ -354,21 +354,36 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn parses_basic_predicate_with_leading_and_tail_terms() {
-        let words = segment_words_with_modifiers("do mamta mi").expect("valid morphology");
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("do mamta mi").expect("valid morphology");
 
-        let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
 
-        assert_eq!(parsed.parse_tree.paragraphs.len(), 1);
+            assert_eq!(parsed.parse_tree.paragraphs.len(), 1);
+        });
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn rejects_stray_cu() {
-        let words = segment_words_with_modifiers("cu").expect("valid morphology");
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("cu").expect("valid morphology");
 
-        let error = parse_syntax_tree(&words, &ParseOptions::default()).expect_err("invalid");
+            let error = parse_syntax_tree(&words, &ParseOptions::default()).expect_err("invalid");
 
-        assert!(matches!(error, SyntaxError::Parse { .. }));
+            assert!(matches!(error, SyntaxError::Parse { .. }));
+        });
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {
+        std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(test)
+            .expect("spawn large-stack syntax test")
+            .join()
+            .expect("large-stack syntax test thread");
     }
 }
