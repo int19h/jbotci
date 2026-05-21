@@ -704,9 +704,8 @@ pub struct ConnectiveSyntax {
     pub se: Option<WithIndicators<WordLike>>,
     pub nahe: Option<WithIndicators<WordLike>>,
     pub na: Option<WithIndicators<WordLike>>,
-    pub cmavo: Vec<WithIndicators<WordLike>>,
-    pub nai: Option<WithIndicators<WordLike>>,
-    pub free_modifiers: Vec<FreeModifierSyntax>,
+    pub cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+    pub nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -2652,12 +2651,8 @@ impl ConnectiveSyntax {
             self.se.into_iter().collect(),
             self.nahe.into_iter().collect(),
             self.na.into_iter().collect(),
-            self.cmavo,
-            self.nai.into_iter().collect(),
-            self.free_modifiers
-                .into_iter()
-                .flat_map(FreeModifierSyntax::words)
-                .collect(),
+            self.cmavo.words(),
+            self.nai.into_iter().flat_map(|nai| nai.words()).collect(),
         ]
         .concat()
     }
