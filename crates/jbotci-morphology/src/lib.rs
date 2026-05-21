@@ -620,10 +620,9 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
     grammar::segment_words_with_modifiers_raw(input, options, source_id)
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 #[requires(true)]
 #[ensures(true)]
-fn word_like_data_is_valid(word_like: &WordLikeData) -> bool {
+pub(crate) fn word_like_data_is_valid(word_like: &WordLikeData) -> bool {
     match word_like {
         data!(WordLike::Bare(..)) => true,
         data!(WordLike::ZoQuote { zo, .. }) => zo.selmaho() == Some("ZO"),
