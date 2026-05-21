@@ -391,11 +391,11 @@ pub fn map_word_like_spans<F>(word_like: WordLike, map_span: &F) -> Result<WordL
 where
     F: Fn(SourceSpan) -> Result<SourceSpan, String>,
 {
-    Ok(match word_like.as_data() {
-        data!(WordLike::Bare(word)) => WordLike::bare(map_word_spans((**word).clone(), map_span)?),
+    Ok(match word_like.into_data() {
+        data!(WordLike::Bare(word)) => WordLike::bare(map_word_spans(*word, map_span)?),
         data!(WordLike::ZoQuote { zo, word }) => WordLike::zo_quote(
-            map_word_spans((**zo).clone(), map_span)?,
-            map_word_spans((**word).clone(), map_span)?,
+            map_word_spans(*zo, map_span)?,
+            map_word_spans(*word, map_span)?,
         ),
         data!(WordLike::ZoiQuote {
             zoi,
@@ -403,39 +403,37 @@ where
             quoted_text,
             closing_delimiter,
         }) => WordLike::zoi_quote(
-            map_word_spans((**zoi).clone(), map_span)?,
-            map_word_spans((**opening_delimiter).clone(), map_span)?,
-            map_span(quoted_text.clone())?,
-            map_word_spans((**closing_delimiter).clone(), map_span)?,
+            map_word_spans(*zoi, map_span)?,
+            map_word_spans(*opening_delimiter, map_span)?,
+            map_span(quoted_text)?,
+            map_word_spans(*closing_delimiter, map_span)?,
         ),
         data!(WordLike::LohuQuote {
             lohu,
             quoted_words,
             lehu,
         }) => WordLike::lohu_quote(
-            map_word_spans((**lohu).clone(), map_span)?,
+            map_word_spans(*lohu, map_span)?,
             quoted_words
-                .iter()
-                .cloned()
+                .into_iter()
                 .map(|word| map_word_spans(word, map_span))
                 .collect::<Result<Vec<_>, _>>()?,
-            map_word_spans((**lehu).clone(), map_span)?,
+            map_word_spans(*lehu, map_span)?,
         ),
         data!(WordLike::SingleWordQuote {
             marker,
             quoted_text,
-        }) => WordLike::single_word_quote(
-            map_word_spans((**marker).clone(), map_span)?,
-            map_span(quoted_text.clone())?,
-        ),
+        }) => {
+            WordLike::single_word_quote(map_word_spans(*marker, map_span)?, map_span(quoted_text)?)
+        }
         data!(WordLike::Letter { base, bu }) => WordLike::letter(
-            map_word_like_spans((**base).clone(), map_span)?,
-            map_word_spans((**bu).clone(), map_span)?,
+            map_word_like_spans(*base, map_span)?,
+            map_word_spans(*bu, map_span)?,
         ),
         data!(WordLike::ZeiLujvo { left, zei, right }) => WordLike::zei_lujvo(
-            map_word_like_spans((**left).clone(), map_span)?,
-            map_word_spans((**zei).clone(), map_span)?,
-            map_word_spans((**right).clone(), map_span)?,
+            map_word_like_spans(*left, map_span)?,
+            map_word_spans(*zei, map_span)?,
+            map_word_spans(*right, map_span)?,
         ),
     })
 }
@@ -446,10 +444,11 @@ pub fn map_word_spans<F>(word: Word, map_span: &F) -> Result<Word, String>
 where
     F: Fn(SourceSpan) -> Result<SourceSpan, String>,
 {
-    let span = map_span(word.span.clone())?;
-    Ok(word.with_data(data! {
-        span: span,
-    }))
+    let data = word.into_data();
+    Ok(Word::from_data(data!(Word {
+        span: map_span(data.span)?,
+        ..data
+    })))
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]

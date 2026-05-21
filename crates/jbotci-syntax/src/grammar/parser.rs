@@ -30,7 +30,7 @@ enum TermContinuationSyntax {
 }
 
 #[requires(true)]
-#[ensures(ret.clone().free_modifiers().len() >= old(free_modifiers.len()))]
+#[ensures(ret.free_modifier_count() >= old(free_modifiers.len()))]
 fn attach_tense_modal_free_modifiers(
     tense_modal: TenseModalSyntax,
     free_modifiers: Vec<FreeModifierSyntax>,

@@ -3076,101 +3076,25 @@ impl AdditionalNuSyntax {
 impl TenseModalSyntax {
     #[requires(true)]
     #[ensures(true)]
-    pub fn leaf_words(self) -> Vec<WithIndicators<WordLike>> {
+    pub fn free_modifier_count(&self) -> usize {
         match self {
-            TenseModalSyntax::Composite { leaves, .. } => leaves.value,
-            TenseModalSyntax::Pu(word) | TenseModalSyntax::Caha(word) => vec![word.value],
-            TenseModalSyntax::PuDistance { pu, distance, .. } => vec![pu, distance.value],
-            TenseModalSyntax::TimeInterval(word) => vec![word.value],
-            TenseModalSyntax::PuCaha { pu, caha, .. } => vec![pu, caha.value],
-            TenseModalSyntax::SpaceDistance(word) => vec![word.value],
-            TenseModalSyntax::SpaceDirection(word) => vec![word.value],
-            TenseModalSyntax::SpaceMovement {
-                mohi,
-                direction,
-                distance,
-                ..
-            } => [
-                vec![mohi, direction.value],
-                distance
-                    .into_iter()
-                    .map(|distance| distance.value)
-                    .collect(),
-            ]
-            .concat(),
-            TenseModalSyntax::Simple {
-                nahe,
-                se,
-                bai,
-                nai,
-                ki,
-                connectives,
-                extra_leaves,
-                ..
-            } => [
-                nahe.into_iter().map(|nahe| nahe.value).collect::<Vec<_>>(),
-                se.into_iter().map(|se| se.value).collect(),
-                vec![bai.value],
-                nai.into_iter().map(|nai| nai.value).collect(),
-                ki.into_iter().map(|ki| ki.value).collect(),
-                connectives.value,
-                extra_leaves.value,
-            ]
-            .concat(),
-            TenseModalSyntax::Ki(ki) => vec![ki.value],
-            TenseModalSyntax::Fiho {
-                fiho,
-                relation,
-                fehu,
-                ..
-            } => {
-                let mut words = vec![fiho.value];
-                words.extend((*relation).words());
-                words.extend(fehu.into_iter().map(|fehu| fehu.value));
-                words
-            }
-            TenseModalSyntax::Zaho(words) => words.value,
-            TenseModalSyntax::Interval {
-                number,
-                roi_or_tahe,
-                nai,
-                ..
-            } => [
-                number,
-                vec![roi_or_tahe.value],
-                nai.into_iter().map(|nai| nai.value).collect(),
-            ]
-            .concat(),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.clone().leaf_words();
-        for free_modifier in self.free_modifiers() {
-            words.extend(free_modifier.words());
-        }
-        words
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn free_modifiers(self) -> Vec<FreeModifierSyntax> {
-        match self {
-            TenseModalSyntax::Composite { leaves, .. } => leaves.free_modifiers,
+            TenseModalSyntax::Composite { leaves, .. } => leaves.free_modifiers.len(),
             TenseModalSyntax::Pu(word)
             | TenseModalSyntax::TimeInterval(word)
             | TenseModalSyntax::SpaceDistance(word)
             | TenseModalSyntax::SpaceDirection(word)
-            | TenseModalSyntax::Caha(word) => word.free_modifiers,
-            TenseModalSyntax::PuDistance { distance, .. } => distance.free_modifiers,
-            TenseModalSyntax::PuCaha { caha, .. } => caha.free_modifiers,
+            | TenseModalSyntax::Caha(word) => word.free_modifiers.len(),
+            TenseModalSyntax::PuDistance { distance, .. } => distance.free_modifiers.len(),
+            TenseModalSyntax::PuCaha { caha, .. } => caha.free_modifiers.len(),
             TenseModalSyntax::SpaceMovement {
                 direction,
                 distance,
                 ..
-            } => distance.map_or(direction.free_modifiers, |distance| distance.free_modifiers),
+            } => distance
+                .as_ref()
+                .map_or(direction.free_modifiers.len(), |distance| {
+                    distance.free_modifiers.len()
+                }),
             TenseModalSyntax::Simple {
                 nahe,
                 se,
@@ -3181,31 +3105,185 @@ impl TenseModalSyntax {
                 extra_leaves,
             } => {
                 if !extra_leaves.value.is_empty() {
-                    extra_leaves.free_modifiers
+                    extra_leaves.free_modifiers.len()
                 } else if !connectives.value.is_empty() {
-                    connectives.free_modifiers
+                    connectives.free_modifiers.len()
                 } else if let Some(ki) = ki {
-                    ki.free_modifiers
+                    ki.free_modifiers.len()
                 } else if let Some(nai) = nai {
-                    nai.free_modifiers
+                    nai.free_modifiers.len()
                 } else if !bai.free_modifiers.is_empty() {
-                    bai.free_modifiers
+                    bai.free_modifiers.len()
                 } else if let Some(se) = se {
-                    se.free_modifiers
+                    se.free_modifiers.len()
                 } else if let Some(nahe) = nahe {
-                    nahe.free_modifiers
+                    nahe.free_modifiers.len()
                 } else {
-                    bai.free_modifiers
+                    bai.free_modifiers.len()
                 }
             }
-            TenseModalSyntax::Ki(ki) => ki.free_modifiers,
-            TenseModalSyntax::Fiho { fiho, fehu, .. } => {
-                fehu.map_or(fiho.free_modifiers, |fehu| fehu.free_modifiers)
-            }
-            TenseModalSyntax::Zaho(words) => words.free_modifiers,
+            TenseModalSyntax::Ki(ki) => ki.free_modifiers.len(),
+            TenseModalSyntax::Fiho { fiho, fehu, .. } => fehu
+                .as_ref()
+                .map_or(fiho.free_modifiers.len(), |fehu| fehu.free_modifiers.len()),
+            TenseModalSyntax::Zaho(words) => words.free_modifiers.len(),
             TenseModalSyntax::Interval {
                 roi_or_tahe, nai, ..
-            } => nai.map_or(roi_or_tahe.free_modifiers, |nai| nai.free_modifiers),
+            } => nai
+                .as_ref()
+                .map_or(roi_or_tahe.free_modifiers.len(), |nai| {
+                    nai.free_modifiers.len()
+                }),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.1.len() == old(self.free_modifier_count()))]
+    pub fn leaf_words_and_free_modifiers(
+        self,
+    ) -> (Vec<WithIndicators<WordLike>>, Vec<FreeModifierSyntax>) {
+        match self {
+            TenseModalSyntax::Composite { leaves, .. } => (leaves.value, leaves.free_modifiers),
+            TenseModalSyntax::Pu(word) | TenseModalSyntax::Caha(word) => {
+                (vec![word.value], word.free_modifiers)
+            }
+            TenseModalSyntax::PuDistance { pu, distance } => {
+                (vec![pu, distance.value], distance.free_modifiers)
+            }
+            TenseModalSyntax::TimeInterval(word) => (vec![word.value], word.free_modifiers),
+            TenseModalSyntax::PuCaha { pu, caha } => (vec![pu, caha.value], caha.free_modifiers),
+            TenseModalSyntax::SpaceDistance(word) => (vec![word.value], word.free_modifiers),
+            TenseModalSyntax::SpaceDirection(word) => (vec![word.value], word.free_modifiers),
+            TenseModalSyntax::SpaceMovement {
+                mohi,
+                direction,
+                distance,
+            } => {
+                let mut words = vec![mohi, direction.value];
+                let mut free_modifiers = direction.free_modifiers;
+                if let Some(distance) = distance {
+                    words.push(distance.value);
+                    free_modifiers = distance.free_modifiers;
+                }
+                (words, free_modifiers)
+            }
+            TenseModalSyntax::Simple {
+                nahe,
+                se,
+                bai,
+                nai,
+                ki,
+                connectives,
+                extra_leaves,
+            } => {
+                let mut words = Vec::new();
+                let nahe_is_some = nahe.is_some();
+                let nahe_free_modifiers = if let Some(nahe) = nahe {
+                    words.push(nahe.value);
+                    nahe.free_modifiers
+                } else {
+                    Vec::new()
+                };
+                let se_is_some = se.is_some();
+                let se_free_modifiers = if let Some(se) = se {
+                    words.push(se.value);
+                    se.free_modifiers
+                } else {
+                    Vec::new()
+                };
+                words.push(bai.value);
+                let bai_free_modifiers = bai.free_modifiers;
+                let nai_is_some = nai.is_some();
+                let nai_free_modifiers = if let Some(nai) = nai {
+                    words.push(nai.value);
+                    nai.free_modifiers
+                } else {
+                    Vec::new()
+                };
+                let ki_is_some = ki.is_some();
+                let ki_free_modifiers = if let Some(ki) = ki {
+                    words.push(ki.value);
+                    ki.free_modifiers
+                } else {
+                    Vec::new()
+                };
+                let connectives_have_words = !connectives.value.is_empty();
+                words.extend(connectives.value);
+                let connectives_free_modifiers = connectives.free_modifiers;
+                let extra_leaves_have_words = !extra_leaves.value.is_empty();
+                words.extend(extra_leaves.value);
+                let extra_leaves_free_modifiers = extra_leaves.free_modifiers;
+                let free_modifiers = if extra_leaves_have_words {
+                    extra_leaves_free_modifiers
+                } else if connectives_have_words {
+                    connectives_free_modifiers
+                } else if ki_is_some {
+                    ki_free_modifiers
+                } else if nai_is_some {
+                    nai_free_modifiers
+                } else if !bai_free_modifiers.is_empty() {
+                    bai_free_modifiers
+                } else if se_is_some {
+                    se_free_modifiers
+                } else if nahe_is_some {
+                    nahe_free_modifiers
+                } else {
+                    bai_free_modifiers
+                };
+                (words, free_modifiers)
+            }
+            TenseModalSyntax::Ki(ki) => (vec![ki.value], ki.free_modifiers),
+            TenseModalSyntax::Fiho {
+                fiho,
+                relation,
+                fehu,
+            } => {
+                let mut words = vec![fiho.value];
+                let mut free_modifiers = fiho.free_modifiers;
+                words.extend((*relation).words());
+                if let Some(fehu) = fehu {
+                    words.push(fehu.value);
+                    free_modifiers = fehu.free_modifiers;
+                }
+                (words, free_modifiers)
+            }
+            TenseModalSyntax::Zaho(words) => (words.value, words.free_modifiers),
+            TenseModalSyntax::Interval {
+                number,
+                roi_or_tahe,
+                nai,
+            } => {
+                let mut words = number;
+                words.push(roi_or_tahe.value);
+                let mut free_modifiers = roi_or_tahe.free_modifiers;
+                if let Some(nai) = nai {
+                    words.push(nai.value);
+                    free_modifiers = nai.free_modifiers;
+                }
+                (words, free_modifiers)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn leaf_words(self) -> Vec<WithIndicators<WordLike>> {
+        self.leaf_words_and_free_modifiers().0
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+        let (mut words, free_modifiers) = self.leaf_words_and_free_modifiers();
+        for free_modifier in free_modifiers {
+            words.extend(free_modifier.words());
+        }
+        words
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn free_modifiers(self) -> Vec<FreeModifierSyntax> {
+        self.leaf_words_and_free_modifiers().1
     }
 }

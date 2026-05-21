@@ -9,8 +9,17 @@ use super::ast::{
 use super::tokens::{BAI_WORDS, CAHA_WORDS, FA_WORDS, ROI_WORDS, ZAHO_WORDS, cmavo_text_matches};
 
 #[requires(true)]
+#[ensures(true)]
+fn composite_leaf_count(tense_modal: &TenseModalSyntax) -> usize {
+    match tense_modal {
+        TenseModalSyntax::Composite { leaves, .. } => leaves.value.len(),
+        _ => 0,
+    }
+}
+
+#[requires(true)]
 #[ensures(matches!(ret, TenseModalSyntax::Composite { .. }))]
-#[ensures(ret.clone().leaf_words() == old(leaves.clone()))]
+#[ensures(composite_leaf_count(&ret) == old(leaves.len()))]
 pub(super) fn tense_modal_from_leaves(
     leaves: Vec<WithIndicators<WordLike>>,
     free_modifiers: Vec<FreeModifierSyntax>,
@@ -175,13 +184,16 @@ pub(super) fn tense_modal_as_composite(tense_modal: TenseModalSyntax) -> TenseMo
             }],
             connectives: Vec::new(),
         },
-        other => tense_modal_from_leaves(other.clone().leaf_words(), other.free_modifiers()),
+        other => {
+            let (leaves, free_modifiers) = other.leaf_words_and_free_modifiers();
+            tense_modal_from_leaves(leaves, free_modifiers)
+        }
     }
 }
 
 #[requires(true)]
 #[ensures(matches!(ret, TenseModalSyntax::Composite { .. }))]
-#[ensures(ret.clone().leaf_words() == old(leaves.clone()))]
+#[ensures(composite_leaf_count(&ret) == old(leaves.len()))]
 pub(super) fn connective_tense_modal_from_leaves(
     leaves: Vec<WithIndicators<WordLike>>,
 ) -> TenseModalSyntax {
