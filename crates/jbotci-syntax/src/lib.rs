@@ -204,9 +204,9 @@ pub struct ParagraphStatement {
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
+#[serde(tag = "kind", content = "fragment", rename_all = "kebab-case")]
 pub enum Statement {
-    Fragment { fragment: Fragment },
+    Fragment(Fragment),
     Placeholder,
 }
 
@@ -214,7 +214,7 @@ impl Statement {
     #[requires(true)]
     #[ensures(true)]
     pub fn fragment(fragment: Fragment) -> Self {
-        Statement::Fragment { fragment }
+        Statement::Fragment(fragment)
     }
 
     #[requires(true)]
@@ -226,52 +226,46 @@ impl Statement {
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
+#[serde(tag = "kind", content = "words", rename_all = "kebab-case")]
 pub enum Fragment {
-    Other {
-        words: Vec<WithIndicators<WordLike>>,
-    },
+    Other(Vec<WithIndicators<WordLike>>),
 }
 
 impl Fragment {
     #[requires(true)]
     #[ensures(true)]
     pub fn other(words: Vec<WithIndicators<WordLike>>) -> Self {
-        Fragment::Other { words }
+        Fragment::Other(words)
     }
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
+#[serde(tag = "kind", content = "words", rename_all = "kebab-case")]
 pub enum FreeModifier {
-    Words {
-        words: Vec<WithIndicators<WordLike>>,
-    },
+    Words(Vec<WithIndicators<WordLike>>),
 }
 
 impl FreeModifier {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(words: Vec<WithIndicators<WordLike>>) -> Self {
-        FreeModifier::Words { words }
+        FreeModifier::Words(words)
     }
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
+#[serde(tag = "kind", content = "words", rename_all = "kebab-case")]
 pub enum Connective {
-    Words {
-        words: Vec<WithIndicators<WordLike>>,
-    },
+    Words(Vec<WithIndicators<WordLike>>),
 }
 
 impl Connective {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(words: Vec<WithIndicators<WordLike>>) -> Self {
-        Connective::Words { words }
+        Connective::Words(words)
     }
 }
 
