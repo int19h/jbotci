@@ -1,6 +1,9 @@
 //! Lojban syntax model and parser facade.
 
 mod grammar;
+pub mod source_tree;
+
+extern crate self as jbotci_syntax;
 
 use std::fmt;
 
@@ -14,6 +17,7 @@ pub mod ast {
     pub use crate::grammar::ast::*;
 }
 use ast::TextSyntax;
+pub use jbotci_syntax_macros::SourceTree;
 
 #[invariant(indicator_data_is_valid(self.as_data()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -131,6 +135,37 @@ impl WithIndicators<WordLike> {
     #[ensures(true)]
     pub fn visible_word(&self) -> Option<&Word> {
         self.word_like().and_then(WordLike::visible_base_word)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn source_spans(&self) -> Vec<&jbotci_source::SourceSpan> {
+        let mut spans = Vec::new();
+        self.source_spans_into(&mut spans);
+        spans
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn source_spans_into<'a>(&'a self, out: &mut Vec<&'a jbotci_source::SourceSpan>) {
+        match self {
+            WithIndicators::Bare(word_like) => word_like.source_spans_into(out),
+            WithIndicators::Emphasized { bahe, word_like } => {
+                out.push(&bahe.span);
+                word_like.source_spans_into(out);
+            }
+            WithIndicators::WithIndicator {
+                base,
+                indicator,
+                nai,
+            } => {
+                base.source_spans_into(out);
+                out.push(&indicator.span);
+                if let Some(nai) = nai {
+                    out.push(&nai.span);
+                }
+            }
+        }
     }
 }
 

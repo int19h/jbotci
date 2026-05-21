@@ -7,6 +7,7 @@ use crate::BracketRenderOptions;
 pub(crate) enum SExpr {
     Leaf(String),
     Node(Vec<SExpr>),
+    #[allow(dead_code)]
     Splice(Vec<SExpr>),
 }
 

@@ -15,6 +15,7 @@ members = [
     "crates/jbotci-semantics",
     "crates/jbotci-source",
     "crates/jbotci-syntax",
+    "crates/jbotci-syntax-macros",
     "xtask",
 ]
 resolver = "3"
@@ -52,9 +53,11 @@ owo-colors = { version = "4", features = ["supports-colors"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order", "unbounded_depth"] }
 serde_stacker = "0.1"
+smallvec = { version = "1", features = ["serde"] }
 rayon = "1"
 thiserror = "2"
 toml = { version = "0.9", features = ["unbounded"] }
+vec1 = { version = "1.12.1", features = ["serde", "smallvec-v1"] }
 walkdir = "2"
 
 jbotci-cll = { path = "crates/jbotci-cll" }
@@ -69,6 +72,7 @@ jbotci-search = { path = "crates/jbotci-search" }
 jbotci-semantics = { path = "crates/jbotci-semantics" }
 jbotci-source = { path = "crates/jbotci-source" }
 jbotci-syntax = { path = "crates/jbotci-syntax" }
+jbotci-syntax-macros = { path = "crates/jbotci-syntax-macros" }
 
 [dev-dependencies]
 bityzba.workspace = true

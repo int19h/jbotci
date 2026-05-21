@@ -328,6 +328,64 @@ impl WordLike {
     pub fn byte_range(&self) -> Option<std::ops::Range<usize>> {
         word_like_byte_range(self)
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn source_spans(&self) -> Vec<&SourceSpan> {
+        let mut spans = Vec::new();
+        self.source_spans_into(&mut spans);
+        spans
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn source_spans_into<'a>(&'a self, out: &mut Vec<&'a SourceSpan>) {
+        match self.as_data() {
+            data!(WordLike::Bare(word)) => out.push(&word.span),
+            data!(WordLike::ZoQuote { zo, word }) => {
+                out.push(&zo.span);
+                out.push(&word.span);
+            }
+            data!(WordLike::ZoiQuote {
+                zoi,
+                opening_delimiter,
+                quoted_text,
+                closing_delimiter,
+            }) => {
+                out.push(&zoi.span);
+                out.push(&opening_delimiter.span);
+                out.push(quoted_text);
+                out.push(&closing_delimiter.span);
+            }
+            data!(WordLike::LohuQuote {
+                lohu,
+                quoted_words,
+                lehu,
+            }) => {
+                out.push(&lohu.span);
+                for word in quoted_words {
+                    out.push(&word.span);
+                }
+                out.push(&lehu.span);
+            }
+            data!(WordLike::SingleWordQuote {
+                marker,
+                quoted_text,
+            }) => {
+                out.push(&marker.span);
+                out.push(quoted_text);
+            }
+            data!(WordLike::Letter { base, bu }) => {
+                base.source_spans_into(out);
+                out.push(&bu.span);
+            }
+            data!(WordLike::ZeiLujvo { left, zei, right }) => {
+                left.source_spans_into(out);
+                out.push(&zei.span);
+                out.push(&right.span);
+            }
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for WordLike {

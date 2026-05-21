@@ -1,5 +1,6 @@
 //! Output format selection and render facade.
 
+mod brackets;
 mod sexpr;
 mod surface;
 
@@ -610,12 +611,7 @@ pub fn pretty_brackets_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
-    let compact = compact_json_value(tree)?;
-    let sexpr = compact_value_sexpr(&compact, source)?;
-    Ok(sexpr::render_bracketed_with_options(
-        &sexpr::flatten(sexpr),
-        options,
-    ))
+    brackets::pretty_brackets_with_options(tree, source, options)
 }
 
 #[requires(true)]

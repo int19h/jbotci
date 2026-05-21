@@ -1228,26 +1228,12 @@ fn statement_parser<'tokens>(
                         if index > 0 {
                             pending_words.push(pending_i);
                         }
-                        pending_connective
-                            .cmavo
-                            .extend_words_into(&mut pending_words);
+                        pending_words.extend(pending_connective.words());
                         (first_i, pending_words)
                     },
                 );
                 let connective = tag_bo.map_or(connective.clone(), |(tense_modal, bo)| {
-                    let mut cmavo = connective.cmavo;
-                    if let Some(tense_modal) = tense_modal {
-                        tense_modal.extend_words_into(&mut cmavo.value);
-                    }
-                    cmavo.value.push(bo);
-                    ConnectiveSyntax {
-                        kind: connective.kind,
-                        se: connective.se,
-                        nahe: connective.nahe,
-                        na: connective.na,
-                        cmavo,
-                        nai: connective.nai,
-                    }
+                    append_optional_tense_modal_and_bo(connective.clone(), tense_modal, bo)
                 });
                 let mut pending_words = pending_words;
                 pending_words.push(i);
@@ -1272,19 +1258,7 @@ fn statement_parser<'tokens>(
         .then(simple_statement_after_i_connective.clone())
         .map(|(((i, connective), tag_bo), trailing_statement)| {
             let connective = tag_bo.map_or(connective.clone(), |(tense_modal, bo)| {
-                let mut cmavo = connective.cmavo;
-                if let Some(tense_modal) = tense_modal {
-                    tense_modal.extend_words_into(&mut cmavo.value);
-                }
-                cmavo.value.push(bo);
-                ConnectiveSyntax {
-                    kind: connective.kind,
-                    se: connective.se,
-                    nahe: connective.nahe,
-                    na: connective.na,
-                    cmavo,
-                    nai: connective.nai,
-                }
+                append_optional_tense_modal_and_bo(connective.clone(), tense_modal, bo)
             });
             (false, i, connective, trailing_statement)
         });
@@ -1321,19 +1295,7 @@ fn statement_parser<'tokens>(
             .then(simple_statement_after_i_connective.clone())
             .map(|(((connective, tag_bo), i), trailing_statement)| {
                 let connective = tag_bo.map_or(connective.clone(), |(tense_modal, bo)| {
-                    let mut cmavo = connective.cmavo;
-                    if let Some(tense_modal) = tense_modal {
-                        tense_modal.extend_words_into(&mut cmavo.value);
-                    }
-                    cmavo.value.push(bo);
-                    ConnectiveSyntax {
-                        kind: connective.kind,
-                        se: connective.se,
-                        nahe: connective.nahe,
-                        na: connective.na,
-                        cmavo,
-                        nai: connective.nai,
-                    }
+                    append_optional_tense_modal_and_bo(connective.clone(), tense_modal, bo)
                 });
                 (true, i, connective, trailing_statement)
             }),
@@ -1402,38 +1364,22 @@ fn statement_parser<'tokens>(
             (None, None) => None,
             (Some(connective), None) => Some(connective),
             (connective, Some((tense_modal, bo))) => {
-                let (kind, se, nahe, na, nai, mut cmavo) = connective.map_or(
+                let (kind, se, nahe, na, mut cmavo, nai) = connective.map_or(
                     (
                         ConnectiveKind::Relation,
                         None,
                         None,
                         None,
-                        None,
                         wrapped_words(Vec::new(), Vec::new()),
+                        None,
                     ),
-                    |connective| {
-                        (
-                            connective.kind,
-                            connective.se,
-                            connective.nahe,
-                            connective.na,
-                            connective.nai,
-                            connective.cmavo,
-                        )
-                    },
+                    |connective| connective.into_parts(),
                 );
                 if let Some(tense_modal) = tense_modal {
                     tense_modal.extend_words_into(&mut cmavo.value);
                 }
                 cmavo.value.push(bo);
-                Some(ConnectiveSyntax {
-                    kind,
-                    se,
-                    nahe,
-                    na,
-                    cmavo,
-                    nai,
-                })
+                Some(ConnectiveSyntax::new(kind, se, nahe, na, cmavo, nai))
             }
         });
 
@@ -1799,10 +1745,10 @@ fn connected_statement_node(
 }
 
 #[requires(true)]
-#[ensures(ret == connective.cmavo.value.iter().any(|word| cmavo_text_matches(word, "bo")))]
+#[ensures(ret == connective.cmavo().value.iter().any(|word| cmavo_text_matches(word, "bo")))]
 fn connective_has_bo(connective: &ConnectiveSyntax) -> bool {
     connective
-        .cmavo
+        .cmavo()
         .value
         .iter()
         .any(|word| cmavo_text_matches(word, "bo"))
@@ -1865,7 +1811,7 @@ fn gek_sentence_has_tail_terms(gek_sentence: &GekSentenceSyntax) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn connective_is_gihek(connective: &ConnectiveSyntax) -> bool {
-    connective.cmavo.value.iter().any(|word| {
+    connective.cmavo().value.iter().any(|word| {
         ["gi'e", "gi'i", "gi'o", "gi'a", "gi'u"]
             .iter()
             .any(|text| cmavo_text_matches(word, text))
@@ -2854,14 +2800,8 @@ where
                 descriptor: WithFreeModifiers::new(descriptor, descriptor_free_modifiers),
             },
         );
-    let descriptor_head_connective = jek_connective().map(|connective| ConnectiveSyntax {
-        kind: ConnectiveKind::Afterthought,
-        se: connective.se,
-        nahe: connective.nahe,
-        na: connective.na,
-        cmavo: connective.cmavo,
-        nai: connective.nai,
-    });
+    let descriptor_head_connective = jek_connective()
+        .map(|connective| connective_with_kind(connective, ConnectiveKind::Afterthought));
     let connected_descriptor = descriptor_head
         .clone()
         .then(descriptor_head_connective)
@@ -3499,7 +3439,7 @@ fn attach_quantifier_free_modifiers(
 #[requires(true)]
 #[ensures(true)]
 fn quote_argument<'tokens, T, F>(
-    source: Option<&'tokens str>,
+    _source: Option<&'tokens str>,
     text: T,
     free_modifier: F,
 ) -> BoxedParser<'tokens, ArgumentSyntax>
@@ -3516,61 +3456,27 @@ where
             };
 
             match word_like.as_data() {
-                data!(WordLike::ZoQuote { word: quoted, .. }) => Ok(ArgumentSyntax::Quote(
-                    QuoteSyntax::Zo {
-                        zo: word.clone(),
-                        word: WithFreeModifiers::new(
-                            base_word_from_record((**quoted).clone()),
-                            Vec::new(),
-                        ),
-                    },
-                )),
-                data!(WordLike::ZoiQuote {
-                    zoi: _,
-                    opening_delimiter,
-                    quoted_text,
-                    closing_delimiter,
-                    ..
-                }) => Ok(ArgumentSyntax::Quote(QuoteSyntax::Zoi {
-                    zoi: word.clone(),
-                    opening_delimiter: base_word_from_record((**opening_delimiter).clone()),
-                    closing_delimiter: WithFreeModifiers::new(
-                            base_word_from_record((**closing_delimiter).clone()),
-                            Vec::new(),
-                    ),
-                    quoted_text: source_text(source, quoted_text),
-                })),
-                data!(WordLike::LohuQuote {
-                    quoted_words,
-                    lehu,
-                    ..
-                }) => Ok(ArgumentSyntax::Quote(QuoteSyntax::Lohu {
-                    lohu: word.clone(),
-                    quoted_words: quoted_words
-                        .iter()
-                            .cloned()
-                            .map(base_word_from_record)
-                            .collect(),
-                        lehu: WithFreeModifiers::new(
-                        base_word_from_record((**lehu).clone()),
-                        Vec::new(),
-                    ),
-                })),
-                data!(WordLike::SingleWordQuote {
-                    marker: _,
-                    quoted_text,
-                }) => Ok(ArgumentSyntax::Quote(QuoteSyntax::ZohOi {
-                    zohoi: WithFreeModifiers::new(word.clone(), Vec::new()),
-                    quoted_text: source_text(source, quoted_text),
-                })),
+                data!(WordLike::ZoQuote { .. }) => Ok(ArgumentSyntax::Quote(QuoteSyntax::Zo(
+                    WithFreeModifiers::new(word.clone(), Vec::new()),
+                ))),
+                data!(WordLike::ZoiQuote { .. }) => Ok(ArgumentSyntax::Quote(QuoteSyntax::Zoi(
+                    WithFreeModifiers::new(word.clone(), Vec::new()),
+                ))),
+                data!(WordLike::LohuQuote { .. }) => Ok(ArgumentSyntax::Quote(QuoteSyntax::Lohu(
+                    WithFreeModifiers::new(word.clone(), Vec::new()),
+                ))),
+                data!(WordLike::SingleWordQuote { .. }) => {
+                    Ok(ArgumentSyntax::Quote(QuoteSyntax::ZohOi(
+                        WithFreeModifiers::new(word.clone(), Vec::new()),
+                    )))
+                }
                 _ => Err(Rich::custom(span, "expected quote")),
             }
         })
         .map_with(
             |argument,
              extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
-            if let ArgumentSyntax::Quote(QuoteSyntax::ZohOi { zohoi, .. }) = &argument
-            {
+            if let ArgumentSyntax::Quote(QuoteSyntax::ZohOi(zohoi)) = &argument {
                 extra
                     .state()
                     .warn(ExperimentalConstruct::ExperimentalZohOiQuote, &zohoi.value);
@@ -3625,56 +3531,25 @@ fn quote_with_free_modifiers(
             lu.free_modifiers.extend(free_modifiers);
             QuoteSyntax::Lu { lu, text, lihu }
         }
-        QuoteSyntax::Zo { zo, mut word } => {
-            word.free_modifiers.extend(free_modifiers);
-            QuoteSyntax::Zo { zo, word }
+        QuoteSyntax::Zo(mut zo) => {
+            zo.free_modifiers.extend(free_modifiers);
+            QuoteSyntax::Zo(zo)
         }
-        QuoteSyntax::ZohOi {
-            mut zohoi,
-            quoted_text,
-        } => {
+        QuoteSyntax::ZohOi(mut zohoi) => {
             zohoi.free_modifiers.extend(free_modifiers);
-            QuoteSyntax::ZohOi { zohoi, quoted_text }
+            QuoteSyntax::ZohOi(zohoi)
         }
-        QuoteSyntax::Zoi {
-            zoi,
-            opening_delimiter,
-            mut closing_delimiter,
-            quoted_text,
-        } => {
-            closing_delimiter.free_modifiers.extend(free_modifiers);
-            QuoteSyntax::Zoi {
-                zoi,
-                opening_delimiter,
-                closing_delimiter,
-                quoted_text,
-            }
+        QuoteSyntax::Zoi(mut zoi) => {
+            zoi.free_modifiers.extend(free_modifiers);
+            QuoteSyntax::Zoi(zoi)
         }
-        QuoteSyntax::Laho {
-            laho,
-            opening_delimiter,
-            mut closing_delimiter,
-            quoted_text,
-        } => {
-            closing_delimiter.free_modifiers.extend(free_modifiers);
-            QuoteSyntax::Laho {
-                laho,
-                opening_delimiter,
-                closing_delimiter,
-                quoted_text,
-            }
+        QuoteSyntax::Laho(mut laho) => {
+            laho.free_modifiers.extend(free_modifiers);
+            QuoteSyntax::Laho(laho)
         }
-        QuoteSyntax::Lohu {
-            lohu,
-            quoted_words,
-            mut lehu,
-        } => {
-            lehu.free_modifiers.extend(free_modifiers);
-            QuoteSyntax::Lohu {
-                lohu,
-                quoted_words,
-                lehu,
-            }
+        QuoteSyntax::Lohu(mut lohu) => {
+            lohu.free_modifiers.extend(free_modifiers);
+            QuoteSyntax::Lohu(lohu)
         }
         QuoteSyntax::Meho {
             mut meho,
@@ -4289,78 +4164,65 @@ fn append_connective_free_modifiers(
     connective: ConnectiveSyntax,
     free_modifiers: Vec<FreeModifierSyntax>,
 ) -> ConnectiveSyntax {
-    let mut cmavo = connective.cmavo;
-    let nai = if let Some(mut nai) = connective.nai {
+    let (kind, se, nahe, na, mut cmavo, nai) = connective.into_parts();
+    let nai = if let Some(mut nai) = nai {
         nai.free_modifiers.extend(free_modifiers);
         Some(nai)
     } else {
         cmavo.free_modifiers.extend(free_modifiers);
         None
     };
-    ConnectiveSyntax {
-        kind: connective.kind,
-        se: connective.se,
-        nahe: connective.nahe,
-        na: connective.na,
-        cmavo,
-        nai,
-    }
+    ConnectiveSyntax::new(kind, se, nahe, na, cmavo, nai)
 }
 
 #[requires(true)]
-#[ensures(ret.cmavo.value.len() >= old(words.len()))]
+#[ensures(ret.cmavo().value.len() >= old(words.len()))]
 fn append_connective_words(
     connective: ConnectiveSyntax,
     words: Vec<WithIndicators<WordLike>>,
 ) -> ConnectiveSyntax {
-    let mut cmavo = connective.cmavo;
+    let (kind, se, nahe, na, mut cmavo, nai) = connective.into_parts();
     cmavo.value.extend(words);
-    ConnectiveSyntax {
-        kind: connective.kind,
-        se: connective.se,
-        nahe: connective.nahe,
-        na: connective.na,
-        cmavo,
-        nai: connective.nai,
-    }
+    ConnectiveSyntax::new(kind, se, nahe, na, cmavo, nai)
 }
 
 #[requires(true)]
-#[ensures(ret.cmavo.value.len() >= old(connective.cmavo.value.len()))]
+#[ensures(true)]
+fn append_optional_tense_modal_and_bo(
+    connective: ConnectiveSyntax,
+    tense_modal: Option<TenseModalSyntax>,
+    bo: WithIndicators<WordLike>,
+) -> ConnectiveSyntax {
+    let connective = if let Some(tense_modal) = tense_modal {
+        append_tense_modal_words(connective, tense_modal)
+    } else {
+        connective
+    };
+    append_connective_words(connective, vec![bo])
+}
+
+#[requires(true)]
+#[ensures(ret.cmavo().value.len() >= old(connective.cmavo().value.len()))]
 fn append_tense_modal_words(
     connective: ConnectiveSyntax,
     tense_modal: TenseModalSyntax,
 ) -> ConnectiveSyntax {
-    let mut cmavo = connective.cmavo;
+    let (kind, se, nahe, na, mut cmavo, nai) = connective.into_parts();
     tense_modal.extend_words_into(&mut cmavo.value);
-    ConnectiveSyntax {
-        kind: connective.kind,
-        se: connective.se,
-        nahe: connective.nahe,
-        na: connective.na,
-        cmavo,
-        nai: connective.nai,
-    }
+    ConnectiveSyntax::new(kind, se, nahe, na, cmavo, nai)
 }
 
 #[requires(true)]
-#[ensures(ret.cmavo.value.len() >= old(words.len()))]
+#[ensures(ret.cmavo().value.len() >= old(words.len()))]
 fn prepend_connective_words(
     words: Vec<WithIndicators<WordLike>>,
     connective: ConnectiveSyntax,
 ) -> ConnectiveSyntax {
-    let mut cmavo = connective.cmavo;
+    let (kind, se, nahe, na, mut cmavo, nai) = connective.into_parts();
     let mut value = words;
     value.extend(cmavo.value);
     cmavo.value = value;
-    ConnectiveSyntax {
-        kind: connective.kind,
-        se: connective.se,
-        nahe: connective.nahe,
-        na: connective.na,
-        cmavo,
-        nai: connective.nai,
-    }
+    ConnectiveSyntax::new(kind, se, nahe, na, cmavo, nai)
 }
 
 #[requires(true)]
@@ -4419,15 +4281,16 @@ fn joik_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     .boxed()
 }
 
-#[requires(!connective.cmavo.value.is_empty())]
-#[ensures(ret.len() >= old(connective.cmavo.value.len()))]
+#[requires(!connective.cmavo().value.is_empty())]
+#[ensures(ret.len() >= old(connective.cmavo().value.len()))]
 fn connective_tense_modal_leaves(connective: ConnectiveSyntax) -> Vec<WithIndicators<WordLike>> {
+    let (_, se, nahe, na, cmavo, nai) = connective.into_parts();
     let mut leaves = Vec::new();
-    leaves.extend(connective.se);
-    leaves.extend(connective.nahe);
-    leaves.extend(connective.na);
-    leaves.extend(connective.cmavo.value);
-    if let Some(nai) = connective.nai {
+    leaves.extend(se);
+    leaves.extend(nahe);
+    leaves.extend(na);
+    leaves.extend(cmavo.value);
+    if let Some(nai) = nai {
         leaves.push(nai.value);
     }
     leaves
@@ -4580,9 +4443,10 @@ fn predicate_tail_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax
 }
 
 #[requires(true)]
-#[ensures(ret.kind == old(kind.clone()))]
+#[ensures(ret.kind() == old(kind.clone()))]
 fn connective_with_kind(connective: ConnectiveSyntax, kind: ConnectiveKind) -> ConnectiveSyntax {
-    ConnectiveSyntax { kind, ..connective }
+    let (_, se, nahe, na, cmavo, nai) = connective.into_parts();
+    ConnectiveSyntax::new(kind, se, nahe, na, cmavo, nai)
 }
 
 #[requires(true)]
@@ -4619,14 +4483,14 @@ fn connective_syntax(
     cmavo: Vec<WithIndicators<WordLike>>,
     nai: Option<WithIndicators<WordLike>>,
 ) -> ConnectiveSyntax {
-    ConnectiveSyntax {
+    ConnectiveSyntax::new(
         kind,
         se,
         nahe,
         na,
-        cmavo: wrapped_words(cmavo, Vec::new()),
-        nai: nai.map(|nai| wrapped_word(nai, Vec::new())),
-    }
+        wrapped_words(cmavo, Vec::new()),
+        nai.map(|nai| wrapped_word(nai, Vec::new())),
+    )
 }
 
 #[requires(true)]
@@ -6145,7 +6009,7 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
             RelationSyntax::Base(goha.value.clone())
         }
         [RelationUnitSyntax::Word(..) | RelationUnitSyntax::Goha { .. }] => {
-            RelationSyntax::Compound(units)
+            RelationSyntax::Compound(Box::new(relation_unit_vec(units)))
         }
         [RelationUnitSyntax::Se { se, inner_unit }] => RelationSyntax::Se {
             se: se.clone(),
@@ -6194,8 +6058,14 @@ fn relation_from_units(units: Vec<RelationUnitSyntax>) -> RelationSyntax {
             trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
         },
         [RelationUnitSyntax::Wrapped(relation)] => relation.clone(),
-        _ => RelationSyntax::Compound(units),
+        _ => RelationSyntax::Compound(Box::new(relation_unit_vec(units))),
     }
+}
+
+#[requires(!units.is_empty())]
+#[ensures(!ret.is_empty())]
+fn relation_unit_vec(units: Vec<RelationUnitSyntax>) -> RelationUnitVec {
+    RelationUnitVec::try_from_vec(units).expect("precondition guarantees non-empty units")
 }
 
 #[requires(true)]
@@ -6249,7 +6119,7 @@ fn relation_unit_to_relation(unit: &RelationUnitSyntax) -> RelationSyntax {
             trailing_relation: Box::new(relation_unit_to_relation(trailing_unit)),
         },
         RelationUnitSyntax::Wrapped(relation) => relation.clone(),
-        unit => RelationSyntax::Compound(vec![unit.clone()]),
+        unit => RelationSyntax::Compound(Box::new(RelationUnitVec::new(unit.clone()))),
     }
 }
 

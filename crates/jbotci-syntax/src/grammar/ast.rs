@@ -8,6 +8,7 @@ use bityzba::{ensures, invariant, requires};
 use jbotci_morphology::WordLike;
 use serde::Serialize;
 use serde::ser::{SerializeSeq, Serializer};
+use vec1::smallvec_v1::SmallVec1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -699,34 +700,14 @@ pub enum QuoteSyntax {
         text: TextSyntax,
         lihu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
-    Zo {
-        zo: WithIndicators<WordLike>,
-        word: WithFreeModifiers<WithIndicators<WordLike>>,
-    },
-    ZohOi {
-        zohoi: WithFreeModifiers<WithIndicators<WordLike>>,
-        quoted_text: String,
-    },
-    Zoi {
-        zoi: WithIndicators<WordLike>,
-        opening_delimiter: WithIndicators<WordLike>,
-        closing_delimiter: WithFreeModifiers<WithIndicators<WordLike>>,
-        quoted_text: String,
-    },
+    Zo(WithFreeModifiers<WithIndicators<WordLike>>),
+    ZohOi(WithFreeModifiers<WithIndicators<WordLike>>),
+    Zoi(WithFreeModifiers<WithIndicators<WordLike>>),
     // v0 exposes this constructor in the Quote ADT, but current v0 grammar
     // classifies morphology-level LAhO quotes as ZoiQuote.
     #[allow(dead_code)]
-    Laho {
-        laho: WithIndicators<WordLike>,
-        opening_delimiter: WithIndicators<WordLike>,
-        closing_delimiter: WithFreeModifiers<WithIndicators<WordLike>>,
-        quoted_text: String,
-    },
-    Lohu {
-        lohu: WithIndicators<WordLike>,
-        quoted_words: Vec<WithIndicators<WordLike>>,
-        lehu: WithFreeModifiers<WithIndicators<WordLike>>,
-    },
+    Laho(WithFreeModifiers<WithIndicators<WordLike>>),
+    Lohu(WithFreeModifiers<WithIndicators<WordLike>>),
     // v0 exposes this constructor in the Quote ADT; current v0 grammar parses
     // ordinary `me'o` through MathExpressionArgument.
     #[allow(dead_code)]
@@ -767,13 +748,49 @@ pub struct ConnectedDescriptorSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
-pub struct ConnectiveSyntax {
-    pub kind: ConnectiveKind,
-    pub se: Option<WithIndicators<WordLike>>,
-    pub nahe: Option<WithIndicators<WordLike>>,
-    pub na: Option<WithIndicators<WordLike>>,
-    pub cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-    pub nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+pub enum ConnectiveSyntax {
+    Afterthought {
+        se: Option<WithIndicators<WordLike>>,
+        nahe: Option<WithIndicators<WordLike>>,
+        na: Option<WithIndicators<WordLike>>,
+        cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    },
+    Relation {
+        se: Option<WithIndicators<WordLike>>,
+        nahe: Option<WithIndicators<WordLike>>,
+        na: Option<WithIndicators<WordLike>>,
+        cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    },
+    PredicateTail {
+        se: Option<WithIndicators<WordLike>>,
+        nahe: Option<WithIndicators<WordLike>>,
+        na: Option<WithIndicators<WordLike>>,
+        cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    },
+    Forethought {
+        se: Option<WithIndicators<WordLike>>,
+        nahe: Option<WithIndicators<WordLike>>,
+        na: Option<WithIndicators<WordLike>>,
+        cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    },
+    NonLogical {
+        se: Option<WithIndicators<WordLike>>,
+        nahe: Option<WithIndicators<WordLike>>,
+        na: Option<WithIndicators<WordLike>>,
+        cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    },
+    Interval {
+        se: Option<WithIndicators<WordLike>>,
+        nahe: Option<WithIndicators<WordLike>>,
+        na: Option<WithIndicators<WordLike>>,
+        cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -1020,8 +1037,10 @@ pub enum RelationSyntax {
         trailing_predicate: Box<PredicateSyntax>,
     },
     Abstraction(AbstractionSyntax),
-    Compound(Vec<RelationUnitSyntax>),
+    Compound(Box<RelationUnitVec>),
 }
+
+pub type RelationUnitVec = SmallVec1<[RelationUnitSyntax; 2]>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
@@ -2487,36 +2506,11 @@ impl QuoteSyntax {
                     lihu.visit_words(visitor);
                 }
             }
-            QuoteSyntax::Zo { zo, word } => {
-                visitor(zo);
-                word.visit_words(visitor);
+            QuoteSyntax::Zo(zo) | QuoteSyntax::Zoi(zo) | QuoteSyntax::Laho(zo) => {
+                zo.visit_words(visitor);
             }
-            QuoteSyntax::ZohOi { zohoi, .. } => zohoi.visit_words(visitor),
-            QuoteSyntax::Zoi {
-                zoi,
-                opening_delimiter,
-                closing_delimiter,
-                ..
-            }
-            | QuoteSyntax::Laho {
-                laho: zoi,
-                opening_delimiter,
-                closing_delimiter,
-                ..
-            } => {
-                visitor(zoi);
-                visitor(opening_delimiter);
-                closing_delimiter.visit_words(visitor);
-            }
-            QuoteSyntax::Lohu {
-                lohu,
-                quoted_words,
-                lehu,
-            } => {
-                visitor(lohu);
-                visit_word_slice(quoted_words, visitor);
-                lehu.visit_words(visitor);
-            }
+            QuoteSyntax::ZohOi(zohoi) => zohoi.visit_words(visitor),
+            QuoteSyntax::Lohu(lohu) => lohu.visit_words(visitor),
             QuoteSyntax::Meho {
                 meho,
                 math_expression,
@@ -2586,18 +2580,202 @@ impl ConnectedDescriptorSyntax {
 impl ConnectiveSyntax {
     #[requires(true)]
     #[ensures(true)]
+    pub fn new(
+        kind: ConnectiveKind,
+        se: Option<WithIndicators<WordLike>>,
+        nahe: Option<WithIndicators<WordLike>>,
+        na: Option<WithIndicators<WordLike>>,
+        cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    ) -> Self {
+        match kind {
+            ConnectiveKind::Afterthought => Self::Afterthought {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            },
+            ConnectiveKind::Relation => Self::Relation {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            },
+            ConnectiveKind::PredicateTail => Self::PredicateTail {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            },
+            ConnectiveKind::Forethought => Self::Forethought {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            },
+            ConnectiveKind::NonLogical => Self::NonLogical {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            },
+            ConnectiveKind::Interval => Self::Interval {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            },
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn kind(&self) -> ConnectiveKind {
+        match self {
+            Self::Afterthought { .. } => ConnectiveKind::Afterthought,
+            Self::Relation { .. } => ConnectiveKind::Relation,
+            Self::PredicateTail { .. } => ConnectiveKind::PredicateTail,
+            Self::Forethought { .. } => ConnectiveKind::Forethought,
+            Self::NonLogical { .. } => ConnectiveKind::NonLogical,
+            Self::Interval { .. } => ConnectiveKind::Interval,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn cmavo(&self) -> &WithFreeModifiers<Vec<WithIndicators<WordLike>>> {
+        match self {
+            Self::Afterthought { cmavo, .. }
+            | Self::Relation { cmavo, .. }
+            | Self::PredicateTail { cmavo, .. }
+            | Self::Forethought { cmavo, .. }
+            | Self::NonLogical { cmavo, .. }
+            | Self::Interval { cmavo, .. } => cmavo,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn into_parts(
+        self,
+    ) -> (
+        ConnectiveKind,
+        Option<WithIndicators<WordLike>>,
+        Option<WithIndicators<WordLike>>,
+        Option<WithIndicators<WordLike>>,
+        WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
+        Option<WithFreeModifiers<WithIndicators<WordLike>>>,
+    ) {
+        match self {
+            Self::Afterthought {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            } => (ConnectiveKind::Afterthought, se, nahe, na, cmavo, nai),
+            Self::Relation {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            } => (ConnectiveKind::Relation, se, nahe, na, cmavo, nai),
+            Self::PredicateTail {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            } => (ConnectiveKind::PredicateTail, se, nahe, na, cmavo, nai),
+            Self::Forethought {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            } => (ConnectiveKind::Forethought, se, nahe, na, cmavo, nai),
+            Self::NonLogical {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            } => (ConnectiveKind::NonLogical, se, nahe, na, cmavo, nai),
+            Self::Interval {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            } => (ConnectiveKind::Interval, se, nahe, na, cmavo, nai),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        if let Some(se) = &self.se {
+        let (se, nahe, na, cmavo, nai) = match self {
+            Self::Afterthought {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            }
+            | Self::Relation {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            }
+            | Self::PredicateTail {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            }
+            | Self::Forethought {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            }
+            | Self::NonLogical {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            }
+            | Self::Interval {
+                se,
+                nahe,
+                na,
+                cmavo,
+                nai,
+            } => (se, nahe, na, cmavo, nai),
+        };
+        if let Some(se) = se {
             visitor(se);
         }
-        if let Some(nahe) = &self.nahe {
+        if let Some(nahe) = nahe {
             visitor(nahe);
         }
-        if let Some(na) = &self.na {
+        if let Some(na) = na {
             visitor(na);
         }
-        self.cmavo.visit_words(visitor);
-        if let Some(nai) = &self.nai {
+        cmavo.visit_words(visitor);
+        if let Some(nai) = nai {
             nai.visit_words(visitor);
         }
     }
@@ -2823,7 +3001,7 @@ impl RelationSyntax {
             }
             RelationSyntax::Abstraction(abstraction) => abstraction.visit_words(visitor),
             RelationSyntax::Compound(units) => {
-                for unit in units {
+                for unit in units.iter() {
                     unit.visit_words(visitor);
                 }
             }
@@ -3988,42 +4166,9 @@ impl QuoteSyntax {
                 }
                 words
             }
-            QuoteSyntax::Zo { zo, word } => {
-                let mut words = vec![zo];
-                words.extend(word.words());
-                words
-            }
-            QuoteSyntax::ZohOi { zohoi, .. } => zohoi.words(),
-            QuoteSyntax::Zoi {
-                zoi,
-                opening_delimiter,
-                closing_delimiter,
-                ..
-            } => {
-                let mut words = vec![zoi, opening_delimiter];
-                words.extend(closing_delimiter.words());
-                words
-            }
-            QuoteSyntax::Laho {
-                laho,
-                opening_delimiter,
-                closing_delimiter,
-                ..
-            } => {
-                let mut words = vec![laho, opening_delimiter];
-                words.extend(closing_delimiter.words());
-                words
-            }
-            QuoteSyntax::Lohu {
-                lohu,
-                quoted_words,
-                lehu,
-            } => {
-                let mut words = vec![lohu];
-                words.extend(quoted_words);
-                words.extend(lehu.words());
-                words
-            }
+            QuoteSyntax::Zo(zo) | QuoteSyntax::Zoi(zo) | QuoteSyntax::Laho(zo) => zo.words(),
+            QuoteSyntax::ZohOi(zohoi) => zohoi.words(),
+            QuoteSyntax::Lohu(lohu) => lohu.words(),
             QuoteSyntax::Meho {
                 meho,
                 math_expression,
@@ -4099,18 +4244,19 @@ impl ConnectiveSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+        let (_, se, nahe, na, cmavo, nai) = self.into_parts();
         let mut words = Vec::new();
-        if let Some(se) = self.se {
+        if let Some(se) = se {
             words.push(se);
         }
-        if let Some(nahe) = self.nahe {
+        if let Some(nahe) = nahe {
             words.push(nahe);
         }
-        if let Some(na) = self.na {
+        if let Some(na) = na {
             words.push(na);
         }
-        self.cmavo.extend_words_into(&mut words);
-        if let Some(nai) = self.nai {
+        cmavo.extend_words_into(&mut words);
+        if let Some(nai) = nai {
             nai.extend_words_into(&mut words);
         }
         words
@@ -4355,6 +4501,7 @@ impl RelationSyntax {
             }
             RelationSyntax::Abstraction(abstraction) => abstraction.words(),
             RelationSyntax::Compound(units) => units
+                .into_smallvec()
                 .into_iter()
                 .flat_map(RelationUnitSyntax::words)
                 .collect(),
