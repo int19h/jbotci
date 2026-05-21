@@ -411,7 +411,6 @@ fn subsentence(value: &SubsentenceSyntax, source: &str) -> sexpr::SExpr {
 #[ensures(true)]
 fn fragment_syntax(value: &FragmentSyntax, source: &str) -> sexpr::SExpr {
     match value {
-        FragmentSyntax::Argument(argument) => argument_syntax(argument, source),
         FragmentSyntax::Ek(connective) | FragmentSyntax::Gihek(connective) => {
             connective_syntax(connective, source)
         }
@@ -428,20 +427,6 @@ fn fragment_syntax(value: &FragmentSyntax, source: &str) -> sexpr::SExpr {
                 sexpr::node(header),
                 with_free_word(zohu, source),
             ])])
-        }
-        FragmentSyntax::Vocative {
-            vocative_markers,
-            vocative_argument,
-            dohu,
-        } => {
-            let mut children = vec![with_free_words(vocative_markers, source)];
-            if let Some(argument) = vocative_argument {
-                children.push(argument_syntax(argument, source));
-            }
-            if let Some(dohu) = dohu {
-                children.push(with_free_word(dohu, source));
-            }
-            sexpr::node(children)
         }
         FragmentSyntax::BeLink {
             be,
@@ -1152,15 +1137,7 @@ fn quote_syntax(value: &QuoteSyntax, source: &str) -> sexpr::SExpr {
         QuoteSyntax::Zo(zo)
         | QuoteSyntax::ZohOi(zo)
         | QuoteSyntax::Zoi(zo)
-        | QuoteSyntax::Laho(zo)
         | QuoteSyntax::Lohu(zo) => with_free_word(zo, source),
-        QuoteSyntax::Meho {
-            meho,
-            math_expression,
-        } => sexpr::node(vec![
-            with_free_word(meho, source),
-            math_expression_syntax(math_expression, source),
-        ]),
     }
 }
 
@@ -1353,24 +1330,6 @@ fn math_expression(value: &MathExpressionSyntax, source: &str) -> sexpr::SExpr {
             math_operator(operator, source),
             self::math_expression(right_expression, source),
         ]),
-        MathExpressionSyntax::Unary {
-            operator,
-            inner_expression,
-        } => sexpr::node(vec![
-            math_operator(operator, source),
-            self::math_expression(inner_expression, source),
-        ]),
-        MathExpressionSyntax::Bo {
-            left_expression,
-            operator,
-            bo,
-            right_expression,
-        } => sexpr::node(vec![
-            self::math_expression(left_expression, source),
-            math_operator(operator, source),
-            with_free_word(bo, source),
-            self::math_expression(right_expression, source),
-        ]),
     }
 }
 
@@ -1456,31 +1415,15 @@ fn math_operator(value: &MathOperatorSyntax, source: &str) -> sexpr::SExpr {
         }
         MathOperatorSyntax::Bo {
             left_operator,
+            connective,
             bo,
             right_operator,
         } => sexpr::node(vec![
             math_operator(left_operator, source),
+            connective_syntax(connective, source),
             with_free_word(bo, source),
             math_operator(right_operator, source),
         ]),
-        MathOperatorSyntax::Johi {
-            johi,
-            expressions,
-            tehu,
-        } => {
-            let mut children = vec![with_free_word(johi, source)];
-            children.push(list_node(
-                expressions
-                    .iter()
-                    .map(|item| self::math_expression(item, source))
-                    .collect(),
-            ));
-            if let Some(tehu) = tehu {
-                children.push(with_free_word(tehu, source));
-            }
-            sexpr::node(children)
-        }
-        MathOperatorSyntax::Number(number) => sexpr::node(words(number, source)),
     }
 }
 
@@ -1927,11 +1870,29 @@ fn tense_modal_syntax(value: &TenseModalSyntax, source: &str) -> sexpr::SExpr {
             }
             sexpr::node(children)
         }
-        TenseModalSyntax::Composite { leaves, fiho, .. } => {
-            let mut children = vec![with_free_words(leaves, source)];
-            children.extend(fiho.iter().map(|item| fiho_modal(item, source)));
+        TenseModalSyntax::Composite { parts } => {
+            let mut children = parts
+                .value
+                .iter()
+                .map(|part| composite_tense_modal_part(part, source))
+                .collect::<Vec<_>>();
+            children.extend(
+                parts
+                    .free_modifiers
+                    .iter()
+                    .map(|item| free_modifier(item, source)),
+            );
             sexpr::node(children)
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn composite_tense_modal_part(value: &CompositeTenseModalPartSyntax, source: &str) -> sexpr::SExpr {
+    match value {
+        CompositeTenseModalPartSyntax::Word(part_word) => word(part_word, source),
+        CompositeTenseModalPartSyntax::Fiho(fiho) => fiho_modal(fiho, source),
     }
 }
 

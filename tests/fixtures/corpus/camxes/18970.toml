@@ -10,26 +10,26 @@ entry-id = "18970"
 status = "success"
 words = [
     {ZoQuote = {
-        word = {
-            kind = "gismu",
-            phonemes = "traji",
-            span = [3, 8]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [0, 2]
+            span = [0, 2],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "traji",
+            span = [3, 8],
+            kind = "gismu"
         }
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "se",
-        span = [9, 11]
+        span = [9, 11],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "lujvo",
         phonemes = "skudji",
-        span = [12, 18]
+        span = [12, 18],
+        kind = "lujvo"
     }},
 ]
 
@@ -44,25 +44,16 @@ parse-tree = {
                         leading_terms = [
                             {Argument = {
                                 Quote = {Zo = {
-                                    word = {Bare = {
-                                        Bare = {
-                                            kind = "gismu",
+                                    Bare = {ZoQuote = {
+                                        zo = {
+                                            phonemes = "zo",
+                                            span = [0, 2],
+                                            kind = "cmavo"
+                                        },
+                                        word = {
                                             phonemes = "traji",
-                                            span = [3, 8]
-                                        }
-                                    }},
-                                    zo = {Bare = {
-                                        ZoQuote = {
-                                            word = {
-                                                kind = "gismu",
-                                                phonemes = "traji",
-                                                span = [3, 8]
-                                            },
-                                            zo = {
-                                                kind = "cmavo",
-                                                phonemes = "zo",
-                                                span = [0, 2]
-                                            }
+                                            span = [3, 8],
+                                            kind = "gismu"
                                         }
                                     }}
                                 }}
@@ -73,19 +64,19 @@ parse-tree = {
                                 first = {
                                     first = {Relation = {
                                         Se = {
-                                            inner_relation = {Base = {
-                                                Bare = {Bare = {
-                                                    kind = "lujvo",
-                                                    phonemes = "skudji",
-                                                    span = [12, 18]
-                                                }}
-                                            }},
                                             se = {Bare = {
                                                 Bare = {
-                                                    kind = "cmavo",
                                                     phonemes = "se",
-                                                    span = [9, 11]
+                                                    span = [9, 11],
+                                                    kind = "cmavo"
                                                 }
+                                            }},
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    phonemes = "skudji",
+                                                    span = [12, 18],
+                                                    kind = "lujvo"
+                                                }}
                                             }}
                                         }
                                     }}

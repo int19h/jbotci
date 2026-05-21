@@ -10,43 +10,43 @@ entry-id = "77"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "mi",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "pu",
-        span = [3, 5]
+        span = [3, 5],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "cusku",
-        span = [6, 11]
+        span = [6, 11],
+        kind = "gismu"
     }},
     {LohuQuote = {
-        lehu = {
-            kind = "cmavo",
-            phonemes = "le'u",
-            span = [48, 52]
-        },
         lohu = {
-            kind = "cmavo",
             phonemes = "lo'u",
-            span = [34, 38]
+            span = [34, 38],
+            kind = "cmavo"
         },
         quoted_words = [
             {
-                kind = "cmavo",
                 phonemes = "do",
-                span = [39, 41]
+                span = [39, 41],
+                kind = "cmavo"
             },
             {
-                kind = "gismu",
                 phonemes = "fenki",
-                span = [42, 47]
+                span = [42, 47],
+                kind = "gismu"
             },
-        ]
+        ],
+        lehu = {
+            phonemes = "le'u",
+            span = [48, 52],
+            kind = "cmavo"
+        }
     }},
 ]
 
@@ -62,9 +62,9 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "mi",
-                                        span = [0, 2]
+                                        span = [0, 2],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -74,88 +74,52 @@ parse-tree = {
                                 first = {
                                     first = {Relation = {
                                         relation = {TenseModal = {
+                                            tense_modal = {Composite = {
+                                                parts = [
+                                                    {Word = {
+                                                        Bare = {Bare = {
+                                                            phonemes = "pu",
+                                                            span = [3, 5],
+                                                            kind = "cmavo"
+                                                        }}
+                                                    }},
+                                                ]
+                                            }},
                                             inner_relation = {Base = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "cusku",
-                                                    span = [6, 11]
+                                                    span = [6, 11],
+                                                    kind = "gismu"
                                                 }}
-                                            }},
-                                            tense_modal = {Composite = {
-                                                leaves = [
-                                                    {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "pu",
-                                                            span = [3, 5]
-                                                        }
-                                                    }},
-                                                ],
-                                                time = {
-                                                    direction = [
-                                                        {Bare = {
-                                                            Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "pu",
-                                                                span = [3, 5]
-                                                            }
-                                                        }},
-                                                    ]
-                                                }
                                             }}
                                         }},
                                         terms = [
                                             {Argument = {
                                                 Quote = {Lohu = {
-                                                    lehu = {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "le'u",
-                                                            span = [48, 52]
-                                                        }
-                                                    }},
-                                                    lohu = {Bare = {
-                                                        LohuQuote = {
-                                                            lehu = {
-                                                                kind = "cmavo",
-                                                                phonemes = "le'u",
-                                                                span = [48, 52]
-                                                            },
-                                                            lohu = {
-                                                                kind = "cmavo",
-                                                                phonemes = "lo'u",
-                                                                span = [34, 38]
-                                                            },
-                                                            quoted_words = [
-                                                                {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "do",
-                                                                    span = [39, 41]
-                                                                },
-                                                                {
-                                                                    kind = "gismu",
-                                                                    phonemes = "fenki",
-                                                                    span = [42, 47]
-                                                                },
-                                                            ]
-                                                        }
-                                                    }},
-                                                    quoted_words = [
-                                                        {Bare = {
-                                                            Bare = {
-                                                                kind = "cmavo",
+                                                    Bare = {LohuQuote = {
+                                                        lohu = {
+                                                            phonemes = "lo'u",
+                                                            span = [34, 38],
+                                                            kind = "cmavo"
+                                                        },
+                                                        quoted_words = [
+                                                            {
                                                                 phonemes = "do",
-                                                                span = [39, 41]
-                                                            }
-                                                        }},
-                                                        {Bare = {
-                                                            Bare = {
-                                                                kind = "gismu",
+                                                                span = [39, 41],
+                                                                kind = "cmavo"
+                                                            },
+                                                            {
                                                                 phonemes = "fenki",
-                                                                span = [42, 47]
-                                                            }
-                                                        }},
-                                                    ]
+                                                                span = [42, 47],
+                                                                kind = "gismu"
+                                                            },
+                                                        ],
+                                                        lehu = {
+                                                            phonemes = "le'u",
+                                                            span = [48, 52],
+                                                            kind = "cmavo"
+                                                        }
+                                                    }}
                                                 }}
                                             }},
                                         ]

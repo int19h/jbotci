@@ -19,19 +19,19 @@ brackets = "(coi [la frank])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "coĭ",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "la",
-        span = [4, 6]
+        span = [4, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmevla",
         phonemes = "frank",
-        span = [8, 13]
+        span = [8, 13],
+        kind = "cmevla"
     }},
 ]
 
@@ -40,33 +40,33 @@ status = "success"
 parse-tree = {
     leading_free_modifiers = [
         {Vocative = {
+            vocative_markers = [
+                {Bare = {
+                    Bare = {
+                        phonemes = "coĭ",
+                        span = [0, 3],
+                        kind = "cmavo"
+                    }
+                }},
+            ],
             argument = {Name = {
                 la = {Bare = {
                     Bare = {
-                        kind = "cmavo",
                         phonemes = "la",
-                        span = [4, 6]
+                        span = [4, 6],
+                        kind = "cmavo"
                     }
                 }},
                 names = [
                     {Bare = {
                         Bare = {
-                            kind = "cmevla",
                             phonemes = "frank",
-                            span = [8, 13]
+                            span = [8, 13],
+                            kind = "cmevla"
                         }
                     }},
                 ]
-            }},
-            vocative_markers = [
-                {Bare = {
-                    Bare = {
-                        kind = "cmavo",
-                        phonemes = "coĭ",
-                        span = [0, 3]
-                    }
-                }},
-            ]
+            }}
         }},
     ]
 }

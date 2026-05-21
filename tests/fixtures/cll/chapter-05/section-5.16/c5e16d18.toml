@@ -19,29 +19,29 @@ brackets = "(mélbi [cmálu je níxli] ckúle)"
 status = "success"
 words = [
     {Bare = {
-        kind = "gismu",
         phonemes = "melbi",
-        span = [0, 5]
+        span = [0, 5],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "cmalu",
-        span = [6, 11]
+        span = [6, 11],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "je",
-        span = [12, 14]
+        span = [12, 14],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "nixli",
-        span = [15, 20]
+        span = [15, 20],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "ckule",
-        span = [21, 26]
+        span = [21, 26],
+        kind = "gismu"
     }},
 ]
 
@@ -60,44 +60,43 @@ parse-tree = {
                                         Compound = [
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "melbi",
-                                                    span = [0, 5]
+                                                    span = [0, 5],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                             {Connected = {
-                                                connective = {
+                                                leading_unit = {Word = {
+                                                    Bare = {Bare = {
+                                                        phonemes = "cmalu",
+                                                        span = [6, 11],
+                                                        kind = "gismu"
+                                                    }}
+                                                }},
+                                                connective = {Relation = {
                                                     cmavo = [
                                                         {Bare = {
                                                             Bare = {
-                                                                kind = "cmavo",
                                                                 phonemes = "je",
-                                                                span = [12, 14]
+                                                                span = [12, 14],
+                                                                kind = "cmavo"
                                                             }
                                                         }},
-                                                    ],
-                                                    kind = "Relation"
-                                                },
-                                                leading_unit = {Word = {
-                                                    Bare = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "cmalu",
-                                                        span = [6, 11]
-                                                    }}
+                                                    ]
                                                 }},
                                                 trailing_unit = {Word = {
                                                     Bare = {Bare = {
-                                                        kind = "gismu",
                                                         phonemes = "nixli",
-                                                        span = [15, 20]
+                                                        span = [15, 20],
+                                                        kind = "gismu"
                                                     }}
                                                 }}
                                             }},
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "ckule",
-                                                    span = [21, 26]
+                                                    span = [21, 26],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                         ]

@@ -10,32 +10,31 @@ entry-id = "20218"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ju",
-        span = [3, 5]
+        span = [3, 5],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "lujvo",
         phonemes = "selxrani",
-        span = [6, 14]
+        span = [6, 14],
+        kind = "lujvo"
     }},
 ]
 
 [expectations.syntax]
 status = "failure"
 parse-tree = {
-    leading_connective = {
+    leading_connective = {Relation = {
         cmavo = [
             {Bare = {
                 Bare = {
-                    kind = "cmavo",
                     phonemes = "ju",
-                    span = [3, 5]
+                    span = [3, 5],
+                    kind = "cmavo"
                 }
             }},
-        ],
-        kind = "Relation"
-    },
+        ]
+    }},
     paragraphs = [
         {
             statements = [
@@ -47,9 +46,9 @@ parse-tree = {
                                     first = {Relation = {
                                         Base = {Bare = {
                                             Bare = {
-                                                kind = "lujvo",
                                                 phonemes = "selxrani",
-                                                span = [6, 14]
+                                                span = [6, 14],
+                                                kind = "lujvo"
                                             }
                                         }}
                                     }}

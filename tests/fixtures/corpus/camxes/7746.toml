@@ -10,25 +10,25 @@ entry-id = "7746"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "i",
-        span = [1, 2]
+        span = [1, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "je",
-        span = [2, 4]
+        span = [2, 4],
+        kind = "cmavo"
     }},
     {ZoQuote = {
-        word = {
-            kind = "cmavo",
-            phonemes = "noĭ",
-            span = [8, 11]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [5, 7]
+            span = [5, 7],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "noĭ",
+            span = [8, 11],
+            kind = "cmavo"
         }
     }},
 ]
@@ -40,49 +40,39 @@ parse-tree = {
         {
             statements = [
                 {
-                    connective = {
+                    i = {Bare = {
+                        Bare = {
+                            phonemes = "i",
+                            span = [1, 2],
+                            kind = "cmavo"
+                        }
+                    }},
+                    connective = {Relation = {
                         cmavo = [
                             {Bare = {
                                 Bare = {
-                                    kind = "cmavo",
                                     phonemes = "je",
-                                    span = [2, 4]
+                                    span = [2, 4],
+                                    kind = "cmavo"
                                 }
                             }},
-                        ],
-                        kind = "Relation"
-                    },
-                    i = {Bare = {
-                        Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [1, 2]
-                        }
+                        ]
                     }},
                     statement = {Fragment = {
                         Term = {
                             terms = [
                                 {Argument = {
                                     Quote = {Zo = {
-                                        word = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
+                                        Bare = {ZoQuote = {
+                                            zo = {
+                                                phonemes = "zo",
+                                                span = [5, 7],
+                                                kind = "cmavo"
+                                            },
+                                            word = {
                                                 phonemes = "noĭ",
-                                                span = [8, 11]
-                                            }
-                                        }},
-                                        zo = {Bare = {
-                                            ZoQuote = {
-                                                word = {
-                                                    kind = "cmavo",
-                                                    phonemes = "noĭ",
-                                                    span = [8, 11]
-                                                },
-                                                zo = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zo",
-                                                    span = [5, 7]
-                                                }
+                                                span = [8, 11],
+                                                kind = "cmavo"
                                             }
                                         }}
                                     }}

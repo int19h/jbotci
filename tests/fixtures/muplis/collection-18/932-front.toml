@@ -16,49 +16,40 @@ brackets = "(.aŭ [mi {djúno (fi [la'e do'i])}])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "aŭ",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "mi",
-        span = [3, 5]
+        span = [3, 5],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "djuno",
-        span = [6, 11]
+        span = [6, 11],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "fi",
-        span = [12, 14]
+        span = [12, 14],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "la'e",
-        span = [15, 19]
+        span = [15, 19],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "do'i",
-        span = [20, 24]
+        span = [20, 24],
+        kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "aŭ",
-                span = [0, 2]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -68,9 +59,9 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "mi",
-                                        span = [3, 5]
+                                        span = [3, 5],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -81,35 +72,35 @@ parse-tree = {
                                     first = {Relation = {
                                         relation = {Base = {
                                             Bare = {Bare = {
-                                                kind = "gismu",
                                                 phonemes = "djuno",
-                                                span = [6, 11]
+                                                span = [6, 11],
+                                                kind = "gismu"
                                             }}
                                         }},
                                         terms = [
                                             {Fa = {
-                                                argument = {Lahe = {
-                                                    inner_argument = {Koha = {
-                                                        Bare = {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "do'i",
-                                                            span = [20, 24]
-                                                        }}
-                                                    }},
-                                                    lahe = {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "la'e",
-                                                            span = [15, 19]
-                                                        }
-                                                    }}
-                                                }},
                                                 fa = {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "fi",
-                                                        span = [12, 14]
+                                                        span = [12, 14],
+                                                        kind = "cmavo"
                                                     }
+                                                }},
+                                                argument = {Lahe = {
+                                                    lahe = {Bare = {
+                                                        Bare = {
+                                                            phonemes = "la'e",
+                                                            span = [15, 19],
+                                                            kind = "cmavo"
+                                                        }
+                                                    }},
+                                                    inner_argument = {Koha = {
+                                                        Bare = {Bare = {
+                                                            phonemes = "do'i",
+                                                            span = [20, 24],
+                                                            kind = "cmavo"
+                                                        }}
+                                                    }}
                                                 }}
                                             }},
                                         ]
@@ -120,6 +111,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "aŭ",
+                    span = [0, 2],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

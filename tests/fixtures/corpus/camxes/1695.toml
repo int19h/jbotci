@@ -10,19 +10,19 @@ entry-id = "1695"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "o'o",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "naĭ",
-        span = [3, 6]
+        span = [3, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "bu'o",
-        span = [7, 11]
+        span = [7, 11],
+        kind = "cmavo"
     }},
 ]
 
@@ -31,23 +31,27 @@ status = "success"
 parse-tree = {
     leading_indicators = [
         {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "o'o",
-                span = [0, 3]
-            },
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "o'o",
+                    span = [0, 3],
+                    kind = "cmavo"
+                }
+            }},
             nai = {
-                kind = "cmavo",
                 phonemes = "naĭ",
-                span = [3, 6]
+                span = [3, 6],
+                kind = "cmavo"
             }
         },
         {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "bu'o",
-                span = [7, 11]
-            }
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "bu'o",
+                    span = [7, 11],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

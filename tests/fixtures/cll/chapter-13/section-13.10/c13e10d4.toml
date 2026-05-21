@@ -19,14 +19,14 @@ brackets = "aĭ-caĭ"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "aĭ",
-        span = [1, 3]
+        span = [1, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "caĭ",
-        span = [3, 6]
+        span = [3, 6],
+        kind = "cmavo"
     }},
 ]
 
@@ -35,11 +35,20 @@ status = "success"
 parse-tree = {
     leading_indicators = [
         {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "aĭ",
-                span = [1, 3]
-            }
+            indicator = {WithIndicator = {
+                base = {Bare = {
+                    Bare = {
+                        phonemes = "aĭ",
+                        span = [1, 3],
+                        kind = "cmavo"
+                    }
+                }},
+                indicator = {
+                    phonemes = "caĭ",
+                    span = [3, 6],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

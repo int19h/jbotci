@@ -10,26 +10,26 @@ entry-id = "8343"
 status = "success"
 words = [
     {ZoQuote = {
-        word = {
-            kind = "lujvo",
-            phonemes = "kasta'a",
-            span = [5, 12]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [2, 4]
+            span = [2, 4],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "kasta'a",
+            span = [5, 12],
+            kind = "lujvo"
         }
     }},
     {Bare = {
-        kind = "lujvo",
         phonemes = "brivla",
-        span = [13, 19]
+        span = [13, 19],
+        kind = "lujvo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ma",
-        span = [20, 22]
+        span = [20, 22],
+        kind = "cmavo"
     }},
 ]
 
@@ -44,25 +44,16 @@ parse-tree = {
                         leading_terms = [
                             {Argument = {
                                 Quote = {Zo = {
-                                    word = {Bare = {
-                                        Bare = {
-                                            kind = "lujvo",
+                                    Bare = {ZoQuote = {
+                                        zo = {
+                                            phonemes = "zo",
+                                            span = [2, 4],
+                                            kind = "cmavo"
+                                        },
+                                        word = {
                                             phonemes = "kasta'a",
-                                            span = [5, 12]
-                                        }
-                                    }},
-                                    zo = {Bare = {
-                                        ZoQuote = {
-                                            word = {
-                                                kind = "lujvo",
-                                                phonemes = "kasta'a",
-                                                span = [5, 12]
-                                            },
-                                            zo = {
-                                                kind = "cmavo",
-                                                phonemes = "zo",
-                                                span = [2, 4]
-                                            }
+                                            span = [5, 12],
+                                            kind = "lujvo"
                                         }
                                     }}
                                 }}
@@ -74,18 +65,18 @@ parse-tree = {
                                     first = {Relation = {
                                         relation = {Base = {
                                             Bare = {Bare = {
-                                                kind = "lujvo",
                                                 phonemes = "brivla",
-                                                span = [13, 19]
+                                                span = [13, 19],
+                                                kind = "lujvo"
                                             }}
                                         }},
                                         terms = [
                                             {Argument = {
                                                 Koha = {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "ma",
-                                                        span = [20, 22]
+                                                        span = [20, 22],
+                                                        kind = "cmavo"
                                                     }
                                                 }}
                                             }},

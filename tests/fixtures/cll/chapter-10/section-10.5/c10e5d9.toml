@@ -19,29 +19,29 @@ brackets = "(ta [{ri'u ve'i ca'u} fínpe])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ta",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ri'u",
-        span = [3, 7]
+        span = [3, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ve'i",
-        span = [8, 12]
+        span = [8, 12],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ca'u",
-        span = [12, 16]
+        span = [12, 16],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "finpe",
-        span = [17, 22]
+        span = [17, 22],
+        kind = "gismu"
     }},
 ]
 
@@ -57,9 +57,9 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "ta",
-                                        span = [0, 2]
+                                        span = [0, 2],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -69,64 +69,37 @@ parse-tree = {
                                 first = {
                                     first = {Relation = {
                                         TenseModal = {
+                                            tense_modal = {Composite = {
+                                                parts = [
+                                                    {Word = {
+                                                        Bare = {Bare = {
+                                                            phonemes = "ri'u",
+                                                            span = [3, 7],
+                                                            kind = "cmavo"
+                                                        }}
+                                                    }},
+                                                    {Word = {
+                                                        Bare = {Bare = {
+                                                            phonemes = "ve'i",
+                                                            span = [8, 12],
+                                                            kind = "cmavo"
+                                                        }}
+                                                    }},
+                                                    {Word = {
+                                                        Bare = {Bare = {
+                                                            phonemes = "ca'u",
+                                                            span = [12, 16],
+                                                            kind = "cmavo"
+                                                        }}
+                                                    }},
+                                                ]
+                                            }},
                                             inner_relation = {Base = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "finpe",
-                                                    span = [17, 22]
+                                                    span = [17, 22],
+                                                    kind = "gismu"
                                                 }}
-                                            }},
-                                            tense_modal = {Composite = {
-                                                leaves = [
-                                                    {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "ri'u",
-                                                            span = [3, 7]
-                                                        }
-                                                    }},
-                                                    {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "ve'i",
-                                                            span = [8, 12]
-                                                        }
-                                                    }},
-                                                    {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "ca'u",
-                                                            span = [12, 16]
-                                                        }
-                                                    }},
-                                                ],
-                                                space = {
-                                                    direction = [
-                                                        {Bare = {
-                                                            Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "ri'u",
-                                                                span = [3, 7]
-                                                            }
-                                                        }},
-                                                        {Bare = {
-                                                            Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "ca'u",
-                                                                span = [12, 16]
-                                                            }
-                                                        }},
-                                                    ],
-                                                    interval = [
-                                                        {Bare = {
-                                                            Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "ve'i",
-                                                                span = [8, 12]
-                                                            }
-                                                        }},
-                                                    ]
-                                                }
                                             }}
                                         }
                                     }}

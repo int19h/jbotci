@@ -10,32 +10,32 @@ entry-id = "18348"
 status = "success"
 words = [
     {ZoQuote = {
-        word = {
-            kind = "gismu",
-            phonemes = "smuni",
-            span = [3, 8]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [0, 2]
+            span = [0, 2],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "smuni",
+            span = [3, 8],
+            kind = "gismu"
         }
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "jo'u",
-        span = [9, 13]
+        span = [9, 13],
+        kind = "cmavo"
     }},
     {ZoQuote = {
-        word = {
-            kind = "gismu",
-            phonemes = "sinxa",
-            span = [17, 22]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [14, 16]
+            span = [14, 16],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "sinxa",
+            span = [17, 22],
+            kind = "gismu"
         }
     }},
 ]
@@ -52,67 +52,48 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     Connected = {
-                                        connective = {
+                                        leading_argument = {Quote = {
+                                            Zo = {Bare = {
+                                                ZoQuote = {
+                                                    zo = {
+                                                        phonemes = "zo",
+                                                        span = [0, 2],
+                                                        kind = "cmavo"
+                                                    },
+                                                    word = {
+                                                        phonemes = "smuni",
+                                                        span = [3, 8],
+                                                        kind = "gismu"
+                                                    }
+                                                }
+                                            }}
+                                        }},
+                                        connective = {NonLogical = {
                                             cmavo = [
                                                 {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "jo'u",
-                                                        span = [9, 13]
+                                                        span = [9, 13],
+                                                        kind = "cmavo"
                                                     }
                                                 }},
-                                            ],
-                                            kind = "NonLogical"
-                                        },
-                                        leading_argument = {Quote = {
-                                            Zo = {
-                                                word = {Bare = {
-                                                    Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "smuni",
-                                                        span = [3, 8]
-                                                    }
-                                                }},
-                                                zo = {Bare = {
-                                                    ZoQuote = {
-                                                        word = {
-                                                            kind = "gismu",
-                                                            phonemes = "smuni",
-                                                            span = [3, 8]
-                                                        },
-                                                        zo = {
-                                                            kind = "cmavo",
-                                                            phonemes = "zo",
-                                                            span = [0, 2]
-                                                        }
-                                                    }
-                                                }}
-                                            }
+                                            ]
                                         }},
                                         trailing_argument = {Quote = {
-                                            Zo = {
-                                                word = {Bare = {
-                                                    Bare = {
-                                                        kind = "gismu",
+                                            Zo = {Bare = {
+                                                ZoQuote = {
+                                                    zo = {
+                                                        phonemes = "zo",
+                                                        span = [14, 16],
+                                                        kind = "cmavo"
+                                                    },
+                                                    word = {
                                                         phonemes = "sinxa",
-                                                        span = [17, 22]
+                                                        span = [17, 22],
+                                                        kind = "gismu"
                                                     }
-                                                }},
-                                                zo = {Bare = {
-                                                    ZoQuote = {
-                                                        word = {
-                                                            kind = "gismu",
-                                                            phonemes = "sinxa",
-                                                            span = [17, 22]
-                                                        },
-                                                        zo = {
-                                                            kind = "cmavo",
-                                                            phonemes = "zo",
-                                                            span = [14, 16]
-                                                        }
-                                                    }
-                                                }}
-                                            }
+                                                }
+                                            }}
                                         }}
                                     }
                                 }},

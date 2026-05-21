@@ -10,44 +10,35 @@ entry-id = "10380"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "o'a",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "cu'i",
-        span = [3, 7]
+        span = [3, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "cinri",
-        span = [8, 13]
+        span = [8, 13],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "no",
-        span = [14, 16]
+        span = [14, 16],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "da",
-        span = [16, 18]
+        span = [16, 18],
+        kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "o'a",
-                span = [0, 3]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -59,31 +50,31 @@ parse-tree = {
                                     first = {Relation = {
                                         relation = {Base = {
                                             Bare = {Bare = {
-                                                kind = "gismu",
                                                 phonemes = "cinri",
-                                                span = [8, 13]
+                                                span = [8, 13],
+                                                kind = "gismu"
                                             }}
                                         }},
                                         terms = [
                                             {Argument = {
                                                 Quantified = {
-                                                    inner_argument = {Koha = {
-                                                        Bare = {Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "da",
-                                                            span = [16, 18]
-                                                        }}
-                                                    }},
                                                     quantifier = {Number = {
                                                         number = [
                                                             {Bare = {
                                                                 Bare = {
-                                                                    kind = "cmavo",
                                                                     phonemes = "no",
-                                                                    span = [14, 16]
+                                                                    span = [14, 16],
+                                                                    kind = "cmavo"
                                                                 }
                                                             }},
                                                         ]
+                                                    }},
+                                                    inner_argument = {Koha = {
+                                                        Bare = {Bare = {
+                                                            phonemes = "da",
+                                                            span = [16, 18],
+                                                            kind = "cmavo"
+                                                        }}
                                                     }}
                                                 }
                                             }},
@@ -95,6 +86,24 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {WithIndicator = {
+                base = {Bare = {
+                    Bare = {
+                        phonemes = "o'a",
+                        span = [0, 3],
+                        kind = "cmavo"
+                    }
+                }},
+                indicator = {
+                    phonemes = "cu'i",
+                    span = [3, 7],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

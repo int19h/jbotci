@@ -10,34 +10,25 @@ entry-id = "17774"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ju'o",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "cu'i",
-        span = [4, 8]
+        span = [4, 8],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "go'i",
-        span = [9, 13]
+        span = [9, 13],
+        kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "ju'o",
-                span = [0, 4]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -49,9 +40,9 @@ parse-tree = {
                                     first = {Relation = {
                                         Base = {Bare = {
                                             Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "go'i",
-                                                span = [9, 13]
+                                                span = [9, 13],
+                                                kind = "cmavo"
                                             }
                                         }}
                                     }}
@@ -61,6 +52,24 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {WithIndicator = {
+                base = {Bare = {
+                    Bare = {
+                        phonemes = "ju'o",
+                        span = [0, 4],
+                        kind = "cmavo"
+                    }
+                }},
+                indicator = {
+                    phonemes = "cu'i",
+                    span = [4, 8],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

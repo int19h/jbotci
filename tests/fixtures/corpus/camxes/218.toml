@@ -10,33 +10,33 @@ entry-id = "218"
 status = "success"
 words = [
     {ZoiQuote = {
-        closing_delimiter = {
-            kind = "cmavo",
-            phonemes = "zo",
-            span = [19, 21]
+        zoi = {
+            phonemes = "zoĭ",
+            span = [0, 3],
+            kind = "cmavo"
         },
         opening_delimiter = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [4, 6]
+            span = [4, 6],
+            kind = "cmavo"
         },
         quoted_text = [6, 18],
-        zoi = {
-            kind = "cmavo",
-            phonemes = "zoĭ",
-            span = [0, 3]
+        closing_delimiter = {
+            phonemes = "zo",
+            span = [19, 21],
+            kind = "cmavo"
         }
     }},
     {ZoQuote = {
-        word = {
-            kind = "cmavo",
-            phonemes = "co",
-            span = [25, 27]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [22, 24]
+            span = [22, 24],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "co",
+            span = [25, 27],
+            kind = "cmavo"
         }
     }},
 ]
@@ -53,64 +53,38 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     Quote = {Zoi = {
-                                        closing_delimiter = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
+                                        Bare = {ZoiQuote = {
+                                            zoi = {
+                                                phonemes = "zoĭ",
+                                                span = [0, 3],
+                                                kind = "cmavo"
+                                            },
+                                            opening_delimiter = {
                                                 phonemes = "zo",
-                                                span = [19, 21]
-                                            }
-                                        }},
-                                        opening_delimiter = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
+                                                span = [4, 6],
+                                                kind = "cmavo"
+                                            },
+                                            quoted_text = [6, 18],
+                                            closing_delimiter = {
                                                 phonemes = "zo",
-                                                span = [4, 6]
-                                            }
-                                        }},
-                                        quoted_text = " da da da da",
-                                        zoi = {Bare = {
-                                            ZoiQuote = {
-                                                closing_delimiter = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zo",
-                                                    span = [19, 21]
-                                                },
-                                                opening_delimiter = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zo",
-                                                    span = [4, 6]
-                                                },
-                                                quoted_text = [6, 18],
-                                                zoi = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zoĭ",
-                                                    span = [0, 3]
-                                                }
+                                                span = [19, 21],
+                                                kind = "cmavo"
                                             }
                                         }}
                                     }}
                                 }},
                                 {Argument = {
                                     Quote = {Zo = {
-                                        word = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
+                                        Bare = {ZoQuote = {
+                                            zo = {
+                                                phonemes = "zo",
+                                                span = [22, 24],
+                                                kind = "cmavo"
+                                            },
+                                            word = {
                                                 phonemes = "co",
-                                                span = [25, 27]
-                                            }
-                                        }},
-                                        zo = {Bare = {
-                                            ZoQuote = {
-                                                word = {
-                                                    kind = "cmavo",
-                                                    phonemes = "co",
-                                                    span = [25, 27]
-                                                },
-                                                zo = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zo",
-                                                    span = [22, 24]
-                                                }
+                                                span = [25, 27],
+                                                kind = "cmavo"
                                             }
                                         }}
                                     }}

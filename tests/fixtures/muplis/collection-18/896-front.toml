@@ -16,19 +16,19 @@ brackets = ".a'o-naĭ-caĭ"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "a'o",
-        span = [1, 4]
+        span = [1, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "naĭ",
-        span = [4, 7]
+        span = [4, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "caĭ",
-        span = [7, 10]
+        span = [7, 10],
+        kind = "cmavo"
     }},
 ]
 
@@ -37,23 +37,27 @@ status = "success"
 parse-tree = {
     leading_indicators = [
         {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "a'o",
-                span = [1, 4]
-            },
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "a'o",
+                    span = [1, 4],
+                    kind = "cmavo"
+                }
+            }},
             nai = {
-                kind = "cmavo",
                 phonemes = "naĭ",
-                span = [4, 7]
+                span = [4, 7],
+                kind = "cmavo"
             }
         },
         {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "caĭ",
-                span = [7, 10]
-            }
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "caĭ",
+                    span = [7, 10],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

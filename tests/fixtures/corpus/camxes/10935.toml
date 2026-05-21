@@ -10,44 +10,35 @@ entry-id = "10935"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "u'i",
-        span = [1, 4]
+        span = [1, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "saĭ",
-        span = [4, 7]
+        span = [4, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "li",
-        span = [8, 10]
+        span = [8, 10],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "re",
-        span = [11, 13]
+        span = [11, 13],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "xa",
-        span = [13, 15]
+        span = [13, 15],
+        kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "u'i",
-                span = [1, 4]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -57,31 +48,31 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     MathExpression = {
+                                        li = {Bare = {
+                                            Bare = {
+                                                phonemes = "li",
+                                                span = [8, 10],
+                                                kind = "cmavo"
+                                            }
+                                        }},
                                         expression = {Number = {
                                             Number = {
                                                 number = [
                                                     {Bare = {
                                                         Bare = {
-                                                            kind = "cmavo",
                                                             phonemes = "re",
-                                                            span = [11, 13]
+                                                            span = [11, 13],
+                                                            kind = "cmavo"
                                                         }
                                                     }},
                                                     {Bare = {
                                                         Bare = {
-                                                            kind = "cmavo",
                                                             phonemes = "xa",
-                                                            span = [13, 15]
+                                                            span = [13, 15],
+                                                            kind = "cmavo"
                                                         }
                                                     }},
                                                 ]
-                                            }
-                                        }},
-                                        li = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "li",
-                                                span = [8, 10]
                                             }
                                         }}
                                     }
@@ -91,6 +82,24 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {WithIndicator = {
+                base = {Bare = {
+                    Bare = {
+                        phonemes = "u'i",
+                        span = [1, 4],
+                        kind = "cmavo"
+                    }
+                }},
+                indicator = {
+                    phonemes = "saĭ",
+                    span = [4, 7],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

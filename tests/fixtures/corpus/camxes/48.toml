@@ -10,26 +10,26 @@ entry-id = "48"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "coĭ",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {ZoiQuote = {
-        closing_delimiter = {
-            kind = "cmavo",
-            phonemes = "zoĭ",
-            span = [23, 26]
+        zoi = {
+            phonemes = "la'o",
+            span = [4, 8],
+            kind = "cmavo"
         },
         opening_delimiter = {
-            kind = "cmavo",
             phonemes = "zoĭ",
-            span = [9, 12]
+            span = [9, 12],
+            kind = "cmavo"
         },
         quoted_text = [12, 22],
-        zoi = {
-            kind = "cmavo",
-            phonemes = "la'o",
-            span = [4, 8]
+        closing_delimiter = {
+            phonemes = "zoĭ",
+            span = [23, 26],
+            kind = "cmavo"
         }
     }},
 ]
@@ -39,54 +39,37 @@ status = "success"
 parse-tree = {
     leading_free_modifiers = [
         {Vocative = {
-            argument = {Quote = {
-                Zoi = {
-                    closing_delimiter = {Bare = {
-                        Bare = {
-                            kind = "cmavo",
-                            phonemes = "zoĭ",
-                            span = [23, 26]
-                        }
-                    }},
-                    opening_delimiter = {Bare = {
-                        Bare = {
-                            kind = "cmavo",
-                            phonemes = "zoĭ",
-                            span = [9, 12]
-                        }
-                    }},
-                    quoted_text = " jadenbane",
-                    zoi = {Bare = {
-                        ZoiQuote = {
-                            closing_delimiter = {
-                                kind = "cmavo",
-                                phonemes = "zoĭ",
-                                span = [23, 26]
-                            },
-                            opening_delimiter = {
-                                kind = "cmavo",
-                                phonemes = "zoĭ",
-                                span = [9, 12]
-                            },
-                            quoted_text = [12, 22],
-                            zoi = {
-                                kind = "cmavo",
-                                phonemes = "la'o",
-                                span = [4, 8]
-                            }
-                        }
-                    }}
-                }
-            }},
             vocative_markers = [
                 {Bare = {
                     Bare = {
-                        kind = "cmavo",
                         phonemes = "coĭ",
-                        span = [0, 3]
+                        span = [0, 3],
+                        kind = "cmavo"
                     }
                 }},
-            ]
+            ],
+            argument = {Quote = {
+                Zoi = {Bare = {
+                    ZoiQuote = {
+                        zoi = {
+                            phonemes = "la'o",
+                            span = [4, 8],
+                            kind = "cmavo"
+                        },
+                        opening_delimiter = {
+                            phonemes = "zoĭ",
+                            span = [9, 12],
+                            kind = "cmavo"
+                        },
+                        quoted_text = [12, 22],
+                        closing_delimiter = {
+                            phonemes = "zoĭ",
+                            span = [23, 26],
+                            kind = "cmavo"
+                        }
+                    }
+                }}
+            }}
         }},
     ]
 }

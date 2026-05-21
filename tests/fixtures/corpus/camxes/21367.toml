@@ -10,29 +10,20 @@ entry-id = "21367"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ĭo",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ma",
-        span = [3, 5]
+        span = [3, 5],
+        kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "ĭo",
-                span = [0, 2]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -43,9 +34,9 @@ parse-tree = {
                                 {Argument = {
                                     Koha = {Bare = {
                                         Bare = {
-                                            kind = "cmavo",
                                             phonemes = "ma",
-                                            span = [3, 5]
+                                            span = [3, 5],
+                                            kind = "cmavo"
                                         }
                                     }}
                                 }},
@@ -54,6 +45,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "ĭo",
+                    span = [0, 2],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

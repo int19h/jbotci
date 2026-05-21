@@ -10,15 +10,15 @@ entry-id = "319"
 status = "success"
 words = [
     {LohuQuote = {
-        lehu = {
-            kind = "cmavo",
-            phonemes = "le'u",
-            span = [18, 22]
-        },
         lohu = {
-            kind = "cmavo",
             phonemes = "lo'u",
-            span = [13, 17]
+            span = [13, 17],
+            kind = "cmavo"
+        },
+        lehu = {
+            phonemes = "le'u",
+            span = [18, 22],
+            kind = "cmavo"
         }
     }},
 ]
@@ -35,25 +35,16 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     Quote = {Lohu = {
-                                        lehu = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
+                                        Bare = {LohuQuote = {
+                                            lohu = {
+                                                phonemes = "lo'u",
+                                                span = [13, 17],
+                                                kind = "cmavo"
+                                            },
+                                            lehu = {
                                                 phonemes = "le'u",
-                                                span = [18, 22]
-                                            }
-                                        }},
-                                        lohu = {Bare = {
-                                            LohuQuote = {
-                                                lehu = {
-                                                    kind = "cmavo",
-                                                    phonemes = "le'u",
-                                                    span = [18, 22]
-                                                },
-                                                lohu = {
-                                                    kind = "cmavo",
-                                                    phonemes = "lo'u",
-                                                    span = [13, 17]
-                                                }
+                                                span = [18, 22],
+                                                kind = "cmavo"
                                             }
                                         }}
                                     }}

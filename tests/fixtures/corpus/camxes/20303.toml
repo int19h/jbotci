@@ -10,54 +10,45 @@ entry-id = "20303"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "za'a",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "cladu",
-        span = [5, 10]
+        span = [5, 10],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "carvi",
-        span = [11, 16]
+        span = [11, 16],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "i",
-        span = [18, 19]
+        span = [18, 19],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ja'o",
-        span = [20, 24]
+        span = [20, 24],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "carmi",
-        span = [25, 30]
+        span = [25, 30],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "carvi",
-        span = [31, 36]
+        span = [31, 36],
+        kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "za'a",
-                span = [0, 4]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -70,16 +61,16 @@ parse-tree = {
                                         Compound = [
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "cladu",
-                                                    span = [5, 10]
+                                                    span = [5, 10],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "carvi",
-                                                    span = [11, 16]
+                                                    span = [11, 16],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                         ]
@@ -93,15 +84,15 @@ parse-tree = {
                     i = {WithIndicator = {
                         base = {Bare = {
                             Bare = {
-                                kind = "cmavo",
                                 phonemes = "i",
-                                span = [18, 19]
+                                span = [18, 19],
+                                kind = "cmavo"
                             }
                         }},
                         indicator = {
-                            kind = "cmavo",
                             phonemes = "ja'o",
-                            span = [20, 24]
+                            span = [20, 24],
+                            kind = "cmavo"
                         }
                     }},
                     statement = {Predicate = {
@@ -112,16 +103,16 @@ parse-tree = {
                                         Compound = [
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "carmi",
-                                                    span = [25, 30]
+                                                    span = [25, 30],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "carvi",
-                                                    span = [31, 36]
+                                                    span = [31, 36],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                         ]
@@ -132,6 +123,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "za'a",
+                    span = [0, 4],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

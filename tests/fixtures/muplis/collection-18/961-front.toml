@@ -16,14 +16,14 @@ brackets = ".e'eĭ-se'a"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "e'eĭ",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "se'a",
-        span = [5, 9]
+        span = [5, 9],
+        kind = "cmavo"
     }},
 ]
 
@@ -32,11 +32,20 @@ status = "success"
 parse-tree = {
     leading_indicators = [
         {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "e'eĭ",
-                span = [0, 4]
-            }
+            indicator = {WithIndicator = {
+                base = {Bare = {
+                    Bare = {
+                        phonemes = "e'eĭ",
+                        span = [0, 4],
+                        kind = "cmavo"
+                    }
+                }},
+                indicator = {
+                    phonemes = "se'a",
+                    span = [5, 9],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

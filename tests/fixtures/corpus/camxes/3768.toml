@@ -10,34 +10,34 @@ entry-id = "3768"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "to",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ro",
-        span = [3, 5]
+        span = [3, 5],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "do",
-        span = [5, 7]
+        span = [5, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "na",
-        span = [8, 10]
+        span = [8, 10],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "jimpe",
-        span = [11, 16]
+        span = [11, 16],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "toĭ",
-        span = [17, 20]
+        span = [17, 20],
+        kind = "cmavo"
     }},
 ]
 
@@ -46,6 +46,13 @@ status = "success"
 parse-tree = {
     leading_free_modifiers = [
         {To = {
+            to = {Bare = {
+                Bare = {
+                    phonemes = "to",
+                    span = [0, 2],
+                    kind = "cmavo"
+                }
+            }},
             text = {
                 paragraphs = [
                     {
@@ -55,23 +62,23 @@ parse-tree = {
                                     leading_terms = [
                                         {Argument = {
                                             Quantified = {
-                                                inner_argument = {Koha = {
-                                                    Bare = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "do",
-                                                        span = [5, 7]
-                                                    }}
-                                                }},
                                                 quantifier = {Number = {
                                                     number = [
                                                         {Bare = {
                                                             Bare = {
-                                                                kind = "cmavo",
                                                                 phonemes = "ro",
-                                                                span = [3, 5]
+                                                                span = [3, 5],
+                                                                kind = "cmavo"
                                                             }
                                                         }},
                                                     ]
+                                                }},
+                                                inner_argument = {Koha = {
+                                                    Bare = {Bare = {
+                                                        phonemes = "do",
+                                                        span = [5, 7],
+                                                        kind = "cmavo"
+                                                    }}
                                                 }}
                                             }
                                         }},
@@ -81,19 +88,19 @@ parse-tree = {
                                             first = {
                                                 first = {Relation = {
                                                     Na = {
-                                                        inner_relation = {Base = {
-                                                            Bare = {Bare = {
-                                                                kind = "gismu",
-                                                                phonemes = "jimpe",
-                                                                span = [11, 16]
-                                                            }}
-                                                        }},
                                                         na = {Bare = {
                                                             Bare = {
-                                                                kind = "cmavo",
                                                                 phonemes = "na",
-                                                                span = [8, 10]
+                                                                span = [8, 10],
+                                                                kind = "cmavo"
                                                             }
+                                                        }},
+                                                        inner_relation = {Base = {
+                                                            Bare = {Bare = {
+                                                                phonemes = "jimpe",
+                                                                span = [11, 16],
+                                                                kind = "gismu"
+                                                            }}
                                                         }}
                                                     }
                                                 }}
@@ -106,18 +113,11 @@ parse-tree = {
                     },
                 ]
             },
-            to = {Bare = {
-                Bare = {
-                    kind = "cmavo",
-                    phonemes = "to",
-                    span = [0, 2]
-                }
-            }},
             toi = {Bare = {
                 Bare = {
-                    kind = "cmavo",
                     phonemes = "toĭ",
-                    span = [17, 20]
+                    span = [17, 20],
+                    kind = "cmavo"
                 }
             }}
         }},

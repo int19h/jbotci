@@ -10,24 +10,24 @@ entry-id = "9382"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "doĭ",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "me",
-        span = [4, 6]
+        span = [4, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "mi",
-        span = [6, 8]
+        span = [6, 8],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "cevni",
-        span = [9, 14]
+        span = [9, 14],
+        kind = "gismu"
     }},
 ]
 
@@ -36,42 +36,42 @@ status = "success"
 parse-tree = {
     leading_free_modifiers = [
         {Vocative = {
+            vocative_markers = [
+                {Bare = {
+                    Bare = {
+                        phonemes = "doĭ",
+                        span = [0, 3],
+                        kind = "cmavo"
+                    }
+                }},
+            ],
             argument = {RelationVocative = {
                 relation = {Compound = [
                         {Me = {
-                            argument = {Koha = {
-                                Bare = {Bare = {
-                                    kind = "cmavo",
-                                    phonemes = "mi",
-                                    span = [6, 8]
-                                }}
-                            }},
                             me = {Bare = {
                                 Bare = {
-                                    kind = "cmavo",
                                     phonemes = "me",
-                                    span = [4, 6]
+                                    span = [4, 6],
+                                    kind = "cmavo"
                                 }
+                            }},
+                            argument = {Koha = {
+                                Bare = {Bare = {
+                                    phonemes = "mi",
+                                    span = [6, 8],
+                                    kind = "cmavo"
+                                }}
                             }}
                         }},
                         {Word = {
                             Bare = {Bare = {
-                                kind = "gismu",
                                 phonemes = "cevni",
-                                span = [9, 14]
+                                span = [9, 14],
+                                kind = "gismu"
                             }}
                         }},
                     ] }
-            }},
-            vocative_markers = [
-                {Bare = {
-                    Bare = {
-                        kind = "cmavo",
-                        phonemes = "doĭ",
-                        span = [0, 3]
-                    }
-                }},
-            ]
+            }}
         }},
     ]
 }

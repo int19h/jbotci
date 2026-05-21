@@ -10,24 +10,24 @@ entry-id = "8574"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "seĭ",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "cnino",
-        span = [4, 9]
+        span = [4, 9],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "se",
-        span = [10, 12]
+        span = [10, 12],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "casnu",
-        span = [13, 18]
+        span = [13, 18],
+        kind = "gismu"
     }},
 ]
 
@@ -36,38 +36,38 @@ status = "success"
 parse-tree = {
     leading_free_modifiers = [
         {Sei = {
+            sei = {Bare = {
+                Bare = {
+                    phonemes = "seĭ",
+                    span = [0, 3],
+                    kind = "cmavo"
+                }
+            }},
             relation = {Compound = [
                     {Word = {
                         Bare = {Bare = {
-                            kind = "gismu",
                             phonemes = "cnino",
-                            span = [4, 9]
+                            span = [4, 9],
+                            kind = "gismu"
                         }}
                     }},
                     {Se = {
-                        inner_unit = {Word = {
-                            Bare = {Bare = {
-                                kind = "gismu",
-                                phonemes = "casnu",
-                                span = [13, 18]
-                            }}
-                        }},
                         se = {Bare = {
                             Bare = {
-                                kind = "cmavo",
                                 phonemes = "se",
-                                span = [10, 12]
+                                span = [10, 12],
+                                kind = "cmavo"
                             }
+                        }},
+                        inner_unit = {Word = {
+                            Bare = {Bare = {
+                                phonemes = "casnu",
+                                span = [13, 18],
+                                kind = "gismu"
+                            }}
                         }}
                     }},
-                ] },
-            sei = {Bare = {
-                Bare = {
-                    kind = "cmavo",
-                    phonemes = "seĭ",
-                    span = [0, 3]
-                }
-            }}
+                ] }
         }},
     ]
 }

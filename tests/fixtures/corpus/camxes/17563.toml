@@ -10,66 +10,35 @@ entry-id = "17563"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ta'o",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "doĭ",
-        span = [5, 8]
+        span = [5, 8],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmevla",
         phonemes = "clsn",
-        span = [9, 13]
+        span = [9, 13],
+        kind = "cmevla"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "zvati",
-        span = [14, 19]
+        span = [14, 19],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ma",
-        span = [20, 22]
+        span = [20, 22],
+        kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_free_modifiers = [
-        {Vocative = {
-            argument = {Cmevla = [
-                    {Bare = {
-                        Bare = {
-                            kind = "cmevla",
-                            phonemes = "clsn",
-                            span = [9, 13]
-                        }
-                    }},
-                ] },
-            vocative_markers = [
-                {Bare = {
-                    Bare = {
-                        kind = "cmavo",
-                        phonemes = "doĭ",
-                        span = [5, 8]
-                    }
-                }},
-            ]
-        }},
-    ],
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "ta'o",
-                span = [0, 4]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -81,18 +50,18 @@ parse-tree = {
                                     first = {Relation = {
                                         relation = {Base = {
                                             Bare = {Bare = {
-                                                kind = "gismu",
                                                 phonemes = "zvati",
-                                                span = [14, 19]
+                                                span = [14, 19],
+                                                kind = "gismu"
                                             }}
                                         }},
                                         terms = [
                                             {Argument = {
                                                 Koha = {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "ma",
-                                                        span = [20, 22]
+                                                        span = [20, 22],
+                                                        kind = "cmavo"
                                                     }
                                                 }}
                                             }},
@@ -104,6 +73,39 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_free_modifiers = [
+        {Vocative = {
+            vocative_markers = [
+                {Bare = {
+                    Bare = {
+                        phonemes = "doĭ",
+                        span = [5, 8],
+                        kind = "cmavo"
+                    }
+                }},
+            ],
+            argument = {Cmevla = [
+                    {Bare = {
+                        Bare = {
+                            phonemes = "clsn",
+                            span = [9, 13],
+                            kind = "cmevla"
+                        }
+                    }},
+                ] }
+        }},
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "ta'o",
+                    span = [0, 4],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

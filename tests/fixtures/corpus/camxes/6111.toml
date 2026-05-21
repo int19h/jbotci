@@ -10,14 +10,14 @@ entry-id = "6111"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "i",
-        span = [1, 2]
+        span = [1, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ja",
-        span = [2, 4]
+        span = [2, 4],
+        kind = "cmavo"
     }},
 ]
 
@@ -28,24 +28,23 @@ parse-tree = {
         {
             statements = [
                 {
-                    connective = {
+                    i = {Bare = {
+                        Bare = {
+                            phonemes = "i",
+                            span = [1, 2],
+                            kind = "cmavo"
+                        }
+                    }},
+                    connective = {Relation = {
                         cmavo = [
                             {Bare = {
                                 Bare = {
-                                    kind = "cmavo",
                                     phonemes = "ja",
-                                    span = [2, 4]
+                                    span = [2, 4],
+                                    kind = "cmavo"
                                 }
                             }},
-                        ],
-                        kind = "Relation"
-                    },
-                    i = {Bare = {
-                        Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [1, 2]
-                        }
+                        ]
                     }}
                 },
             ]

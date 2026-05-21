@@ -16,29 +16,29 @@ brackets = "(.i [ra {(je'a zábna) távla}])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "i",
-        span = [1, 2]
+        span = [1, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ra",
-        span = [3, 5]
+        span = [3, 5],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "je'a",
-        span = [6, 10]
+        span = [6, 10],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "zabna",
-        span = [11, 16]
+        span = [11, 16],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "tavla",
-        span = [17, 22]
+        span = [17, 22],
+        kind = "gismu"
     }},
 ]
 
@@ -51,9 +51,9 @@ parse-tree = {
                 {
                     i = {Bare = {
                         Bare = {
-                            kind = "cmavo",
                             phonemes = "i",
-                            span = [1, 2]
+                            span = [1, 2],
+                            kind = "cmavo"
                         }
                     }},
                     statement = {Predicate = {
@@ -61,9 +61,9 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "ra",
-                                        span = [3, 5]
+                                        span = [3, 5],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -74,26 +74,26 @@ parse-tree = {
                                     first = {Relation = {
                                         Compound = [
                                             {Nahe = {
-                                                inner_unit = {Word = {
-                                                    Bare = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "zabna",
-                                                        span = [11, 16]
-                                                    }}
-                                                }},
                                                 nahe = {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "je'a",
-                                                        span = [6, 10]
+                                                        span = [6, 10],
+                                                        kind = "cmavo"
                                                     }
+                                                }},
+                                                inner_unit = {Word = {
+                                                    Bare = {Bare = {
+                                                        phonemes = "zabna",
+                                                        span = [11, 16],
+                                                        kind = "gismu"
+                                                    }}
                                                 }}
                                             }},
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "tavla",
-                                                    span = [17, 22]
+                                                    span = [17, 22],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                         ]

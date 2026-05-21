@@ -19,19 +19,19 @@ brackets = "(le ci nolráitru)"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "le",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ci",
-        span = [3, 5]
+        span = [3, 5],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "lujvo",
         phonemes = "nolraĭtru",
-        span = [6, 15]
+        span = [6, 15],
+        kind = "lujvo"
     }},
 ]
 
@@ -49,17 +49,10 @@ parse-tree = {
                                     Descriptor = {
                                         descriptor = {Bare = {
                                             Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "le",
-                                                span = [0, 2]
+                                                span = [0, 2],
+                                                kind = "cmavo"
                                             }
-                                        }},
-                                        relation = {Base = {
-                                            Bare = {Bare = {
-                                                kind = "lujvo",
-                                                phonemes = "nolraĭtru",
-                                                span = [6, 15]
-                                            }}
                                         }},
                                         tail_elements = [
                                             {Quantifier = {
@@ -67,15 +60,22 @@ parse-tree = {
                                                     number = [
                                                         {Bare = {
                                                             Bare = {
-                                                                kind = "cmavo",
                                                                 phonemes = "ci",
-                                                                span = [3, 5]
+                                                                span = [3, 5],
+                                                                kind = "cmavo"
                                                             }
                                                         }},
                                                     ]
                                                 }
                                             }},
-                                        ]
+                                        ],
+                                        relation = {Base = {
+                                            Bare = {Bare = {
+                                                phonemes = "nolraĭtru",
+                                                span = [6, 15],
+                                                kind = "lujvo"
+                                            }}
+                                        }}
                                     }
                                 }},
                             ]

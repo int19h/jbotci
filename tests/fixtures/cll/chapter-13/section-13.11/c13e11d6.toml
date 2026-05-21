@@ -19,19 +19,19 @@ brackets = "(ru'a [doĭ livínston])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ru'a",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "doĭ",
-        span = [5, 8]
+        span = [5, 8],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmevla",
         phonemes = "livinston",
-        span = [10, 19]
+        span = [10, 19],
+        kind = "cmevla"
     }},
 ]
 
@@ -40,33 +40,35 @@ status = "success"
 parse-tree = {
     leading_free_modifiers = [
         {Vocative = {
-            argument = {Cmevla = [
-                    {Bare = {
-                        Bare = {
-                            kind = "cmevla",
-                            phonemes = "livinston",
-                            span = [10, 19]
-                        }
-                    }},
-                ] },
             vocative_markers = [
                 {Bare = {
                     Bare = {
-                        kind = "cmavo",
                         phonemes = "doĭ",
-                        span = [5, 8]
+                        span = [5, 8],
+                        kind = "cmavo"
                     }
                 }},
-            ]
+            ],
+            argument = {Cmevla = [
+                    {Bare = {
+                        Bare = {
+                            phonemes = "livinston",
+                            span = [10, 19],
+                            kind = "cmevla"
+                        }
+                    }},
+                ] }
         }},
     ],
     leading_indicators = [
         {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "ru'a",
-                span = [0, 4]
-            }
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "ru'a",
+                    span = [0, 4],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

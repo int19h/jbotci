@@ -10,39 +10,30 @@ entry-id = "6924"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "aŭ",
-        span = [1, 3]
+        span = [1, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "rectu",
-        span = [4, 9]
+        span = [4, 9],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "joĭ",
-        span = [10, 13]
+        span = [10, 13],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "lujvo",
         phonemes = "titygrute",
-        span = [14, 23]
+        span = [14, 23],
+        kind = "lujvo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "aŭ",
-                span = [1, 3]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -53,30 +44,29 @@ parse-tree = {
                                 first = {
                                     first = {Relation = {
                                         Connected = {
-                                            connective = {
+                                            connective = {NonLogical = {
                                                 cmavo = [
                                                     {Bare = {
                                                         Bare = {
-                                                            kind = "cmavo",
                                                             phonemes = "joĭ",
-                                                            span = [10, 13]
+                                                            span = [10, 13],
+                                                            kind = "cmavo"
                                                         }
                                                     }},
-                                                ],
-                                                kind = "NonLogical"
-                                            },
+                                                ]
+                                            }},
                                             leading_relation = {Base = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "rectu",
-                                                    span = [4, 9]
+                                                    span = [4, 9],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                             trailing_relation = {Base = {
                                                 Bare = {Bare = {
-                                                    kind = "lujvo",
                                                     phonemes = "titygrute",
-                                                    span = [14, 23]
+                                                    span = [14, 23],
+                                                    kind = "lujvo"
                                                 }}
                                             }}
                                         }
@@ -87,6 +77,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "aŭ",
+                    span = [1, 3],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

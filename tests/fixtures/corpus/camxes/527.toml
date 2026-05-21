@@ -10,29 +10,29 @@ entry-id = "527"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "co'o",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "xirma",
-        span = [5, 10]
+        span = [5, 10],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "poĭ",
-        span = [11, 14]
+        span = [11, 14],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "mi",
-        span = [15, 17]
+        span = [15, 17],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "zvati",
-        span = [18, 23]
+        span = [18, 23],
+        kind = "gismu"
     }},
 ]
 
@@ -41,21 +41,30 @@ status = "success"
 parse-tree = {
     leading_free_modifiers = [
         {Vocative = {
+            vocative_markers = [
+                {Bare = {
+                    Bare = {
+                        phonemes = "co'o",
+                        span = [0, 4],
+                        kind = "cmavo"
+                    }
+                }},
+            ],
             argument = {RelationVocative = {
                 relation = {Base = {
                     Bare = {Bare = {
-                        kind = "gismu",
                         phonemes = "xirma",
-                        span = [5, 10]
+                        span = [5, 10],
+                        kind = "gismu"
                     }}
                 }},
                 trailing_relative_clauses = [
                     {Poi = {
                         poi = {Bare = {
                             Bare = {
-                                kind = "cmavo",
                                 phonemes = "poĭ",
-                                span = [11, 14]
+                                span = [11, 14],
+                                kind = "cmavo"
                             }
                         }},
                         subsentence = {Plain = {
@@ -63,9 +72,9 @@ parse-tree = {
                                 {Argument = {
                                     Koha = {Bare = {
                                         Bare = {
-                                            kind = "cmavo",
                                             phonemes = "mi",
-                                            span = [15, 17]
+                                            span = [15, 17],
+                                            kind = "cmavo"
                                         }
                                     }}
                                 }},
@@ -76,9 +85,9 @@ parse-tree = {
                                         first = {Relation = {
                                             Base = {Bare = {
                                                 Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "zvati",
-                                                    span = [18, 23]
+                                                    span = [18, 23],
+                                                    kind = "gismu"
                                                 }
                                             }}
                                         }}
@@ -88,16 +97,7 @@ parse-tree = {
                         }}
                     }},
                 ]
-            }},
-            vocative_markers = [
-                {Bare = {
-                    Bare = {
-                        kind = "cmavo",
-                        phonemes = "co'o",
-                        span = [0, 4]
-                    }
-                }},
-            ]
+            }}
         }},
     ]
 }

@@ -10,44 +10,35 @@ entry-id = "11221"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ru'a",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "py",
-        span = [5, 7]
+        span = [5, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "dukse",
-        span = [9, 14]
+        span = [9, 14],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "sutra",
-        span = [15, 20]
+        span = [15, 20],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "spuda",
-        span = [21, 26]
+        span = [21, 26],
+        kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "ru'a",
-                span = [0, 4]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -59,9 +50,9 @@ parse-tree = {
                                     letter = [
                                         {Bare = {
                                             Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "py",
-                                                span = [5, 7]
+                                                span = [5, 7],
+                                                kind = "cmavo"
                                             }
                                         }},
                                     ]
@@ -75,23 +66,23 @@ parse-tree = {
                                         Compound = [
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "dukse",
-                                                    span = [9, 14]
+                                                    span = [9, 14],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "sutra",
-                                                    span = [15, 20]
+                                                    span = [15, 20],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "spuda",
-                                                    span = [21, 26]
+                                                    span = [21, 26],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                         ]
@@ -102,6 +93,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "ru'a",
+                    span = [0, 4],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

@@ -16,49 +16,49 @@ brackets = "([ko {na ku}] [távla {(su'o da) ce'e (su'o de)}])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ko",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "na",
-        span = [3, 5]
+        span = [3, 5],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ku",
-        span = [6, 8]
+        span = [6, 8],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "tavla",
-        span = [9, 14]
+        span = [9, 14],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "su'o",
-        span = [15, 19]
+        span = [15, 19],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "da",
-        span = [20, 22]
+        span = [20, 22],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ce'e",
-        span = [23, 27]
+        span = [23, 27],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "su'o",
-        span = [28, 32]
+        span = [28, 32],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "de",
-        span = [33, 35]
+        span = [33, 35],
+        kind = "cmavo"
     }},
 ]
 
@@ -74,25 +74,25 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "ko",
-                                        span = [0, 2]
+                                        span = [0, 2],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
                             {NaKu = {
                                 na = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "na",
-                                        span = [3, 5]
+                                        span = [3, 5],
+                                        kind = "cmavo"
                                     }
                                 }},
                                 na_ku = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "ku",
-                                        span = [6, 8]
+                                        span = [6, 8],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -103,64 +103,63 @@ parse-tree = {
                                     first = {Relation = {
                                         relation = {Base = {
                                             Bare = {Bare = {
-                                                kind = "gismu",
                                                 phonemes = "tavla",
-                                                span = [9, 14]
+                                                span = [9, 14],
+                                                kind = "gismu"
                                             }}
                                         }},
                                         terms = [
                                             {Argument = {
                                                 Connected = {
-                                                    connective = {
+                                                    leading_argument = {Quantified = {
+                                                        quantifier = {Number = {
+                                                            number = [
+                                                                {Bare = {
+                                                                    Bare = {
+                                                                        phonemes = "su'o",
+                                                                        span = [15, 19],
+                                                                        kind = "cmavo"
+                                                                    }
+                                                                }},
+                                                            ]
+                                                        }},
+                                                        inner_argument = {Koha = {
+                                                            Bare = {Bare = {
+                                                                phonemes = "da",
+                                                                span = [20, 22],
+                                                                kind = "cmavo"
+                                                            }}
+                                                        }}
+                                                    }},
+                                                    connective = {NonLogical = {
                                                         cmavo = [
                                                             {Bare = {
                                                                 Bare = {
-                                                                    kind = "cmavo",
                                                                     phonemes = "ce'e",
-                                                                    span = [23, 27]
+                                                                    span = [23, 27],
+                                                                    kind = "cmavo"
                                                                 }
                                                             }},
-                                                        ],
-                                                        kind = "NonLogical"
-                                                    },
-                                                    leading_argument = {Quantified = {
-                                                        inner_argument = {Koha = {
-                                                            Bare = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "da",
-                                                                span = [20, 22]
-                                                            }}
-                                                        }},
-                                                        quantifier = {Number = {
-                                                            number = [
-                                                                {Bare = {
-                                                                    Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "su'o",
-                                                                        span = [15, 19]
-                                                                    }
-                                                                }},
-                                                            ]
-                                                        }}
+                                                        ]
                                                     }},
                                                     trailing_argument = {Quantified = {
-                                                        inner_argument = {Koha = {
-                                                            Bare = {Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "de",
-                                                                span = [33, 35]
-                                                            }}
-                                                        }},
                                                         quantifier = {Number = {
                                                             number = [
                                                                 {Bare = {
                                                                     Bare = {
-                                                                        kind = "cmavo",
                                                                         phonemes = "su'o",
-                                                                        span = [28, 32]
+                                                                        span = [28, 32],
+                                                                        kind = "cmavo"
                                                                     }
                                                                 }},
                                                             ]
+                                                        }},
+                                                        inner_argument = {Koha = {
+                                                            Bare = {Bare = {
+                                                                phonemes = "de",
+                                                                span = [33, 35],
+                                                                kind = "cmavo"
+                                                            }}
                                                         }}
                                                     }}
                                                 }

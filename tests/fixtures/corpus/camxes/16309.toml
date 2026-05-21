@@ -10,19 +10,19 @@ entry-id = "16309"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ki'a",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "doĭ",
-        span = [5, 8]
+        span = [5, 8],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmevla",
         phonemes = "and",
-        span = [9, 12]
+        span = [9, 12],
+        kind = "cmevla"
     }},
 ]
 
@@ -31,33 +31,35 @@ status = "success"
 parse-tree = {
     leading_free_modifiers = [
         {Vocative = {
-            argument = {Cmevla = [
-                    {Bare = {
-                        Bare = {
-                            kind = "cmevla",
-                            phonemes = "and",
-                            span = [9, 12]
-                        }
-                    }},
-                ] },
             vocative_markers = [
                 {Bare = {
                     Bare = {
-                        kind = "cmavo",
                         phonemes = "doĭ",
-                        span = [5, 8]
+                        span = [5, 8],
+                        kind = "cmavo"
                     }
                 }},
-            ]
+            ],
+            argument = {Cmevla = [
+                    {Bare = {
+                        Bare = {
+                            phonemes = "and",
+                            span = [9, 12],
+                            kind = "cmevla"
+                        }
+                    }},
+                ] }
         }},
     ],
     leading_indicators = [
         {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "ki'a",
-                span = [0, 4]
-            }
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "ki'a",
+                    span = [0, 4],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

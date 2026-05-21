@@ -18,94 +18,80 @@ brackets = "(ju'a-naĭ [{(cy no) ráŭnzu} {.i ([mo'u ku] zo'u [do {plípe (fo [
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ju'a",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "naĭ",
-        span = [5, 8]
+        span = [5, 8],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "cy",
-        span = [9, 11]
+        span = [9, 11],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "no",
-        span = [12, 14]
+        span = [12, 14],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "fu'ivla",
         phonemes = "raŭnzu",
-        span = [15, 21]
+        span = [15, 21],
+        kind = "fu'ivla"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "i",
-        span = [23, 24]
+        span = [23, 24],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "mo'u",
-        span = [25, 29]
+        span = [25, 29],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ku",
-        span = [30, 32]
+        span = [30, 32],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "zo'u",
-        span = [33, 37]
+        span = [33, 37],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "do",
-        span = [38, 40]
+        span = [38, 40],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "plipe",
-        span = [41, 46]
+        span = [41, 46],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "fo",
-        span = [47, 49]
+        span = [47, 49],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "cy",
-        span = [50, 52]
+        span = [50, 52],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "no",
-        span = [53, 55]
+        span = [53, 55],
+        kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "ju'a",
-                span = [0, 4]
-            },
-            nai = {
-                kind = "cmavo",
-                phonemes = "naĭ",
-                span = [5, 8]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -117,16 +103,16 @@ parse-tree = {
                                     letter = [
                                         {Bare = {
                                             Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "cy",
-                                                span = [9, 11]
+                                                span = [9, 11],
+                                                kind = "cmavo"
                                             }
                                         }},
                                         {Bare = {
                                             Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "no",
-                                                span = [12, 14]
+                                                span = [12, 14],
+                                                kind = "cmavo"
                                             }
                                         }},
                                     ]
@@ -139,9 +125,9 @@ parse-tree = {
                                     first = {Relation = {
                                         Base = {Bare = {
                                             Bare = {
-                                                kind = "fu'ivla",
                                                 phonemes = "raŭnzu",
-                                                span = [15, 21]
+                                                span = [15, 21],
+                                                kind = "fu'ivla"
                                             }
                                         }}
                                     }}
@@ -153,20 +139,51 @@ parse-tree = {
                 {
                     i = {Bare = {
                         Bare = {
-                            kind = "cmavo",
                             phonemes = "i",
-                            span = [23, 24]
+                            span = [23, 24],
+                            kind = "cmavo"
                         }
                     }},
                     statement = {Prenex = {
+                        prenex_terms = [
+                            {Tagged = {
+                                tense_modal = {Composite = {
+                                    parts = [
+                                        {Word = {
+                                            Bare = {Bare = {
+                                                phonemes = "mo'u",
+                                                span = [25, 29],
+                                                kind = "cmavo"
+                                            }}
+                                        }},
+                                    ]
+                                }},
+                                argument = {Zohe = {
+                                    maybe_ku = {Bare = {
+                                        Bare = {
+                                            phonemes = "ku",
+                                            span = [30, 32],
+                                            kind = "cmavo"
+                                        }
+                                    }}
+                                }}
+                            }},
+                        ],
+                        zohu = {Bare = {
+                            Bare = {
+                                phonemes = "zo'u",
+                                span = [33, 37],
+                                kind = "cmavo"
+                            }
+                        }},
                         inner_statement = {Predicate = {
                             leading_terms = [
                                 {Argument = {
                                     Koha = {Bare = {
                                         Bare = {
-                                            kind = "cmavo",
                                             phonemes = "do",
-                                            span = [38, 40]
+                                            span = [38, 40],
+                                            kind = "cmavo"
                                         }
                                     }}
                                 }},
@@ -177,37 +194,37 @@ parse-tree = {
                                         first = {Relation = {
                                             relation = {Base = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "plipe",
-                                                    span = [41, 46]
+                                                    span = [41, 46],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                             terms = [
                                                 {Fa = {
+                                                    fa = {Bare = {
+                                                        Bare = {
+                                                            phonemes = "fo",
+                                                            span = [47, 49],
+                                                            kind = "cmavo"
+                                                        }
+                                                    }},
                                                     argument = {Letter = {
                                                         letter = [
                                                             {Bare = {
                                                                 Bare = {
-                                                                    kind = "cmavo",
                                                                     phonemes = "cy",
-                                                                    span = [50, 52]
+                                                                    span = [50, 52],
+                                                                    kind = "cmavo"
                                                                 }
                                                             }},
                                                             {Bare = {
                                                                 Bare = {
-                                                                    kind = "cmavo",
                                                                     phonemes = "no",
-                                                                    span = [53, 55]
+                                                                    span = [53, 55],
+                                                                    kind = "cmavo"
                                                                 }
                                                             }},
                                                         ]
-                                                    }},
-                                                    fa = {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "fo",
-                                                            span = [47, 49]
-                                                        }
                                                     }}
                                                 }},
                                             ]
@@ -215,50 +232,26 @@ parse-tree = {
                                     }
                                 }
                             }
-                        }},
-                        prenex_terms = [
-                            {Tagged = {
-                                argument = {Zohe = {
-                                    maybe_ku = {Bare = {
-                                        Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "ku",
-                                            span = [30, 32]
-                                        }
-                                    }}
-                                }},
-                                tense_modal = {Composite = {
-                                    leaves = [
-                                        {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "mo'u",
-                                                span = [25, 29]
-                                            }
-                                        }},
-                                    ],
-                                    zaho = [
-                                        {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "mo'u",
-                                                span = [25, 29]
-                                            }
-                                        }},
-                                    ]
-                                }}
-                            }},
-                        ],
-                        zohu = {Bare = {
-                            Bare = {
-                                kind = "cmavo",
-                                phonemes = "zo'u",
-                                span = [33, 37]
-                            }
                         }}
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "ju'a",
+                    span = [0, 4],
+                    kind = "cmavo"
+                }
+            }},
+            nai = {
+                phonemes = "naĭ",
+                span = [5, 8],
+                kind = "cmavo"
+            }
         },
     ]
 }

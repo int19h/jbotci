@@ -19,34 +19,34 @@ brackets = "(xy [xi {vei (by ce'o dy)}])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "xy",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "xi",
-        span = [4, 6]
+        span = [4, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "veĭ",
-        span = [7, 10]
+        span = [7, 10],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "by",
-        span = [11, 13]
+        span = [11, 13],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ce'o",
-        span = [15, 19]
+        span = [15, 19],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "dy",
-        span = [20, 22]
+        span = [20, 22],
+        kind = "cmavo"
     }},
 ]
 
@@ -66,34 +66,47 @@ parse-tree = {
                                             [
                                                 {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "xy",
-                                                        span = [0, 2]
+                                                        span = [0, 2],
+                                                        kind = "cmavo"
                                                     }
                                                 }},
                                             ],
                                             {Xi = {
+                                                xi = {Bare = {
+                                                    Bare = {
+                                                        phonemes = "xi",
+                                                        span = [4, 6],
+                                                        kind = "cmavo"
+                                                    }
+                                                }},
                                                 expression = {Vei = {
+                                                    vei = {Bare = {
+                                                        Bare = {
+                                                            phonemes = "veĭ",
+                                                            span = [7, 10],
+                                                            kind = "cmavo"
+                                                        }
+                                                    }},
                                                     inner_expression = {Connected = {
-                                                        connective = {
-                                                            cmavo = [
-                                                                {Bare = {
-                                                                    Bare = {
-                                                                        kind = "cmavo",
-                                                                        phonemes = "ce'o",
-                                                                        span = [15, 19]
-                                                                    }
-                                                                }},
-                                                            ],
-                                                            kind = "NonLogical"
-                                                        },
                                                         left_expression = {Letter = {
                                                             letter = [
                                                                 {Bare = {
                                                                     Bare = {
-                                                                        kind = "cmavo",
                                                                         phonemes = "by",
-                                                                        span = [11, 13]
+                                                                        span = [11, 13],
+                                                                        kind = "cmavo"
+                                                                    }
+                                                                }},
+                                                            ]
+                                                        }},
+                                                        connective = {NonLogical = {
+                                                            cmavo = [
+                                                                {Bare = {
+                                                                    Bare = {
+                                                                        phonemes = "ce'o",
+                                                                        span = [15, 19],
+                                                                        kind = "cmavo"
                                                                     }
                                                                 }},
                                                             ]
@@ -102,28 +115,14 @@ parse-tree = {
                                                             letter = [
                                                                 {Bare = {
                                                                     Bare = {
-                                                                        kind = "cmavo",
                                                                         phonemes = "dy",
-                                                                        span = [20, 22]
+                                                                        span = [20, 22],
+                                                                        kind = "cmavo"
                                                                     }
                                                                 }},
                                                             ]
                                                         }}
-                                                    }},
-                                                    vei = {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "veĭ",
-                                                            span = [7, 10]
-                                                        }
                                                     }}
-                                                }},
-                                                xi = {Bare = {
-                                                    Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "xi",
-                                                        span = [4, 6]
-                                                    }
                                                 }}
                                             }},
                                         ]

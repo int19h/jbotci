@@ -10,29 +10,29 @@ entry-id = "19652"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "pe'u",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ko",
-        span = [5, 7]
+        span = [5, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ba",
-        span = [8, 10]
+        span = [8, 10],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "zi",
-        span = [10, 12]
+        span = [10, 12],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "gasnu",
-        span = [13, 18]
+        span = [13, 18],
+        kind = "gismu"
     }},
 ]
 
@@ -41,22 +41,22 @@ status = "success"
 parse-tree = {
     leading_free_modifiers = [
         {Vocative = {
-            argument = {Koha = {
-                Bare = {Bare = {
-                    kind = "cmavo",
-                    phonemes = "ko",
-                    span = [5, 7]
-                }}
-            }},
             vocative_markers = [
                 {Bare = {
                     Bare = {
-                        kind = "cmavo",
                         phonemes = "pe'u",
-                        span = [0, 4]
+                        span = [0, 4],
+                        kind = "cmavo"
                     }
                 }},
-            ]
+            ],
+            argument = {Koha = {
+                Bare = {Bare = {
+                    phonemes = "ko",
+                    span = [5, 7],
+                    kind = "cmavo"
+                }}
+            }}
         }},
     ],
     paragraphs = [
@@ -69,48 +69,30 @@ parse-tree = {
                                 first = {
                                     first = {Relation = {
                                         TenseModal = {
+                                            tense_modal = {Composite = {
+                                                parts = [
+                                                    {Word = {
+                                                        Bare = {Bare = {
+                                                            phonemes = "ba",
+                                                            span = [8, 10],
+                                                            kind = "cmavo"
+                                                        }}
+                                                    }},
+                                                    {Word = {
+                                                        Bare = {Bare = {
+                                                            phonemes = "zi",
+                                                            span = [10, 12],
+                                                            kind = "cmavo"
+                                                        }}
+                                                    }},
+                                                ]
+                                            }},
                                             inner_relation = {Base = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "gasnu",
-                                                    span = [13, 18]
+                                                    span = [13, 18],
+                                                    kind = "gismu"
                                                 }}
-                                            }},
-                                            tense_modal = {Composite = {
-                                                leaves = [
-                                                    {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "ba",
-                                                            span = [8, 10]
-                                                        }
-                                                    }},
-                                                    {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "zi",
-                                                            span = [10, 12]
-                                                        }
-                                                    }},
-                                                ],
-                                                time = {
-                                                    direction = [
-                                                        {Bare = {
-                                                            Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "ba",
-                                                                span = [8, 10]
-                                                            }
-                                                        }},
-                                                    ],
-                                                    distance = {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "zi",
-                                                            span = [10, 12]
-                                                        }
-                                                    }}
-                                                }
                                             }}
                                         }
                                     }}

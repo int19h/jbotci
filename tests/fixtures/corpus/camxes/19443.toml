@@ -10,39 +10,30 @@ entry-id = "19443"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "aĭ",
-        span = [1, 3]
+        span = [1, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "xabju",
-        span = [4, 9]
+        span = [4, 9],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ŭo",
-        span = [11, 13]
+        span = [11, 13],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "co'o",
-        span = [14, 18]
+        span = [14, 18],
+        kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "aĭ",
-                span = [1, 3]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -57,24 +48,24 @@ parse-tree = {
                                                     {WithIndicator = {
                                                         base = {Bare = {
                                                             Bare = {
-                                                                kind = "gismu",
                                                                 phonemes = "xabju",
-                                                                span = [4, 9]
+                                                                span = [4, 9],
+                                                                kind = "gismu"
                                                             }
                                                         }},
                                                         indicator = {
-                                                            kind = "cmavo",
                                                             phonemes = "ŭo",
-                                                            span = [11, 13]
+                                                            span = [11, 13],
+                                                            kind = "cmavo"
                                                         }
                                                     }},
                                                     {Vocative = {
                                                         vocative_markers = [
                                                             {Bare = {
                                                                 Bare = {
-                                                                    kind = "cmavo",
                                                                     phonemes = "co'o",
-                                                                    span = [14, 18]
+                                                                    span = [14, 18],
+                                                                    kind = "cmavo"
                                                                 }
                                                             }},
                                                         ]
@@ -88,6 +79,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "aĭ",
+                    span = [1, 3],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

@@ -10,23 +10,23 @@ entry-id = "316"
 status = "success"
 words = [
     {LohuQuote = {
-        lehu = {
-            kind = "cmavo",
-            phonemes = "le'u",
-            span = [24, 28]
-        },
         lohu = {
-            kind = "cmavo",
             phonemes = "lo'u",
-            span = [16, 20]
+            span = [16, 20],
+            kind = "cmavo"
         },
         quoted_words = [
             {
-                kind = "cmavo",
                 phonemes = "mi",
-                span = [21, 23]
+                span = [21, 23],
+                kind = "cmavo"
             },
-        ]
+        ],
+        lehu = {
+            phonemes = "le'u",
+            span = [24, 28],
+            kind = "cmavo"
+        }
     }},
 ]
 
@@ -42,43 +42,25 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     Quote = {Lohu = {
-                                        lehu = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "le'u",
-                                                span = [24, 28]
-                                            }
-                                        }},
-                                        lohu = {Bare = {
-                                            LohuQuote = {
-                                                lehu = {
-                                                    kind = "cmavo",
-                                                    phonemes = "le'u",
-                                                    span = [24, 28]
-                                                },
-                                                lohu = {
-                                                    kind = "cmavo",
-                                                    phonemes = "lo'u",
-                                                    span = [16, 20]
-                                                },
-                                                quoted_words = [
-                                                    {
-                                                        kind = "cmavo",
-                                                        phonemes = "mi",
-                                                        span = [21, 23]
-                                                    },
-                                                ]
-                                            }
-                                        }},
-                                        quoted_words = [
-                                            {Bare = {
-                                                Bare = {
-                                                    kind = "cmavo",
+                                        Bare = {LohuQuote = {
+                                            lohu = {
+                                                phonemes = "lo'u",
+                                                span = [16, 20],
+                                                kind = "cmavo"
+                                            },
+                                            quoted_words = [
+                                                {
                                                     phonemes = "mi",
-                                                    span = [21, 23]
-                                                }
-                                            }},
-                                        ]
+                                                    span = [21, 23],
+                                                    kind = "cmavo"
+                                                },
+                                            ],
+                                            lehu = {
+                                                phonemes = "le'u",
+                                                span = [24, 28],
+                                                kind = "cmavo"
+                                            }
+                                        }}
                                     }}
                                 }},
                             ]

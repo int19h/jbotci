@@ -16,19 +16,19 @@ brackets = "(coĭ [se térdi])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "coĭ",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "se",
-        span = [4, 6]
+        span = [4, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "terdi",
-        span = [7, 12]
+        span = [7, 12],
+        kind = "gismu"
     }},
 ]
 
@@ -37,33 +37,33 @@ status = "success"
 parse-tree = {
     leading_free_modifiers = [
         {Vocative = {
-            argument = {RelationVocative = {
-                relation = {Se = {
-                    inner_relation = {Base = {
-                        Bare = {Bare = {
-                            kind = "gismu",
-                            phonemes = "terdi",
-                            span = [7, 12]
-                        }}
-                    }},
-                    se = {Bare = {
-                        Bare = {
-                            kind = "cmavo",
-                            phonemes = "se",
-                            span = [4, 6]
-                        }
-                    }}
-                }}
-            }},
             vocative_markers = [
                 {Bare = {
                     Bare = {
-                        kind = "cmavo",
                         phonemes = "coĭ",
-                        span = [0, 3]
+                        span = [0, 3],
+                        kind = "cmavo"
                     }
                 }},
-            ]
+            ],
+            argument = {RelationVocative = {
+                relation = {Se = {
+                    se = {Bare = {
+                        Bare = {
+                            phonemes = "se",
+                            span = [4, 6],
+                            kind = "cmavo"
+                        }
+                    }},
+                    inner_relation = {Base = {
+                        Bare = {Bare = {
+                            phonemes = "terdi",
+                            span = [7, 12],
+                            kind = "gismu"
+                        }}
+                    }}
+                }}
+            }}
         }},
     ]
 }

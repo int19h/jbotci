@@ -10,60 +10,62 @@ entry-id = "22226"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "u'i",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "i",
-        span = [6, 7]
+        span = [6, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ki'e",
-        span = [8, 12]
+        span = [8, 12],
+        kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "u'i",
-                span = [0, 3]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
                 {
+                    i = {Bare = {
+                        Bare = {
+                            phonemes = "i",
+                            span = [6, 7],
+                            kind = "cmavo"
+                        }
+                    }},
                     free_modifiers = [
                         {Vocative = {
                             vocative_markers = [
                                 {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "ki'e",
-                                        span = [8, 12]
+                                        span = [8, 12],
+                                        kind = "cmavo"
                                     }
                                 }},
                             ]
                         }},
-                    ],
-                    i = {Bare = {
-                        Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [6, 7]
-                        }
-                    }}
+                    ]
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "u'i",
+                    span = [0, 3],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

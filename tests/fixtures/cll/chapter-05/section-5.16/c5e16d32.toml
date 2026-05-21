@@ -19,54 +19,54 @@ brackets = "(mélbi je bo [cmálu je bo {níxli je bo ckúle}])"
 status = "success"
 words = [
     {Bare = {
-        kind = "gismu",
         phonemes = "melbi",
-        span = [0, 5]
+        span = [0, 5],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "je",
-        span = [6, 8]
+        span = [6, 8],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "bo",
-        span = [8, 10]
+        span = [8, 10],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "cmalu",
-        span = [11, 16]
+        span = [11, 16],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "je",
-        span = [17, 19]
+        span = [17, 19],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "bo",
-        span = [19, 21]
+        span = [19, 21],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "nixli",
-        span = [22, 27]
+        span = [22, 27],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "je",
-        span = [28, 30]
+        span = [28, 30],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "bo",
-        span = [30, 32]
+        span = [30, 32],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "ckule",
-        span = [33, 38]
+        span = [33, 38],
+        kind = "gismu"
     }},
 ]
 
@@ -83,91 +83,88 @@ parse-tree = {
                                 first = {
                                     first = {Relation = {
                                         Bo = {
-                                            bo = {Bare = {
-                                                Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "bo",
-                                                    span = [8, 10]
-                                                }
+                                            leading_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    phonemes = "melbi",
+                                                    span = [0, 5],
+                                                    kind = "gismu"
+                                                }}
                                             }},
-                                            bo_connective = {
+                                            bo_connective = {Relation = {
                                                 cmavo = [
                                                     {Bare = {
                                                         Bare = {
-                                                            kind = "cmavo",
                                                             phonemes = "je",
-                                                            span = [6, 8]
+                                                            span = [6, 8],
+                                                            kind = "cmavo"
                                                         }
                                                     }},
-                                                ],
-                                                kind = "Relation"
-                                            },
-                                            leading_relation = {Base = {
-                                                Bare = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "melbi",
-                                                    span = [0, 5]
-                                                }}
+                                                ]
+                                            }},
+                                            bo = {Bare = {
+                                                Bare = {
+                                                    phonemes = "bo",
+                                                    span = [8, 10],
+                                                    kind = "cmavo"
+                                                }
                                             }},
                                             trailing_relation = {Bo = {
-                                                bo = {Bare = {
-                                                    Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "bo",
-                                                        span = [19, 21]
-                                                    }
+                                                leading_relation = {Base = {
+                                                    Bare = {Bare = {
+                                                        phonemes = "cmalu",
+                                                        span = [11, 16],
+                                                        kind = "gismu"
+                                                    }}
                                                 }},
-                                                bo_connective = {
+                                                bo_connective = {Relation = {
                                                     cmavo = [
                                                         {Bare = {
                                                             Bare = {
-                                                                kind = "cmavo",
                                                                 phonemes = "je",
-                                                                span = [17, 19]
+                                                                span = [17, 19],
+                                                                kind = "cmavo"
                                                             }
                                                         }},
-                                                    ],
-                                                    kind = "Relation"
-                                                },
-                                                leading_relation = {Base = {
-                                                    Bare = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "cmalu",
-                                                        span = [11, 16]
-                                                    }}
+                                                    ]
+                                                }},
+                                                bo = {Bare = {
+                                                    Bare = {
+                                                        phonemes = "bo",
+                                                        span = [19, 21],
+                                                        kind = "cmavo"
+                                                    }
                                                 }},
                                                 trailing_relation = {Bo = {
-                                                    bo = {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "bo",
-                                                            span = [30, 32]
-                                                        }
+                                                    leading_relation = {Base = {
+                                                        Bare = {Bare = {
+                                                            phonemes = "nixli",
+                                                            span = [22, 27],
+                                                            kind = "gismu"
+                                                        }}
                                                     }},
-                                                    bo_connective = {
+                                                    bo_connective = {Relation = {
                                                         cmavo = [
                                                             {Bare = {
                                                                 Bare = {
-                                                                    kind = "cmavo",
                                                                     phonemes = "je",
-                                                                    span = [28, 30]
+                                                                    span = [28, 30],
+                                                                    kind = "cmavo"
                                                                 }
                                                             }},
-                                                        ],
-                                                        kind = "Relation"
-                                                    },
-                                                    leading_relation = {Base = {
-                                                        Bare = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "nixli",
-                                                            span = [22, 27]
-                                                        }}
+                                                        ]
+                                                    }},
+                                                    bo = {Bare = {
+                                                        Bare = {
+                                                            phonemes = "bo",
+                                                            span = [30, 32],
+                                                            kind = "cmavo"
+                                                        }
                                                     }},
                                                     trailing_relation = {Base = {
                                                         Bare = {Bare = {
-                                                            kind = "gismu",
                                                             phonemes = "ckule",
-                                                            span = [33, 38]
+                                                            span = [33, 38],
+                                                            kind = "gismu"
                                                         }}
                                                     }}
                                                 }}

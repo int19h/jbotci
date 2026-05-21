@@ -10,19 +10,19 @@ entry-id = "6509"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmevla",
         phonemes = "takes",
-        span = [0, 5]
+        span = [0, 5],
+        kind = "cmevla"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "coĭ",
-        span = [6, 9]
+        span = [6, 9],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "sutra",
-        span = [10, 15]
+        span = [10, 15],
+        kind = "gismu"
     }},
 ]
 
@@ -32,32 +32,32 @@ parse-tree = {
     leading_cmevla = [
         {Bare = {
             Bare = {
-                kind = "cmevla",
                 phonemes = "takes",
-                span = [0, 5]
+                span = [0, 5],
+                kind = "cmevla"
             }
         }},
     ],
     leading_free_modifiers = [
         {Vocative = {
-            argument = {RelationVocative = {
-                relation = {Base = {
-                    Bare = {Bare = {
-                        kind = "gismu",
-                        phonemes = "sutra",
-                        span = [10, 15]
-                    }}
-                }}
-            }},
             vocative_markers = [
                 {Bare = {
                     Bare = {
-                        kind = "cmavo",
                         phonemes = "coĭ",
-                        span = [6, 9]
+                        span = [6, 9],
+                        kind = "cmavo"
                     }
                 }},
-            ]
+            ],
+            argument = {RelationVocative = {
+                relation = {Base = {
+                    Bare = {Bare = {
+                        phonemes = "sutra",
+                        span = [10, 15],
+                        kind = "gismu"
+                    }}
+                }}
+            }}
         }},
     ]
 }

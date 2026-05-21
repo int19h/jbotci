@@ -10,31 +10,31 @@ entry-id = "22222"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "mi",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "nelci",
-        span = [3, 8]
+        span = [3, 8],
+        kind = "gismu"
     }},
     {ZoiQuote = {
-        closing_delimiter = {
-            kind = "gismu",
-            phonemes = "latmo",
-            span = [34, 39]
+        zoi = {
+            phonemes = "zoĭ",
+            span = [9, 12],
+            kind = "cmavo"
         },
         opening_delimiter = {
-            kind = "gismu",
             phonemes = "latmo",
-            span = [13, 18]
+            span = [13, 18],
+            kind = "gismu"
         },
         quoted_text = [18, 33],
-        zoi = {
-            kind = "cmavo",
-            phonemes = "zoĭ",
-            span = [9, 12]
+        closing_delimiter = {
+            phonemes = "latmo",
+            span = [34, 39],
+            kind = "gismu"
         }
     }},
 ]
@@ -51,9 +51,9 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "mi",
-                                        span = [0, 2]
+                                        span = [0, 2],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -64,47 +64,30 @@ parse-tree = {
                                     first = {Relation = {
                                         relation = {Base = {
                                             Bare = {Bare = {
-                                                kind = "gismu",
                                                 phonemes = "nelci",
-                                                span = [3, 8]
+                                                span = [3, 8],
+                                                kind = "gismu"
                                             }}
                                         }},
                                         terms = [
                                             {Argument = {
                                                 Quote = {Zoi = {
-                                                    closing_delimiter = {Bare = {
-                                                        Bare = {
-                                                            kind = "gismu",
+                                                    Bare = {ZoiQuote = {
+                                                        zoi = {
+                                                            phonemes = "zoĭ",
+                                                            span = [9, 12],
+                                                            kind = "cmavo"
+                                                        },
+                                                        opening_delimiter = {
                                                             phonemes = "latmo",
-                                                            span = [34, 39]
-                                                        }
-                                                    }},
-                                                    opening_delimiter = {Bare = {
-                                                        Bare = {
-                                                            kind = "gismu",
+                                                            span = [13, 18],
+                                                            kind = "gismu"
+                                                        },
+                                                        quoted_text = [18, 33],
+                                                        closing_delimiter = {
                                                             phonemes = "latmo",
-                                                            span = [13, 18]
-                                                        }
-                                                    }},
-                                                    quoted_text = " veni vidi vici",
-                                                    zoi = {Bare = {
-                                                        ZoiQuote = {
-                                                            closing_delimiter = {
-                                                                kind = "gismu",
-                                                                phonemes = "latmo",
-                                                                span = [34, 39]
-                                                            },
-                                                            opening_delimiter = {
-                                                                kind = "gismu",
-                                                                phonemes = "latmo",
-                                                                span = [13, 18]
-                                                            },
-                                                            quoted_text = [18, 33],
-                                                            zoi = {
-                                                                kind = "cmavo",
-                                                                phonemes = "zoĭ",
-                                                                span = [9, 12]
-                                                            }
+                                                            span = [34, 39],
+                                                            kind = "gismu"
                                                         }
                                                     }}
                                                 }}

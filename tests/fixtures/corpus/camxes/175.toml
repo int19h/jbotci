@@ -10,21 +10,21 @@ entry-id = "175"
 status = "success"
 words = [
     {ZoiQuote = {
-        closing_delimiter = {
-            kind = "cmavo",
-            phonemes = "fy",
-            span = [32, 34]
+        zoi = {
+            phonemes = "zoĭ",
+            span = [0, 3],
+            kind = "cmavo"
         },
         opening_delimiter = {
-            kind = "cmavo",
             phonemes = "fy",
-            span = [4, 6]
+            span = [4, 6],
+            kind = "cmavo"
         },
         quoted_text = [6, 31],
-        zoi = {
-            kind = "cmavo",
-            phonemes = "zoĭ",
-            span = [0, 3]
+        closing_delimiter = {
+            phonemes = "fy",
+            span = [32, 34],
+            kind = "cmavo"
         }
     }},
 ]
@@ -41,39 +41,22 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     Quote = {Zoi = {
-                                        closing_delimiter = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
+                                        Bare = {ZoiQuote = {
+                                            zoi = {
+                                                phonemes = "zoĭ",
+                                                span = [0, 3],
+                                                kind = "cmavo"
+                                            },
+                                            opening_delimiter = {
                                                 phonemes = "fy",
-                                                span = [32, 34]
-                                            }
-                                        }},
-                                        opening_delimiter = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
+                                                span = [4, 6],
+                                                kind = "cmavo"
+                                            },
+                                            quoted_text = [6, 31],
+                                            closing_delimiter = {
                                                 phonemes = "fy",
-                                                span = [4, 6]
-                                            }
-                                        }},
-                                        quoted_text = " sa co zoi bar baz bar co",
-                                        zoi = {Bare = {
-                                            ZoiQuote = {
-                                                closing_delimiter = {
-                                                    kind = "cmavo",
-                                                    phonemes = "fy",
-                                                    span = [32, 34]
-                                                },
-                                                opening_delimiter = {
-                                                    kind = "cmavo",
-                                                    phonemes = "fy",
-                                                    span = [4, 6]
-                                                },
-                                                quoted_text = [6, 31],
-                                                zoi = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zoĭ",
-                                                    span = [0, 3]
-                                                }
+                                                span = [32, 34],
+                                                kind = "cmavo"
                                             }
                                         }}
                                     }}

@@ -10,62 +10,62 @@ entry-id = "12207"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ci",
-        span = [0, 1]
+        span = [0, 1],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "le",
-        span = [2, 4]
+        span = [2, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "me",
-        span = [5, 7]
+        span = [5, 7],
+        kind = "cmavo"
     }},
     {ZoiQuote = {
-        closing_delimiter = {
-            kind = "cmavo",
-            phonemes = "gy",
-            span = [25, 27]
+        zoi = {
+            phonemes = "zoĭ",
+            span = [8, 11],
+            kind = "cmavo"
         },
         opening_delimiter = {
-            kind = "cmavo",
             phonemes = "gy",
-            span = [12, 14]
+            span = [12, 14],
+            kind = "cmavo"
         },
         quoted_text = [16, 24],
-        zoi = {
-            kind = "cmavo",
-            phonemes = "zoĭ",
-            span = [8, 11]
+        closing_delimiter = {
+            phonemes = "gy",
+            span = [25, 27],
+            kind = "cmavo"
         }
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "cu",
-        span = [29, 31]
+        span = [29, 31],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "te",
-        span = [32, 34]
+        span = [32, 34],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "pixra",
-        span = [35, 40]
+        span = [35, 40],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "fi",
-        span = [41, 43]
+        span = [41, 43],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "mi",
-        span = [44, 46]
+        span = [44, 46],
+        kind = "cmavo"
     }},
 ]
 
@@ -77,122 +77,105 @@ parse-tree = {
             statements = [
                 {
                     statement = {Predicate = {
-                        cu = {Bare = {
-                            Bare = {
-                                kind = "cmavo",
-                                phonemes = "cu",
-                                span = [29, 31]
-                            }
-                        }},
                         leading_terms = [
                             {Argument = {
                                 Descriptor = {
                                     descriptor = {Bare = {
                                         Bare = {
-                                            kind = "cmavo",
                                             phonemes = "le",
-                                            span = [2, 4]
+                                            span = [2, 4],
+                                            kind = "cmavo"
                                         }
                                     }},
                                     outer_quantifier = {Number = {
                                         number = [
                                             {Bare = {
                                                 Bare = {
-                                                    kind = "cmavo",
                                                     phonemes = "ci",
-                                                    span = [0, 1]
+                                                    span = [0, 1],
+                                                    kind = "cmavo"
                                                 }
                                             }},
                                         ]
                                     }},
                                     relation = {Compound = [
                                             {Me = {
-                                                argument = {Quote = {
-                                                    Zoi = {
-                                                        closing_delimiter = {Bare = {
-                                                            Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "gy",
-                                                                span = [25, 27]
-                                                            }
-                                                        }},
-                                                        opening_delimiter = {Bare = {
-                                                            Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "gy",
-                                                                span = [12, 14]
-                                                            }
-                                                        }},
-                                                        quoted_text = "unicorns",
-                                                        zoi = {Bare = {
-                                                            ZoiQuote = {
-                                                                closing_delimiter = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "gy",
-                                                                    span = [25, 27]
-                                                                },
-                                                                opening_delimiter = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "gy",
-                                                                    span = [12, 14]
-                                                                },
-                                                                quoted_text = [16, 24],
-                                                                zoi = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "zoĭ",
-                                                                    span = [8, 11]
-                                                                }
-                                                            }
-                                                        }}
-                                                    }
-                                                }},
                                                 me = {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "me",
-                                                        span = [5, 7]
+                                                        span = [5, 7],
+                                                        kind = "cmavo"
                                                     }
+                                                }},
+                                                argument = {Quote = {
+                                                    Zoi = {Bare = {
+                                                        ZoiQuote = {
+                                                            zoi = {
+                                                                phonemes = "zoĭ",
+                                                                span = [8, 11],
+                                                                kind = "cmavo"
+                                                            },
+                                                            opening_delimiter = {
+                                                                phonemes = "gy",
+                                                                span = [12, 14],
+                                                                kind = "cmavo"
+                                                            },
+                                                            quoted_text = [16, 24],
+                                                            closing_delimiter = {
+                                                                phonemes = "gy",
+                                                                span = [25, 27],
+                                                                kind = "cmavo"
+                                                            }
+                                                        }
+                                                    }}
                                                 }}
                                             }},
                                         ] }
                                 }
                             }},
                         ],
+                        cu = {Bare = {
+                            Bare = {
+                                phonemes = "cu",
+                                span = [29, 31],
+                                kind = "cmavo"
+                            }
+                        }},
                         predicate_tail = {
                             first = {
                                 first = {
                                     first = {Relation = {
                                         relation = {Se = {
-                                            inner_relation = {Base = {
-                                                Bare = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "pixra",
-                                                    span = [35, 40]
-                                                }}
-                                            }},
                                             se = {Bare = {
                                                 Bare = {
-                                                    kind = "cmavo",
                                                     phonemes = "te",
-                                                    span = [32, 34]
+                                                    span = [32, 34],
+                                                    kind = "cmavo"
                                                 }
+                                            }},
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    phonemes = "pixra",
+                                                    span = [35, 40],
+                                                    kind = "gismu"
+                                                }}
                                             }}
                                         }},
                                         terms = [
                                             {Fa = {
-                                                argument = {Koha = {
-                                                    Bare = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "mi",
-                                                        span = [44, 46]
-                                                    }}
-                                                }},
                                                 fa = {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "fi",
-                                                        span = [41, 43]
+                                                        span = [41, 43],
+                                                        kind = "cmavo"
                                                     }
+                                                }},
+                                                argument = {Koha = {
+                                                    Bare = {Bare = {
+                                                        phonemes = "mi",
+                                                        span = [44, 46],
+                                                        kind = "cmavo"
+                                                    }}
                                                 }}
                                             }},
                                         ]

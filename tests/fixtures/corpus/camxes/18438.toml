@@ -10,29 +10,29 @@ entry-id = "18438"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "coĭ",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "le",
-        span = [4, 6]
+        span = [4, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "mi",
-        span = [7, 9]
+        span = [7, 9],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "gento",
-        span = [10, 15]
+        span = [10, 15],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "pendo",
-        span = [16, 21]
+        span = [16, 21],
+        kind = "gismu"
     }},
 ]
 
@@ -41,51 +41,51 @@ status = "success"
 parse-tree = {
     leading_free_modifiers = [
         {Vocative = {
+            vocative_markers = [
+                {Bare = {
+                    Bare = {
+                        phonemes = "coĭ",
+                        span = [0, 3],
+                        kind = "cmavo"
+                    }
+                }},
+            ],
             argument = {Descriptor = {
                 descriptor = {Bare = {
                     Bare = {
-                        kind = "cmavo",
                         phonemes = "le",
-                        span = [4, 6]
+                        span = [4, 6],
+                        kind = "cmavo"
                     }
                 }},
-                relation = {Compound = [
-                        {Word = {
-                            Bare = {Bare = {
-                                kind = "gismu",
-                                phonemes = "gento",
-                                span = [10, 15]
-                            }}
-                        }},
-                        {Word = {
-                            Bare = {Bare = {
-                                kind = "gismu",
-                                phonemes = "pendo",
-                                span = [16, 21]
-                            }}
-                        }},
-                    ] },
                 tail_elements = [
                     {Argument = {
                         Koha = {Bare = {
                             Bare = {
-                                kind = "cmavo",
                                 phonemes = "mi",
-                                span = [7, 9]
+                                span = [7, 9],
+                                kind = "cmavo"
                             }
                         }}
                     }},
-                ]
-            }},
-            vocative_markers = [
-                {Bare = {
-                    Bare = {
-                        kind = "cmavo",
-                        phonemes = "coĭ",
-                        span = [0, 3]
-                    }
-                }},
-            ]
+                ],
+                relation = {Compound = [
+                        {Word = {
+                            Bare = {Bare = {
+                                phonemes = "gento",
+                                span = [10, 15],
+                                kind = "gismu"
+                            }}
+                        }},
+                        {Word = {
+                            Bare = {Bare = {
+                                phonemes = "pendo",
+                                span = [16, 21],
+                                kind = "gismu"
+                            }}
+                        }},
+                    ] }
+            }}
         }},
     ]
 }

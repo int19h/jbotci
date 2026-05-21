@@ -16,29 +16,29 @@ brackets = "(ma [{ba'o (se lífri)} do])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ma",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ba'o",
-        span = [3, 7]
+        span = [3, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "se",
-        span = [8, 10]
+        span = [8, 10],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "lifri",
-        span = [11, 16]
+        span = [11, 16],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "do",
-        span = [17, 19]
+        span = [17, 19],
+        kind = "cmavo"
     }},
 ]
 
@@ -54,9 +54,9 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "ma",
-                                        span = [0, 2]
+                                        span = [0, 2],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -66,50 +66,41 @@ parse-tree = {
                                 first = {
                                     first = {Relation = {
                                         relation = {TenseModal = {
-                                            inner_relation = {Se = {
-                                                inner_relation = {Base = {
-                                                    Bare = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "lifri",
-                                                        span = [11, 16]
-                                                    }}
-                                                }},
-                                                se = {Bare = {
-                                                    Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "se",
-                                                        span = [8, 10]
-                                                    }
-                                                }}
-                                            }},
                                             tense_modal = {Composite = {
-                                                leaves = [
-                                                    {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
+                                                parts = [
+                                                    {Word = {
+                                                        Bare = {Bare = {
                                                             phonemes = "ba'o",
-                                                            span = [3, 7]
-                                                        }
-                                                    }},
-                                                ],
-                                                zaho = [
-                                                    {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "ba'o",
-                                                            span = [3, 7]
-                                                        }
+                                                            span = [3, 7],
+                                                            kind = "cmavo"
+                                                        }}
                                                     }},
                                                 ]
+                                            }},
+                                            inner_relation = {Se = {
+                                                se = {Bare = {
+                                                    Bare = {
+                                                        phonemes = "se",
+                                                        span = [8, 10],
+                                                        kind = "cmavo"
+                                                    }
+                                                }},
+                                                inner_relation = {Base = {
+                                                    Bare = {Bare = {
+                                                        phonemes = "lifri",
+                                                        span = [11, 16],
+                                                        kind = "gismu"
+                                                    }}
+                                                }}
                                             }}
                                         }},
                                         terms = [
                                             {Argument = {
                                                 Koha = {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "do",
-                                                        span = [17, 19]
+                                                        span = [17, 19],
+                                                        kind = "cmavo"
                                                     }
                                                 }}
                                             }},

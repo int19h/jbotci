@@ -10,33 +10,33 @@ entry-id = "22504"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmevla",
         phonemes = "ánd",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmevla"
     }},
     {LohuQuote = {
-        lehu = {
-            kind = "cmavo",
-            phonemes = "le'u",
-            span = [15, 19]
-        },
         lohu = {
-            kind = "cmavo",
             phonemes = "lo'u",
-            span = [4, 8]
+            span = [4, 8],
+            kind = "cmavo"
         },
         quoted_words = [
             {
-                kind = "cmavo",
                 phonemes = "si",
-                span = [9, 11]
+                span = [9, 11],
+                kind = "cmavo"
             },
             {
-                kind = "cmavo",
                 phonemes = "mi",
-                span = [12, 14]
+                span = [12, 14],
+                kind = "cmavo"
             },
-        ]
+        ],
+        lehu = {
+            phonemes = "le'u",
+            span = [15, 19],
+            kind = "cmavo"
+        }
     }},
 ]
 
@@ -46,9 +46,9 @@ parse-tree = {
     leading_cmevla = [
         {Bare = {
             Bare = {
-                kind = "cmevla",
                 phonemes = "ánd",
-                span = [0, 3]
+                span = [0, 3],
+                kind = "cmevla"
             }
         }},
     ],
@@ -61,55 +61,30 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     Quote = {Lohu = {
-                                        lehu = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "le'u",
-                                                span = [15, 19]
-                                            }
-                                        }},
-                                        lohu = {Bare = {
-                                            LohuQuote = {
-                                                lehu = {
-                                                    kind = "cmavo",
-                                                    phonemes = "le'u",
-                                                    span = [15, 19]
-                                                },
-                                                lohu = {
-                                                    kind = "cmavo",
-                                                    phonemes = "lo'u",
-                                                    span = [4, 8]
-                                                },
-                                                quoted_words = [
-                                                    {
-                                                        kind = "cmavo",
-                                                        phonemes = "si",
-                                                        span = [9, 11]
-                                                    },
-                                                    {
-                                                        kind = "cmavo",
-                                                        phonemes = "mi",
-                                                        span = [12, 14]
-                                                    },
-                                                ]
-                                            }
-                                        }},
-                                        quoted_words = [
-                                            {Bare = {
-                                                Bare = {
-                                                    kind = "cmavo",
+                                        Bare = {LohuQuote = {
+                                            lohu = {
+                                                phonemes = "lo'u",
+                                                span = [4, 8],
+                                                kind = "cmavo"
+                                            },
+                                            quoted_words = [
+                                                {
                                                     phonemes = "si",
-                                                    span = [9, 11]
-                                                }
-                                            }},
-                                            {Bare = {
-                                                Bare = {
-                                                    kind = "cmavo",
+                                                    span = [9, 11],
+                                                    kind = "cmavo"
+                                                },
+                                                {
                                                     phonemes = "mi",
-                                                    span = [12, 14]
-                                                }
-                                            }},
-                                        ]
+                                                    span = [12, 14],
+                                                    kind = "cmavo"
+                                                },
+                                            ],
+                                            lehu = {
+                                                phonemes = "le'u",
+                                                span = [15, 19],
+                                                kind = "cmavo"
+                                            }
+                                        }}
                                     }}
                                 }},
                             ]

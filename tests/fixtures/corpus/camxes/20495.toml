@@ -10,95 +10,77 @@ entry-id = "20495"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "pe'i",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "peĭ",
-        span = [4, 7]
+        span = [4, 7],
+        kind = "cmavo"
     }},
     {ZoQuote = {
-        word = {
-            kind = "gismu",
-            phonemes = "mabla",
-            span = [11, 16]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [8, 10]
+            span = [8, 10],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "mabla",
+            span = [11, 16],
+            kind = "gismu"
         }
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "cu",
-        span = [17, 19]
+        span = [17, 19],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "lujvo",
         phonemes = "toljunri",
-        span = [20, 28]
+        span = [20, 28],
+        kind = "lujvo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "dukse",
-        span = [29, 34]
+        span = [29, 34],
+        kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "pe'i",
-                span = [0, 4]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
                 {
                     statement = {Predicate = {
-                        cu = {Bare = {
-                            Bare = {
-                                kind = "cmavo",
-                                phonemes = "cu",
-                                span = [17, 19]
-                            }
-                        }},
                         leading_terms = [
                             {Argument = {
                                 Quote = {Zo = {
-                                    word = {Bare = {
-                                        Bare = {
-                                            kind = "gismu",
+                                    Bare = {ZoQuote = {
+                                        zo = {
+                                            phonemes = "zo",
+                                            span = [8, 10],
+                                            kind = "cmavo"
+                                        },
+                                        word = {
                                             phonemes = "mabla",
-                                            span = [11, 16]
-                                        }
-                                    }},
-                                    zo = {Bare = {
-                                        ZoQuote = {
-                                            word = {
-                                                kind = "gismu",
-                                                phonemes = "mabla",
-                                                span = [11, 16]
-                                            },
-                                            zo = {
-                                                kind = "cmavo",
-                                                phonemes = "zo",
-                                                span = [8, 10]
-                                            }
+                                            span = [11, 16],
+                                            kind = "gismu"
                                         }
                                     }}
                                 }}
                             }},
                         ],
+                        cu = {Bare = {
+                            Bare = {
+                                phonemes = "cu",
+                                span = [17, 19],
+                                kind = "cmavo"
+                            }
+                        }},
                         predicate_tail = {
                             first = {
                                 first = {
@@ -106,16 +88,16 @@ parse-tree = {
                                         Compound = [
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "lujvo",
                                                     phonemes = "toljunri",
-                                                    span = [20, 28]
+                                                    span = [20, 28],
+                                                    kind = "lujvo"
                                                 }}
                                             }},
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "dukse",
-                                                    span = [29, 34]
+                                                    span = [29, 34],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                         ]
@@ -126,6 +108,24 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {WithIndicator = {
+                base = {Bare = {
+                    Bare = {
+                        phonemes = "pe'i",
+                        span = [0, 4],
+                        kind = "cmavo"
+                    }
+                }},
+                indicator = {
+                    phonemes = "peĭ",
+                    span = [4, 7],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

@@ -16,120 +16,60 @@ brackets = "(.a'a [seĭ ko {di'a co'e}] [{ma (ba [la'e do'i])} fásnu])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "a'a",
-        span = [1, 4]
+        span = [1, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "seĭ",
-        span = [5, 8]
+        span = [5, 8],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ko",
-        span = [9, 11]
+        span = [9, 11],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "di'a",
-        span = [12, 16]
+        span = [12, 16],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "co'e",
-        span = [17, 21]
+        span = [17, 21],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ma",
-        span = [22, 24]
+        span = [22, 24],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ba",
-        span = [25, 27]
+        span = [25, 27],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "la'e",
-        span = [28, 32]
+        span = [28, 32],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "do'i",
-        span = [33, 37]
+        span = [33, 37],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "fasnu",
-        span = [38, 43]
+        span = [38, 43],
+        kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_free_modifiers = [
-        {Sei = {
-            relation = {TenseModal = {
-                inner_relation = {Base = {
-                    Bare = {Bare = {
-                        kind = "cmavo",
-                        phonemes = "co'e",
-                        span = [17, 21]
-                    }}
-                }},
-                tense_modal = {Composite = {
-                    leaves = [
-                        {Bare = {
-                            Bare = {
-                                kind = "cmavo",
-                                phonemes = "di'a",
-                                span = [12, 16]
-                            }
-                        }},
-                    ],
-                    zaho = [
-                        {Bare = {
-                            Bare = {
-                                kind = "cmavo",
-                                phonemes = "di'a",
-                                span = [12, 16]
-                            }
-                        }},
-                    ]
-                }}
-            }},
-            sei = {Bare = {
-                Bare = {
-                    kind = "cmavo",
-                    phonemes = "seĭ",
-                    span = [5, 8]
-                }
-            }},
-            terms = [
-                {Argument = {
-                    Koha = {Bare = {
-                        Bare = {
-                            kind = "cmavo",
-                            phonemes = "ko",
-                            span = [9, 11]
-                        }
-                    }}
-                }},
-            ]
-        }},
-    ],
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "a'a",
-                span = [1, 4]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -139,50 +79,39 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "ma",
-                                        span = [22, 24]
+                                        span = [22, 24],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
                             {Tagged = {
+                                tense_modal = {Composite = {
+                                    parts = [
+                                        {Word = {
+                                            Bare = {Bare = {
+                                                phonemes = "ba",
+                                                span = [25, 27],
+                                                kind = "cmavo"
+                                            }}
+                                        }},
+                                    ]
+                                }},
                                 argument = {Lahe = {
-                                    inner_argument = {Koha = {
-                                        Bare = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "do'i",
-                                            span = [33, 37]
-                                        }}
-                                    }},
                                     lahe = {Bare = {
                                         Bare = {
-                                            kind = "cmavo",
                                             phonemes = "la'e",
-                                            span = [28, 32]
+                                            span = [28, 32],
+                                            kind = "cmavo"
                                         }
+                                    }},
+                                    inner_argument = {Koha = {
+                                        Bare = {Bare = {
+                                            phonemes = "do'i",
+                                            span = [33, 37],
+                                            kind = "cmavo"
+                                        }}
                                     }}
-                                }},
-                                tense_modal = {Composite = {
-                                    leaves = [
-                                        {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "ba",
-                                                span = [25, 27]
-                                            }
-                                        }},
-                                    ],
-                                    time = {
-                                        direction = [
-                                            {Bare = {
-                                                Bare = {
-                                                    kind = "cmavo",
-                                                    phonemes = "ba",
-                                                    span = [25, 27]
-                                                }
-                                            }},
-                                        ]
-                                    }
                                 }}
                             }},
                         ],
@@ -192,9 +121,9 @@ parse-tree = {
                                     first = {Relation = {
                                         Base = {Bare = {
                                             Bare = {
-                                                kind = "gismu",
                                                 phonemes = "fasnu",
-                                                span = [38, 43]
+                                                span = [38, 43],
+                                                kind = "gismu"
                                             }
                                         }}
                                     }}
@@ -204,6 +133,59 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_free_modifiers = [
+        {Sei = {
+            sei = {Bare = {
+                Bare = {
+                    phonemes = "seĭ",
+                    span = [5, 8],
+                    kind = "cmavo"
+                }
+            }},
+            terms = [
+                {Argument = {
+                    Koha = {Bare = {
+                        Bare = {
+                            phonemes = "ko",
+                            span = [9, 11],
+                            kind = "cmavo"
+                        }
+                    }}
+                }},
+            ],
+            relation = {TenseModal = {
+                tense_modal = {Composite = {
+                    parts = [
+                        {Word = {
+                            Bare = {Bare = {
+                                phonemes = "di'a",
+                                span = [12, 16],
+                                kind = "cmavo"
+                            }}
+                        }},
+                    ]
+                }},
+                inner_relation = {Base = {
+                    Bare = {Bare = {
+                        phonemes = "co'e",
+                        span = [17, 21],
+                        kind = "cmavo"
+                    }}
+                }}
+            }}
+        }},
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "a'a",
+                    span = [1, 4],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

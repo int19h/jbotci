@@ -10,24 +10,24 @@ entry-id = "3712"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "i",
-        span = [1, 2]
+        span = [1, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "coĭ",
-        span = [3, 6]
+        span = [3, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ro",
-        span = [7, 9]
+        span = [7, 9],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "do",
-        span = [9, 11]
+        span = [9, 11],
+        kind = "cmavo"
     }},
 ]
 
@@ -38,46 +38,46 @@ parse-tree = {
         {
             statements = [
                 {
+                    i = {Bare = {
+                        Bare = {
+                            phonemes = "i",
+                            span = [1, 2],
+                            kind = "cmavo"
+                        }
+                    }},
                     free_modifiers = [
                         {Vocative = {
-                            argument = {Quantified = {
-                                inner_argument = {Koha = {
-                                    Bare = {Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "do",
-                                        span = [9, 11]
-                                    }}
+                            vocative_markers = [
+                                {Bare = {
+                                    Bare = {
+                                        phonemes = "coĭ",
+                                        span = [3, 6],
+                                        kind = "cmavo"
+                                    }
                                 }},
+                            ],
+                            argument = {Quantified = {
                                 quantifier = {Number = {
                                     number = [
                                         {Bare = {
                                             Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "ro",
-                                                span = [7, 9]
+                                                span = [7, 9],
+                                                kind = "cmavo"
                                             }
                                         }},
                                     ]
-                                }}
-                            }},
-                            vocative_markers = [
-                                {Bare = {
-                                    Bare = {
-                                        kind = "cmavo",
-                                        phonemes = "coĭ",
-                                        span = [3, 6]
-                                    }
                                 }},
-                            ]
+                                inner_argument = {Koha = {
+                                    Bare = {Bare = {
+                                        phonemes = "do",
+                                        span = [9, 11],
+                                        kind = "cmavo"
+                                    }}
+                                }}
+                            }}
                         }},
-                    ],
-                    i = {Bare = {
-                        Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [1, 2]
-                        }
-                    }}
+                    ]
                 },
             ]
         },

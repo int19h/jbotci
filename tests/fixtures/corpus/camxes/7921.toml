@@ -10,44 +10,35 @@ entry-id = "7921"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "oĭ",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "tatpi",
-        span = [3, 8]
+        span = [3, 8],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "tatpi",
-        span = [9, 14]
+        span = [9, 14],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "fa",
-        span = [15, 17]
+        span = [15, 17],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "mi",
-        span = [18, 20]
+        span = [18, 20],
+        kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "oĭ",
-                span = [0, 2]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -60,34 +51,34 @@ parse-tree = {
                                         relation = {Compound = [
                                                 {Word = {
                                                     Bare = {Bare = {
-                                                        kind = "gismu",
                                                         phonemes = "tatpi",
-                                                        span = [3, 8]
+                                                        span = [3, 8],
+                                                        kind = "gismu"
                                                     }}
                                                 }},
                                                 {Word = {
                                                     Bare = {Bare = {
-                                                        kind = "gismu",
                                                         phonemes = "tatpi",
-                                                        span = [9, 14]
+                                                        span = [9, 14],
+                                                        kind = "gismu"
                                                     }}
                                                 }},
                                             ] },
                                         terms = [
                                             {Fa = {
-                                                argument = {Koha = {
-                                                    Bare = {Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "mi",
-                                                        span = [18, 20]
-                                                    }}
-                                                }},
                                                 fa = {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "fa",
-                                                        span = [15, 17]
+                                                        span = [15, 17],
+                                                        kind = "cmavo"
                                                     }
+                                                }},
+                                                argument = {Koha = {
+                                                    Bare = {Bare = {
+                                                        phonemes = "mi",
+                                                        span = [18, 20],
+                                                        kind = "cmavo"
+                                                    }}
                                                 }}
                                             }},
                                         ]
@@ -98,6 +89,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "oĭ",
+                    span = [0, 2],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

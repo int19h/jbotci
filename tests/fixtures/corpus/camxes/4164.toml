@@ -10,34 +10,25 @@ entry-id = "4164"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "xu",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "na'e",
-        span = [3, 7]
+        span = [3, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "tatpi",
-        span = [8, 13]
+        span = [8, 13],
+        kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "xu",
-                span = [0, 2]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -49,19 +40,19 @@ parse-tree = {
                                     first = {Relation = {
                                         Compound = [
                                             {Nahe = {
-                                                inner_unit = {Word = {
-                                                    Bare = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "tatpi",
-                                                        span = [8, 13]
-                                                    }}
-                                                }},
                                                 nahe = {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "na'e",
-                                                        span = [3, 7]
+                                                        span = [3, 7],
+                                                        kind = "cmavo"
                                                     }
+                                                }},
+                                                inner_unit = {Word = {
+                                                    Bare = {Bare = {
+                                                        phonemes = "tatpi",
+                                                        span = [8, 13],
+                                                        kind = "gismu"
+                                                    }}
                                                 }}
                                             }},
                                         ]
@@ -72,6 +63,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "xu",
+                    span = [0, 2],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

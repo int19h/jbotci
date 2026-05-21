@@ -19,24 +19,24 @@ brackets = "(ta [blánu je zdáni])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ta",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "blanu",
-        span = [3, 8]
+        span = [3, 8],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "je",
-        span = [9, 11]
+        span = [9, 11],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "zdani",
-        span = [12, 17]
+        span = [12, 17],
+        kind = "gismu"
     }},
 ]
 
@@ -52,9 +52,9 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "ta",
-                                        span = [0, 2]
+                                        span = [0, 2],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -64,30 +64,29 @@ parse-tree = {
                                 first = {
                                     first = {Relation = {
                                         Connected = {
-                                            connective = {
+                                            connective = {Relation = {
                                                 cmavo = [
                                                     {Bare = {
                                                         Bare = {
-                                                            kind = "cmavo",
                                                             phonemes = "je",
-                                                            span = [9, 11]
+                                                            span = [9, 11],
+                                                            kind = "cmavo"
                                                         }
                                                     }},
-                                                ],
-                                                kind = "Relation"
-                                            },
+                                                ]
+                                            }},
                                             leading_relation = {Base = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "blanu",
-                                                    span = [3, 8]
+                                                    span = [3, 8],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                             trailing_relation = {Base = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "zdani",
-                                                    span = [12, 17]
+                                                    span = [12, 17],
+                                                    kind = "gismu"
                                                 }}
                                             }}
                                         }

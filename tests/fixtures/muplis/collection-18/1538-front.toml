@@ -16,44 +16,44 @@ brackets = "(mi [tátpi {gi'e (nítcu [le {nu (mi sípna)}])}])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "mi",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "tatpi",
-        span = [3, 8]
+        span = [3, 8],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "gi'e",
-        span = [9, 13]
+        span = [9, 13],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "nitcu",
-        span = [14, 19]
+        span = [14, 19],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "le",
-        span = [20, 22]
+        span = [20, 22],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "nu",
-        span = [23, 25]
+        span = [23, 25],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "mi",
-        span = [26, 28]
+        span = [26, 28],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "sipna",
-        span = [29, 34]
+        span = [29, 34],
+        kind = "gismu"
     }},
 ]
 
@@ -69,36 +69,46 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "mi",
-                                        span = [0, 2]
+                                        span = [0, 2],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
                         ],
                         predicate_tail = {
                             first = {
+                                first = {
+                                    first = {Relation = {
+                                        Base = {Bare = {
+                                            Bare = {
+                                                phonemes = "tatpi",
+                                                span = [3, 8],
+                                                kind = "gismu"
+                                            }
+                                        }}
+                                    }}
+                                },
                                 continuations = [
                                     {
-                                        connective = {
+                                        connective = {PredicateTail = {
                                             cmavo = [
                                                 {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "gi'e",
-                                                        span = [9, 13]
+                                                        span = [9, 13],
+                                                        kind = "cmavo"
                                                     }
                                                 }},
-                                            ],
-                                            kind = "PredicateTail"
-                                        },
+                                            ]
+                                        }},
                                         predicate_tail = {
                                             first = {Relation = {
                                                 relation = {Base = {
                                                     Bare = {Bare = {
-                                                        kind = "gismu",
                                                         phonemes = "nitcu",
-                                                        span = [14, 19]
+                                                        span = [14, 19],
+                                                        kind = "gismu"
                                                     }}
                                                 }},
                                                 terms = [
@@ -106,17 +116,17 @@ parse-tree = {
                                                         Descriptor = {
                                                             descriptor = {Bare = {
                                                                 Bare = {
-                                                                    kind = "cmavo",
                                                                     phonemes = "le",
-                                                                    span = [20, 22]
+                                                                    span = [20, 22],
+                                                                    kind = "cmavo"
                                                                 }
                                                             }},
                                                             relation = {Abstraction = {
                                                                 nu = {Bare = {
                                                                     Bare = {
-                                                                        kind = "cmavo",
                                                                         phonemes = "nu",
-                                                                        span = [23, 25]
+                                                                        span = [23, 25],
+                                                                        kind = "cmavo"
                                                                     }
                                                                 }},
                                                                 subsentence = {Plain = {
@@ -124,9 +134,9 @@ parse-tree = {
                                                                         {Argument = {
                                                                             Koha = {Bare = {
                                                                                 Bare = {
-                                                                                    kind = "cmavo",
                                                                                     phonemes = "mi",
-                                                                                    span = [26, 28]
+                                                                                    span = [26, 28],
+                                                                                    kind = "cmavo"
                                                                                 }
                                                                             }}
                                                                         }},
@@ -137,9 +147,9 @@ parse-tree = {
                                                                                 first = {Relation = {
                                                                                     Base = {Bare = {
                                                                                         Bare = {
-                                                                                            kind = "gismu",
                                                                                             phonemes = "sipna",
-                                                                                            span = [29, 34]
+                                                                                            span = [29, 34],
+                                                                                            kind = "gismu"
                                                                                         }
                                                                                     }}
                                                                                 }}
@@ -154,18 +164,7 @@ parse-tree = {
                                             }}
                                         }
                                     },
-                                ],
-                                first = {
-                                    first = {Relation = {
-                                        Base = {Bare = {
-                                            Bare = {
-                                                kind = "gismu",
-                                                phonemes = "tatpi",
-                                                span = [3, 8]
-                                            }
-                                        }}
-                                    }}
-                                }
+                                ]
                             }
                         }
                     }}

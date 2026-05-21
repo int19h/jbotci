@@ -10,19 +10,19 @@ entry-id = "13263"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "xo",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ni",
-        span = [3, 5]
+        span = [3, 5],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "clani",
-        span = [6, 11]
+        span = [6, 11],
+        kind = "gismu"
     }},
 ]
 
@@ -38,12 +38,27 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     Descriptor = {
+                                        tail_elements = [
+                                            {Quantifier = {
+                                                Number = {
+                                                    number = [
+                                                        {Bare = {
+                                                            Bare = {
+                                                                phonemes = "xo",
+                                                                span = [0, 2],
+                                                                kind = "cmavo"
+                                                            }
+                                                        }},
+                                                    ]
+                                                }
+                                            }},
+                                        ],
                                         relation = {Abstraction = {
                                             nu = {Bare = {
                                                 Bare = {
-                                                    kind = "cmavo",
                                                     phonemes = "ni",
-                                                    span = [3, 5]
+                                                    span = [3, 5],
+                                                    kind = "cmavo"
                                                 }
                                             }},
                                             subsentence = {Plain = {
@@ -53,9 +68,9 @@ parse-tree = {
                                                             first = {Relation = {
                                                                 Base = {Bare = {
                                                                     Bare = {
-                                                                        kind = "gismu",
                                                                         phonemes = "clani",
-                                                                        span = [6, 11]
+                                                                        span = [6, 11],
+                                                                        kind = "gismu"
                                                                     }
                                                                 }}
                                                             }}
@@ -63,22 +78,7 @@ parse-tree = {
                                                     }
                                                 }
                                             }}
-                                        }},
-                                        tail_elements = [
-                                            {Quantifier = {
-                                                Number = {
-                                                    number = [
-                                                        {Bare = {
-                                                            Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "xo",
-                                                                span = [0, 2]
-                                                            }
-                                                        }},
-                                                    ]
-                                                }
-                                            }},
-                                        ]
+                                        }}
                                     }
                                 }},
                             ]

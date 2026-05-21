@@ -10,24 +10,24 @@ entry-id = "20672"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ki'e",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "i",
-        span = [6, 7]
+        span = [6, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ba'o",
-        span = [8, 12]
+        span = [8, 12],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "spofu",
-        span = [13, 18]
+        span = [13, 18],
+        kind = "gismu"
     }},
 ]
 
@@ -39,9 +39,9 @@ parse-tree = {
             vocative_markers = [
                 {Bare = {
                     Bare = {
-                        kind = "cmavo",
                         phonemes = "ki'e",
-                        span = [0, 4]
+                        span = [0, 4],
+                        kind = "cmavo"
                     }
                 }},
             ]
@@ -53,9 +53,9 @@ parse-tree = {
                 {
                     i = {Bare = {
                         Bare = {
-                            kind = "cmavo",
                             phonemes = "i",
-                            span = [6, 7]
+                            span = [6, 7],
+                            kind = "cmavo"
                         }
                     }},
                     statement = {Predicate = {
@@ -64,32 +64,23 @@ parse-tree = {
                                 first = {
                                     first = {Relation = {
                                         TenseModal = {
-                                            inner_relation = {Base = {
-                                                Bare = {Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "spofu",
-                                                    span = [13, 18]
-                                                }}
-                                            }},
                                             tense_modal = {Composite = {
-                                                leaves = [
-                                                    {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
+                                                parts = [
+                                                    {Word = {
+                                                        Bare = {Bare = {
                                                             phonemes = "ba'o",
-                                                            span = [8, 12]
-                                                        }
-                                                    }},
-                                                ],
-                                                zaho = [
-                                                    {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "ba'o",
-                                                            span = [8, 12]
-                                                        }
+                                                            span = [8, 12],
+                                                            kind = "cmavo"
+                                                        }}
                                                     }},
                                                 ]
+                                            }},
+                                            inner_relation = {Base = {
+                                                Bare = {Bare = {
+                                                    phonemes = "spofu",
+                                                    span = [13, 18],
+                                                    kind = "gismu"
+                                                }}
                                             }}
                                         }
                                     }}

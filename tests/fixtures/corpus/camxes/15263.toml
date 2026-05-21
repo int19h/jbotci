@@ -10,58 +10,49 @@ entry-id = "15263"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ŭe",
-        span = [1, 3]
+        span = [1, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ru'e",
-        span = [3, 7]
+        span = [3, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "i",
-        span = [9, 10]
+        span = [9, 10],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ko",
-        span = [11, 13]
+        span = [11, 13],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "lujvo",
         phonemes = "selxamgu",
-        span = [14, 22]
+        span = [14, 22],
+        kind = "lujvo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "sipna",
-        span = [23, 28]
+        span = [23, 28],
+        kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "ŭe",
-                span = [1, 3]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
                 {
                     i = {Bare = {
                         Bare = {
-                            kind = "cmavo",
                             phonemes = "i",
-                            span = [9, 10]
+                            span = [9, 10],
+                            kind = "cmavo"
                         }
                     }},
                     statement = {Predicate = {
@@ -69,9 +60,9 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "ko",
-                                        span = [11, 13]
+                                        span = [11, 13],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -83,16 +74,16 @@ parse-tree = {
                                         Compound = [
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "lujvo",
                                                     phonemes = "selxamgu",
-                                                    span = [14, 22]
+                                                    span = [14, 22],
+                                                    kind = "lujvo"
                                                 }}
                                             }},
                                             {Word = {
                                                 Bare = {Bare = {
-                                                    kind = "gismu",
                                                     phonemes = "sipna",
-                                                    span = [23, 28]
+                                                    span = [23, 28],
+                                                    kind = "gismu"
                                                 }}
                                             }},
                                         ]
@@ -103,6 +94,24 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {WithIndicator = {
+                base = {Bare = {
+                    Bare = {
+                        phonemes = "ŭe",
+                        span = [1, 3],
+                        kind = "cmavo"
+                    }
+                }},
+                indicator = {
+                    phonemes = "ru'e",
+                    span = [3, 7],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

@@ -10,9 +10,9 @@ entry-id = "5806"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ŭa",
-        span = [4, 6]
+        span = [4, 6],
+        kind = "cmavo"
     }},
 ]
 
@@ -21,11 +21,13 @@ status = "success"
 parse-tree = {
     leading_indicators = [
         {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "ŭa",
-                span = [4, 6]
-            }
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "ŭa",
+                    span = [4, 6],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

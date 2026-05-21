@@ -10,20 +10,20 @@ entry-id = "16599"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "la'e",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
     {ZoQuote = {
-        word = {
-            kind = "cmavo",
-            phonemes = "do",
-            span = [8, 10]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [5, 7]
+            span = [5, 7],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "do",
+            span = [8, 10],
+            kind = "cmavo"
         }
     }},
 ]
@@ -40,37 +40,28 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     Lahe = {
-                                        inner_argument = {Quote = {
-                                            Zo = {
-                                                word = {Bare = {
-                                                    Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "do",
-                                                        span = [8, 10]
-                                                    }
-                                                }},
-                                                zo = {Bare = {
-                                                    ZoQuote = {
-                                                        word = {
-                                                            kind = "cmavo",
-                                                            phonemes = "do",
-                                                            span = [8, 10]
-                                                        },
-                                                        zo = {
-                                                            kind = "cmavo",
-                                                            phonemes = "zo",
-                                                            span = [5, 7]
-                                                        }
-                                                    }
-                                                }}
-                                            }
-                                        }},
                                         lahe = {Bare = {
                                             Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "la'e",
-                                                span = [0, 4]
+                                                span = [0, 4],
+                                                kind = "cmavo"
                                             }
+                                        }},
+                                        inner_argument = {Quote = {
+                                            Zo = {Bare = {
+                                                ZoQuote = {
+                                                    zo = {
+                                                        phonemes = "zo",
+                                                        span = [5, 7],
+                                                        kind = "cmavo"
+                                                    },
+                                                    word = {
+                                                        phonemes = "do",
+                                                        span = [8, 10],
+                                                        kind = "cmavo"
+                                                    }
+                                                }
+                                            }}
                                         }}
                                     }
                                 }},

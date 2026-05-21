@@ -7,7 +7,10 @@ use crate::BracketRenderOptions;
 pub(crate) enum SExpr {
     Leaf(String),
     Node(Vec<SExpr>),
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "constructed by the legacy compact JSON bracket path"
+    )]
     Splice(Vec<SExpr>),
 }
 

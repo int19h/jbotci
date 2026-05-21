@@ -16,29 +16,20 @@ brackets = "(.u'e lénku)"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "u'e",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "lenku",
-        span = [4, 9]
+        span = [4, 9],
+        kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "u'e",
-                span = [0, 3]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -50,9 +41,9 @@ parse-tree = {
                                     first = {Relation = {
                                         Base = {Bare = {
                                             Bare = {
-                                                kind = "gismu",
                                                 phonemes = "lenku",
-                                                span = [4, 9]
+                                                span = [4, 9],
+                                                kind = "gismu"
                                             }
                                         }}
                                     }}
@@ -62,6 +53,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "u'e",
+                    span = [0, 3],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

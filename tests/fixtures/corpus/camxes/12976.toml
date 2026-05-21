@@ -10,59 +10,50 @@ entry-id = "12976"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "paŭ",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ma",
-        span = [4, 6]
+        span = [4, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "poĭ",
-        span = [7, 10]
+        span = [7, 10],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "mabla",
-        span = [11, 16]
+        span = [11, 16],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "se",
-        span = [17, 19]
+        span = [17, 19],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "casnu",
-        span = [20, 25]
+        span = [20, 25],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "la",
-        span = [26, 28]
+        span = [26, 28],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmevla",
         phonemes = "belknap",
-        span = [29, 36]
+        span = [29, 36],
+        kind = "cmevla"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "paŭ",
-                span = [0, 3]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -74,18 +65,18 @@ parse-tree = {
                                     RelativeClause = {
                                         base_argument = {Koha = {
                                             Bare = {Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "ma",
-                                                span = [4, 6]
+                                                span = [4, 6],
+                                                kind = "cmavo"
                                             }}
                                         }},
                                         relative_clauses = [
                                             {Poi = {
                                                 poi = {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "poĭ",
-                                                        span = [7, 10]
+                                                        span = [7, 10],
+                                                        kind = "cmavo"
                                                     }
                                                 }},
                                                 subsentence = {Plain = {
@@ -96,25 +87,25 @@ parse-tree = {
                                                                     relation = {Compound = [
                                                                             {Word = {
                                                                                 Bare = {Bare = {
-                                                                                    kind = "gismu",
                                                                                     phonemes = "mabla",
-                                                                                    span = [11, 16]
+                                                                                    span = [11, 16],
+                                                                                    kind = "gismu"
                                                                                 }}
                                                                             }},
                                                                             {Se = {
-                                                                                inner_unit = {Word = {
-                                                                                    Bare = {Bare = {
-                                                                                        kind = "gismu",
-                                                                                        phonemes = "casnu",
-                                                                                        span = [20, 25]
-                                                                                    }}
-                                                                                }},
                                                                                 se = {Bare = {
                                                                                     Bare = {
-                                                                                        kind = "cmavo",
                                                                                         phonemes = "se",
-                                                                                        span = [17, 19]
+                                                                                        span = [17, 19],
+                                                                                        kind = "cmavo"
                                                                                     }
+                                                                                }},
+                                                                                inner_unit = {Word = {
+                                                                                    Bare = {Bare = {
+                                                                                        phonemes = "casnu",
+                                                                                        span = [20, 25],
+                                                                                        kind = "gismu"
+                                                                                    }}
                                                                                 }}
                                                                             }},
                                                                         ] },
@@ -123,17 +114,17 @@ parse-tree = {
                                                                             Name = {
                                                                                 la = {Bare = {
                                                                                     Bare = {
-                                                                                        kind = "cmavo",
                                                                                         phonemes = "la",
-                                                                                        span = [26, 28]
+                                                                                        span = [26, 28],
+                                                                                        kind = "cmavo"
                                                                                     }
                                                                                 }},
                                                                                 names = [
                                                                                     {Bare = {
                                                                                         Bare = {
-                                                                                            kind = "cmevla",
                                                                                             phonemes = "belknap",
-                                                                                            span = [29, 36]
+                                                                                            span = [29, 36],
+                                                                                            kind = "cmevla"
                                                                                         }
                                                                                     }},
                                                                                 ]
@@ -154,6 +145,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "paŭ",
+                    span = [0, 3],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

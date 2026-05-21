@@ -10,59 +10,59 @@ entry-id = "401"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "i",
-        span = [1, 2]
+        span = [1, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "seĭ",
-        span = [3, 6]
+        span = [3, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "la",
-        span = [7, 9]
+        span = [7, 9],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmevla",
         phonemes = "djan",
-        span = [10, 14]
+        span = [10, 14],
+        kind = "cmevla"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "cusku",
-        span = [16, 21]
+        span = [16, 21],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "se'u",
-        span = [22, 26]
+        span = [22, 26],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "e'o",
-        span = [27, 30]
+        span = [27, 30],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "doĭ",
-        span = [31, 34]
+        span = [31, 34],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmevla",
         phonemes = "djordj",
-        span = [35, 41]
+        span = [35, 41],
+        kind = "cmevla"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "zo'o",
-        span = [43, 47]
+        span = [43, 47],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "lujvo",
         phonemes = "rapygaŭ",
-        span = [48, 55]
+        span = [48, 55],
+        kind = "lujvo"
     }},
 ]
 
@@ -73,63 +73,20 @@ parse-tree = {
         {
             statements = [
                 {
+                    i = {Bare = {
+                        Bare = {
+                            phonemes = "i",
+                            span = [1, 2],
+                            kind = "cmavo"
+                        }
+                    }},
                     free_modifiers = [
                         {Sei = {
-                            relation = {Base = {
-                                Bare = {Bare = {
-                                    kind = "gismu",
-                                    phonemes = "cusku",
-                                    span = [16, 21]
-                                }}
-                            }},
-                            sehu = [
-                                {WithIndicator = {
-                                    base = {Bare = {
-                                        Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "se'u",
-                                            span = [22, 26]
-                                        }
-                                    }},
-                                    indicator = {
-                                        kind = "cmavo",
-                                        phonemes = "e'o",
-                                        span = [27, 30]
-                                    }
-                                }},
-                                {Vocative = {
-                                    argument = {Cmevla = [
-                                            {WithIndicator = {
-                                                base = {Bare = {
-                                                    Bare = {
-                                                        kind = "cmevla",
-                                                        phonemes = "djordj",
-                                                        span = [35, 41]
-                                                    }
-                                                }},
-                                                indicator = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zo'o",
-                                                    span = [43, 47]
-                                                }
-                                            }},
-                                        ] },
-                                    vocative_markers = [
-                                        {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
-                                                phonemes = "doĭ",
-                                                span = [31, 34]
-                                            }
-                                        }},
-                                    ]
-                                }},
-                            ],
                             sei = {Bare = {
                                 Bare = {
-                                    kind = "cmavo",
                                     phonemes = "seĭ",
-                                    span = [3, 6]
+                                    span = [3, 6],
+                                    kind = "cmavo"
                                 }
                             }},
                             terms = [
@@ -137,32 +94,75 @@ parse-tree = {
                                     Name = {
                                         la = {Bare = {
                                             Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "la",
-                                                span = [7, 9]
+                                                span = [7, 9],
+                                                kind = "cmavo"
                                             }
                                         }},
                                         names = [
                                             {Bare = {
                                                 Bare = {
-                                                    kind = "cmevla",
                                                     phonemes = "djan",
-                                                    span = [10, 14]
+                                                    span = [10, 14],
+                                                    kind = "cmevla"
                                                 }
                                             }},
                                         ]
                                     }
                                 }},
+                            ],
+                            relation = {Base = {
+                                Bare = {Bare = {
+                                    phonemes = "cusku",
+                                    span = [16, 21],
+                                    kind = "gismu"
+                                }}
+                            }},
+                            sehu = [
+                                {WithIndicator = {
+                                    base = {Bare = {
+                                        Bare = {
+                                            phonemes = "se'u",
+                                            span = [22, 26],
+                                            kind = "cmavo"
+                                        }
+                                    }},
+                                    indicator = {
+                                        phonemes = "e'o",
+                                        span = [27, 30],
+                                        kind = "cmavo"
+                                    }
+                                }},
+                                {Vocative = {
+                                    vocative_markers = [
+                                        {Bare = {
+                                            Bare = {
+                                                phonemes = "doĭ",
+                                                span = [31, 34],
+                                                kind = "cmavo"
+                                            }
+                                        }},
+                                    ],
+                                    argument = {Cmevla = [
+                                            {WithIndicator = {
+                                                base = {Bare = {
+                                                    Bare = {
+                                                        phonemes = "djordj",
+                                                        span = [35, 41],
+                                                        kind = "cmevla"
+                                                    }
+                                                }},
+                                                indicator = {
+                                                    phonemes = "zo'o",
+                                                    span = [43, 47],
+                                                    kind = "cmavo"
+                                                }
+                                            }},
+                                        ] }
+                                }},
                             ]
                         }},
                     ],
-                    i = {Bare = {
-                        Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [1, 2]
-                        }
-                    }},
                     statement = {Predicate = {
                         predicate_tail = {
                             first = {
@@ -170,9 +170,9 @@ parse-tree = {
                                     first = {Relation = {
                                         Base = {Bare = {
                                             Bare = {
-                                                kind = "lujvo",
                                                 phonemes = "rapygaŭ",
-                                                span = [48, 55]
+                                                span = [48, 55],
+                                                kind = "lujvo"
                                             }
                                         }}
                                     }}

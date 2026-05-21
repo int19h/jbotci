@@ -10,50 +10,49 @@ entry-id = "17547"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "coĭ",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ja",
-        span = [4, 6]
+        span = [4, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "fu'ivla",
         phonemes = "denbane",
-        span = [6, 13]
+        span = [6, 13],
+        kind = "fu'ivla"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_connective = {
-        cmavo = [
-            {Bare = {
-                Bare = {
-                    kind = "cmavo",
-                    phonemes = "ja",
-                    span = [4, 6]
-                }
-            }},
-        ],
-        kind = "Relation"
-    },
     leading_free_modifiers = [
         {Vocative = {
             vocative_markers = [
                 {Bare = {
                     Bare = {
-                        kind = "cmavo",
                         phonemes = "coĭ",
-                        span = [0, 3]
+                        span = [0, 3],
+                        kind = "cmavo"
                     }
                 }},
             ]
         }},
     ],
+    leading_connective = {Relation = {
+        cmavo = [
+            {Bare = {
+                Bare = {
+                    phonemes = "ja",
+                    span = [4, 6],
+                    kind = "cmavo"
+                }
+            }},
+        ]
+    }},
     paragraphs = [
         {
             statements = [
@@ -65,9 +64,9 @@ parse-tree = {
                                     first = {Relation = {
                                         Base = {Bare = {
                                             Bare = {
-                                                kind = "fu'ivla",
                                                 phonemes = "denbane",
-                                                span = [6, 13]
+                                                span = [6, 13],
+                                                kind = "fu'ivla"
                                             }
                                         }}
                                     }}

@@ -10,36 +10,36 @@ entry-id = "6602"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "le",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "lujvo",
         phonemes = "samselpla",
-        span = [3, 12]
+        span = [3, 12],
+        kind = "lujvo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "zvati",
-        span = [13, 18]
+        span = [13, 18],
+        kind = "gismu"
     }},
     {ZoiQuote = {
-        closing_delimiter = {
-            kind = "cmavo",
-            phonemes = "gy",
-            span = [54, 56]
+        zoi = {
+            phonemes = "zoĭ",
+            span = [19, 22],
+            kind = "cmavo"
         },
         opening_delimiter = {
-            kind = "cmavo",
             phonemes = "gy",
-            span = [23, 25]
+            span = [23, 25],
+            kind = "cmavo"
         },
         quoted_text = [25, 53],
-        zoi = {
-            kind = "cmavo",
-            phonemes = "zoĭ",
-            span = [19, 22]
+        closing_delimiter = {
+            phonemes = "gy",
+            span = [54, 56],
+            kind = "cmavo"
         }
     }},
 ]
@@ -58,24 +58,24 @@ parse-tree = {
                                     Descriptor = {
                                         descriptor = {Bare = {
                                             Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "le",
-                                                span = [0, 2]
+                                                span = [0, 2],
+                                                kind = "cmavo"
                                             }
                                         }},
                                         relation = {Compound = [
                                                 {Word = {
                                                     Bare = {Bare = {
-                                                        kind = "lujvo",
                                                         phonemes = "samselpla",
-                                                        span = [3, 12]
+                                                        span = [3, 12],
+                                                        kind = "lujvo"
                                                     }}
                                                 }},
                                                 {Word = {
                                                     Bare = {Bare = {
-                                                        kind = "gismu",
                                                         phonemes = "zvati",
-                                                        span = [13, 18]
+                                                        span = [13, 18],
+                                                        kind = "gismu"
                                                     }}
                                                 }},
                                             ] }
@@ -83,39 +83,22 @@ parse-tree = {
                                 }},
                                 {Argument = {
                                     Quote = {Zoi = {
-                                        closing_delimiter = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
+                                        Bare = {ZoiQuote = {
+                                            zoi = {
+                                                phonemes = "zoĭ",
+                                                span = [19, 22],
+                                                kind = "cmavo"
+                                            },
+                                            opening_delimiter = {
                                                 phonemes = "gy",
-                                                span = [54, 56]
-                                            }
-                                        }},
-                                        opening_delimiter = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
+                                                span = [23, 25],
+                                                kind = "cmavo"
+                                            },
+                                            quoted_text = [25, 53],
+                                            closing_delimiter = {
                                                 phonemes = "gy",
-                                                span = [23, 25]
-                                            }
-                                        }},
-                                        quoted_text = " http://tripoint.org/lucern/",
-                                        zoi = {Bare = {
-                                            ZoiQuote = {
-                                                closing_delimiter = {
-                                                    kind = "cmavo",
-                                                    phonemes = "gy",
-                                                    span = [54, 56]
-                                                },
-                                                opening_delimiter = {
-                                                    kind = "cmavo",
-                                                    phonemes = "gy",
-                                                    span = [23, 25]
-                                                },
-                                                quoted_text = [25, 53],
-                                                zoi = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zoĭ",
-                                                    span = [19, 22]
-                                                }
+                                                span = [54, 56],
+                                                kind = "cmavo"
                                             }
                                         }}
                                     }}

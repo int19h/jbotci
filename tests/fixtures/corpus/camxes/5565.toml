@@ -10,30 +10,30 @@ entry-id = "5565"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "xu",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "do",
-        span = [3, 5]
+        span = [3, 5],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "du",
-        span = [6, 8]
+        span = [6, 8],
+        kind = "cmavo"
     }},
     {ZoQuote = {
-        word = {
-            kind = "lujvo",
-            phonemes = "fracture",
-            span = [12, 20]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [9, 11]
+            span = [9, 11],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "fracture",
+            span = [12, 20],
+            kind = "lujvo"
         }
     }},
 ]
@@ -41,15 +41,6 @@ words = [
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "xu",
-                span = [0, 2]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -59,9 +50,9 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "do",
-                                        span = [3, 5]
+                                        span = [3, 5],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -72,33 +63,24 @@ parse-tree = {
                                     first = {Relation = {
                                         relation = {Base = {
                                             Bare = {Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "du",
-                                                span = [6, 8]
+                                                span = [6, 8],
+                                                kind = "cmavo"
                                             }}
                                         }},
                                         terms = [
                                             {Argument = {
                                                 Quote = {Zo = {
-                                                    word = {Bare = {
-                                                        Bare = {
-                                                            kind = "lujvo",
+                                                    Bare = {ZoQuote = {
+                                                        zo = {
+                                                            phonemes = "zo",
+                                                            span = [9, 11],
+                                                            kind = "cmavo"
+                                                        },
+                                                        word = {
                                                             phonemes = "fracture",
-                                                            span = [12, 20]
-                                                        }
-                                                    }},
-                                                    zo = {Bare = {
-                                                        ZoQuote = {
-                                                            word = {
-                                                                kind = "lujvo",
-                                                                phonemes = "fracture",
-                                                                span = [12, 20]
-                                                            },
-                                                            zo = {
-                                                                kind = "cmavo",
-                                                                phonemes = "zo",
-                                                                span = [9, 11]
-                                                            }
+                                                            span = [12, 20],
+                                                            kind = "lujvo"
                                                         }
                                                     }}
                                                 }}
@@ -111,6 +93,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "xu",
+                    span = [0, 2],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

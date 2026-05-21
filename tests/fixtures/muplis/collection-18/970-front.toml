@@ -16,64 +16,55 @@ brackets = "(.e'o [{ga naĭ} {do zífre} gi {(do mi) sídju}])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "e'o",
-        span = [1, 4]
+        span = [1, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ga",
-        span = [5, 7]
+        span = [5, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "naĭ",
-        span = [8, 11]
+        span = [8, 11],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "do",
-        span = [12, 14]
+        span = [12, 14],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "zifre",
-        span = [15, 20]
+        span = [15, 20],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "gi",
-        span = [21, 23]
+        span = [21, 23],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "do",
-        span = [24, 26]
+        span = [24, 26],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "mi",
-        span = [27, 29]
+        span = [27, 29],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "sidju",
-        span = [30, 35]
+        span = [30, 35],
+        kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "e'o",
-                span = [1, 4]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -84,14 +75,32 @@ parse-tree = {
                                 first = {
                                     first = {GekSentence = {
                                         Pair = {
+                                            gek = {Forethought = {
+                                                cmavo = [
+                                                    {Bare = {
+                                                        Bare = {
+                                                            phonemes = "ga",
+                                                            span = [5, 7],
+                                                            kind = "cmavo"
+                                                        }
+                                                    }},
+                                                ],
+                                                nai = {Bare = {
+                                                    Bare = {
+                                                        phonemes = "naĭ",
+                                                        span = [8, 11],
+                                                        kind = "cmavo"
+                                                    }
+                                                }}
+                                            }},
                                             first = {Plain = {
                                                 leading_terms = [
                                                     {Argument = {
                                                         Koha = {Bare = {
                                                             Bare = {
-                                                                kind = "cmavo",
                                                                 phonemes = "do",
-                                                                span = [12, 14]
+                                                                span = [12, 14],
+                                                                kind = "cmavo"
                                                             }
                                                         }}
                                                     }},
@@ -102,9 +111,9 @@ parse-tree = {
                                                             first = {Relation = {
                                                                 Base = {Bare = {
                                                                     Bare = {
-                                                                        kind = "gismu",
                                                                         phonemes = "zifre",
-                                                                        span = [15, 20]
+                                                                        span = [15, 20],
+                                                                        kind = "gismu"
                                                                     }
                                                                 }}
                                                             }}
@@ -112,54 +121,34 @@ parse-tree = {
                                                     }
                                                 }
                                             }},
-                                            gek = {
+                                            gik = {Forethought = {
                                                 cmavo = [
                                                     {Bare = {
                                                         Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "ga",
-                                                            span = [5, 7]
-                                                        }
-                                                    }},
-                                                ],
-                                                kind = "Forethought",
-                                                nai = {Bare = {
-                                                    Bare = {
-                                                        kind = "cmavo",
-                                                        phonemes = "naĭ",
-                                                        span = [8, 11]
-                                                    }
-                                                }}
-                                            },
-                                            gik = {
-                                                cmavo = [
-                                                    {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
                                                             phonemes = "gi",
-                                                            span = [21, 23]
+                                                            span = [21, 23],
+                                                            kind = "cmavo"
                                                         }
                                                     }},
-                                                ],
-                                                kind = "Forethought"
-                                            },
+                                                ]
+                                            }},
                                             second = {Plain = {
                                                 leading_terms = [
                                                     {Argument = {
                                                         Koha = {Bare = {
                                                             Bare = {
-                                                                kind = "cmavo",
                                                                 phonemes = "do",
-                                                                span = [24, 26]
+                                                                span = [24, 26],
+                                                                kind = "cmavo"
                                                             }
                                                         }}
                                                     }},
                                                     {Argument = {
                                                         Koha = {Bare = {
                                                             Bare = {
-                                                                kind = "cmavo",
                                                                 phonemes = "mi",
-                                                                span = [27, 29]
+                                                                span = [27, 29],
+                                                                kind = "cmavo"
                                                             }
                                                         }}
                                                     }},
@@ -170,9 +159,9 @@ parse-tree = {
                                                             first = {Relation = {
                                                                 Base = {Bare = {
                                                                     Bare = {
-                                                                        kind = "gismu",
                                                                         phonemes = "sidju",
-                                                                        span = [30, 35]
+                                                                        span = [30, 35],
+                                                                        kind = "gismu"
                                                                     }
                                                                 }}
                                                             }}
@@ -188,6 +177,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "e'o",
+                    span = [1, 4],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

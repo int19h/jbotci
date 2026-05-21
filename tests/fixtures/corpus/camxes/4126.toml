@@ -10,25 +10,25 @@ entry-id = "4126"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ma",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "du",
-        span = [3, 5]
+        span = [3, 5],
+        kind = "cmavo"
     }},
     {ZoQuote = {
-        word = {
-            kind = "lujvo",
-            phonemes = "ctistu",
-            span = [9, 15]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [6, 8]
+            span = [6, 8],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "ctistu",
+            span = [9, 15],
+            kind = "lujvo"
         }
     }},
 ]
@@ -45,9 +45,9 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "ma",
-                                        span = [0, 2]
+                                        span = [0, 2],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -58,33 +58,24 @@ parse-tree = {
                                     first = {Relation = {
                                         relation = {Base = {
                                             Bare = {Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "du",
-                                                span = [3, 5]
+                                                span = [3, 5],
+                                                kind = "cmavo"
                                             }}
                                         }},
                                         terms = [
                                             {Argument = {
                                                 Quote = {Zo = {
-                                                    word = {Bare = {
-                                                        Bare = {
-                                                            kind = "lujvo",
+                                                    Bare = {ZoQuote = {
+                                                        zo = {
+                                                            phonemes = "zo",
+                                                            span = [6, 8],
+                                                            kind = "cmavo"
+                                                        },
+                                                        word = {
                                                             phonemes = "ctistu",
-                                                            span = [9, 15]
-                                                        }
-                                                    }},
-                                                    zo = {Bare = {
-                                                        ZoQuote = {
-                                                            word = {
-                                                                kind = "lujvo",
-                                                                phonemes = "ctistu",
-                                                                span = [9, 15]
-                                                            },
-                                                            zo = {
-                                                                kind = "cmavo",
-                                                                phonemes = "zo",
-                                                                span = [6, 8]
-                                                            }
+                                                            span = [9, 15],
+                                                            kind = "lujvo"
                                                         }
                                                     }}
                                                 }}

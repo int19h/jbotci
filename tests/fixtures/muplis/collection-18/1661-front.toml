@@ -16,19 +16,19 @@ brackets = "(lénku [bu'u tu])"
 status = "success"
 words = [
     {Bare = {
-        kind = "gismu",
         phonemes = "lenku",
-        span = [0, 5]
+        span = [0, 5],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "bu'u",
-        span = [6, 10]
+        span = [6, 10],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "tu",
-        span = [11, 13]
+        span = [11, 13],
+        kind = "cmavo"
     }},
 ]
 
@@ -46,41 +46,30 @@ parse-tree = {
                                     first = {Relation = {
                                         relation = {Base = {
                                             Bare = {Bare = {
-                                                kind = "gismu",
                                                 phonemes = "lenku",
-                                                span = [0, 5]
+                                                span = [0, 5],
+                                                kind = "gismu"
                                             }}
                                         }},
                                         terms = [
                                             {Tagged = {
+                                                tense_modal = {Composite = {
+                                                    parts = [
+                                                        {Word = {
+                                                            Bare = {Bare = {
+                                                                phonemes = "bu'u",
+                                                                span = [6, 10],
+                                                                kind = "cmavo"
+                                                            }}
+                                                        }},
+                                                    ]
+                                                }},
                                                 argument = {Koha = {
                                                     Bare = {Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "tu",
-                                                        span = [11, 13]
+                                                        span = [11, 13],
+                                                        kind = "cmavo"
                                                     }}
-                                                }},
-                                                tense_modal = {Composite = {
-                                                    leaves = [
-                                                        {Bare = {
-                                                            Bare = {
-                                                                kind = "cmavo",
-                                                                phonemes = "bu'u",
-                                                                span = [6, 10]
-                                                            }
-                                                        }},
-                                                    ],
-                                                    space = {
-                                                        direction = [
-                                                            {Bare = {
-                                                                Bare = {
-                                                                    kind = "cmavo",
-                                                                    phonemes = "bu'u",
-                                                                    span = [6, 10]
-                                                                }
-                                                            }},
-                                                        ]
-                                                    }
                                                 }}
                                             }},
                                         ]

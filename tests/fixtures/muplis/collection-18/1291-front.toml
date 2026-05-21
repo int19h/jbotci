@@ -16,9 +16,9 @@ brackets = "je'u"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "je'u",
-        span = [0, 4]
+        span = [0, 4],
+        kind = "cmavo"
     }},
 ]
 
@@ -27,11 +27,13 @@ status = "success"
 parse-tree = {
     leading_indicators = [
         {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "je'u",
-                span = [0, 4]
-            }
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "je'u",
+                    span = [0, 4],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

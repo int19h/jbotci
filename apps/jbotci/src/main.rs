@@ -6,7 +6,8 @@ use std::process::ExitCode;
 
 use anyhow::{Result, anyhow};
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use jbotci_morphology::segment_words_with_modifiers;
+use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
+use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options};
 use jbotci_output::{BracketRenderOptions, compact_json_string, pretty_brackets_with_options};
 use jbotci_syntax::{
     ExperimentalConstruct, ParseOptions, SyntaxParse, SyntaxWarning,
@@ -64,6 +65,8 @@ struct TextInput {
     format: Option<String>,
     #[arg(long = "trace", alias = "plivei")]
     trace: Option<String>,
+    #[arg(long = "dialect")]
+    dialect: Option<String>,
     #[arg(long = "no-postproc", alias = "na-velruhe")]
     no_postproc: bool,
     #[arg(long = "camxes")]
@@ -77,6 +80,12 @@ impl TextInput {
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     fn read_text(&self) -> Result<String> {
         read_text_input(self.file.as_ref(), &self.text)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn dialect_definition(&self) -> Result<DialectDefinition> {
+        dialect_definition(self.dialect.as_deref())
     }
 }
 
@@ -94,6 +103,8 @@ struct GentufaInput {
     format: GentufaFormat,
     #[arg(long = "trace", alias = "plivei")]
     trace: Option<String>,
+    #[arg(long = "dialect")]
+    dialect: Option<String>,
     #[arg(long = "no-postproc", alias = "na-velruhe")]
     no_postproc: bool,
     #[arg(long = "camxes")]
@@ -109,6 +120,12 @@ impl GentufaInput {
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     fn read_text(&self) -> Result<String> {
         read_text_input(self.file.as_ref(), &self.text)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn dialect_definition(&self) -> Result<DialectDefinition> {
+        dialect_definition(self.dialect.as_deref())
     }
 }
 
@@ -170,7 +187,9 @@ fn run_cli<WOut: Write, WErr: Write>(
     match cli.command {
         Command::Vlasei(input) => {
             let text = input.read_text()?;
-            let words = segment_words_with_modifiers(&text)?;
+            let dialect = input.dialect_definition()?;
+            let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+            let words = segment_words_with_modifiers_with_options(&text, &morphology_options)?;
             if matches!(input.format.as_deref(), Some("json" | "djeisone")) {
                 let rendered = compact_json_string(&words)?;
                 writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
@@ -211,9 +230,11 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     validate_gentufa_options(&input)?;
     let warning_source = input_source_label(input.file.as_ref(), input.text.is_empty());
     let text = input.read_text()?;
-    let words = segment_words_with_modifiers(&text)?;
-    let parsed =
-        parse_syntax_tree_with_source_and_options(&words, &text, &ParseOptions::default())?;
+    let dialect = input.dialect_definition()?;
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let words = segment_words_with_modifiers_with_options(&text, &morphology_options)?;
+    let parse_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let parsed = parse_syntax_tree_with_source_and_options(&words, &text, &parse_options)?;
     render_syntax_warnings(&parsed, &text, &warning_source, stderr)?;
     match input.format {
         GentufaFormat::Brackets => {
@@ -245,6 +266,15 @@ fn input_source_label(file: Option<&PathBuf>, stdin: bool) -> String {
         None if stdin => "<stdin>".to_owned(),
         None => "<input>".to_owned(),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn dialect_definition(source: Option<&str>) -> Result<DialectDefinition> {
+    source.map_or_else(
+        || Ok(DialectDefinition::default()),
+        |source| parse_dialect_definition(source).map_err(|error| anyhow!(error)),
+    )
 }
 
 #[requires(true)]
@@ -464,6 +494,8 @@ fn command_not_implemented(command: &str) -> Result<()> {
 mod tests {
     use super::*;
     use clap::error::ErrorKind;
+    use jbotci_dialect::DialectFeature;
+    use jbotci_morphology::segment_words_with_modifiers;
     use jbotci_syntax::parse_syntax_tree;
 
     #[test]
@@ -534,6 +566,21 @@ mod tests {
             panic!("expected gentufa command")
         };
         assert!(defs_input.definitions);
+
+        let Command::Gentufa(dialect_input) =
+            Cli::try_parse_from(["jbotci", "gentufa", "--dialect", "(zantufa-cmavo)", "coi"])
+                .expect("dialect flag parses")
+                .command
+        else {
+            panic!("expected gentufa command")
+        };
+        assert!(
+            dialect_input
+                .dialect_definition()
+                .expect("dialect definition")
+                .features
+                .contains(&DialectFeature::ZantufaCmavo)
+        );
     }
 
     #[test]
@@ -744,6 +791,7 @@ mod tests {
             file: None,
             format: None,
             trace: None,
+            dialect: None,
             no_postproc: false,
             camxes: false,
             text: vec!["coi".into(), "rodo".into()],

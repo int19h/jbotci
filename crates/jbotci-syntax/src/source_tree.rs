@@ -126,7 +126,6 @@ mod tests {
 
     #[derive(SourceTree)]
     #[invariant(true)]
-    #[allow(dead_code)]
     struct Pair<T> {
         first: T,
         #[source(skip)]
@@ -154,6 +153,7 @@ mod tests {
             ignored: vec![ignored],
             second: Some(second.clone()),
         };
+        assert_eq!(pair.ignored.len(), 1);
 
         let words = source_words(&pair);
         assert_eq!(words, vec![&first, &second]);

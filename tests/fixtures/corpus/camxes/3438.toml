@@ -10,34 +10,25 @@ entry-id = "3438"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ŭa",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ki'u",
-        span = [3, 7]
+        span = [3, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ma",
-        span = [8, 10]
+        span = [8, 10],
+        kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "ŭa",
-                span = [0, 2]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -46,20 +37,20 @@ parse-tree = {
                         Term = {
                             terms = [
                                 {Tagged = {
-                                    argument = {Koha = {
-                                        Bare = {Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "ma",
-                                            span = [8, 10]
-                                        }}
-                                    }},
                                     tense_modal = {Simple = {
                                         bai = {Bare = {
                                             Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "ki'u",
-                                                span = [3, 7]
+                                                span = [3, 7],
+                                                kind = "cmavo"
                                             }
+                                        }}
+                                    }},
+                                    argument = {Koha = {
+                                        Bare = {Bare = {
+                                            phonemes = "ma",
+                                            span = [8, 10],
+                                            kind = "cmavo"
                                         }}
                                     }}
                                 }},
@@ -68,6 +59,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "ŭa",
+                    span = [0, 2],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

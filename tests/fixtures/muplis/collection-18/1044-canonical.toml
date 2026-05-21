@@ -16,24 +16,24 @@ brackets = "([taĭ ku] zo'u mélbi)"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "taĭ",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ku",
-        span = [4, 6]
+        span = [4, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "zo'u",
-        span = [7, 11]
+        span = [7, 11],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "melbi",
-        span = [12, 17]
+        span = [12, 17],
+        kind = "gismu"
     }},
 ]
 
@@ -45,40 +45,23 @@ parse-tree = {
             statements = [
                 {
                     statement = {Prenex = {
-                        inner_statement = {Predicate = {
-                            predicate_tail = {
-                                first = {
-                                    first = {
-                                        first = {Relation = {
-                                            Base = {Bare = {
-                                                Bare = {
-                                                    kind = "gismu",
-                                                    phonemes = "melbi",
-                                                    span = [12, 17]
-                                                }
-                                            }}
-                                        }}
-                                    }
-                                }
-                            }
-                        }},
                         prenex_terms = [
                             {Tagged = {
-                                argument = {Zohe = {
-                                    maybe_ku = {Bare = {
-                                        Bare = {
-                                            kind = "cmavo",
-                                            phonemes = "ku",
-                                            span = [4, 6]
-                                        }
-                                    }}
-                                }},
                                 tense_modal = {Simple = {
                                     bai = {Bare = {
                                         Bare = {
-                                            kind = "cmavo",
                                             phonemes = "taĭ",
-                                            span = [0, 3]
+                                            span = [0, 3],
+                                            kind = "cmavo"
+                                        }
+                                    }}
+                                }},
+                                argument = {Zohe = {
+                                    maybe_ku = {Bare = {
+                                        Bare = {
+                                            phonemes = "ku",
+                                            span = [4, 6],
+                                            kind = "cmavo"
                                         }
                                     }}
                                 }}
@@ -86,9 +69,26 @@ parse-tree = {
                         ],
                         zohu = {Bare = {
                             Bare = {
-                                kind = "cmavo",
                                 phonemes = "zo'u",
-                                span = [7, 11]
+                                span = [7, 11],
+                                kind = "cmavo"
+                            }
+                        }},
+                        inner_statement = {Predicate = {
+                            predicate_tail = {
+                                first = {
+                                    first = {
+                                        first = {Relation = {
+                                            Base = {Bare = {
+                                                Bare = {
+                                                    phonemes = "melbi",
+                                                    span = [12, 17],
+                                                    kind = "gismu"
+                                                }
+                                            }}
+                                        }}
+                                    }
+                                }
                             }
                         }}
                     }}

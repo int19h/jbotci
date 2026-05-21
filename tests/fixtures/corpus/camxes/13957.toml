@@ -10,25 +10,25 @@ entry-id = "13957"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ju'o",
-        span = [1, 5]
+        span = [1, 5],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "cu'i",
-        span = [5, 9]
+        span = [5, 9],
+        kind = "cmavo"
     }},
     {ZoQuote = {
-        word = {
-            kind = "gismu",
-            phonemes = "farvi",
-            span = [13, 18]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [10, 12]
+            span = [10, 12],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "farvi",
+            span = [13, 18],
+            kind = "gismu"
         }
     }},
 ]
@@ -36,15 +36,6 @@ words = [
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "ju'o",
-                span = [1, 5]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -54,25 +45,16 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     Quote = {Zo = {
-                                        word = {Bare = {
-                                            Bare = {
-                                                kind = "gismu",
+                                        Bare = {ZoQuote = {
+                                            zo = {
+                                                phonemes = "zo",
+                                                span = [10, 12],
+                                                kind = "cmavo"
+                                            },
+                                            word = {
                                                 phonemes = "farvi",
-                                                span = [13, 18]
-                                            }
-                                        }},
-                                        zo = {Bare = {
-                                            ZoQuote = {
-                                                word = {
-                                                    kind = "gismu",
-                                                    phonemes = "farvi",
-                                                    span = [13, 18]
-                                                },
-                                                zo = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zo",
-                                                    span = [10, 12]
-                                                }
+                                                span = [13, 18],
+                                                kind = "gismu"
                                             }
                                         }}
                                     }}
@@ -82,6 +64,24 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {WithIndicator = {
+                base = {Bare = {
+                    Bare = {
+                        phonemes = "ju'o",
+                        span = [1, 5],
+                        kind = "cmavo"
+                    }
+                }},
+                indicator = {
+                    phonemes = "cu'i",
+                    span = [5, 9],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

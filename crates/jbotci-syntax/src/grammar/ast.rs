@@ -451,21 +451,9 @@ pub enum PredicateStatementContinuationMarkerSyntax {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum FragmentSyntax {
-    // v0 exposes this constructor even though the current grammar produces
-    // TermFragment for parsed standalone arguments.
-    #[allow(dead_code)]
-    Argument(ArgumentSyntax),
     Ek(ConnectiveSyntax),
     Gihek(ConnectiveSyntax),
     Other(WithFreeModifiers<Vec<WithIndicators<WordLike>>>),
-    // v0 exposes this constructor for a fragment shape that is currently parsed
-    // through VocativeFree when it appears in source text.
-    #[allow(dead_code)]
-    Vocative {
-        vocative_markers: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-        vocative_argument: Option<ArgumentSyntax>,
-        dohu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-    },
     Ijek {
         i: WithIndicators<WordLike>,
         connective: ConnectiveSyntax,
@@ -753,18 +741,7 @@ pub enum QuoteSyntax {
     Zo(WithFreeModifiers<WithIndicators<WordLike>>),
     ZohOi(WithFreeModifiers<WithIndicators<WordLike>>),
     Zoi(WithFreeModifiers<WithIndicators<WordLike>>),
-    // v0 exposes this constructor in the Quote ADT, but current v0 grammar
-    // classifies morphology-level LAhO quotes as ZoiQuote.
-    #[allow(dead_code)]
-    Laho(WithFreeModifiers<WithIndicators<WordLike>>),
     Lohu(WithFreeModifiers<WithIndicators<WordLike>>),
-    // v0 exposes this constructor in the Quote ADT; current v0 grammar parses
-    // ordinary `me'o` through MathExpressionArgument.
-    #[allow(dead_code)]
-    Meho {
-        meho: WithFreeModifiers<WithIndicators<WordLike>>,
-        math_expression: MathExpressionSyntax,
-    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -967,22 +944,6 @@ pub enum MathExpressionSyntax {
         operator: MathOperatorSyntax,
         right_expression: Box<MathExpressionSyntax>,
     },
-    // v0 exposes this constructor in the syntax ADT; the current v0 grammar
-    // mostly materializes prefix operator forms as ForethoughtExpression.
-    #[allow(dead_code)]
-    Unary {
-        operator: MathOperatorSyntax,
-        inner_expression: Box<MathExpressionSyntax>,
-    },
-    // v0 exposes this constructor in the syntax ADT; BO grouping is currently
-    // represented in connected operands while the full rule audit continues.
-    #[allow(dead_code)]
-    Bo {
-        left_expression: Box<MathExpressionSyntax>,
-        operator: MathOperatorSyntax,
-        bo: WithFreeModifiers<WithIndicators<WordLike>>,
-        right_expression: Box<MathExpressionSyntax>,
-    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -1007,33 +968,17 @@ pub enum MathOperatorSyntax {
         relation: RelationSyntax,
         tehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
-    // v0 exposes this constructor; parser support is being ported with the
-    // operator precedence rules.
-    #[allow(dead_code)]
     Ke {
         ke: WithFreeModifiers<WithIndicators<WordLike>>,
         inner_operator: Box<MathOperatorSyntax>,
         kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
-    // v0 exposes this constructor; parser support is being ported with the
-    // operator precedence rules.
-    #[allow(dead_code)]
     Bo {
         left_operator: Box<MathOperatorSyntax>,
+        connective: ConnectiveSyntax,
         bo: WithFreeModifiers<WithIndicators<WordLike>>,
         right_operator: Box<MathOperatorSyntax>,
     },
-    // v0 exposes this constructor even though current parser branches produce
-    // JohiExpression for the ordinary JOhI operand form.
-    #[allow(dead_code)]
-    Johi {
-        johi: WithFreeModifiers<WithIndicators<WordLike>>,
-        expressions: MathExpressionVec,
-        tehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-    },
-    // v0 exposes this constructor for operator slots accepting numeric forms.
-    #[allow(dead_code)]
-    Number(WordRun),
     Connected {
         left_operator: Box<MathOperatorSyntax>,
         connective: ConnectiveSyntax,
@@ -1140,19 +1085,16 @@ pub struct FihoModalSyntax {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
+pub enum CompositeTenseModalPartSyntax {
+    Word(WithIndicators<WordLike>),
+    Fiho(FihoModalSyntax),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[invariant(true)]
 pub enum TenseModalSyntax {
     Composite {
-        leaves: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-        time: Option<TimeTenseSyntax>,
-        space: Option<SpaceTenseSyntax>,
-        simple: Option<SimpleTenseModalSyntax>,
-        interval: Option<IntervalTenseSyntax>,
-        zaho: Vec<WithIndicators<WordLike>>,
-        caha: Option<WithIndicators<WordLike>>,
-        ki: Option<WithIndicators<WordLike>>,
-        cuhe: Option<WithIndicators<WordLike>>,
-        fiho: Vec<FihoModalSyntax>,
-        connectives: Vec<WithIndicators<WordLike>>,
+        parts: WithFreeModifiers<Vec<CompositeTenseModalPartSyntax>>,
     },
     Pu(WithFreeModifiers<WithIndicators<WordLike>>),
     PuDistance {
@@ -1822,24 +1764,10 @@ impl FragmentSyntax {
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
         match self {
-            FragmentSyntax::Argument(argument) => argument.visit_words(visitor),
             FragmentSyntax::Ek(connective) | FragmentSyntax::Gihek(connective) => {
                 connective.visit_words(visitor);
             }
             FragmentSyntax::Other(words) => words.visit_words(visitor),
-            FragmentSyntax::Vocative {
-                vocative_markers,
-                vocative_argument,
-                dohu,
-            } => {
-                vocative_markers.visit_words(visitor);
-                if let Some(vocative_argument) = vocative_argument {
-                    vocative_argument.visit_words(visitor);
-                }
-                if let Some(dohu) = dohu {
-                    dohu.visit_words(visitor);
-                }
-            }
             FragmentSyntax::Ijek { i, connective } => {
                 visitor(i);
                 connective.visit_words(visitor);
@@ -2238,24 +2166,6 @@ impl MathExpressionSyntax {
                 operator.visit_words(visitor);
                 right_expression.visit_words(visitor);
             }
-            MathExpressionSyntax::Unary {
-                operator,
-                inner_expression,
-            } => {
-                operator.visit_words(visitor);
-                inner_expression.visit_words(visitor);
-            }
-            MathExpressionSyntax::Bo {
-                left_expression,
-                operator,
-                bo,
-                right_expression,
-            } => {
-                left_expression.visit_words(visitor);
-                operator.visit_words(visitor);
-                bo.visit_words(visitor);
-                right_expression.visit_words(visitor);
-            }
         }
     }
 }
@@ -2556,18 +2466,9 @@ impl QuoteSyntax {
                     lihu.visit_words(visitor);
                 }
             }
-            QuoteSyntax::Zo(zo) | QuoteSyntax::Zoi(zo) | QuoteSyntax::Laho(zo) => {
-                zo.visit_words(visitor);
-            }
+            QuoteSyntax::Zo(zo) | QuoteSyntax::Zoi(zo) => zo.visit_words(visitor),
             QuoteSyntax::ZohOi(zohoi) => zohoi.visit_words(visitor),
             QuoteSyntax::Lohu(lohu) => lohu.visit_words(visitor),
-            QuoteSyntax::Meho {
-                meho,
-                math_expression,
-            } => {
-                meho.visit_words(visitor);
-                math_expression.visit_words(visitor);
-            }
         }
     }
 }
@@ -2939,27 +2840,15 @@ impl MathOperatorSyntax {
             }
             MathOperatorSyntax::Bo {
                 left_operator,
+                connective,
                 bo,
                 right_operator,
             } => {
                 left_operator.visit_words(visitor);
+                connective.visit_words(visitor);
                 bo.visit_words(visitor);
                 right_operator.visit_words(visitor);
             }
-            MathOperatorSyntax::Johi {
-                johi,
-                expressions,
-                tehu,
-            } => {
-                johi.visit_words(visitor);
-                for expression in expressions {
-                    expression.visit_words(visitor);
-                }
-                if let Some(tehu) = tehu {
-                    tehu.visit_words(visitor);
-                }
-            }
-            MathOperatorSyntax::Number(number) => visit_word_slice(number, visitor),
             MathOperatorSyntax::Connected {
                 left_operator,
                 connective,
@@ -3280,6 +3169,54 @@ impl AdditionalNuSyntax {
     }
 }
 
+impl CompositeTenseModalPartSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn extend_leaf_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
+        match self {
+            CompositeTenseModalPartSyntax::Word(word) => out.push(word),
+            CompositeTenseModalPartSyntax::Fiho(fiho) => {
+                out.push(fiho.fiho.value);
+                out.extend(fiho.relation.words());
+                if let Some(fehu) = fiho.fehu {
+                    out.push(fehu.value);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            CompositeTenseModalPartSyntax::Word(word) => visitor(word),
+            CompositeTenseModalPartSyntax::Fiho(fiho) => {
+                fiho.fiho.visit_words(visitor);
+                fiho.relation.visit_words(visitor);
+                if let Some(fehu) = &fiho.fehu {
+                    fehu.visit_words(visitor);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+        match self {
+            CompositeTenseModalPartSyntax::Word(word) => vec![word],
+            CompositeTenseModalPartSyntax::Fiho(fiho) => {
+                let mut words = vec![fiho.fiho.value];
+                words.extend(fiho.relation.words());
+                if let Some(fehu) = fiho.fehu {
+                    words.push(fehu.value);
+                }
+                words
+            }
+        }
+    }
+}
+
 impl TenseModalSyntax {
     #[requires(true)]
     #[ensures(true)]
@@ -3295,7 +3232,14 @@ impl TenseModalSyntax {
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
         match self {
-            TenseModalSyntax::Composite { leaves, .. } => leaves.visit_words(visitor),
+            TenseModalSyntax::Composite { parts } => {
+                for part in &parts.value {
+                    part.visit_words(visitor);
+                }
+                for free_modifier in &parts.free_modifiers {
+                    free_modifier.visit_words(visitor);
+                }
+            }
             TenseModalSyntax::Pu(word)
             | TenseModalSyntax::TimeInterval(word)
             | TenseModalSyntax::SpaceDistance(word)
@@ -3411,25 +3355,10 @@ impl FragmentSyntax {
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
         match self {
-            FragmentSyntax::Argument(argument) => argument.words(),
             FragmentSyntax::Ek(connective) | FragmentSyntax::Gihek(connective) => {
                 connective.words()
             }
             FragmentSyntax::Other(words) => words.words(),
-            FragmentSyntax::Vocative {
-                vocative_markers,
-                vocative_argument,
-                dohu,
-            } => {
-                let mut words = vocative_markers.words();
-                if let Some(vocative_argument) = vocative_argument {
-                    words.extend(vocative_argument.words());
-                }
-                if let Some(dohu) = dohu {
-                    words.extend(dohu.words());
-                }
-                words
-            }
             FragmentSyntax::Ijek { i, connective } => {
                 let mut words = vec![i];
                 words.extend(connective.words());
@@ -3862,26 +3791,6 @@ impl MathExpressionSyntax {
                 words.extend(right_expression.words());
                 words
             }
-            MathExpressionSyntax::Unary {
-                operator,
-                inner_expression,
-            } => {
-                let mut words = operator.words();
-                words.extend(inner_expression.words());
-                words
-            }
-            MathExpressionSyntax::Bo {
-                left_expression,
-                operator,
-                bo,
-                right_expression,
-            } => {
-                let mut words = left_expression.words();
-                words.extend(operator.words());
-                words.extend(bo.words());
-                words.extend(right_expression.words());
-                words
-            }
         }
     }
 }
@@ -4218,17 +4127,9 @@ impl QuoteSyntax {
                 }
                 words
             }
-            QuoteSyntax::Zo(zo) | QuoteSyntax::Zoi(zo) | QuoteSyntax::Laho(zo) => zo.words(),
+            QuoteSyntax::Zo(zo) | QuoteSyntax::Zoi(zo) => zo.words(),
             QuoteSyntax::ZohOi(zohoi) => zohoi.words(),
             QuoteSyntax::Lohu(lohu) => lohu.words(),
-            QuoteSyntax::Meho {
-                meho,
-                math_expression,
-            } => {
-                let mut words = meho.words();
-                words.extend(math_expression.words());
-                words
-            }
         }
     }
 }
@@ -4430,29 +4331,16 @@ impl MathOperatorSyntax {
             }
             MathOperatorSyntax::Bo {
                 left_operator,
+                connective,
                 bo,
                 right_operator,
             } => {
                 let mut words = left_operator.words();
+                words.extend(connective.words());
                 words.extend(bo.words());
                 words.extend(right_operator.words());
                 words
             }
-            MathOperatorSyntax::Johi {
-                johi,
-                expressions,
-                tehu,
-            } => {
-                let mut words = johi.words();
-                for expression in expressions {
-                    words.extend(expression.words());
-                }
-                if let Some(tehu) = tehu {
-                    words.extend(tehu.words());
-                }
-                words
-            }
-            MathOperatorSyntax::Number(number) => number.into_vec(),
             MathOperatorSyntax::Connected {
                 left_operator,
                 connective,
@@ -4793,7 +4681,7 @@ impl TenseModalSyntax {
     #[ensures(true)]
     pub fn free_modifier_count(&self) -> usize {
         match self {
-            TenseModalSyntax::Composite { leaves, .. } => leaves.free_modifiers.len(),
+            TenseModalSyntax::Composite { parts } => parts.free_modifiers.len(),
             TenseModalSyntax::Pu(word)
             | TenseModalSyntax::TimeInterval(word)
             | TenseModalSyntax::SpaceDistance(word)
@@ -4858,7 +4746,13 @@ impl TenseModalSyntax {
         self,
     ) -> (Vec<WithIndicators<WordLike>>, Vec<FreeModifierSyntax>) {
         match self {
-            TenseModalSyntax::Composite { leaves, .. } => (leaves.value, leaves.free_modifiers),
+            TenseModalSyntax::Composite { parts } => {
+                let mut words = Vec::new();
+                for part in parts.value {
+                    part.extend_leaf_words_into(&mut words);
+                }
+                (words, parts.free_modifiers)
+            }
             TenseModalSyntax::Pu(word) | TenseModalSyntax::Caha(word) => {
                 (vec![word.value], word.free_modifiers)
             }

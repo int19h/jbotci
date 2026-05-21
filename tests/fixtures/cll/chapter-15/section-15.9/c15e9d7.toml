@@ -19,19 +19,19 @@ brackets = "(ta [je'a mélbi])"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ta",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "je'a",
-        span = [3, 7]
+        span = [3, 7],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "melbi",
-        span = [8, 13]
+        span = [8, 13],
+        kind = "gismu"
     }},
 ]
 
@@ -47,9 +47,9 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "ta",
-                                        span = [0, 2]
+                                        span = [0, 2],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -60,19 +60,19 @@ parse-tree = {
                                     first = {Relation = {
                                         Compound = [
                                             {Nahe = {
-                                                inner_unit = {Word = {
-                                                    Bare = {Bare = {
-                                                        kind = "gismu",
-                                                        phonemes = "melbi",
-                                                        span = [8, 13]
-                                                    }}
-                                                }},
                                                 nahe = {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "je'a",
-                                                        span = [3, 7]
+                                                        span = [3, 7],
+                                                        kind = "cmavo"
                                                     }
+                                                }},
+                                                inner_unit = {Word = {
+                                                    Bare = {Bare = {
+                                                        phonemes = "melbi",
+                                                        span = [8, 13],
+                                                        kind = "gismu"
+                                                    }}
                                                 }}
                                             }},
                                         ]

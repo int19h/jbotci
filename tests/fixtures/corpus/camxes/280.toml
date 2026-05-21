@@ -10,15 +10,15 @@ entry-id = "280"
 status = "success"
 words = [
     {ZoQuote = {
-        word = {
-            kind = "gismu",
-            phonemes = "valsi",
-            span = [9, 14]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [2, 4]
+            span = [2, 4],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "valsi",
+            span = [9, 14],
+            kind = "gismu"
         }
     }},
 ]
@@ -35,25 +35,16 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     Quote = {Zo = {
-                                        word = {Bare = {
-                                            Bare = {
-                                                kind = "gismu",
+                                        Bare = {ZoQuote = {
+                                            zo = {
+                                                phonemes = "zo",
+                                                span = [2, 4],
+                                                kind = "cmavo"
+                                            },
+                                            word = {
                                                 phonemes = "valsi",
-                                                span = [9, 14]
-                                            }
-                                        }},
-                                        zo = {Bare = {
-                                            ZoQuote = {
-                                                word = {
-                                                    kind = "gismu",
-                                                    phonemes = "valsi",
-                                                    span = [9, 14]
-                                                },
-                                                zo = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zo",
-                                                    span = [2, 4]
-                                                }
+                                                span = [9, 14],
+                                                kind = "gismu"
                                             }
                                         }}
                                     }}

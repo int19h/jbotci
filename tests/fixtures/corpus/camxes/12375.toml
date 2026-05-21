@@ -10,46 +10,46 @@ entry-id = "12375"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "ko",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "troci",
-        span = [3, 8]
+        span = [3, 8],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "le",
-        span = [9, 11]
+        span = [9, 11],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "nu",
-        span = [12, 14]
+        span = [12, 14],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "tcidu",
-        span = [15, 20]
+        span = [15, 20],
+        kind = "gismu"
     }},
     {ZoiQuote = {
-        closing_delimiter = {
-            kind = "cmavo",
-            phonemes = "gy",
-            span = [46, 48]
+        zoi = {
+            phonemes = "la'o",
+            span = [21, 25],
+            kind = "cmavo"
         },
         opening_delimiter = {
-            kind = "cmavo",
             phonemes = "gy",
-            span = [26, 28]
+            span = [26, 28],
+            kind = "cmavo"
         },
         quoted_text = [30, 45],
-        zoi = {
-            kind = "cmavo",
-            phonemes = "la'o",
-            span = [21, 25]
+        closing_delimiter = {
+            phonemes = "gy",
+            span = [46, 48],
+            kind = "cmavo"
         }
     }},
 ]
@@ -66,9 +66,9 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "ko",
-                                        span = [0, 2]
+                                        span = [0, 2],
+                                        kind = "cmavo"
                                     }
                                 }}
                             }},
@@ -79,9 +79,9 @@ parse-tree = {
                                     first = {Relation = {
                                         relation = {Base = {
                                             Bare = {Bare = {
-                                                kind = "gismu",
                                                 phonemes = "troci",
-                                                span = [3, 8]
+                                                span = [3, 8],
+                                                kind = "gismu"
                                             }}
                                         }},
                                         terms = [
@@ -89,17 +89,17 @@ parse-tree = {
                                                 Descriptor = {
                                                     descriptor = {Bare = {
                                                         Bare = {
-                                                            kind = "cmavo",
                                                             phonemes = "le",
-                                                            span = [9, 11]
+                                                            span = [9, 11],
+                                                            kind = "cmavo"
                                                         }
                                                     }},
                                                     relation = {Abstraction = {
                                                         nu = {Bare = {
                                                             Bare = {
-                                                                kind = "cmavo",
                                                                 phonemes = "nu",
-                                                                span = [12, 14]
+                                                                span = [12, 14],
+                                                                kind = "cmavo"
                                                             }
                                                         }},
                                                         subsentence = {Plain = {
@@ -109,47 +109,30 @@ parse-tree = {
                                                                         first = {Relation = {
                                                                             relation = {Base = {
                                                                                 Bare = {Bare = {
-                                                                                    kind = "gismu",
                                                                                     phonemes = "tcidu",
-                                                                                    span = [15, 20]
+                                                                                    span = [15, 20],
+                                                                                    kind = "gismu"
                                                                                 }}
                                                                             }},
                                                                             terms = [
                                                                                 {Argument = {
                                                                                     Quote = {Zoi = {
-                                                                                        closing_delimiter = {Bare = {
-                                                                                            Bare = {
-                                                                                                kind = "cmavo",
+                                                                                        Bare = {ZoiQuote = {
+                                                                                            zoi = {
+                                                                                                phonemes = "la'o",
+                                                                                                span = [21, 25],
+                                                                                                kind = "cmavo"
+                                                                                            },
+                                                                                            opening_delimiter = {
                                                                                                 phonemes = "gy",
-                                                                                                span = [46, 48]
-                                                                                            }
-                                                                                        }},
-                                                                                        opening_delimiter = {Bare = {
-                                                                                            Bare = {
-                                                                                                kind = "cmavo",
+                                                                                                span = [26, 28],
+                                                                                                kind = "cmavo"
+                                                                                            },
+                                                                                            quoted_text = [30, 45],
+                                                                                            closing_delimiter = {
                                                                                                 phonemes = "gy",
-                                                                                                span = [26, 28]
-                                                                                            }
-                                                                                        }},
-                                                                                        quoted_text = "sourceforge.net",
-                                                                                        zoi = {Bare = {
-                                                                                            ZoiQuote = {
-                                                                                                closing_delimiter = {
-                                                                                                    kind = "cmavo",
-                                                                                                    phonemes = "gy",
-                                                                                                    span = [46, 48]
-                                                                                                },
-                                                                                                opening_delimiter = {
-                                                                                                    kind = "cmavo",
-                                                                                                    phonemes = "gy",
-                                                                                                    span = [26, 28]
-                                                                                                },
-                                                                                                quoted_text = [30, 45],
-                                                                                                zoi = {
-                                                                                                    kind = "cmavo",
-                                                                                                    phonemes = "la'o",
-                                                                                                    span = [21, 25]
-                                                                                                }
+                                                                                                span = [46, 48],
+                                                                                                kind = "cmavo"
                                                                                             }
                                                                                         }}
                                                                                     }}

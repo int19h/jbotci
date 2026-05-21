@@ -10,36 +10,36 @@ entry-id = "17533"
 status = "success"
 words = [
     {ZoQuote = {
-        word = {
-            kind = "gismu",
-            phonemes = "pluta",
-            span = [3, 8]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [0, 2]
+            span = [0, 2],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "pluta",
+            span = [3, 8],
+            kind = "gismu"
         }
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "cu",
-        span = [9, 11]
+        span = [9, 11],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "jaĭ",
-        span = [12, 15]
+        span = [12, 15],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "se",
-        span = [16, 18]
+        span = [16, 18],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "djica",
-        span = [19, 24]
+        span = [19, 24],
+        kind = "gismu"
     }},
 ]
 
@@ -51,68 +51,59 @@ parse-tree = {
             statements = [
                 {
                     statement = {Predicate = {
-                        cu = {Bare = {
-                            Bare = {
-                                kind = "cmavo",
-                                phonemes = "cu",
-                                span = [9, 11]
-                            }
-                        }},
                         leading_terms = [
                             {Argument = {
                                 Quote = {Zo = {
-                                    word = {Bare = {
-                                        Bare = {
-                                            kind = "gismu",
+                                    Bare = {ZoQuote = {
+                                        zo = {
+                                            phonemes = "zo",
+                                            span = [0, 2],
+                                            kind = "cmavo"
+                                        },
+                                        word = {
                                             phonemes = "pluta",
-                                            span = [3, 8]
-                                        }
-                                    }},
-                                    zo = {Bare = {
-                                        ZoQuote = {
-                                            word = {
-                                                kind = "gismu",
-                                                phonemes = "pluta",
-                                                span = [3, 8]
-                                            },
-                                            zo = {
-                                                kind = "cmavo",
-                                                phonemes = "zo",
-                                                span = [0, 2]
-                                            }
+                                            span = [3, 8],
+                                            kind = "gismu"
                                         }
                                     }}
                                 }}
                             }},
                         ],
+                        cu = {Bare = {
+                            Bare = {
+                                phonemes = "cu",
+                                span = [9, 11],
+                                kind = "cmavo"
+                            }
+                        }},
                         predicate_tail = {
                             first = {
                                 first = {
                                     first = {Relation = {
                                         Compound = [
                                             {Jai = {
-                                                inner_unit = {Se = {
-                                                    inner_unit = {Word = {
-                                                        Bare = {Bare = {
-                                                            kind = "gismu",
-                                                            phonemes = "djica",
-                                                            span = [19, 24]
-                                                        }}
-                                                    }},
-                                                    se = {Bare = {
-                                                        Bare = {
-                                                            kind = "cmavo",
-                                                            phonemes = "se",
-                                                            span = [16, 18]
-                                                        }
-                                                    }}
-                                                }},
                                                 jai = {Bare = {
                                                     Bare = {
-                                                        kind = "cmavo",
                                                         phonemes = "jaĭ",
-                                                        span = [12, 15]
+                                                        span = [12, 15],
+                                                        kind = "cmavo"
                                                     }
+                                                }},
+                                                inner_unit = {Se = {
+                                                    se = {Bare = {
+                                                        Bare = {
+                                                            phonemes = "se",
+                                                            span = [16, 18],
+                                                            kind = "cmavo"
+                                                        }
+                                                    }},
+                                                    inner_unit = {Word = {
+                                                        Bare = {Bare = {
+                                                            phonemes = "djica",
+                                                            span = [19, 24],
+                                                            kind = "gismu"
+                                                        }}
+                                                    }}
                                                 }}
                                             }},
                                         ]

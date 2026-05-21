@@ -10,30 +10,30 @@ entry-id = "7053"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "le",
-        span = [0, 2]
+        span = [0, 2],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "nu",
-        span = [2, 4]
+        span = [2, 4],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "vimcu",
-        span = [5, 10]
+        span = [5, 10],
+        kind = "gismu"
     }},
     {ZoQuote = {
-        word = {
-            kind = "cmavo",
-            phonemes = "cu",
-            span = [14, 16]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [11, 13]
+            span = [11, 13],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "cu",
+            span = [14, 16],
+            kind = "cmavo"
         }
     }},
 ]
@@ -52,17 +52,17 @@ parse-tree = {
                                     Descriptor = {
                                         descriptor = {Bare = {
                                             Bare = {
-                                                kind = "cmavo",
                                                 phonemes = "le",
-                                                span = [0, 2]
+                                                span = [0, 2],
+                                                kind = "cmavo"
                                             }
                                         }},
                                         relation = {Abstraction = {
                                             nu = {Bare = {
                                                 Bare = {
-                                                    kind = "cmavo",
                                                     phonemes = "nu",
-                                                    span = [2, 4]
+                                                    span = [2, 4],
+                                                    kind = "cmavo"
                                                 }
                                             }},
                                             subsentence = {Plain = {
@@ -72,33 +72,24 @@ parse-tree = {
                                                             first = {Relation = {
                                                                 relation = {Base = {
                                                                     Bare = {Bare = {
-                                                                        kind = "gismu",
                                                                         phonemes = "vimcu",
-                                                                        span = [5, 10]
+                                                                        span = [5, 10],
+                                                                        kind = "gismu"
                                                                     }}
                                                                 }},
                                                                 terms = [
                                                                     {Argument = {
                                                                         Quote = {Zo = {
-                                                                            word = {Bare = {
-                                                                                Bare = {
-                                                                                    kind = "cmavo",
+                                                                            Bare = {ZoQuote = {
+                                                                                zo = {
+                                                                                    phonemes = "zo",
+                                                                                    span = [11, 13],
+                                                                                    kind = "cmavo"
+                                                                                },
+                                                                                word = {
                                                                                     phonemes = "cu",
-                                                                                    span = [14, 16]
-                                                                                }
-                                                                            }},
-                                                                            zo = {Bare = {
-                                                                                ZoQuote = {
-                                                                                    word = {
-                                                                                        kind = "cmavo",
-                                                                                        phonemes = "cu",
-                                                                                        span = [14, 16]
-                                                                                    },
-                                                                                    zo = {
-                                                                                        kind = "cmavo",
-                                                                                        phonemes = "zo",
-                                                                                        span = [11, 13]
-                                                                                    }
+                                                                                    span = [14, 16],
+                                                                                    kind = "cmavo"
                                                                                 }
                                                                             }}
                                                                         }}

@@ -10,29 +10,20 @@ entry-id = "15177"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "oĭ",
-        span = [3, 5]
+        span = [3, 5],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "cliva",
-        span = [6, 11]
+        span = [6, 11],
+        kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "failure"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "oĭ",
-                span = [3, 5]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -44,9 +35,9 @@ parse-tree = {
                                     first = {Relation = {
                                         Base = {Bare = {
                                             Bare = {
-                                                kind = "gismu",
                                                 phonemes = "cliva",
-                                                span = [6, 11]
+                                                span = [6, 11],
+                                                kind = "gismu"
                                             }
                                         }}
                                     }}
@@ -56,6 +47,17 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "oĭ",
+                    span = [3, 5],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }

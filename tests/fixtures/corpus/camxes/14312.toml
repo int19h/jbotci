@@ -10,25 +10,25 @@ entry-id = "14312"
 status = "success"
 words = [
     {Bare = {
-        kind = "gismu",
         phonemes = "tugni",
-        span = [0, 5]
+        span = [0, 5],
+        kind = "gismu"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "i",
-        span = [7, 8]
+        span = [7, 8],
+        kind = "cmavo"
     }},
     {ZoQuote = {
-        word = {
-            kind = "fu'ivla",
-            phonemes = "kelcrgalfa",
-            span = [12, 22]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [9, 11]
+            span = [9, 11],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "kelcrgalfa",
+            span = [12, 22],
+            kind = "fu'ivla"
         }
     }},
 ]
@@ -47,9 +47,9 @@ parse-tree = {
                                     first = {Relation = {
                                         Base = {Bare = {
                                             Bare = {
-                                                kind = "gismu",
                                                 phonemes = "tugni",
-                                                span = [0, 5]
+                                                span = [0, 5],
+                                                kind = "gismu"
                                             }
                                         }}
                                     }}
@@ -61,9 +61,9 @@ parse-tree = {
                 {
                     i = {Bare = {
                         Bare = {
-                            kind = "cmavo",
                             phonemes = "i",
-                            span = [7, 8]
+                            span = [7, 8],
+                            kind = "cmavo"
                         }
                     }},
                     statement = {Fragment = {
@@ -71,25 +71,16 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     Quote = {Zo = {
-                                        word = {Bare = {
-                                            Bare = {
-                                                kind = "fu'ivla",
+                                        Bare = {ZoQuote = {
+                                            zo = {
+                                                phonemes = "zo",
+                                                span = [9, 11],
+                                                kind = "cmavo"
+                                            },
+                                            word = {
                                                 phonemes = "kelcrgalfa",
-                                                span = [12, 22]
-                                            }
-                                        }},
-                                        zo = {Bare = {
-                                            ZoQuote = {
-                                                word = {
-                                                    kind = "fu'ivla",
-                                                    phonemes = "kelcrgalfa",
-                                                    span = [12, 22]
-                                                },
-                                                zo = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zo",
-                                                    span = [9, 11]
-                                                }
+                                                span = [12, 22],
+                                                kind = "fu'ivla"
                                             }
                                         }}
                                     }}

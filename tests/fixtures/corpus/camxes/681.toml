@@ -10,15 +10,15 @@ entry-id = "681"
 status = "success"
 words = [
     {ZoQuote = {
-        word = {
-            kind = "cmavo",
-            phonemes = "ki'e'u'e",
-            span = [3, 11]
-        },
         zo = {
-            kind = "cmavo",
             phonemes = "zo",
-            span = [0, 2]
+            span = [0, 2],
+            kind = "cmavo"
+        },
+        word = {
+            phonemes = "ki'e'u'e",
+            span = [3, 11],
+            kind = "cmavo"
         }
     }},
 ]
@@ -35,25 +35,16 @@ parse-tree = {
                             terms = [
                                 {Argument = {
                                     Quote = {Zo = {
-                                        word = {Bare = {
-                                            Bare = {
-                                                kind = "cmavo",
+                                        Bare = {ZoQuote = {
+                                            zo = {
+                                                phonemes = "zo",
+                                                span = [0, 2],
+                                                kind = "cmavo"
+                                            },
+                                            word = {
                                                 phonemes = "ki'e'u'e",
-                                                span = [3, 11]
-                                            }
-                                        }},
-                                        zo = {Bare = {
-                                            ZoQuote = {
-                                                word = {
-                                                    kind = "cmavo",
-                                                    phonemes = "ki'e'u'e",
-                                                    span = [3, 11]
-                                                },
-                                                zo = {
-                                                    kind = "cmavo",
-                                                    phonemes = "zo",
-                                                    span = [0, 2]
-                                                }
+                                                span = [3, 11],
+                                                kind = "cmavo"
                                             }
                                         }}
                                     }}

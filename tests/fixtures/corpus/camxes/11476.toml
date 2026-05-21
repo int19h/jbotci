@@ -10,19 +10,19 @@ entry-id = "11476"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "i",
-        span = [0, 1]
+        span = [0, 1],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "mi'e",
-        span = [2, 6]
+        span = [2, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "tirno",
-        span = [7, 12]
+        span = [7, 12],
+        kind = "gismu"
     }},
 ]
 
@@ -33,35 +33,35 @@ parse-tree = {
         {
             statements = [
                 {
+                    i = {Bare = {
+                        Bare = {
+                            phonemes = "i",
+                            span = [0, 1],
+                            kind = "cmavo"
+                        }
+                    }},
                     free_modifiers = [
                         {Vocative = {
-                            argument = {RelationVocative = {
-                                relation = {Base = {
-                                    Bare = {Bare = {
-                                        kind = "gismu",
-                                        phonemes = "tirno",
-                                        span = [7, 12]
-                                    }}
-                                }}
-                            }},
                             vocative_markers = [
                                 {Bare = {
                                     Bare = {
-                                        kind = "cmavo",
                                         phonemes = "mi'e",
-                                        span = [2, 6]
+                                        span = [2, 6],
+                                        kind = "cmavo"
                                     }
                                 }},
-                            ]
+                            ],
+                            argument = {RelationVocative = {
+                                relation = {Base = {
+                                    Bare = {Bare = {
+                                        phonemes = "tirno",
+                                        span = [7, 12],
+                                        kind = "gismu"
+                                    }}
+                                }}
+                            }}
                         }},
-                    ],
-                    i = {Bare = {
-                        Bare = {
-                            kind = "cmavo",
-                            phonemes = "i",
-                            span = [0, 1]
-                        }
-                    }}
+                    ]
                 },
             ]
         },

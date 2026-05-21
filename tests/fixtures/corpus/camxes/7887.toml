@@ -10,61 +10,40 @@ entry-id = "7887"
 status = "success"
 words = [
     {Bare = {
-        kind = "cmavo",
         phonemes = "paŭ",
-        span = [0, 3]
+        span = [0, 3],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "naĭ",
-        span = [3, 6]
+        span = [3, 6],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "xu",
-        span = [7, 9]
+        span = [7, 9],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "ba'e",
-        span = [10, 14]
+        span = [10, 14],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "cmavo",
         phonemes = "do",
-        span = [15, 17]
+        span = [15, 17],
+        kind = "cmavo"
     }},
     {Bare = {
-        kind = "gismu",
         phonemes = "xajni",
-        span = [18, 23]
+        span = [18, 23],
+        kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
 parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "paŭ",
-                span = [0, 3]
-            },
-            nai = {
-                kind = "cmavo",
-                phonemes = "naĭ",
-                span = [3, 6]
-            }
-        },
-        {
-            indicator = {
-                kind = "cmavo",
-                phonemes = "xu",
-                span = [7, 9]
-            }
-        },
-    ],
     paragraphs = [
         {
             statements = [
@@ -74,14 +53,14 @@ parse-tree = {
                             {Argument = {
                                 Koha = {Emphasized = {
                                     bahe = {
-                                        kind = "cmavo",
                                         phonemes = "ba'e",
-                                        span = [10, 14]
+                                        span = [10, 14],
+                                        kind = "cmavo"
                                     },
                                     word_like = {Bare = {
-                                        kind = "cmavo",
                                         phonemes = "do",
-                                        span = [15, 17]
+                                        span = [15, 17],
+                                        kind = "cmavo"
                                     }}
                                 }}
                             }},
@@ -92,9 +71,9 @@ parse-tree = {
                                     first = {Relation = {
                                         Base = {Bare = {
                                             Bare = {
-                                                kind = "gismu",
                                                 phonemes = "xajni",
-                                                span = [18, 23]
+                                                span = [18, 23],
+                                                kind = "gismu"
                                             }
                                         }}
                                     }}
@@ -104,6 +83,31 @@ parse-tree = {
                     }}
                 },
             ]
+        },
+    ],
+    leading_indicators = [
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "paŭ",
+                    span = [0, 3],
+                    kind = "cmavo"
+                }
+            }},
+            nai = {
+                phonemes = "naĭ",
+                span = [3, 6],
+                kind = "cmavo"
+            }
+        },
+        {
+            indicator = {Bare = {
+                Bare = {
+                    phonemes = "xu",
+                    span = [7, 9],
+                    kind = "cmavo"
+                }
+            }}
         },
     ]
 }
