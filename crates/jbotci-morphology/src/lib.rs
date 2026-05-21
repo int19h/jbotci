@@ -702,17 +702,6 @@ fn word_like_from_json(value: serde_json::Value) -> Result<WordLike, String> {
     let (constructor, payload) = single_constructor(object)?;
     let mut payload = json_object(payload)?;
     match constructor.as_str() {
-        "BaseWord" => word_like_field(&mut payload, "word_like"),
-        "Emphasized" => word_like_field(&mut payload, "word_like"),
-        "WithIndicator" => word_like_field(&mut payload, "base"),
-        "StandaloneIndicator" => Ok(WordLike::bare(word_field(&mut payload, "indicator")?)),
-        "NotEof" => Ok(WordLike::bare(new!(Word {
-            kind: WordKind::Cmavo,
-            phonemes: String::from("fa'o"),
-            span: SourceSpan::new(None, 0, 0, 0, 0).expect("valid empty span"),
-            surface_override: None,
-            dialect_transform: None,
-        }))),
         "Bare" => Ok(WordLike::bare(word_payload(payload)?)),
         "ZoQuote" => Ok(WordLike::zo_quote(
             word_field(&mut payload, "zo")?,

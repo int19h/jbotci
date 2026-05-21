@@ -126,9 +126,6 @@ fn compact_json_shape(value: Value) -> Value {
                 return value;
             }
             if let Some(Value::String(kind)) = object.remove("kind") {
-                if let Some(value) = compact_legacy_syntax_value(&kind, &object) {
-                    return value;
-                }
                 if let Some(constructor) = compact_constructor_name(&kind) {
                     let payload = object
                         .into_iter()
@@ -391,16 +388,10 @@ fn compact_constructor_object(object: &serde_json::Map<String, Value>) -> Option
             let Value::Object(payload) = payload else {
                 return None;
             };
-            if let Some(value) = payload.get("word").or_else(|| payload.get("word_like")) {
+            if let Some(value) = payload.get("word") {
                 return Some(compact_constructor_value(constructor, value.clone()));
             }
             None
-        }
-        "BaseWord" => {
-            let Value::Object(payload) = payload else {
-                return None;
-            };
-            payload.get("word_like").cloned().map(compact_json_shape)
         }
         "GekSentence" => single_payload_field(constructor, payload, "gek_sentence"),
         "Argument" => single_payload_field(constructor, payload, "argument"),
@@ -414,8 +405,6 @@ fn compact_constructor_object(object: &serde_json::Map<String, Value>) -> Option
         "Abstraction" => single_payload_field(constructor, payload, "abstraction"),
         "Compound" => single_payload_field(constructor, payload, "units"),
         "Wrapped" => single_payload_field(constructor, payload, "relation"),
-        "StandaloneIndicator" => Some(compact_json_shape(payload.clone())),
-        "LojbanText" => Some(compact_json_shape(payload.clone())),
         _ => None,
     }
 }
@@ -463,137 +452,10 @@ fn compact_span_object(object: &serde_json::Map<String, Value>) -> Option<Value>
 
 #[requires(true)]
 #[ensures(true)]
-fn compact_legacy_syntax_value(
-    kind: &str,
-    object: &serde_json::Map<String, Value>,
-) -> Option<Value> {
-    Some(match kind {
-        "null" => Value::Null,
-        "bool" | "integer" | "text" | "json" => compact_json_shape(object.get("value")?.clone()),
-        "word" => compact_json_shape(object.get("word")?.clone()),
-        "list" => compact_json_shape(object.get("items")?.clone()),
-        "node" => compact_legacy_syntax_node(object.get("node")?.clone()),
-        _ => return None,
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn compact_legacy_syntax_node(value: Value) -> Value {
-    let Value::Object(mut node) = value else {
-        return Value::Null;
-    };
-    let Some(Value::String(constructor)) = node.remove("constructor") else {
-        return Value::Null;
-    };
-    let fields = node
-        .remove("fields")
-        .and_then(|fields| match fields {
-            Value::Array(fields) => Some(fields),
-            _ => None,
-        })
-        .unwrap_or_default();
-
-    match constructor.as_str() {
-        "[]" => Value::Array(Vec::new()),
-        "(:)" => compact_legacy_cons(fields),
-        "Nothing" => Value::Null,
-        "Just" => fields
-            .into_iter()
-            .find_map(legacy_field_value)
-            .map(compact_json_shape)
-            .unwrap_or(Value::Null),
-        _ => {
-            let payload = fields
-                .into_iter()
-                .filter_map(legacy_named_field)
-                .filter_map(|(name, value)| {
-                    let value = compact_json_shape(value);
-                    (!is_omitted_compact_value(&value)).then_some((name, value))
-                })
-                .collect::<serde_json::Map<_, _>>();
-            Value::Object(
-                [(constructor, Value::Object(payload))]
-                    .into_iter()
-                    .collect(),
-            )
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn compact_legacy_cons(fields: Vec<Value>) -> Value {
-    let mut values = fields.into_iter().filter_map(legacy_field_value);
-    let Some(head) = values.next() else {
-        return Value::Array(Vec::new());
-    };
-    let Some(tail) = values.next() else {
-        return Value::Array(vec![compact_json_shape(head)]);
-    };
-    let mut items = vec![compact_json_shape(head)];
-    match compact_json_shape(tail) {
-        Value::Array(tail_items) => items.extend(tail_items),
-        value if !value.is_null() => items.push(value),
-        _ => {}
-    }
-    Value::Array(items)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|(name, _)| !name.is_empty()))]
-fn legacy_named_field(field: Value) -> Option<(String, Value)> {
-    let Value::Object(mut field) = field else {
-        return None;
-    };
-    let Some(Value::String(name)) = field.remove("name") else {
-        return None;
-    };
-    let value = field.remove("value")?;
-    Some((legacy_field_name(&name).to_owned(), value))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn legacy_field_value(field: Value) -> Option<Value> {
-    let Value::Object(mut field) = field else {
-        return None;
-    };
-    field.remove("value")
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn legacy_field_name(name: &str) -> String {
-    let mut output = String::new();
-    for (index, ch) in name.chars().enumerate() {
-        if ch.is_uppercase() {
-            if index > 0 {
-                output.push('_');
-            }
-            output.extend(ch.to_lowercase());
-        } else {
-            output.push(ch);
-        }
-    }
-    output
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn compact_constructor_name(kind: &str) -> Option<&'static str> {
     Some(match kind {
         "rafsi" => "Rafsi",
         "hyphen" => "Hyphen",
-        "bare" => "Bare",
-        "zo-quote" => "ZoQuote",
-        "zoi-quote" => "ZoiQuote",
-        "lohu-quote" => "LohuQuote",
-        "single-word-quote" => "SingleWordQuote",
-        "letter" => "Letter",
-        "zei-lujvo" => "ZeiLujvo",
-        "emphasized" => "Emphasized",
-        "with-indicator" => "WithIndicator",
         _ => return None,
     })
 }
