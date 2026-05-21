@@ -8,28 +8,39 @@ use jbotci_syntax::{ParseOptions, WithIndicators, parse_syntax_tree_with_source_
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assigns_simple_sentence_tokens_once_in_order() {
-    assert_source_assignment("mi cu klama la zdani");
+    run_on_large_stack(|| assert_source_assignment("mi cu klama la zdani"));
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_includes_single_word_quote_text() {
-    assert_source_assignment("zo .ai");
+    run_on_large_stack(|| assert_source_assignment("zo .ai"));
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_includes_zoi_raw_quoted_text() {
-    assert_source_assignment("zoi gy Steve gy");
+    run_on_large_stack(|| assert_source_assignment("zoi gy Steve gy"));
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_handles_non_ascii_spans() {
-    assert_source_assignment("zoi gy café gy");
+    run_on_large_stack(|| assert_source_assignment("zoi gy café gy"));
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {
+    std::thread::Builder::new()
+        .stack_size(32 * 1024 * 1024)
+        .spawn(test)
+        .expect("spawn large-stack source assignment test")
+        .join()
+        .expect("large-stack source assignment test thread");
 }
 
 #[requires(!source.is_empty())]
