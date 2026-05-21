@@ -49,7 +49,7 @@ enum Command {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 #[invariant(true)]
 enum GentufaFormat {
-    Compact,
+    Brackets,
     Raw,
     #[value(alias = "djeisone")]
     Json,
@@ -88,7 +88,7 @@ struct GentufaInput {
     #[arg(
         long = "turtau",
         visible_alias = "format",
-        default_value_t = GentufaFormat::Compact,
+        default_value_t = GentufaFormat::Brackets,
         value_enum
     )]
     format: GentufaFormat,
@@ -216,7 +216,7 @@ fn run_gentufa<WOut: Write, WErr: Write>(
         parse_syntax_tree_with_source_and_options(&words, &text, &ParseOptions::default())?;
     render_syntax_warnings(&parsed, &text, &warning_source, stderr)?;
     match input.format {
-        GentufaFormat::Compact => {
+        GentufaFormat::Brackets => {
             let rendered = pretty_brackets_with_options(
                 &parsed.parse_tree,
                 &text,
@@ -312,11 +312,11 @@ fn char_offset_to_line_column(source: &str, char_offset: usize) -> (usize, usize
 fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
     if input.definitions {
         match input.format {
-            GentufaFormat::Compact => Err(anyhow!(
-                "`--skicu`/`--defs` is accepted for compact output, but dictionary definition rendering has not been ported yet"
+            GentufaFormat::Brackets => Err(anyhow!(
+                "`--skicu`/`--defs` is accepted for brackets output, but dictionary definition rendering has not been ported yet"
             )),
             GentufaFormat::Raw | GentufaFormat::Json => Err(anyhow!(
-                "`--skicu`/`--defs` is only meaningful with `--turtau compact`; dictionary definition rendering has not been ported yet"
+                "`--skicu`/`--defs` is only meaningful with `--turtau brackets`; dictionary definition rendering has not been ported yet"
             )),
         }
     } else {
@@ -496,25 +496,25 @@ mod tests {
         else {
             panic!("expected gentufa command")
         };
-        assert_eq!(default_input.format, GentufaFormat::Compact);
+        assert_eq!(default_input.format, GentufaFormat::Brackets);
 
-        let Command::Gentufa(compact_input) =
-            Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "compact", "coi"])
-                .expect("turtau compact")
+        let Command::Gentufa(brackets_input) =
+            Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "brackets", "coi"])
+                .expect("turtau brackets")
                 .command
         else {
             panic!("expected gentufa command")
         };
-        assert_eq!(compact_input.format, GentufaFormat::Compact);
+        assert_eq!(brackets_input.format, GentufaFormat::Brackets);
 
         let Command::Gentufa(alias_input) =
-            Cli::try_parse_from(["jbotci", "gentufa", "--format", "compact", "coi"])
+            Cli::try_parse_from(["jbotci", "gentufa", "--format", "brackets", "coi"])
                 .expect("format alias")
                 .command
         else {
             panic!("expected gentufa command")
         };
-        assert_eq!(alias_input.format, GentufaFormat::Compact);
+        assert_eq!(alias_input.format, GentufaFormat::Brackets);
 
         let Command::Gentufa(raw_input) =
             Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "raw", "--skicu", "coi"])
@@ -557,13 +557,14 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gentufa_help_lists_formats_and_compact_flags() {
+    fn gentufa_help_lists_formats_and_brackets_flags() {
         let error = Cli::try_parse_from(["jbotci", "gentufa", "--help"]).expect_err("help");
         assert_eq!(error.kind(), ErrorKind::DisplayHelp);
         let help = error.to_string();
         assert!(help.contains("--turtau"));
         assert!(help.contains("--format"));
-        assert!(help.contains("compact"));
+        assert!(help.contains("brackets"));
+        assert!(!help.contains("compact"));
         assert!(help.contains("raw"));
         assert!(help.contains("--skicu"));
         assert!(help.contains("--defs"));

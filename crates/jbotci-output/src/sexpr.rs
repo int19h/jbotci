@@ -7,6 +7,7 @@ use crate::BracketRenderOptions;
 pub(crate) enum SExpr {
     Leaf(String),
     Node(Vec<SExpr>),
+    Splice(Vec<SExpr>),
 }
 
 #[requires(true)]
@@ -18,12 +19,15 @@ pub(crate) fn empty_node() -> SExpr {
 #[requires(true)]
 #[ensures(matches!(&ret, SExpr::Node(children) if children.iter().all(|child| !is_empty(child))))]
 pub(crate) fn node(children: Vec<SExpr>) -> SExpr {
-    SExpr::Node(
-        children
-            .into_iter()
-            .filter(|child| !is_empty(child))
-            .collect(),
-    )
+    let mut node_children = Vec::new();
+    for child in children {
+        match child {
+            SExpr::Splice(children) => node_children.extend(children),
+            other if !is_empty(&other) => node_children.push(other),
+            _ => {}
+        }
+    }
+    SExpr::Node(node_children)
 }
 
 #[requires(true)]
@@ -41,8 +45,19 @@ pub(crate) fn leaf(text: String) -> SExpr {
 pub(crate) fn is_empty(expr: &SExpr) -> bool {
     match expr {
         SExpr::Leaf(text) => text.is_empty(),
-        SExpr::Node(children) => children.is_empty(),
+        SExpr::Node(children) | SExpr::Splice(children) => children.is_empty(),
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn splice(children: Vec<SExpr>) -> SExpr {
+    SExpr::Splice(
+        children
+            .into_iter()
+            .filter(|child| !is_empty(child))
+            .collect(),
+    )
 }
 
 #[requires(true)]
@@ -50,7 +65,7 @@ pub(crate) fn is_empty(expr: &SExpr) -> bool {
 pub(crate) fn flatten(expr: SExpr) -> SExpr {
     match expr {
         SExpr::Leaf(text) => SExpr::Leaf(text),
-        SExpr::Node(children) => {
+        SExpr::Node(children) | SExpr::Splice(children) => {
             let mut flattened = children
                 .into_iter()
                 .map(flatten)
@@ -82,7 +97,7 @@ pub(crate) fn render_bracketed_with_options(expr: &SExpr, options: BracketRender
 fn render_bracketed_at_depth(depth: usize, expr: &SExpr, options: BracketRenderOptions) -> String {
     match expr {
         SExpr::Leaf(text) => colorize_at_depth(depth, text.clone(), options),
-        SExpr::Node(children) => {
+        SExpr::Node(children) | SExpr::Splice(children) => {
             let rendered = children
                 .iter()
                 .map(|child| render_bracketed_at_depth(depth + 1, child, options))

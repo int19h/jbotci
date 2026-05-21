@@ -18,14 +18,14 @@ use ast::TextSyntax;
 #[invariant(indicator_data_is_valid(self.as_data()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Indicator {
-    pub indicator: Box<Word>,
+    pub indicator: Box<WithIndicators<WordLike>>,
     pub nai: Option<Box<Word>>,
 }
 
 impl Indicator {
     #[requires(true)]
     #[ensures(true)]
-    pub fn new(indicator: Word, nai: Option<Word>) -> Self {
+    pub fn new(indicator: WithIndicators<WordLike>, nai: Option<Word>) -> Self {
         new!(Indicator {
             indicator: Box::new(indicator),
             nai: nai.map(Box::new),
@@ -35,9 +35,7 @@ impl Indicator {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(&self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = vec![WithIndicators::bare(WordLike::bare(
-            (*self.indicator).clone(),
-        ))];
+        let mut words = vec![(*self.indicator).clone()];
         if let Some(nai) = &self.nai {
             words.push(WithIndicators::bare(WordLike::bare((**nai).clone())));
         }
@@ -47,8 +45,7 @@ impl Indicator {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
-        let indicator = WithIndicators::bare(WordLike::bare((*self.indicator).clone()));
-        visitor(&indicator);
+        visitor(&self.indicator);
         if let Some(nai) = &self.nai {
             let nai = WithIndicators::bare(WordLike::bare((**nai).clone()));
             visitor(&nai);
@@ -65,7 +62,10 @@ impl Indicator {
 #[requires(true)]
 #[ensures(true)]
 fn indicator_data_is_valid(indicator: &IndicatorData) -> bool {
-    is_indicator_word(&indicator.indicator)
+    indicator
+        .indicator
+        .visible_word()
+        .is_some_and(is_indicator_word)
         && indicator
             .nai
             .as_deref()

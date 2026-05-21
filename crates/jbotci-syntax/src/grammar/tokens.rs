@@ -119,10 +119,6 @@ pub(super) fn leading_indicator<'tokens>() -> BoxedParser<'tokens, Indicator> {
     choice((cmavo_of("UI", UI_WORDS), cmavo_of("CAI", CAI_WORDS)))
         .then(cmavo("nai").or_not())
         .map(|(indicator, nai)| {
-            let indicator = indicator
-                .visible_word()
-                .expect("leading indicator parser matched a visible word")
-                .clone();
             let nai = nai.map(|nai| {
                 nai.visible_word()
                     .expect("NAI parser matched a visible word")
