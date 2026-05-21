@@ -49,11 +49,43 @@ impl<T: Serialize> Serialize for WithFreeModifiers<T> {
 impl WithFreeModifiers<WithIndicators<WordLike>> {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = vec![self.value];
+    pub fn extend_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
+        out.push(self.value);
         for free_modifier in self.free_modifiers {
-            words.extend(free_modifier.words());
+            free_modifier.extend_words_into(out);
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        visitor(&self.value);
+        for free_modifier in &self.free_modifiers {
+            free_modifier.visit_words(visitor);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret >= 1)]
+    pub fn word_count(&self) -> usize {
+        1 + self
+            .free_modifiers
+            .iter()
+            .map(FreeModifierSyntax::word_count)
+            .sum::<usize>()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some())]
+    pub fn first_word(&self) -> Option<&WithIndicators<WordLike>> {
+        Some(&self.value)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+        let mut words = Vec::new();
+        self.extend_words_into(&mut words);
         words
     }
 }
@@ -61,12 +93,62 @@ impl WithFreeModifiers<WithIndicators<WordLike>> {
 impl WithFreeModifiers<Vec<WithIndicators<WordLike>>> {
     #[requires(true)]
     #[ensures(true)]
-    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let mut words = self.value;
+    pub fn extend_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
+        out.extend(self.value);
         for free_modifier in self.free_modifiers {
-            words.extend(free_modifier.words());
+            free_modifier.extend_words_into(out);
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        for word in &self.value {
+            visitor(word);
+        }
+        for free_modifier in &self.free_modifiers {
+            free_modifier.visit_words(visitor);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret >= self.value.len())]
+    pub fn word_count(&self) -> usize {
+        self.value.len()
+            + self
+                .free_modifiers
+                .iter()
+                .map(FreeModifierSyntax::word_count)
+                .sum::<usize>()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn first_word(&self) -> Option<&WithIndicators<WordLike>> {
+        self.value.first().or_else(|| {
+            self.free_modifiers
+                .iter()
+                .find_map(FreeModifierSyntax::first_word)
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn words(self) -> Vec<WithIndicators<WordLike>> {
+        let mut words = Vec::new();
+        self.extend_words_into(&mut words);
         words
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn visit_word_slice(
+    words: &[WithIndicators<WordLike>],
+    visitor: &mut impl FnMut(&WithIndicators<WordLike>),
+) {
+    for word in words {
+        visitor(word);
     }
 }
 
@@ -1642,6 +1724,1432 @@ impl GekSentenceSyntax {
                 words
             }
         }
+    }
+}
+
+impl SubsentenceSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            SubsentenceSyntax::Plain(predicate) => predicate.visit_words(visitor),
+            SubsentenceSyntax::Prenex {
+                prenex_terms,
+                zohu,
+                inner_subsentence,
+            } => {
+                for term in prenex_terms {
+                    term.visit_words(visitor);
+                }
+                zohu.visit_words(visitor);
+                inner_subsentence.visit_words(visitor);
+            }
+        }
+    }
+}
+
+impl FragmentSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            FragmentSyntax::Argument(argument) => argument.visit_words(visitor),
+            FragmentSyntax::Ek(connective) | FragmentSyntax::Gihek(connective) => {
+                connective.visit_words(visitor);
+            }
+            FragmentSyntax::Other(words) => words.visit_words(visitor),
+            FragmentSyntax::Vocative {
+                vocative_markers,
+                vocative_argument,
+                dohu,
+            } => {
+                vocative_markers.visit_words(visitor);
+                if let Some(vocative_argument) = vocative_argument {
+                    vocative_argument.visit_words(visitor);
+                }
+                if let Some(dohu) = dohu {
+                    dohu.visit_words(visitor);
+                }
+            }
+            FragmentSyntax::Ijek { i, connective } => {
+                visitor(i);
+                connective.visit_words(visitor);
+            }
+            FragmentSyntax::Prenex { terms, zohu } => {
+                for term in terms {
+                    term.visit_words(visitor);
+                }
+                zohu.visit_words(visitor);
+            }
+            FragmentSyntax::BeLink {
+                be,
+                fa,
+                first_argument,
+                bei_links,
+                beho,
+            } => {
+                be.visit_words(visitor);
+                if let Some(fa) = fa {
+                    fa.visit_words(visitor);
+                }
+                if let Some(first_argument) = first_argument {
+                    first_argument.visit_words(visitor);
+                }
+                for bei_link in bei_links {
+                    bei_link.visit_words(visitor);
+                }
+                if let Some(beho) = beho {
+                    beho.visit_words(visitor);
+                }
+            }
+            FragmentSyntax::BeiLink(bei_only_links) => {
+                for bei_link in bei_only_links {
+                    bei_link.visit_words(visitor);
+                }
+            }
+            FragmentSyntax::RelativeClause(relative_clauses) => {
+                for relative_clause in relative_clauses {
+                    relative_clause.visit_words(visitor);
+                }
+            }
+            FragmentSyntax::MathExpression(math_expression) => math_expression.visit_words(visitor),
+            FragmentSyntax::Term { terms, vau } => {
+                for term in terms {
+                    term.visit_words(visitor);
+                }
+                if let Some(vau) = vau {
+                    vau.visit_words(visitor);
+                }
+            }
+            FragmentSyntax::Relation(relation) => relation.visit_words(visitor),
+        }
+    }
+}
+
+impl TermSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            TermSyntax::NuhiTermset {
+                nuhi,
+                termset,
+                nuhu,
+            } => {
+                nuhi.visit_words(visitor);
+                for term in termset {
+                    term.visit_words(visitor);
+                }
+                if let Some(nuhu) = nuhu {
+                    nuhu.visit_words(visitor);
+                }
+            }
+            TermSyntax::GekNuhiTermset {
+                m_nuhi,
+                gek,
+                terms,
+                nuhu,
+                gik,
+                gik_terms,
+                gik_nuhu,
+            } => {
+                if let Some(nuhi) = m_nuhi {
+                    nuhi.visit_words(visitor);
+                }
+                gek.visit_words(visitor);
+                for term in terms {
+                    term.visit_words(visitor);
+                }
+                if let Some(nuhu) = nuhu {
+                    nuhu.visit_words(visitor);
+                }
+                gik.visit_words(visitor);
+                for term in gik_terms {
+                    term.visit_words(visitor);
+                }
+                if let Some(nuhu) = gik_nuhu {
+                    nuhu.visit_words(visitor);
+                }
+            }
+            TermSyntax::Cehe {
+                leading_terms,
+                cehe,
+                trailing_terms,
+            } => {
+                for term in leading_terms {
+                    term.visit_words(visitor);
+                }
+                cehe.visit_words(visitor);
+                for term in trailing_terms {
+                    term.visit_words(visitor);
+                }
+            }
+            TermSyntax::Pehe {
+                leading_terms,
+                pehe,
+                connective,
+                trailing_terms,
+            } => {
+                for term in leading_terms {
+                    term.visit_words(visitor);
+                }
+                pehe.visit_words(visitor);
+                connective.visit_words(visitor);
+                for term in trailing_terms {
+                    term.visit_words(visitor);
+                }
+            }
+            TermSyntax::Argument(argument) => argument.visit_words(visitor),
+            TermSyntax::Fa { fa, argument, ku } => {
+                fa.visit_words(visitor);
+                argument.visit_words(visitor);
+                if let Some(ku) = ku {
+                    ku.visit_words(visitor);
+                }
+            }
+            TermSyntax::NaKu { na, na_ku } => {
+                visitor(na);
+                na_ku.visit_words(visitor);
+            }
+            TermSyntax::BareNa(na) => na.visit_words(visitor),
+            TermSyntax::NoihaAdverbial {
+                noiha,
+                tail_elements,
+                relation,
+                relative_clauses,
+                fehu,
+            } => {
+                noiha.visit_words(visitor);
+                for tail_element in tail_elements {
+                    tail_element.visit_words(visitor);
+                }
+                if let Some(relation) = relation {
+                    relation.visit_words(visitor);
+                }
+                for relative_clause in relative_clauses {
+                    relative_clause.visit_words(visitor);
+                }
+                if let Some(fehu) = fehu {
+                    fehu.visit_words(visitor);
+                }
+            }
+            TermSyntax::PoihaBrigahi {
+                poiha,
+                tail_elements,
+                relation,
+                relative_clauses,
+                brigahi_ku,
+            } => {
+                poiha.visit_words(visitor);
+                for tail_element in tail_elements {
+                    tail_element.visit_words(visitor);
+                }
+                if let Some(relation) = relation {
+                    relation.visit_words(visitor);
+                }
+                for relative_clause in relative_clauses {
+                    relative_clause.visit_words(visitor);
+                }
+                brigahi_ku.visit_words(visitor);
+            }
+            TermSyntax::FihoiAdverbial {
+                fihoi,
+                subsentence,
+                fihau,
+            } => {
+                fihoi.visit_words(visitor);
+                subsentence.visit_words(visitor);
+                if let Some(fihau) = fihau {
+                    fihau.visit_words(visitor);
+                }
+            }
+            TermSyntax::SoiAdverbial {
+                soi,
+                subsentence,
+                sehu,
+            } => {
+                soi.visit_words(visitor);
+                subsentence.visit_words(visitor);
+                if let Some(sehu) = sehu {
+                    sehu.visit_words(visitor);
+                }
+            }
+            TermSyntax::Tagged {
+                tense_modal,
+                argument,
+            } => {
+                if let Some(tense_modal) = tense_modal {
+                    tense_modal.visit_words(visitor);
+                }
+                argument.visit_words(visitor);
+            }
+            TermSyntax::Connected {
+                leading_terms,
+                connective,
+                trailing_terms,
+            } => {
+                for term in leading_terms {
+                    term.visit_words(visitor);
+                }
+                connective.visit_words(visitor);
+                for term in trailing_terms {
+                    term.visit_words(visitor);
+                }
+            }
+            TermSyntax::BoConnected {
+                leading_terms,
+                bo_connective,
+                tense_modal,
+                bo,
+                trailing_term,
+            } => {
+                for term in leading_terms {
+                    term.visit_words(visitor);
+                }
+                if let Some(connective) = bo_connective {
+                    connective.visit_words(visitor);
+                }
+                if let Some(tense_modal) = tense_modal {
+                    tense_modal.visit_words(visitor);
+                }
+                bo.visit_words(visitor);
+                trailing_term.visit_words(visitor);
+            }
+        }
+    }
+}
+
+impl ArgumentTagSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            ArgumentTagSyntax::TenseModal(tense_modal) => tense_modal.visit_words(visitor),
+            ArgumentTagSyntax::Fa(fa) => fa.visit_words(visitor),
+        }
+    }
+}
+
+impl MathExpressionSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            MathExpressionSyntax::Number(quantifier) => quantifier.visit_words(visitor),
+            MathExpressionSyntax::Letter { letter, boi } => {
+                letter.visit_words(visitor);
+                if let Some(boi) = boi {
+                    boi.visit_words(visitor);
+                }
+            }
+            MathExpressionSyntax::Vei {
+                vei,
+                inner_expression,
+                veho,
+            } => {
+                vei.visit_words(visitor);
+                inner_expression.visit_words(visitor);
+                if let Some(veho) = veho {
+                    veho.visit_words(visitor);
+                }
+            }
+            MathExpressionSyntax::Gek {
+                gek,
+                left_expression,
+                gik,
+                right_expression,
+            } => {
+                gek.visit_words(visitor);
+                left_expression.visit_words(visitor);
+                gik.visit_words(visitor);
+                right_expression.visit_words(visitor);
+            }
+            MathExpressionSyntax::Forethought {
+                peho,
+                operator,
+                operands,
+                kuhe,
+            } => {
+                if let Some(peho) = peho {
+                    peho.visit_words(visitor);
+                }
+                operator.visit_words(visitor);
+                for operand in operands {
+                    operand.visit_words(visitor);
+                }
+                if let Some(kuhe) = kuhe {
+                    kuhe.visit_words(visitor);
+                }
+            }
+            MathExpressionSyntax::ReversePolish {
+                fuha,
+                operands,
+                operators,
+            } => {
+                fuha.visit_words(visitor);
+                for operand in operands {
+                    operand.visit_words(visitor);
+                }
+                for operator in operators {
+                    operator.visit_words(visitor);
+                }
+            }
+            MathExpressionSyntax::Nihe {
+                nihe,
+                relation,
+                tehu,
+            } => {
+                nihe.visit_words(visitor);
+                relation.visit_words(visitor);
+                if let Some(tehu) = tehu {
+                    tehu.visit_words(visitor);
+                }
+            }
+            MathExpressionSyntax::Mohe {
+                mohe,
+                argument,
+                tehu,
+            } => {
+                mohe.visit_words(visitor);
+                argument.visit_words(visitor);
+                if let Some(tehu) = tehu {
+                    tehu.visit_words(visitor);
+                }
+            }
+            MathExpressionSyntax::Johi {
+                johi,
+                expressions,
+                tehu,
+            } => {
+                johi.visit_words(visitor);
+                for expression in expressions {
+                    expression.visit_words(visitor);
+                }
+                if let Some(tehu) = tehu {
+                    tehu.visit_words(visitor);
+                }
+            }
+            MathExpressionSyntax::Lahe {
+                markers,
+                inner_expression,
+                luhu,
+            } => {
+                markers.visit_words(visitor);
+                inner_expression.visit_words(visitor);
+                if let Some(luhu) = luhu {
+                    luhu.visit_words(visitor);
+                }
+            }
+            MathExpressionSyntax::Connected {
+                left_expression,
+                connective,
+                right_expression,
+            } => {
+                left_expression.visit_words(visitor);
+                connective.visit_words(visitor);
+                right_expression.visit_words(visitor);
+            }
+            MathExpressionSyntax::Binary {
+                operator,
+                left_expression,
+                right_expression,
+            } => {
+                left_expression.visit_words(visitor);
+                operator.visit_words(visitor);
+                right_expression.visit_words(visitor);
+            }
+            MathExpressionSyntax::Bihe {
+                left_expression,
+                bihe,
+                operator,
+                right_expression,
+            } => {
+                left_expression.visit_words(visitor);
+                bihe.visit_words(visitor);
+                operator.visit_words(visitor);
+                right_expression.visit_words(visitor);
+            }
+            MathExpressionSyntax::Unary {
+                operator,
+                inner_expression,
+            } => {
+                operator.visit_words(visitor);
+                inner_expression.visit_words(visitor);
+            }
+            MathExpressionSyntax::Bo {
+                left_expression,
+                operator,
+                bo,
+                right_expression,
+            } => {
+                left_expression.visit_words(visitor);
+                operator.visit_words(visitor);
+                bo.visit_words(visitor);
+                right_expression.visit_words(visitor);
+            }
+        }
+    }
+}
+
+impl ArgumentSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            ArgumentSyntax::Quote(quote) => quote.visit_words(visitor),
+            ArgumentSyntax::MathExpression {
+                li,
+                expression,
+                loho,
+            } => {
+                li.visit_words(visitor);
+                expression.visit_words(visitor);
+                if let Some(loho) = loho {
+                    loho.visit_words(visitor);
+                }
+            }
+            ArgumentSyntax::Letter { letter, boi } => {
+                letter.visit_words(visitor);
+                if let Some(boi) = boi {
+                    boi.visit_words(visitor);
+                }
+            }
+            ArgumentSyntax::Quantified {
+                quantifier,
+                inner_argument,
+            } => {
+                quantifier.visit_words(visitor);
+                inner_argument.visit_words(visitor);
+            }
+            ArgumentSyntax::RelativeClause {
+                base_argument,
+                vuho,
+                relative_clauses,
+            } => {
+                base_argument.visit_words(visitor);
+                if let Some(vuho) = vuho {
+                    vuho.visit_words(visitor);
+                }
+                for relative_clause in relative_clauses {
+                    relative_clause.visit_words(visitor);
+                }
+            }
+            ArgumentSyntax::Vuho {
+                base_argument,
+                vuho_marker,
+                relative_clauses,
+                connected_argument,
+            } => {
+                base_argument.visit_words(visitor);
+                vuho_marker.visit_words(visitor);
+                for relative_clause in relative_clauses {
+                    relative_clause.visit_words(visitor);
+                }
+                if let Some(connected_argument) = connected_argument {
+                    connected_argument.connective.visit_words(visitor);
+                    connected_argument.argument.visit_words(visitor);
+                }
+            }
+            ArgumentSyntax::BridiDescription {
+                lohoi,
+                subsentence,
+                kuhau,
+            } => {
+                lohoi.visit_words(visitor);
+                subsentence.visit_words(visitor);
+                if let Some(kuhau) = kuhau {
+                    kuhau.visit_words(visitor);
+                }
+            }
+            ArgumentSyntax::NaKu { na, ku } => {
+                visitor(na);
+                ku.visit_words(visitor);
+            }
+            ArgumentSyntax::Tagged {
+                tag,
+                inner_argument,
+            } => {
+                tag.visit_words(visitor);
+                inner_argument.visit_words(visitor);
+            }
+            ArgumentSyntax::NaheBo {
+                nahe,
+                bo,
+                inner_argument,
+                luhu,
+            } => {
+                visitor(nahe);
+                bo.visit_words(visitor);
+                inner_argument.visit_words(visitor);
+                if let Some(luhu) = luhu {
+                    luhu.visit_words(visitor);
+                }
+            }
+            ArgumentSyntax::Nahe {
+                nahe,
+                inner_argument,
+                luhu,
+            } => {
+                nahe.visit_words(visitor);
+                inner_argument.visit_words(visitor);
+                if let Some(luhu) = luhu {
+                    luhu.visit_words(visitor);
+                }
+            }
+            ArgumentSyntax::TermWrapped {
+                wrapper,
+                wrapper_bo,
+                inner_term,
+                luhu,
+                ..
+            } => {
+                wrapper.visit_words(visitor);
+                if let Some(wrapper_bo) = wrapper_bo {
+                    wrapper_bo.visit_words(visitor);
+                }
+                inner_term.visit_words(visitor);
+                if let Some(luhu) = luhu {
+                    luhu.visit_words(visitor);
+                }
+            }
+            ArgumentSyntax::Koha(koha) => koha.visit_words(visitor),
+            ArgumentSyntax::Zohe {
+                tag,
+                maybe_ku,
+                free_modifiers,
+            } => {
+                if let Some(tag) = tag {
+                    tag.visit_words(visitor);
+                }
+                if let Some(ku) = maybe_ku {
+                    ku.visit_words(visitor);
+                }
+                for free_modifier in free_modifiers {
+                    free_modifier.visit_words(visitor);
+                }
+            }
+            ArgumentSyntax::Lahe {
+                lahe,
+                relative_clauses,
+                inner_argument,
+                luhu,
+            } => {
+                lahe.visit_words(visitor);
+                for relative_clause in relative_clauses {
+                    relative_clause.visit_words(visitor);
+                }
+                inner_argument.visit_words(visitor);
+                if let Some(luhu) = luhu {
+                    luhu.visit_words(visitor);
+                }
+            }
+            ArgumentSyntax::Connected {
+                leading_argument,
+                connective,
+                trailing_argument,
+            } => {
+                leading_argument.visit_words(visitor);
+                connective.visit_words(visitor);
+                trailing_argument.visit_words(visitor);
+            }
+            ArgumentSyntax::Ke {
+                ke,
+                inner_argument,
+                kehe,
+            } => {
+                ke.visit_words(visitor);
+                inner_argument.visit_words(visitor);
+                if let Some(kehe) = kehe {
+                    kehe.visit_words(visitor);
+                }
+            }
+            ArgumentSyntax::Bo {
+                leading_argument,
+                bo_connective,
+                bo_tense_modal,
+                bo,
+                trailing_argument,
+            } => {
+                leading_argument.visit_words(visitor);
+                if let Some(connective) = bo_connective {
+                    connective.visit_words(visitor);
+                }
+                if let Some(tense_modal) = bo_tense_modal {
+                    tense_modal.visit_words(visitor);
+                }
+                bo.visit_words(visitor);
+                trailing_argument.visit_words(visitor);
+            }
+            ArgumentSyntax::Gek {
+                gek,
+                leading_argument,
+                gik,
+                trailing_argument,
+            } => {
+                gek.visit_words(visitor);
+                leading_argument.visit_words(visitor);
+                gik.visit_words(visitor);
+                trailing_argument.visit_words(visitor);
+            }
+            ArgumentSyntax::Descriptor(descriptor) => descriptor.visit_words(visitor),
+            ArgumentSyntax::ConnectedDescriptor(connected_descriptor) => {
+                connected_descriptor.visit_words(visitor);
+            }
+            ArgumentSyntax::Name { la, names } => {
+                la.visit_words(visitor);
+                names.visit_words(visitor);
+            }
+            ArgumentSyntax::Cmevla(cmevla) => cmevla.visit_words(visitor),
+            ArgumentSyntax::RelationVocative {
+                leading_relative_clauses,
+                relation,
+                trailing_relative_clauses,
+            } => {
+                for relative_clause in leading_relative_clauses {
+                    relative_clause.visit_words(visitor);
+                }
+                relation.visit_words(visitor);
+                for relative_clause in trailing_relative_clauses {
+                    relative_clause.visit_words(visitor);
+                }
+            }
+        }
+    }
+}
+
+impl GoiRelativeClauseSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.goi.visit_words(visitor);
+        self.argument.visit_words(visitor);
+        if let Some(gehu) = &self.gehu {
+            gehu.visit_words(visitor);
+        }
+    }
+}
+
+impl SelbriRelativeClauseSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.nohoi.visit_words(visitor);
+        self.relation.visit_words(visitor);
+        if let Some(kuhoi) = &self.kuhoi {
+            kuhoi.visit_words(visitor);
+        }
+    }
+}
+
+impl RelativeClauseSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            RelativeClauseSyntax::Goi(relative_clause) => relative_clause.visit_words(visitor),
+            RelativeClauseSyntax::Noi {
+                noi,
+                subsentence,
+                kuho,
+            }
+            | RelativeClauseSyntax::Poi {
+                poi: noi,
+                subsentence,
+                kuho,
+            } => {
+                noi.visit_words(visitor);
+                subsentence.visit_words(visitor);
+                if let Some(kuho) = kuho {
+                    kuho.visit_words(visitor);
+                }
+            }
+            RelativeClauseSyntax::Zihe { zihe, inner } => {
+                zihe.visit_words(visitor);
+                inner.visit_words(visitor);
+            }
+            RelativeClauseSyntax::Connected { connective, inner } => {
+                connective.visit_words(visitor);
+                inner.visit_words(visitor);
+            }
+        }
+    }
+}
+
+impl QuoteSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            QuoteSyntax::Lu { lu, text, lihu } => {
+                lu.visit_words(visitor);
+                text.visit_words(visitor);
+                if let Some(lihu) = lihu {
+                    lihu.visit_words(visitor);
+                }
+            }
+            QuoteSyntax::Zo { zo, word } => {
+                visitor(zo);
+                word.visit_words(visitor);
+            }
+            QuoteSyntax::ZohOi { zohoi, .. } => zohoi.visit_words(visitor),
+            QuoteSyntax::Zoi {
+                zoi,
+                opening_delimiter,
+                closing_delimiter,
+                ..
+            }
+            | QuoteSyntax::Laho {
+                laho: zoi,
+                opening_delimiter,
+                closing_delimiter,
+                ..
+            } => {
+                visitor(zoi);
+                visitor(opening_delimiter);
+                closing_delimiter.visit_words(visitor);
+            }
+            QuoteSyntax::Lohu {
+                lohu,
+                quoted_words,
+                lehu,
+            } => {
+                visitor(lohu);
+                visit_word_slice(quoted_words, visitor);
+                lehu.visit_words(visitor);
+            }
+            QuoteSyntax::Meho {
+                meho,
+                math_expression,
+            } => {
+                meho.visit_words(visitor);
+                math_expression.visit_words(visitor);
+            }
+        }
+    }
+}
+
+impl DescriptorSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        if let Some(quantifier) = &self.outer_quantifier {
+            quantifier.visit_words(visitor);
+        }
+        if let Some(descriptor) = &self.descriptor {
+            descriptor.visit_words(visitor);
+        }
+        for element in &self.tail_elements {
+            element.visit_words(visitor);
+        }
+        if let Some(relation) = &self.relation {
+            relation.visit_words(visitor);
+        }
+        for relative_clause in &self.relative_clauses {
+            relative_clause.visit_words(visitor);
+        }
+        if let Some(ku) = &self.ku {
+            ku.visit_words(visitor);
+        }
+    }
+}
+
+impl DescriptorHeadSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.descriptor.visit_words(visitor);
+    }
+}
+
+impl ConnectedDescriptorSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.leading_descriptor_head.visit_words(visitor);
+        self.connective.visit_words(visitor);
+        self.trailing_descriptor_head.visit_words(visitor);
+        for element in &self.tail_elements {
+            element.visit_words(visitor);
+        }
+        if let Some(relation) = &self.relation {
+            relation.visit_words(visitor);
+        }
+        for relative_clause in &self.relative_clauses {
+            relative_clause.visit_words(visitor);
+        }
+        if let Some(ku) = &self.ku {
+            ku.visit_words(visitor);
+        }
+    }
+}
+
+impl ConnectiveSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        if let Some(se) = &self.se {
+            visitor(se);
+        }
+        if let Some(nahe) = &self.nahe {
+            visitor(nahe);
+        }
+        if let Some(na) = &self.na {
+            visitor(na);
+        }
+        self.cmavo.visit_words(visitor);
+        if let Some(nai) = &self.nai {
+            nai.visit_words(visitor);
+        }
+    }
+}
+
+impl BeiLinkSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.bei.visit_words(visitor);
+        if let Some(fa) = &self.fa {
+            fa.visit_words(visitor);
+        }
+        if let Some(argument) = &self.argument {
+            argument.visit_words(visitor);
+        }
+    }
+}
+
+impl ArgumentTailElementSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            ArgumentTailElementSyntax::Argument(argument) => argument.visit_words(visitor),
+            ArgumentTailElementSyntax::RelativeClauses(relative_clauses) => {
+                for relative_clause in relative_clauses {
+                    relative_clause.visit_words(visitor);
+                }
+            }
+            ArgumentTailElementSyntax::Quantifier(quantifier) => quantifier.visit_words(visitor),
+        }
+    }
+}
+
+impl QuantifierSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            QuantifierSyntax::Number { number, boi } => {
+                number.visit_words(visitor);
+                if let Some(boi) = boi {
+                    boi.visit_words(visitor);
+                }
+            }
+            QuantifierSyntax::Vei {
+                vei,
+                math_expression,
+                veho,
+            } => {
+                vei.visit_words(visitor);
+                math_expression.visit_words(visitor);
+                if let Some(veho) = veho {
+                    veho.visit_words(visitor);
+                }
+            }
+        }
+    }
+}
+
+impl MathOperatorSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            MathOperatorSyntax::Vuhu(vuhu) => vuhu.visit_words(visitor),
+            MathOperatorSyntax::Maho {
+                maho,
+                math_expression,
+                tehu,
+            } => {
+                maho.visit_words(visitor);
+                math_expression.visit_words(visitor);
+                if let Some(tehu) = tehu {
+                    tehu.visit_words(visitor);
+                }
+            }
+            MathOperatorSyntax::Se { se, inner_operator } => {
+                se.visit_words(visitor);
+                inner_operator.visit_words(visitor);
+            }
+            MathOperatorSyntax::Nahe {
+                nahe,
+                inner_operator,
+            } => {
+                nahe.visit_words(visitor);
+                inner_operator.visit_words(visitor);
+            }
+            MathOperatorSyntax::Nahu {
+                nahu,
+                relation,
+                tehu,
+            } => {
+                nahu.visit_words(visitor);
+                relation.visit_words(visitor);
+                if let Some(tehu) = tehu {
+                    tehu.visit_words(visitor);
+                }
+            }
+            MathOperatorSyntax::Ke {
+                ke,
+                inner_operator,
+                kehe,
+            } => {
+                ke.visit_words(visitor);
+                inner_operator.visit_words(visitor);
+                if let Some(kehe) = kehe {
+                    kehe.visit_words(visitor);
+                }
+            }
+            MathOperatorSyntax::Bo {
+                left_operator,
+                bo,
+                right_operator,
+            } => {
+                left_operator.visit_words(visitor);
+                bo.visit_words(visitor);
+                right_operator.visit_words(visitor);
+            }
+            MathOperatorSyntax::Johi {
+                johi,
+                expressions,
+                tehu,
+            } => {
+                johi.visit_words(visitor);
+                for expression in expressions {
+                    expression.visit_words(visitor);
+                }
+                if let Some(tehu) = tehu {
+                    tehu.visit_words(visitor);
+                }
+            }
+            MathOperatorSyntax::Number(number) => visit_word_slice(number, visitor),
+            MathOperatorSyntax::Connected {
+                left_operator,
+                connective,
+                right_operator,
+            } => {
+                left_operator.visit_words(visitor);
+                connective.visit_words(visitor);
+                right_operator.visit_words(visitor);
+            }
+        }
+    }
+}
+
+impl RelationSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            RelationSyntax::Connected {
+                connective,
+                leading_relation,
+                trailing_relation,
+            } => {
+                leading_relation.visit_words(visitor);
+                connective.visit_words(visitor);
+                trailing_relation.visit_words(visitor);
+            }
+            RelationSyntax::Co {
+                leading_relation,
+                co,
+                trailing_relation,
+            } => {
+                leading_relation.visit_words(visitor);
+                co.visit_words(visitor);
+                trailing_relation.visit_words(visitor);
+            }
+            RelationSyntax::Bo {
+                leading_relation,
+                bo_connective,
+                bo_tense_modal,
+                bo,
+                trailing_relation,
+            } => {
+                leading_relation.visit_words(visitor);
+                if let Some(connective) = bo_connective {
+                    connective.visit_words(visitor);
+                }
+                if let Some(tense_modal) = bo_tense_modal {
+                    tense_modal.visit_words(visitor);
+                }
+                bo.visit_words(visitor);
+                trailing_relation.visit_words(visitor);
+            }
+            RelationSyntax::Na { na, inner_relation } => {
+                na.visit_words(visitor);
+                inner_relation.visit_words(visitor);
+            }
+            RelationSyntax::Base(word) => visitor(word),
+            RelationSyntax::Se { se, inner_relation } => {
+                se.visit_words(visitor);
+                inner_relation.visit_words(visitor);
+            }
+            RelationSyntax::Ke {
+                ke, relation, kehe, ..
+            } => {
+                ke.visit_words(visitor);
+                relation.visit_words(visitor);
+                if let Some(kehe) = kehe {
+                    kehe.visit_words(visitor);
+                }
+            }
+            RelationSyntax::TenseModal {
+                tense_modal,
+                inner_relation,
+            } => {
+                tense_modal.visit_words(visitor);
+                inner_relation.visit_words(visitor);
+            }
+            RelationSyntax::Guha {
+                guhek,
+                leading_predicate,
+                gik,
+                trailing_predicate,
+            } => {
+                guhek.visit_words(visitor);
+                leading_predicate.visit_words(visitor);
+                gik.visit_words(visitor);
+                trailing_predicate.visit_words(visitor);
+            }
+            RelationSyntax::Abstraction(abstraction) => abstraction.visit_words(visitor),
+            RelationSyntax::Compound(units) => {
+                for unit in units {
+                    unit.visit_words(visitor);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn word_count(&self) -> usize {
+        let mut count = 0;
+        self.visit_words(&mut |_| count += 1);
+        count
+    }
+}
+
+impl RelationUnitSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            RelationUnitSyntax::Word(word) => word.visit_words(visitor),
+            RelationUnitSyntax::Goha { goha, raho } => {
+                goha.visit_words(visitor);
+                if let Some(raho) = raho {
+                    raho.visit_words(visitor);
+                }
+            }
+            RelationUnitSyntax::Se { se, inner_unit } => {
+                se.visit_words(visitor);
+                inner_unit.visit_words(visitor);
+            }
+            RelationUnitSyntax::Ke {
+                ke, relation, kehe, ..
+            } => {
+                ke.visit_words(visitor);
+                relation.visit_words(visitor);
+                if let Some(kehe) = kehe {
+                    kehe.visit_words(visitor);
+                }
+            }
+            RelationUnitSyntax::Nahe { nahe, inner_unit } => {
+                nahe.visit_words(visitor);
+                inner_unit.visit_words(visitor);
+            }
+            RelationUnitSyntax::Bo {
+                leading_unit,
+                bo_connective,
+                bo_tense_modal,
+                bo,
+                trailing_unit,
+            } => {
+                leading_unit.visit_words(visitor);
+                if let Some(connective) = bo_connective {
+                    connective.visit_words(visitor);
+                }
+                if let Some(tense_modal) = bo_tense_modal {
+                    tense_modal.visit_words(visitor);
+                }
+                bo.visit_words(visitor);
+                trailing_unit.visit_words(visitor);
+            }
+            RelationUnitSyntax::Connected {
+                leading_unit,
+                connective,
+                trailing_unit,
+            } => {
+                leading_unit.visit_words(visitor);
+                connective.visit_words(visitor);
+                trailing_unit.visit_words(visitor);
+            }
+            RelationUnitSyntax::SelbriRelativeClause {
+                base,
+                selbri_relative_clauses,
+            } => {
+                base.visit_words(visitor);
+                for selbri_relative_clause in selbri_relative_clauses {
+                    selbri_relative_clause.visit_words(visitor);
+                }
+            }
+            RelationUnitSyntax::Wrapped(relation) => relation.visit_words(visitor),
+            RelationUnitSyntax::Jai {
+                jai,
+                tense_modal,
+                inner_unit,
+            } => {
+                jai.visit_words(visitor);
+                if let Some(tense_modal) = tense_modal {
+                    tense_modal.visit_words(visitor);
+                }
+                inner_unit.visit_words(visitor);
+            }
+            RelationUnitSyntax::Be {
+                base,
+                be,
+                fa,
+                first_argument,
+                bei_links,
+                beho,
+            } => {
+                base.visit_words(visitor);
+                be.visit_words(visitor);
+                if let Some(fa) = fa {
+                    fa.visit_words(visitor);
+                }
+                if let Some(first_argument) = first_argument {
+                    first_argument.visit_words(visitor);
+                }
+                for bei_link in bei_links {
+                    bei_link.visit_words(visitor);
+                }
+                if let Some(beho) = beho {
+                    beho.visit_words(visitor);
+                }
+            }
+            RelationUnitSyntax::PreposedBe {
+                be,
+                fa,
+                first_argument,
+                bei_links,
+                beho,
+                base,
+            } => {
+                be.visit_words(visitor);
+                if let Some(fa) = fa {
+                    fa.visit_words(visitor);
+                }
+                if let Some(first_argument) = first_argument {
+                    first_argument.visit_words(visitor);
+                }
+                for bei_link in bei_links {
+                    bei_link.visit_words(visitor);
+                }
+                if let Some(beho) = beho {
+                    beho.visit_words(visitor);
+                }
+                base.visit_words(visitor);
+            }
+            RelationUnitSyntax::Abstraction(abstraction) => abstraction.visit_words(visitor),
+            RelationUnitSyntax::Me {
+                me,
+                argument,
+                mehu,
+                moi_marker,
+            } => {
+                me.visit_words(visitor);
+                argument.visit_words(visitor);
+                if let Some(mehu) = mehu {
+                    mehu.visit_words(visitor);
+                }
+                if let Some(moi_marker) = moi_marker {
+                    moi_marker.visit_words(visitor);
+                }
+            }
+            RelationUnitSyntax::Mehoi { mehoi, .. } => mehoi.visit_words(visitor),
+            RelationUnitSyntax::Gohoi { gohoi, .. } => gohoi.visit_words(visitor),
+            RelationUnitSyntax::Muhoi {
+                muhoi,
+                opening_delimiter,
+                closing_delimiter,
+                ..
+            } => {
+                visitor(muhoi);
+                visitor(opening_delimiter);
+                closing_delimiter.visit_words(visitor);
+            }
+            RelationUnitSyntax::Luhei { luhei, text, liau } => {
+                luhei.visit_words(visitor);
+                text.visit_words(visitor);
+                if let Some(liau) = liau {
+                    liau.visit_words(visitor);
+                }
+            }
+            RelationUnitSyntax::Moi { number, moi } => {
+                visit_word_slice(number, visitor);
+                moi.visit_words(visitor);
+            }
+            RelationUnitSyntax::Nuha {
+                nuha,
+                math_operator,
+            } => {
+                nuha.visit_words(visitor);
+                math_operator.visit_words(visitor);
+            }
+            RelationUnitSyntax::Xohi { xohi, tag } => {
+                xohi.visit_words(visitor);
+                tag.visit_words(visitor);
+            }
+            RelationUnitSyntax::Cei { base, assignments } => {
+                base.visit_words(visitor);
+                for assignment in assignments {
+                    assignment.cei.visit_words(visitor);
+                    assignment.relation_unit.visit_words(visitor);
+                }
+            }
+        }
+    }
+}
+
+impl AbstractionSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.nu.visit_words(visitor);
+        if let Some(nai) = &self.nai {
+            nai.visit_words(visitor);
+        }
+        for additional_nu in &self.additional_nu {
+            additional_nu.visit_words(visitor);
+        }
+        self.subsentence.visit_words(visitor);
+        if let Some(kei) = &self.kei {
+            kei.visit_words(visitor);
+        }
+    }
+}
+
+impl AdditionalNuSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.connective.visit_words(visitor);
+        self.nu.visit_words(visitor);
+        if let Some(nai) = &self.nai {
+            nai.visit_words(visitor);
+        }
+    }
+}
+
+impl TenseModalSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn extend_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
+        let (leaves, free_modifiers) = self.leaf_words_and_free_modifiers();
+        out.extend(leaves);
+        for free_modifier in free_modifiers {
+            free_modifier.extend_words_into(out);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            TenseModalSyntax::Composite { leaves, .. } => leaves.visit_words(visitor),
+            TenseModalSyntax::Pu(word)
+            | TenseModalSyntax::TimeInterval(word)
+            | TenseModalSyntax::SpaceDistance(word)
+            | TenseModalSyntax::SpaceDirection(word)
+            | TenseModalSyntax::Caha(word) => word.visit_words(visitor),
+            TenseModalSyntax::PuDistance { pu, distance } => {
+                visitor(pu);
+                distance.visit_words(visitor);
+            }
+            TenseModalSyntax::PuCaha { pu, caha } => {
+                visitor(pu);
+                caha.visit_words(visitor);
+            }
+            TenseModalSyntax::SpaceMovement {
+                mohi,
+                direction,
+                distance,
+            } => {
+                visitor(mohi);
+                direction.visit_words(visitor);
+                if let Some(distance) = distance {
+                    distance.visit_words(visitor);
+                }
+            }
+            TenseModalSyntax::Simple {
+                nahe,
+                se,
+                bai,
+                nai,
+                ki,
+                connectives,
+                extra_leaves,
+            } => {
+                if let Some(nahe) = nahe {
+                    nahe.visit_words(visitor);
+                }
+                if let Some(se) = se {
+                    se.visit_words(visitor);
+                }
+                bai.visit_words(visitor);
+                if let Some(nai) = nai {
+                    nai.visit_words(visitor);
+                }
+                if let Some(ki) = ki {
+                    ki.visit_words(visitor);
+                }
+                connectives.visit_words(visitor);
+                extra_leaves.visit_words(visitor);
+            }
+            TenseModalSyntax::Ki(ki) => ki.visit_words(visitor),
+            TenseModalSyntax::Fiho {
+                fiho,
+                relation,
+                fehu,
+            } => {
+                fiho.visit_words(visitor);
+                relation.visit_words(visitor);
+                if let Some(fehu) = fehu {
+                    fehu.visit_words(visitor);
+                }
+            }
+            TenseModalSyntax::Zaho(words) => words.visit_words(visitor),
+            TenseModalSyntax::Interval {
+                number,
+                roi_or_tahe,
+                nai,
+            } => {
+                visit_word_slice(number, visitor);
+                roi_or_tahe.visit_words(visitor);
+                if let Some(nai) = nai {
+                    nai.visit_words(visitor);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn word_count(&self) -> usize {
+        let mut count = 0;
+        self.visit_words(&mut |_| count += 1);
+        count
     }
 }
 
@@ -3274,10 +4782,8 @@ impl TenseModalSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        let (mut words, free_modifiers) = self.leaf_words_and_free_modifiers();
-        for free_modifier in free_modifiers {
-            words.extend(free_modifier.words());
-        }
+        let mut words = Vec::new();
+        self.extend_words_into(&mut words);
         words
     }
 
@@ -3285,5 +4791,510 @@ impl TenseModalSyntax {
     #[ensures(true)]
     pub fn free_modifiers(self) -> Vec<FreeModifierSyntax> {
         self.leaf_words_and_free_modifiers().1
+    }
+}
+
+impl TextSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        visit_word_slice(&self.leading_nai, visitor);
+        visit_word_slice(&self.leading_cmevla, visitor);
+        for indicator in &self.leading_indicators {
+            indicator.visit_words(visitor);
+        }
+        for free_modifier in &self.leading_free_modifiers {
+            free_modifier.visit_words(visitor);
+        }
+        if let Some(leading_connective) = &self.leading_connective {
+            leading_connective.visit_words(visitor);
+        }
+        for paragraph in &self.paragraphs {
+            paragraph.visit_words(visitor);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn word_count(&self) -> usize {
+        let mut count = 0;
+        self.visit_words(&mut |_| count += 1);
+        count
+    }
+}
+
+impl ParagraphSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        if let Some(i) = &self.i {
+            visitor(i);
+        }
+        visit_word_slice(&self.niho, visitor);
+        for free_modifier in &self.free_modifiers {
+            free_modifier.visit_words(visitor);
+        }
+        for paragraph_statement in &self.statements {
+            paragraph_statement.visit_words(visitor);
+        }
+    }
+}
+
+impl ParagraphStatementSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        if let Some(i) = &self.i {
+            visitor(i);
+        }
+        if let Some(connective) = &self.connective {
+            connective.visit_words(visitor);
+        }
+        for free_modifier in &self.free_modifiers {
+            free_modifier.visit_words(visitor);
+        }
+        if let Some(statement) = &self.statement {
+            statement.visit_words(visitor);
+        }
+    }
+}
+
+impl StatementSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            StatementSyntax::Tuhe {
+                tense_modal,
+                tuhe,
+                text,
+                tuhu,
+            } => {
+                if let Some(tense_modal) = tense_modal {
+                    tense_modal.visit_words(visitor);
+                }
+                tuhe.visit_words(visitor);
+                text.visit_words(visitor);
+                if let Some(tuhu) = tuhu {
+                    tuhu.visit_words(visitor);
+                }
+            }
+            StatementSyntax::Prenex {
+                prenex_terms,
+                zohu,
+                inner_statement,
+            } => {
+                for term in prenex_terms {
+                    term.visit_words(visitor);
+                }
+                zohu.visit_words(visitor);
+                inner_statement.visit_words(visitor);
+            }
+            StatementSyntax::Predicate(predicate) => predicate.visit_words(visitor),
+            StatementSyntax::Connected {
+                i,
+                connective,
+                leading_statement,
+                trailing_statement,
+            } => {
+                leading_statement.visit_words(visitor);
+                visitor(i);
+                connective.visit_words(visitor);
+                trailing_statement.visit_words(visitor);
+            }
+            StatementSyntax::PreIConnected {
+                connective,
+                i,
+                leading_statement,
+                trailing_statement,
+            } => {
+                leading_statement.visit_words(visitor);
+                connective.visit_words(visitor);
+                visitor(i);
+                trailing_statement.visit_words(visitor);
+            }
+            StatementSyntax::Iau {
+                inner_statement,
+                iau,
+                reset_terms,
+            } => {
+                inner_statement.visit_words(visitor);
+                iau.visit_words(visitor);
+                for term in reset_terms {
+                    term.visit_words(visitor);
+                }
+            }
+            StatementSyntax::ExperimentalPredicateContinuation {
+                leading_statement,
+                continuation,
+            } => {
+                leading_statement.visit_words(visitor);
+                continuation.visit_words(visitor);
+            }
+            StatementSyntax::Fragment(fragment) => fragment.visit_words(visitor),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn word_count(&self) -> usize {
+        let mut count = 0;
+        self.visit_words(&mut |_| count += 1);
+        count
+    }
+}
+
+impl PredicateStatementContinuationSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.connective.visit_words(visitor);
+        if let Some(tense_modal) = &self.tense_modal {
+            tense_modal.visit_words(visitor);
+        }
+        match &self.marker {
+            PredicateStatementContinuationMarkerSyntax::Bo(bo) => {
+                bo.visit_words(visitor);
+                self.trailing_subsentence.visit_words(visitor);
+            }
+            PredicateStatementContinuationMarkerSyntax::Ke { ke, kehe } => {
+                ke.visit_words(visitor);
+                self.trailing_subsentence.visit_words(visitor);
+                if let Some(kehe) = kehe {
+                    kehe.visit_words(visitor);
+                }
+            }
+        }
+    }
+}
+
+impl FreeModifierSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn extend_words_into(self, out: &mut Vec<WithIndicators<WordLike>>) {
+        out.extend(self.words());
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            FreeModifierSyntax::Sei {
+                sei,
+                terms,
+                cu,
+                relation,
+                sehu,
+            } => {
+                sei.visit_words(visitor);
+                for term in terms {
+                    term.visit_words(visitor);
+                }
+                if let Some(cu) = cu {
+                    cu.visit_words(visitor);
+                }
+                relation.visit_words(visitor);
+                if let Some(sehu) = sehu {
+                    sehu.visit_words(visitor);
+                }
+            }
+            FreeModifierSyntax::To { to, text, toi } => {
+                to.visit_words(visitor);
+                text.visit_words(visitor);
+                if let Some(toi) = toi {
+                    toi.visit_words(visitor);
+                }
+            }
+            FreeModifierSyntax::Xi { xi, expression } => {
+                xi.visit_words(visitor);
+                expression.visit_words(visitor);
+            }
+            FreeModifierSyntax::Mai { number, mai } => {
+                visit_word_slice(number, visitor);
+                mai.visit_words(visitor);
+            }
+            FreeModifierSyntax::Soi {
+                soi,
+                leading_argument,
+                trailing_argument,
+                sehu,
+            } => {
+                soi.visit_words(visitor);
+                leading_argument.visit_words(visitor);
+                if let Some(argument) = trailing_argument {
+                    argument.visit_words(visitor);
+                }
+                if let Some(sehu) = sehu {
+                    sehu.visit_words(visitor);
+                }
+            }
+            FreeModifierSyntax::Vocative {
+                vocative_markers,
+                argument,
+                dohu,
+            } => {
+                vocative_markers.visit_words(visitor);
+                if let Some(argument) = argument {
+                    argument.visit_words(visitor);
+                }
+                if let Some(dohu) = dohu {
+                    dohu.visit_words(visitor);
+                }
+            }
+            FreeModifierSyntax::Replacement {
+                lohai,
+                old_words,
+                sahai,
+                new_words,
+                lehai,
+            } => {
+                if let Some(lohai) = lohai {
+                    visitor(lohai);
+                }
+                visit_word_slice(old_words, visitor);
+                if let Some(sahai) = sahai {
+                    visitor(sahai);
+                }
+                visit_word_slice(new_words, visitor);
+                lehai.visit_words(visitor);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn word_count(&self) -> usize {
+        let mut count = 0;
+        self.visit_words(&mut |_| count += 1);
+        count
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn first_word(&self) -> Option<&WithIndicators<WordLike>> {
+        match self {
+            FreeModifierSyntax::Sei { sei, .. } => sei.first_word(),
+            FreeModifierSyntax::To { to, .. } => to.first_word(),
+            FreeModifierSyntax::Xi { xi, .. } => xi.first_word(),
+            FreeModifierSyntax::Mai { number, mai } => number.first().or_else(|| mai.first_word()),
+            FreeModifierSyntax::Soi { soi, .. } => soi.first_word(),
+            FreeModifierSyntax::Vocative {
+                vocative_markers, ..
+            } => vocative_markers.first_word(),
+            FreeModifierSyntax::Replacement {
+                lohai,
+                old_words,
+                sahai,
+                new_words,
+                lehai,
+            } => lohai
+                .as_ref()
+                .or_else(|| old_words.first())
+                .or(sahai.as_ref())
+                .or_else(|| new_words.first())
+                .or_else(|| lehai.first_word()),
+        }
+    }
+}
+
+impl PredicateSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        for term in &self.leading_terms {
+            term.visit_words(visitor);
+        }
+        if let Some(cu) = &self.cu {
+            cu.visit_words(visitor);
+        }
+        self.predicate_tail.visit_words(visitor);
+        for free_modifier in &self.free_modifiers {
+            free_modifier.visit_words(visitor);
+        }
+    }
+}
+
+impl PredicateTailSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.first.visit_words(visitor);
+        if let Some(ke_continuation) = &self.ke_continuation {
+            ke_continuation.visit_words(visitor);
+        }
+    }
+}
+
+impl KePredicateTailSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.connective.visit_words(visitor);
+        if let Some(tense_modal) = &self.tense_modal {
+            tense_modal.visit_words(visitor);
+        }
+        self.ke.visit_words(visitor);
+        self.predicate_tail.visit_words(visitor);
+        if let Some(kehe) = &self.kehe {
+            kehe.visit_words(visitor);
+        }
+        for term in &self.tail_terms {
+            term.visit_words(visitor);
+        }
+        if let Some(vau) = &self.vau {
+            vau.visit_words(visitor);
+        }
+        for free_modifier in &self.free_modifiers {
+            free_modifier.visit_words(visitor);
+        }
+    }
+}
+
+impl PredicateTail1Syntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.first.visit_words(visitor);
+        for continuation in &self.continuations {
+            continuation.visit_words(visitor);
+        }
+    }
+}
+
+impl PredicateTailContinuationSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.connective.visit_words(visitor);
+        if let Some(tense_modal) = &self.tense_modal {
+            tense_modal.visit_words(visitor);
+        }
+        if let Some(cu) = &self.cu {
+            cu.visit_words(visitor);
+        }
+        self.predicate_tail.visit_words(visitor);
+        for term in &self.tail_terms {
+            term.visit_words(visitor);
+        }
+        if let Some(vau) = &self.vau {
+            vau.visit_words(visitor);
+        }
+        for free_modifier in &self.free_modifiers {
+            free_modifier.visit_words(visitor);
+        }
+    }
+}
+
+impl PredicateTail2Syntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.first.visit_words(visitor);
+        if let Some(bo_continuation) = &self.bo_continuation {
+            bo_continuation.visit_words(visitor);
+        }
+    }
+}
+
+impl BoPredicateTailSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        self.connective.visit_words(visitor);
+        if let Some(tense_modal) = &self.tense_modal {
+            tense_modal.visit_words(visitor);
+        }
+        self.bo.visit_words(visitor);
+        if let Some(cu) = &self.cu {
+            cu.visit_words(visitor);
+        }
+        self.predicate_tail.visit_words(visitor);
+        for term in &self.tail_terms {
+            term.visit_words(visitor);
+        }
+        if let Some(vau) = &self.vau {
+            vau.visit_words(visitor);
+        }
+        for free_modifier in &self.free_modifiers {
+            free_modifier.visit_words(visitor);
+        }
+    }
+}
+
+impl PredicateTail3Syntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            PredicateTail3Syntax::Relation {
+                relation,
+                terms,
+                vau,
+                free_modifiers,
+            } => {
+                relation.visit_words(visitor);
+                for term in terms {
+                    term.visit_words(visitor);
+                }
+                if let Some(vau) = vau {
+                    vau.visit_words(visitor);
+                }
+                for free_modifier in free_modifiers {
+                    free_modifier.visit_words(visitor);
+                }
+            }
+            PredicateTail3Syntax::GekSentence(gek_sentence) => gek_sentence.visit_words(visitor),
+        }
+    }
+}
+
+impl GekSentenceSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        match self {
+            GekSentenceSyntax::Pair {
+                gek,
+                first,
+                gik,
+                second,
+                tail_terms,
+                vau,
+                free_modifiers,
+            } => {
+                gek.visit_words(visitor);
+                first.visit_words(visitor);
+                gik.visit_words(visitor);
+                second.visit_words(visitor);
+                for term in tail_terms {
+                    term.visit_words(visitor);
+                }
+                if let Some(vau) = vau {
+                    vau.visit_words(visitor);
+                }
+                for free_modifier in free_modifiers {
+                    free_modifier.visit_words(visitor);
+                }
+            }
+            GekSentenceSyntax::Ke {
+                tense_modal,
+                ke,
+                inner,
+                kehe,
+            } => {
+                if let Some(tense_modal) = tense_modal {
+                    tense_modal.visit_words(visitor);
+                }
+                ke.visit_words(visitor);
+                inner.visit_words(visitor);
+                if let Some(kehe) = kehe {
+                    kehe.visit_words(visitor);
+                }
+            }
+            GekSentenceSyntax::Na { na, inner } => {
+                na.visit_words(visitor);
+                inner.visit_words(visitor);
+            }
+        }
     }
 }

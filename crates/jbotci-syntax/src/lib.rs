@@ -43,6 +43,23 @@ impl Indicator {
         }
         words
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_words(&self, visitor: &mut impl FnMut(&WithIndicators<WordLike>)) {
+        let indicator = WithIndicators::bare(WordLike::bare((*self.indicator).clone()));
+        visitor(&indicator);
+        if let Some(nai) = &self.nai {
+            let nai = WithIndicators::bare(WordLike::bare((**nai).clone()));
+            visitor(&nai);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret >= 1)]
+    pub fn word_count(&self) -> usize {
+        1 + usize::from(self.nai.is_some())
+    }
 }
 
 #[requires(true)]

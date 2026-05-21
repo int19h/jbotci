@@ -1228,14 +1228,16 @@ fn statement_parser<'tokens>(
                         if index > 0 {
                             pending_words.push(pending_i);
                         }
-                        pending_words.extend(pending_connective.cmavo.words());
+                        pending_connective
+                            .cmavo
+                            .extend_words_into(&mut pending_words);
                         (first_i, pending_words)
                     },
                 );
                 let connective = tag_bo.map_or(connective.clone(), |(tense_modal, bo)| {
                     let mut cmavo = connective.cmavo;
                     if let Some(tense_modal) = tense_modal {
-                        cmavo.value.extend(tense_modal.words());
+                        tense_modal.extend_words_into(&mut cmavo.value);
                     }
                     cmavo.value.push(bo);
                     ConnectiveSyntax {
@@ -1271,7 +1273,7 @@ fn statement_parser<'tokens>(
             let connective = tag_bo.map_or(connective.clone(), |(tense_modal, bo)| {
                 let mut cmavo = connective.cmavo;
                 if let Some(tense_modal) = tense_modal {
-                    cmavo.value.extend(tense_modal.words());
+                    tense_modal.extend_words_into(&mut cmavo.value);
                 }
                 cmavo.value.push(bo);
                 ConnectiveSyntax {
@@ -1290,7 +1292,10 @@ fn statement_parser<'tokens>(
         .then(cmavo("bo"))
         .then(simple_statement_after_i_connective.clone())
         .map(|(((i, tense_modal), bo), trailing_statement)| {
-            let mut cmavo = tense_modal.map_or_else(Vec::new, TenseModalSyntax::words);
+            let mut cmavo = Vec::new();
+            if let Some(tense_modal) = tense_modal {
+                tense_modal.extend_words_into(&mut cmavo);
+            }
             cmavo.push(bo);
             (
                 false,
@@ -1317,7 +1322,7 @@ fn statement_parser<'tokens>(
                 let connective = tag_bo.map_or(connective.clone(), |(tense_modal, bo)| {
                     let mut cmavo = connective.cmavo;
                     if let Some(tense_modal) = tense_modal {
-                        cmavo.value.extend(tense_modal.words());
+                        tense_modal.extend_words_into(&mut cmavo.value);
                     }
                     cmavo.value.push(bo);
                     ConnectiveSyntax {
@@ -1417,7 +1422,7 @@ fn statement_parser<'tokens>(
                     },
                 );
                 if let Some(tense_modal) = tense_modal {
-                    cmavo.value.extend(tense_modal.words());
+                    tense_modal.extend_words_into(&mut cmavo.value);
                 }
                 cmavo.value.push(bo);
                 Some(ConnectiveSyntax {
@@ -1717,7 +1722,7 @@ fn build_predicate_statement(
 
 #[requires(true)]
 #[ensures(true)]
-#[expensive_ensures(ret.clone().words().len() >= old(leading_statement.clone().words().len()))]
+#[expensive_ensures(ret.word_count() >= old(leading_statement.word_count()))]
 fn build_connected_statement(
     leading_statement: StatementSyntax,
     continuations: Vec<(
@@ -2217,7 +2222,7 @@ where
                         left_expression.clone(),
                         |((((connective, tense_modal), bo), free_modifiers), right_expression)| {
                             let connective = tense_modal.map_or(connective.clone(), |tag| {
-                                append_connective_words(connective, tag.words())
+                                append_tense_modal_words(connective, tag)
                             });
                             let connective =
                                 append_connective_free_modifiers(connective, free_modifiers);
@@ -2277,7 +2282,7 @@ where
                         kehe_free_modifiers,
                     )| {
                         let connective = tense_modal.map_or(connective.clone(), |tag| {
-                            append_connective_words(connective, tag.words())
+                            append_tense_modal_words(connective, tag)
                         });
                         MathExpressionSyntax::Connected {
                             left_expression: Box::new(left_expression),
@@ -3217,7 +3222,7 @@ where
                 leading_argument.clone(),
                 |(((((connective, tense_modal), ke), ke_free_modifiers), inner_argument), kehe)| {
                     let connective = tense_modal.map_or(connective.clone(), |tense_modal| {
-                        append_connective_words(connective, tense_modal.words())
+                        append_tense_modal_words(connective, tense_modal)
                     });
                     ArgumentSyntax::Connected {
                         leading_argument: Box::new(leading_argument),
@@ -4081,7 +4086,7 @@ where
 #[requires(true)]
 #[ensures(true)]
 fn free_modifier_anchor(free_modifier: &FreeModifierSyntax) -> Option<WithIndicators<WordLike>> {
-    free_modifier.clone().words().into_iter().next()
+    free_modifier.first_word().cloned()
 }
 
 #[requires(true)]
@@ -4306,6 +4311,24 @@ fn append_connective_words(
 }
 
 #[requires(true)]
+#[ensures(ret.cmavo.value.len() >= old(connective.cmavo.value.len()))]
+fn append_tense_modal_words(
+    connective: ConnectiveSyntax,
+    tense_modal: TenseModalSyntax,
+) -> ConnectiveSyntax {
+    let mut cmavo = connective.cmavo;
+    tense_modal.extend_words_into(&mut cmavo.value);
+    ConnectiveSyntax {
+        kind: connective.kind,
+        se: connective.se,
+        nahe: connective.nahe,
+        na: connective.na,
+        cmavo,
+        nai: connective.nai,
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.cmavo.value.len() >= old(words.len()))]
 fn prepend_connective_words(
     words: Vec<WithIndicators<WordLike>>,
@@ -4450,7 +4473,8 @@ fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyn
             connective_syntax(ConnectiveKind::Forethought, se, None, None, vec![ga], nai)
         });
     let modal_gi = tense_modal().then(cmavo("gi")).map(|(tense_modal, gi)| {
-        let mut cmavo = tense_modal.words();
+        let mut cmavo = Vec::new();
+        tense_modal.extend_words_into(&mut cmavo);
         cmavo.push(gi);
         connective_syntax(ConnectiveKind::Forethought, None, None, None, cmavo, None)
     });

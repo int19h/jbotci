@@ -601,12 +601,10 @@ pub fn pretty_brackets_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
-    let words = tree
-        .clone()
-        .words()
-        .iter()
-        .map(|word| sexpr::leaf(surface::format_with_indicators(word, source)))
-        .collect::<Vec<_>>();
+    let mut words = Vec::new();
+    tree.visit_words(&mut |word| {
+        words.push(sexpr::leaf(surface::format_with_indicators(word, source)));
+    });
     let sexpr = sexpr::node(words);
     Ok(sexpr::render_bracketed_with_options(
         &sexpr::flatten(sexpr),
