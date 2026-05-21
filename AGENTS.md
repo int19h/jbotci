@@ -38,6 +38,8 @@ Use strong typing to your advantage. Prefer approaches that guarantee correctnes
 
 Prefer lifetime management techniques that can be statically enforced and are correct-by-construction. If possible, work with the borrow checker. If the data structure is not amenable to that, but refcounting solves it, use refcounting, but try to avoid weak references, indices into separately stored collections etc, since these are all prone to bugs such as dangling references or sudden state invalidation. 
 
+Avoid unnecessary copies, clones, and temporary collections, especially in parser, morphology, AST traversal, and contract code. Prefer borrowing for read-only checks, consuming APIs for owned transformations, and in-place mutation when a caller already owns the collection. When both borrowed and owned use cases exist, split helpers into borrowed forms such as `as_...`, `..._ref`, or visitor/count helpers, and owned forms such as `into_...` or `append_..._to` that move values into their destination. Prefer extending a caller-provided accumulator over returning a temporary `Vec` that is immediately consumed, and prefer direct comparisons or small structural helpers over allocating `String`s only to test equality.
+
 For the parser, keep struct fields ordered the same way the constructs appear in the input stream, and ensure pretty-printed outputs preserve that order.
 
 Prefer structs over tuples, including in ADT constructors. If constructor wraps more than one value, it should have named fields.
@@ -218,6 +220,16 @@ match value.as_data() {
     data!(Example::Pair(left, right)) => visit_pair(left, right),
     _ => {}
 }
+```
+
+Use the ownership-preserving bityzba API that matches the job. Use `as_data()` and `data!` patterns for read-only inspection; use `into_data()` when the wrapper is already owned and fields should be moved instead of cloned. For whole-value updates where the replacement is already available, use `value.with_data(data! { field: replacement })`. For updates that derive a new field by consuming the old field, move to data and use normal struct update syntax through `data!`, including `..data`, then revalidate with `Type::from_data` or `Type::try_from_data`:
+
+```rust
+let data = word.into_data();
+let word = Word::from_data(data!(Word {
+    span: map_span(data.span)?,
+    ..data
+}));
 ```
 
 `data!(Type { ... })` and `TypeData` are unchecked escape hatches for serde internals, low-level tests, fixtures, and rare advanced code. They obey normal Rust privacy; use `new!` for public construction of structs with private fields.
