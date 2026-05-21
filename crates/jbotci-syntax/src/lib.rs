@@ -7,7 +7,8 @@ extern crate self as jbotci_syntax;
 
 use std::fmt;
 
-use bityzba::{data, invariant, new, requires};
+#[allow(unused_imports)]
+use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_dialect::DialectDefinition;
 use jbotci_morphology::{Word, WordLike};
 use serde::{Deserialize, Serialize};
@@ -347,6 +348,7 @@ pub fn parse_raw_text(
 }
 
 #[invariant(syntax_parse_data_is_valid(self.as_data()))]
+#[expensive_invariant(syntax_parse_source_spans_are_ordered(self.as_data()))]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SyntaxParse {
     pub parse_tree: TextSyntax,
@@ -587,6 +589,27 @@ fn syntax_parse_data_is_valid(data: &SyntaxParseData) -> bool {
     data.warnings
         .iter()
         .all(|warning| syntax_warning_data_is_valid(warning.as_data()))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_parse_source_spans_are_ordered(data: &SyntaxParseData) -> bool {
+    let data!(SyntaxParse { parse_tree, .. }) = data;
+    let mut last_end = None;
+    let mut ordered = true;
+    parse_tree.visit_words(&mut |word| {
+        if !ordered {
+            return;
+        }
+        for span in word.source_spans() {
+            if last_end.is_some_and(|end| end > span.byte_start) {
+                ordered = false;
+                return;
+            }
+            last_end = Some(span.byte_end);
+        }
+    });
+    ordered
 }
 
 #[requires(true)]
