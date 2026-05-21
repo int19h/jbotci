@@ -376,6 +376,34 @@ mod tests {
         });
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_grouped_math_operator() {
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("li re ke su'i ke'e ci du li mu")
+                .expect("valid morphology");
+
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+
+            assert!(format!("{:#?}", parsed.parse_tree).contains("Ke"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_bo_connected_math_operator() {
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("li re su'i je bo vu'u ci du li mu")
+                .expect("valid morphology");
+
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+
+            assert!(format!("{:#?}", parsed.parse_tree).contains("Bo"));
+        });
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {
