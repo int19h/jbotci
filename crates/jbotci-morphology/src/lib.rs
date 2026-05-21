@@ -219,7 +219,7 @@ impl WordLike {
         new!(WordLike::Bare(Box::new(word)))
     }
 
-    #[requires(true)]
+    #[requires(zo.is_cmavo_text("zo"))]
     #[ensures(true)]
     pub fn zo_quote(zo: Word, word: Word) -> Self {
         new!(WordLike::ZoQuote {
@@ -228,7 +228,9 @@ impl WordLike {
         })
     }
 
-    #[requires(true)]
+    #[requires(zoi.selmaho() == Some("ZOI"))]
+    #[requires(opening_delimiter.span.byte_end <= quoted_text.byte_start)]
+    #[requires(quoted_text.byte_end <= closing_delimiter.span.byte_start)]
     #[ensures(true)]
     pub fn zoi_quote(
         zoi: Word,
@@ -244,7 +246,8 @@ impl WordLike {
         })
     }
 
-    #[requires(true)]
+    #[requires(lohu.is_cmavo_text("lo'u"))]
+    #[requires(lehu.is_cmavo_text("le'u"))]
     #[ensures(true)]
     pub fn lohu_quote(lohu: Word, quoted_words: Vec<Word>, lehu: Word) -> Self {
         new!(WordLike::LohuQuote {
@@ -254,7 +257,7 @@ impl WordLike {
         })
     }
 
-    #[requires(true)]
+    #[requires(is_single_word_quote_marker(&marker))]
     #[ensures(true)]
     pub fn single_word_quote(marker: Word, quoted_text: SourceSpan) -> Self {
         new!(WordLike::SingleWordQuote {
@@ -263,7 +266,7 @@ impl WordLike {
         })
     }
 
-    #[requires(true)]
+    #[requires(bu.is_cmavo_text("bu"))]
     #[ensures(true)]
     pub fn letter(base: WordLike, bu: Word) -> Self {
         new!(WordLike::Letter {
@@ -272,7 +275,7 @@ impl WordLike {
         })
     }
 
-    #[requires(true)]
+    #[requires(zei.is_cmavo_text("zei"))]
     #[ensures(true)]
     pub fn zei_lujvo(left: WordLike, zei: Word, right: Word) -> Self {
         new!(WordLike::ZeiLujvo {
@@ -1211,6 +1214,62 @@ mod tests {
                 .to_string()
                 .contains("word phoneme text must not be empty")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn word_like_constructor_rejects_wrong_zo_marker() {
+        let panic = std::panic::catch_unwind(|| {
+            let _ = WordLike::zo_quote(
+                test_word(WordKind::Cmavo, "mi", 0),
+                test_word(WordKind::Cmavo, "do", 3),
+            );
+        });
+        assert!(panic.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn word_like_constructor_rejects_wrong_bu_marker() {
+        let panic = std::panic::catch_unwind(|| {
+            let _ = WordLike::letter(
+                WordLike::bare(test_word(WordKind::Cmavo, "a", 0)),
+                test_word(WordKind::Cmavo, "cu", 2),
+            );
+        });
+        assert!(panic.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn word_like_constructor_rejects_unordered_zoi_quote_spans() {
+        let panic = std::panic::catch_unwind(|| {
+            let _ = WordLike::zoi_quote(
+                test_word(WordKind::Cmavo, "zoi", 0),
+                test_word(WordKind::Cmavo, "gy", 4),
+                SourceSpan::new(None, 10, 12, 10, 12).expect("valid test span"),
+                test_word(WordKind::Cmavo, "gy", 8),
+            );
+        });
+        assert!(panic.is_err());
+    }
+
+    #[requires(!phonemes.is_empty())]
+    #[ensures(ret.phonemes == phonemes)]
+    fn test_word(kind: WordKind, phonemes: &str, byte_start: usize) -> Word {
+        let byte_end = byte_start + phonemes.len();
+        let char_end = byte_start + phonemes.chars().count();
+        new!(Word {
+            kind: kind,
+            phonemes: phonemes.to_owned(),
+            span: SourceSpan::new(None, byte_start, byte_end, byte_start, char_end)
+                .expect("valid test span"),
+            surface_override: None,
+            dialect_transform: None,
+        })
     }
 
     #[requires(true)]
