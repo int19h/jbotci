@@ -575,26 +575,28 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_compact_output_matches_bracket_renderer() {
-        let cli =
-            Cli::try_parse_from(["jbotci", "gentufa", "mi", "klama"]).expect("gentufa compact");
-        let mut output = Vec::new();
-        let mut error = Vec::new();
-        run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
-        assert!(error.is_empty());
+        run_on_large_stack(|| {
+            let cli =
+                Cli::try_parse_from(["jbotci", "gentufa", "mi", "klama"]).expect("gentufa compact");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
+            assert!(error.is_empty());
 
-        let text = "mi klama";
-        let words = segment_words_with_modifiers(text).expect("morphology");
-        let parsed = parse_syntax_tree(&words).expect("syntax");
-        let expected = pretty_brackets_with_options(
-            &parsed.parse_tree,
-            text,
-            BracketRenderOptions { color: false },
-        )
-        .expect("brackets");
-        assert_eq!(
-            String::from_utf8(output).expect("utf8"),
-            format!("{expected}\n")
-        );
+            let text = "mi klama";
+            let words = segment_words_with_modifiers(text).expect("morphology");
+            let parsed = parse_syntax_tree(&words).expect("syntax");
+            let expected = pretty_brackets_with_options(
+                &parsed.parse_tree,
+                text,
+                BracketRenderOptions { color: false },
+            )
+            .expect("brackets");
+            assert_eq!(
+                String::from_utf8(output).expect("utf8"),
+                format!("{expected}\n")
+            );
+        });
     }
 
     #[test]
@@ -623,21 +625,24 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_json_outputs_typed_syntax_tree() {
-        let cli = Cli::try_parse_from(["jbotci", "gentufa", "--format", "djeisone", "mi", "klama"])
-            .expect("gentufa json");
-        let mut output = Vec::new();
-        let mut error = Vec::new();
-        run_cli(cli, &mut output, &mut error, false).expect("gentufa json run");
-        assert!(error.is_empty());
-        let text = String::from_utf8(output).expect("utf8");
-        let value: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
+        run_on_large_stack(|| {
+            let cli =
+                Cli::try_parse_from(["jbotci", "gentufa", "--format", "djeisone", "mi", "klama"])
+                    .expect("gentufa json");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa json run");
+            assert!(error.is_empty());
+            let text = String::from_utf8(output).expect("utf8");
+            let value: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
 
-        assert!(value.get("leading_nai").is_none());
-        assert!(value["paragraphs"].as_array().is_some());
-        assert!(text.contains("\"Predicate\""));
-        assert!(!text.contains("\"constructor\""));
-        assert!(!text.contains("\"kind\": \"node\""));
-        assert!(!text.contains("\"leadingNai\""));
+            assert!(value.get("leading_nai").is_none());
+            assert!(value["paragraphs"].as_array().is_some());
+            assert!(text.contains("\"Predicate\""));
+            assert!(!text.contains("\"constructor\""));
+            assert!(!text.contains("\"kind\": \"node\""));
+            assert!(!text.contains("\"leadingNai\""));
+        });
     }
 
     #[test]
@@ -671,16 +676,18 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_raw_output_is_debug_syntax_parse() {
-        let cli = Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "raw", "mi", "klama"])
-            .expect("gentufa raw");
-        let mut output = Vec::new();
-        let mut error = Vec::new();
-        run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
-        assert!(error.is_empty());
-        let output = String::from_utf8(output).expect("utf8");
-        assert!(output.contains("TextSyntax"));
-        assert!(output.contains("PredicateSyntax"));
-        assert!(!output.contains("SyntaxValue"));
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "raw", "mi", "klama"])
+                .expect("gentufa raw");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
+            assert!(error.is_empty());
+            let output = String::from_utf8(output).expect("utf8");
+            assert!(output.contains("TextSyntax"));
+            assert!(output.contains("PredicateSyntax"));
+            assert!(!output.contains("SyntaxValue"));
+        });
     }
 
     #[test]
@@ -706,15 +713,17 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_color_flag_forces_ansi_compact_output() {
-        let cli = Cli::try_parse_from(["jbotci", "gentufa", "--color", "mi", "klama"])
-            .expect("gentufa color");
-        assert!(cli.color);
-        let mut output = Vec::new();
-        let mut error = Vec::new();
-        run_cli(cli, &mut output, &mut error, false).expect("gentufa color run");
-        assert!(error.is_empty());
-        let output = String::from_utf8(output).expect("utf8");
-        assert!(output.contains("\x1b["));
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from(["jbotci", "gentufa", "--color", "mi", "klama"])
+                .expect("gentufa color");
+            assert!(cli.color);
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa color run");
+            assert!(error.is_empty());
+            let output = String::from_utf8(output).expect("utf8");
+            assert!(output.contains("\x1b["));
+        });
     }
 
     #[test]
@@ -740,5 +749,16 @@ mod tests {
             text: vec!["coi".into(), "rodo".into()],
         };
         assert_eq!(input.read_text().expect("text"), "coi rodo");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {
+        std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(test)
+            .expect("spawn large-stack test")
+            .join()
+            .expect("large-stack test thread");
     }
 }
