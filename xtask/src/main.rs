@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command as ProcessCommand, ExitStatus};
@@ -55,6 +56,7 @@ enum Command {
         #[arg(default_value = "tests/fixtures")]
         roots: Vec<PathBuf>,
     },
+    FixtureVectorStats(FixtureVectorStatsArgs),
     FixtureTest(FixtureRunArgs),
 }
 
@@ -104,6 +106,17 @@ struct FixtureRunArgs {
     jobs: Option<usize>,
     #[arg(long, default_value_t = 0, value_name = "N")]
     failure_samples: usize,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct FixtureVectorStatsArgs {
+    #[arg(long, default_value = "tests/fixtures")]
+    root: PathBuf,
+    #[arg(long, value_name = "N")]
+    jobs: Option<usize>,
+    #[arg(long, default_value_t = 1, value_name = "N")]
+    min_count: usize,
 }
 
 #[requires(true)]
@@ -157,6 +170,7 @@ fn main() -> Result<()> {
         Command::FixtureImport(args) => fixture_import(args),
         Command::FixtureList(args) => fixture_list(args),
         Command::FixtureRewrite { roots } => fixture_rewrite(roots),
+        Command::FixtureVectorStats(args) => fixture_vector_stats(args),
         Command::FixtureTest(args) => fixture_test(args),
     }
 }
@@ -360,6 +374,229 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
         bail!("fixture-test failed {} facet(s)", summary.failed);
     }
     Ok(())
+}
+
+#[derive(Debug, Default)]
+#[invariant(true)]
+struct VectorStats {
+    selected: usize,
+    parsed: usize,
+    failed: usize,
+    fields: BTreeMap<String, FieldLengths>,
+}
+
+#[derive(Debug, Default)]
+#[invariant(true)]
+struct FieldLengths {
+    lengths: Vec<usize>,
+}
+
+impl VectorStats {
+    #[requires(true)]
+    #[ensures(self.selected >= old(self.selected))]
+    fn merge(&mut self, other: VectorStats) {
+        self.selected += other.selected;
+        self.parsed += other.parsed;
+        self.failed += other.failed;
+        for (field, mut lengths) in other.fields {
+            self.fields
+                .entry(field)
+                .or_default()
+                .lengths
+                .append(&mut lengths.lengths);
+        }
+    }
+
+    #[requires(!field.is_empty())]
+    #[ensures(self.fields.contains_key(field))]
+    fn record_field_length(&mut self, field: &str, length: usize) {
+        self.fields
+            .entry(field.to_owned())
+            .or_default()
+            .lengths
+            .push(length);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn fixture_vector_stats(args: FixtureVectorStatsArgs) -> Result<()> {
+    let paths = fixture_paths(&args.root)
+        .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(args.jobs.unwrap_or_else(default_fixture_jobs))
+        .stack_size(FIXTURE_WORKER_STACK_SIZE)
+        .build()
+        .context("creating fixture-vector-stats thread pool")?;
+    let stats = pool
+        .install(|| {
+            paths
+                .par_iter()
+                .map(|path| fixture_vector_stats_for_path(path))
+                .try_reduce(VectorStats::default, |mut left, right| {
+                    left.merge(right);
+                    Ok(left)
+                })
+        })
+        .with_context(|| format!("loading fixtures under `{}`", args.root.display()))?;
+    print_vector_stats(&stats, args.min_count);
+    Ok(())
+}
+
+#[requires(path.components().next().is_some())]
+#[ensures(true)]
+fn fixture_vector_stats_for_path(path: &Path) -> Result<VectorStats> {
+    let fixture = load_fixture_path(path)?;
+    let mut stats = VectorStats {
+        selected: 1,
+        ..VectorStats::default()
+    };
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
+        Err(_) => {
+            stats.failed = 1;
+            return Ok(stats);
+        }
+    };
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) {
+        Ok(words) => words,
+        Err(_) => {
+            stats.failed = 1;
+            return Ok(stats);
+        }
+    };
+    let parsed = match parse_syntax_tree_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => parsed,
+        Err(_) => {
+            stats.failed = 1;
+            return Ok(stats);
+        }
+    };
+    let value = serde_json::to_value(&parsed.parse_tree).context("serializing parse tree")?;
+    stats.parsed = 1;
+    record_json_array_lengths(&value, &mut Vec::new(), &mut stats);
+    Ok(stats)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn record_json_array_lengths(
+    value: &serde_json::Value,
+    path: &mut Vec<String>,
+    stats: &mut VectorStats,
+) {
+    match value {
+        serde_json::Value::Array(items) => {
+            if let Some(field) = vector_field_path(path) {
+                stats.record_field_length(&field, items.len());
+            }
+            path.push("[]".to_owned());
+            for item in items {
+                record_json_array_lengths(item, path, stats);
+            }
+            path.pop();
+        }
+        serde_json::Value::Object(object) => {
+            for (key, item) in object {
+                path.push(key.clone());
+                record_json_array_lengths(item, path, stats);
+                path.pop();
+            }
+        }
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {}
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vector_field_path(path: &[String]) -> Option<String> {
+    let last = path.last()?;
+    if last == "span" || last == "source_span" {
+        return None;
+    }
+    Some(path.join("."))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn print_vector_stats(stats: &VectorStats, min_count: usize) {
+    println!(
+        "fixtures={}, parsed={}, failed={}",
+        stats.selected, stats.parsed, stats.failed
+    );
+    println!("field\tcount\tmin\tp50\tp90\tp95\tp99\tmax\tavg");
+    for (field, lengths) in &stats.fields {
+        if lengths.lengths.len() < min_count {
+            continue;
+        }
+        let summary = summarize_lengths(&lengths.lengths);
+        println!(
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{:.2}",
+            field,
+            summary.count,
+            summary.min,
+            summary.p50,
+            summary.p90,
+            summary.p95,
+            summary.p99,
+            summary.max,
+            summary.average
+        );
+    }
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct LengthSummary {
+    count: usize,
+    min: usize,
+    p50: usize,
+    p90: usize,
+    p95: usize,
+    p99: usize,
+    max: usize,
+    average: f64,
+}
+
+#[requires(!lengths.is_empty())]
+#[ensures(ret.count == lengths.len())]
+fn summarize_lengths(lengths: &[usize]) -> LengthSummary {
+    let mut sorted = lengths.to_vec();
+    sorted.sort_unstable();
+    let sum = sorted.iter().sum::<usize>();
+    LengthSummary {
+        count: sorted.len(),
+        min: sorted[0],
+        p50: percentile(&sorted, 50),
+        p90: percentile(&sorted, 90),
+        p95: percentile(&sorted, 95),
+        p99: percentile(&sorted, 99),
+        max: *sorted
+            .last()
+            .expect("precondition guarantees non-empty lengths"),
+        average: sum as f64 / sorted.len() as f64,
+    }
+}
+
+#[requires(!sorted.is_empty())]
+#[requires(percentile <= 100)]
+#[ensures(ret >= sorted[0])]
+fn percentile(sorted: &[usize], percentile: usize) -> usize {
+    let index = ((sorted.len() - 1) * percentile).div_ceil(100);
+    sorted[index]
 }
 
 #[requires(profile.is_valid())]
