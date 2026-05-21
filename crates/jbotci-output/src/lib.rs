@@ -148,6 +148,9 @@ fn compact_json_shape(value: Value) -> Value {
                     compacted.insert("leading_indicators".to_owned(), leading_indicators);
                 }
             }
+            if let Some(value) = compact_constructor_object(&compacted) {
+                return value;
+            }
             Value::Object(compacted)
         }
         other => other,
