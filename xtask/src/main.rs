@@ -53,7 +53,7 @@ enum Command {
     FixtureList(FixtureRunArgs),
     FixtureRewrite {
         #[arg(default_value = "tests/fixtures")]
-        root: PathBuf,
+        roots: Vec<PathBuf>,
     },
     FixtureTest(FixtureRunArgs),
 }
@@ -156,7 +156,7 @@ fn main() -> Result<()> {
         }
         Command::FixtureImport(args) => fixture_import(args),
         Command::FixtureList(args) => fixture_list(args),
-        Command::FixtureRewrite { root } => fixture_rewrite(root),
+        Command::FixtureRewrite { roots } => fixture_rewrite(roots),
         Command::FixtureTest(args) => fixture_test(args),
     }
 }
@@ -206,11 +206,34 @@ fn fixture_list(args: FixtureRunArgs) -> Result<()> {
 
 #[requires(true)]
 #[ensures(true)]
-fn fixture_rewrite(root: PathBuf) -> Result<()> {
+fn fixture_rewrite(roots: Vec<PathBuf>) -> Result<()> {
+    let handle = std::thread::Builder::new()
+        .stack_size(FIXTURE_WORKER_STACK_SIZE)
+        .spawn(move || fixture_rewrite_inner(roots))
+        .context("spawning fixture-rewrite worker")?;
+    match handle.join() {
+        Ok(result) => result,
+        Err(_) => bail!("fixture-rewrite worker panicked"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn fixture_rewrite_inner(roots: Vec<PathBuf>) -> Result<()> {
     let mut rewritten = 0usize;
-    for path in fixture_paths(&root)
-        .with_context(|| format!("listing fixtures under `{}`", root.display()))?
-    {
+    let mut paths = Vec::new();
+    for root in &roots {
+        paths.extend(
+            fixture_paths(root)
+                .with_context(|| format!("listing fixtures under `{}`", root.display()))?,
+        );
+    }
+    let total = paths.len();
+    for (index, path) in paths.into_iter().enumerate() {
+        let processed = index + 1;
+        if total > 0 && should_report_fixture_rewrite_progress(processed, total) {
+            eprintln!("fixture-rewrite: {processed}/{total} processed, {rewritten} changed");
+        }
         let before = fs::read_to_string(&path)
             .with_context(|| format!("reading fixture `{}`", path.display()))?;
         let mut fixture = load_fixture_path(&path)
@@ -227,6 +250,12 @@ fn fixture_rewrite(root: PathBuf) -> Result<()> {
     }
     println!("rewrote {rewritten} fixture(s)");
     Ok(())
+}
+
+#[requires(total > 0)]
+#[ensures(processed == total -> ret)]
+fn should_report_fixture_rewrite_progress(processed: usize, total: usize) -> bool {
+    processed == 1 || processed == total || processed.is_multiple_of(100)
 }
 
 #[requires(true)]
@@ -274,6 +303,22 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_accepts_success_tree_refresh(syntax: &fixtures::SyntaxExpectation) -> bool {
+    match syntax.status {
+        ExpectationStatus::Success => syntax
+            .xfail
+            .as_ref()
+            .is_none_or(|xfail| xfail.accepted_status == ExpectationStatus::Success),
+        ExpectationStatus::Failure => syntax
+            .xfail
+            .as_ref()
+            .is_some_and(|xfail| xfail.accepted_status == ExpectationStatus::Success),
+        ExpectationStatus::Pending | ExpectationStatus::NotApplicable => false,
+    }
 }
 
 #[requires(true)]
