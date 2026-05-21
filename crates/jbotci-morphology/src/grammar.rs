@@ -5,8 +5,8 @@ use chumsky::span::SimpleSpan;
 use jbotci_source::{SourceId, SourceSpan};
 
 use crate::{
-    MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordLikeData, canonicalize_text,
-    visible_selmaho,
+    MorphologyError, MorphologyOptions, Word, WordKind, WordLike, WordLikeData, canonical_text_eq,
+    canonical_text_is_all, canonicalize_text, visible_selmaho,
 };
 
 type MorphExtra<'src> = extra::Err<Rich<'src, char>>;
@@ -160,6 +160,16 @@ impl<'a> Segmenter<'a> {
             return Ok(());
         }
         let token = segment.into_iter().next().expect("length checked");
+        self.process_token(acc, token)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn process_token(
+        &mut self,
+        acc: &mut Vec<WordLike>,
+        token: WordLike,
+    ) -> Result<(), MorphologyError> {
         if is_simple_cmavo_text(&token, "bu") {
             return self.handle_bu(acc, token);
         }
@@ -265,9 +275,9 @@ impl<'a> Segmenter<'a> {
                 return Ok(vec![zo_word_with_modifiers]);
             }
         };
-        let zo = extract_word(&zo_word_with_modifiers)
+        let zo = into_bare_word(zo_word_with_modifiers)
             .ok_or_else(|| self.invalid_at(self.index, "zo", "zo must be a single word"))?;
-        let word = extract_word(&quoted)
+        let word = into_bare_word(quoted)
             .ok_or_else(|| self.invalid_at(self.index, "", "zo requires a word to quote"))?;
         Ok(vec![base_word_like(WordLike::zo_quote(zo, word))])
     }
@@ -287,9 +297,10 @@ impl<'a> Segmenter<'a> {
                 return Ok(vec![zoi_word_with_modifiers]);
             }
         };
-        let zoi = extract_word(&zoi_word_with_modifiers)
-            .ok_or_else(|| self.invalid_at(self.index, "zoi", "ZOI must be a single word"))?;
-        let opening_delimiter = extract_word(&opening_word_with_modifiers).ok_or_else(|| {
+        if bare_word_ref(&zoi_word_with_modifiers).is_none() {
+            return Err(self.invalid_at(self.index, "zoi", "ZOI must be a single word"));
+        }
+        let opening_delimiter = into_bare_word(opening_word_with_modifiers).ok_or_else(|| {
             self.invalid_at(self.index, "", "ZOI delimiter must be a single word")
         })?;
         if is_y_word_text(&opening_delimiter.phonemes) {
@@ -312,7 +323,9 @@ impl<'a> Segmenter<'a> {
         };
         self.index = close_start;
         let closing = self.next_plain_word()?;
-        let closing_delimiter = extract_word(&closing).unwrap_or(closing_delimiter);
+        let zoi =
+            into_bare_word(zoi_word_with_modifiers).expect("ZOI marker was checked as a bare word");
+        let closing_delimiter = into_bare_word(closing).unwrap_or(closing_delimiter);
         Ok(vec![base_word_like(WordLike::zoi_quote(
             zoi,
             opening_delimiter,
@@ -336,7 +349,7 @@ impl<'a> Segmenter<'a> {
             return Ok(vec![marker_word_with_modifiers]);
         }
         self.index = end;
-        let marker = extract_word(&marker_word_with_modifiers).ok_or_else(|| {
+        let marker = into_bare_word(marker_word_with_modifiers).ok_or_else(|| {
             self.invalid_at(start, "", "single-word quote marker must be a single word")
         })?;
         Ok(vec![base_word_like(WordLike::single_word_quote(
@@ -351,7 +364,7 @@ impl<'a> Segmenter<'a> {
         &mut self,
         lohu_word_with_modifiers: WordLike,
     ) -> Result<Vec<WordLike>, MorphologyError> {
-        let lohu = extract_word(&lohu_word_with_modifiers)
+        let lohu = into_bare_word(lohu_word_with_modifiers)
             .ok_or_else(|| self.invalid_at(self.index, "lo'u", "LOhU must be a single word"))?;
         let mut quoted_words = Vec::new();
         loop {
@@ -367,7 +380,7 @@ impl<'a> Segmenter<'a> {
             }
             let word = self.next_plain_word()?;
             if is_simple_cmavo_text(&word, "le'u") {
-                let lehu = extract_word(&word).ok_or_else(|| {
+                let lehu = into_bare_word(word).ok_or_else(|| {
                     self.invalid_at(self.index, "le'u", "LEhU must be a single word")
                 })?;
                 return Ok(vec![base_word_like(WordLike::lohu_quote(
@@ -376,7 +389,7 @@ impl<'a> Segmenter<'a> {
                     lehu,
                 ))]);
             }
-            if let Some(inner) = extract_word(&word) {
+            if let Some(inner) = into_bare_word(word) {
                 quoted_words.push(inner);
             }
         }
@@ -392,17 +405,16 @@ impl<'a> Segmenter<'a> {
         let Some(prev) = acc.pop() else {
             return Err(self.invalid_at(self.index, "bu", "bu requires a preceding word"));
         };
-        let bu = extract_word(&bu_word_with_modifiers)
+        let bu = into_bare_word(bu_word_with_modifiers)
             .ok_or_else(|| self.invalid_at(self.index, "bu", "bu must be a single word"))?;
-        acc.push(base_word_like(WordLike::letter(get_word_like(&prev), bu)));
+        acc.push(base_word_like(WordLike::letter(prev, bu)));
         Ok(())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn handle_si(&self, acc: &mut Vec<WordLike>) {
-        let (_prev, rest) = skip_acc_y(acc);
-        *acc = rest;
+        drop(pop_previous_word_skipping_y(acc));
     }
 
     #[requires(true)]
@@ -425,7 +437,7 @@ impl<'a> Segmenter<'a> {
             };
             if replacement.len() != 1 {
                 for word in replacement {
-                    self.process_segment(acc, vec![word])?;
+                    self.process_token(acc, word)?;
                 }
                 return Ok(());
             }
@@ -436,14 +448,14 @@ impl<'a> Segmenter<'a> {
             }
             let target_tag = sa_match_tag(self.options, &replacement);
             let acc_after_erase = target_tag
-                .and_then(|tag| find_nth_matching_word(self.options, sa_count, tag, acc))
+                .and_then(|tag| find_nth_matching_word_index(self.options, sa_count, tag, acc))
                 .unwrap_or_default();
-            *acc = acc_after_erase;
+            acc.truncate(acc_after_erase);
             if is_simple_cmavo_text(&replacement, "zei") {
                 acc.push(replacement);
                 return Ok(());
             }
-            return self.process_segment(acc, vec![replacement]);
+            return self.process_token(acc, replacement);
         }
     }
 
@@ -484,7 +496,7 @@ impl<'a> Segmenter<'a> {
     #[requires(true)]
     #[ensures(true)]
     fn handle_su(&self, acc: &mut Vec<WordLike>) {
-        *acc = erase_back_to_su_boundary(acc);
+        acc.truncate(su_boundary_index(acc));
     }
 
     #[requires(true)]
@@ -496,21 +508,22 @@ impl<'a> Segmenter<'a> {
     ) -> Result<(), MorphologyError> {
         self.skip_y_words();
         let next = self.next_plain_word().ok();
-        let (prev, rest) = skip_acc_y(acc);
-        match (prev, next) {
-            (Some(prev), Some(next)) => {
-                let Some(zei) = extract_word(&zei_word_with_modifiers) else {
+        let prev_index = previous_word_skipping_y_index(acc);
+        match (prev_index, next) {
+            (Some(prev_index), Some(next)) => {
+                let Some(zei) = into_bare_word(zei_word_with_modifiers) else {
                     return Err(self.invalid_at(self.index, "zei", "ZEI must be a single word"));
                 };
-                let Some(right) = extract_word(&next) else {
+                let Some(right) = into_bare_word(next) else {
                     return Err(self.invalid_at(self.index, "", "ZEI requires a following word"));
                 };
-                *acc = rest;
-                acc.push(base_word_like(WordLike::zei_lujvo(
-                    get_word_like(&prev),
-                    zei,
-                    right,
-                )));
+                while acc.len() > prev_index + 1 {
+                    acc.pop();
+                }
+                let prev = acc
+                    .pop()
+                    .expect("previous word index was checked as present");
+                acc.push(base_word_like(WordLike::zei_lujvo(prev, zei, right)));
             }
             (None, Some(next)) => {
                 acc.push(zei_word_with_modifiers);
@@ -527,6 +540,7 @@ impl<'a> Segmenter<'a> {
         &mut self,
         opening_delimiter: &Word,
     ) -> Result<Option<(usize, Word, usize)>, MorphologyError> {
+        let opening_delimiter_canonical = canonicalize_text(&opening_delimiter.phonemes);
         let mut cursor = self.index;
         while cursor < self.chars.len() {
             let pause_start = cursor;
@@ -543,8 +557,7 @@ impl<'a> Segmenter<'a> {
                 self.index = saved;
                 if let Ok(word_with_modifiers) = maybe_word
                     && let Some(closing_word) = extract_word(&word_with_modifiers)
-                    && canonicalize_text(&closing_word.phonemes)
-                        == canonicalize_text(&opening_delimiter.phonemes)
+                    && canonical_text_eq(&closing_word.phonemes, &opening_delimiter_canonical)
                 {
                     return Ok(Some((
                         trim_trailing_separator_indices(&self.chars, self.index, pause_start),
@@ -977,16 +990,25 @@ fn base_word_like(word_like: WordLike) -> WordLike {
 #[requires(true)]
 #[ensures(true)]
 fn extract_word(word: &WordLike) -> Option<Word> {
+    bare_word_ref(word).cloned()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bare_word_ref(word: &WordLike) -> Option<&Word> {
     match word.as_data() {
-        data!(WordLike::Bare(word)) => Some((**word).clone()),
+        data!(WordLike::Bare(word)) => Some(word),
         _ => None,
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn get_word_like(word: &WordLike) -> WordLike {
-    word.clone()
+fn into_bare_word(word: WordLike) -> Option<Word> {
+    match word.into_data() {
+        data!(WordLike::Bare(word)) => Some(*word),
+        _ => None,
+    }
 }
 
 #[requires(!text.is_empty())]
@@ -998,15 +1020,14 @@ fn is_simple_cmavo_text(word: &WordLike, text: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_y_word(word: &WordLike) -> bool {
-    extract_word(word)
+    bare_word_ref(word)
         .is_some_and(|word| word.kind == WordKind::Cmavo && is_y_word_text(&word.phonemes))
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn is_y_word_text(text: &str) -> bool {
-    let canonical = canonicalize_text(text);
-    !canonical.is_empty() && canonical.chars().all(|value| value == 'y')
+    canonical_text_is_all(text, 'y')
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -1025,60 +1046,67 @@ fn trim_trailing_separator_indices(chars: &[SourceChar], start: usize, end: usiz
 
 #[requires(true)]
 #[ensures(true)]
-fn skip_acc_y(acc: &[WordLike]) -> (Option<WordLike>, Vec<WordLike>) {
+fn pop_previous_word_skipping_y(acc: &mut Vec<WordLike>) -> Option<WordLike> {
     let mut last_y = None;
-    for (index, token) in acc.iter().enumerate().rev() {
-        if is_y_word(token) {
-            last_y = Some(token.clone());
-            continue;
-        }
-        return (Some(token.clone()), acc[..index].to_vec());
+    while acc.last().is_some_and(is_y_word) {
+        last_y = acc.pop();
     }
-    (last_y, Vec::new())
+    acc.pop().or(last_y)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn erase_back_to_su_boundary(acc: &[WordLike]) -> Vec<WordLike> {
+fn previous_word_skipping_y_index(acc: &[WordLike]) -> Option<usize> {
+    let mut last_y_index = None;
+    for (index, token) in acc.iter().enumerate().rev() {
+        if !is_y_word(token) {
+            return Some(index);
+        }
+        last_y_index = Some(index);
+    }
+    last_y_index
+}
+
+#[requires(true)]
+#[ensures(ret <= acc.len())]
+fn su_boundary_index(acc: &[WordLike]) -> usize {
     for (index, token) in acc.iter().enumerate().rev() {
         let selmaho = visible_selmaho(token);
         if matches!(selmaho, Some("NIhO" | "LU" | "TUhE" | "TO")) {
-            return acc[..index].to_vec();
+            return index;
         }
     }
-    Vec::new()
+    0
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn sa_match_tag<'a>(options: &MorphologyOptions, word: &'a WordLike) -> Option<SAMatchTag<'a>> {
-    match get_word_like(word).into_data() {
-        data!(WordLike::Bare(word)) => match word.kind {
-            WordKind::Cmavo => {
-                visible_selmaho(&WordLike::bare((*word).clone())).map(SAMatchTag::Selmaho)
-            }
+    match bare_word_ref(word) {
+        Some(word) => match word.kind {
+            WordKind::Cmavo => word.selmaho().map(SAMatchTag::Selmaho),
             WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => Some(SAMatchTag::Brivla),
             WordKind::Cmevla if options.cmevla_as_relation_words => Some(SAMatchTag::Brivla),
             WordKind::Cmevla => Some(SAMatchTag::Cmevla),
         },
-        other => visible_selmaho(&WordLike::from_data(other)).map(SAMatchTag::Selmaho),
+        None => visible_selmaho(word).map(SAMatchTag::Selmaho),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn find_nth_matching_word(
+fn find_nth_matching_word_index(
     options: &MorphologyOptions,
     count: usize,
     target: SAMatchTag<'_>,
     acc: &[WordLike],
-) -> Option<Vec<WordLike>> {
+) -> Option<usize> {
     let mut remaining = count;
     for (index, token) in acc.iter().enumerate().rev() {
         if sa_match_tag(options, token) == Some(target) {
             remaining -= 1;
             if remaining == 0 {
-                return Some(acc[..index].to_vec());
+                return Some(index);
             }
         }
     }

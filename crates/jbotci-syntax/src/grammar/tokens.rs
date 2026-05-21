@@ -5,7 +5,7 @@ use bityzba::{data, requires};
 use chumsky::error::{Rich, RichReason};
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
-use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData, strip_diacritics};
+use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData, strip_diacritics_eq};
 use jbotci_source::SourceSpan;
 
 use super::{BoxedParser, ParserState, Span, SpannedToken};
@@ -416,7 +416,7 @@ pub(super) fn word_record_text_matches(word: &jbotci_morphology::Word, expected:
 #[requires(!expected.is_empty())]
 #[ensures(true)]
 pub(super) fn phonemes_match_syntax_text(actual: &str, expected: &str) -> bool {
-    actual == expected || strip_diacritics(actual) == expected
+    actual == expected || strip_diacritics_eq(actual, expected)
 }
 
 #[requires(true)]

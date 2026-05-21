@@ -4019,7 +4019,8 @@ impl QuoteSyntax {
                 quoted_words,
                 lehu,
             } => {
-                let mut words = [vec![lohu], quoted_words].concat();
+                let mut words = vec![lohu];
+                words.extend(quoted_words);
                 words.extend(lehu.words());
                 words
             }
@@ -4098,14 +4099,21 @@ impl ConnectiveSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn words(self) -> Vec<WithIndicators<WordLike>> {
-        [
-            self.se.into_iter().collect(),
-            self.nahe.into_iter().collect(),
-            self.na.into_iter().collect(),
-            self.cmavo.words(),
-            self.nai.into_iter().flat_map(|nai| nai.words()).collect(),
-        ]
-        .concat()
+        let mut words = Vec::new();
+        if let Some(se) = self.se {
+            words.push(se);
+        }
+        if let Some(nahe) = self.nahe {
+            words.push(nahe);
+        }
+        if let Some(na) = self.na {
+            words.push(na);
+        }
+        self.cmavo.extend_words_into(&mut words);
+        if let Some(nai) = self.nai {
+            nai.extend_words_into(&mut words);
+        }
+        words
     }
 }
 

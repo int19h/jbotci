@@ -81,10 +81,8 @@ fn is_fast_simple_lujvo(word: &str) -> bool {
     if word.chars().count() <= 5 || !word.chars().all(is_fast_plain_lujvo_char) {
         return false;
     }
-    let chars = text_chars(word);
-    let split = chars.len() - 5;
-    let prefix: String = chars[..split].iter().collect();
-    let suffix: String = chars[split..].iter().collect();
+    let split = word.len() - 5;
+    let (prefix, suffix) = word.split_at(split);
     if !is_fast_simple_gismu(&suffix) {
         return false;
     }
@@ -107,21 +105,19 @@ fn is_fast_plain_lujvo_char(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn fast_simple_rafsi_chunks(word: &str) -> Option<Vec<String>> {
+fn fast_simple_rafsi_chunks(word: &str) -> Option<Vec<&str>> {
     if word.is_empty() {
         return Some(Vec::new());
     }
-    let chars = text_chars(word);
-    if chars.len() < 3 {
+    if word.len() < 3 {
         return None;
     }
-    let chunk: String = chars[..3].iter().collect();
+    let (chunk, rest) = word.split_at(3);
     if !is_fast_short_rafsi(&chunk) {
         return None;
     }
-    let rest: String = chars[3..].iter().collect();
     let mut chunks = vec![chunk];
-    chunks.extend(fast_simple_rafsi_chunks(&rest)?);
+    chunks.extend(fast_simple_rafsi_chunks(rest)?);
     Some(chunks)
 }
 
@@ -140,7 +136,7 @@ fn is_fast_short_rafsi(rafsi: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn fast_rafsi_boundaries_are_valid(parts: &[String]) -> bool {
+fn fast_rafsi_boundaries_are_valid(parts: &[&str]) -> bool {
     parts.windows(2).all(|window| {
         let left = &window[0];
         let right = &window[1];
@@ -165,10 +161,10 @@ fn fast_rafsi_boundaries_are_valid(parts: &[String]) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn is_fast_tosmabru_failure(prefix_chunks: &[String], suffix: &str) -> bool {
+fn is_fast_tosmabru_failure(prefix_chunks: &[&str], suffix: &str) -> bool {
     if !prefix_chunks
         .iter()
-        .all(|chunk| fast_syllables_pattern(chunk).as_deref() == Some("CVC"))
+        .all(|chunk| is_fast_cvc_syllable_pattern(chunk))
     {
         return false;
     }
@@ -176,15 +172,21 @@ fn is_fast_tosmabru_failure(prefix_chunks: &[String], suffix: &str) -> bool {
     match &suffix_chars[..] {
         [_c1, _v1, c2, c3, _v2] => {
             is_fast_initial_pair_chars(*c2, *c3) && {
-                let mut parts = prefix_chunks.to_vec();
-                parts.push(suffix.to_owned());
-                parts.windows(2).all(|window| {
-                    let left_tail = window[0].chars().last();
-                    let right_head = window[1].chars().next();
-                    left_tail
-                        .zip(right_head)
-                        .is_some_and(|(left, right)| is_fast_initial_pair_chars(left, right))
-                })
+                let mut previous: Option<&str> = None;
+                for part in prefix_chunks.iter().copied().chain(std::iter::once(suffix)) {
+                    if let Some(left) = previous {
+                        let left_tail = left.chars().last();
+                        let right_head = part.chars().next();
+                        if !left_tail
+                            .zip(right_head)
+                            .is_some_and(|(left, right)| is_fast_initial_pair_chars(left, right))
+                        {
+                            return false;
+                        }
+                    }
+                    previous = Some(part);
+                }
+                true
             }
         }
         _ => false,
@@ -193,22 +195,9 @@ fn is_fast_tosmabru_failure(prefix_chunks: &[String], suffix: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn fast_syllables_pattern(text: &str) -> Option<String> {
-    text.chars()
-        .map(|value| {
-            if is_fast_vowel(value) {
-                Some('V')
-            } else if is_fast_consonant(value) {
-                Some('C')
-            } else if value == 'y' {
-                Some('Y')
-            } else if value == '\'' {
-                Some('\'')
-            } else {
-                None
-            }
-        })
-        .collect()
+fn is_fast_cvc_syllable_pattern(text: &str) -> bool {
+    let chars = text_chars(text);
+    matches!(&chars[..], [c1, v, c2] if is_fast_consonant(*c1) && is_fast_vowel(*v) && is_fast_consonant(*c2))
 }
 
 #[requires(true)]
@@ -244,14 +233,24 @@ fn is_fast_consonant(value: char) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn is_fast_initial_pair_chars(first: char, second: char) -> bool {
-    INITIAL_PAIRS.contains(&format!("{first}{second}").as_str())
+    matches!(
+        (first, second),
+        ('b', 'l' | 'r')
+            | ('c', 'f' | 'k' | 'l' | 'm' | 'n' | 'p' | 'r' | 't')
+            | ('d', 'j' | 'r' | 'z')
+            | ('f', 'l' | 'r')
+            | ('g', 'l' | 'r')
+            | ('j', 'b' | 'd' | 'g' | 'm' | 'v')
+            | ('k', 'l' | 'r')
+            | ('m', 'l' | 'r')
+            | ('p', 'l' | 'r')
+            | ('s', 'f' | 'k' | 'l' | 'm' | 'n' | 'p' | 'r' | 't')
+            | ('t', 'c' | 'r' | 's')
+            | ('v', 'l' | 'r')
+            | ('x', 'l' | 'r')
+            | ('z', 'b' | 'd' | 'g' | 'm' | 'v')
+    )
 }
-
-pub(super) const INITIAL_PAIRS: &[&str] = &[
-    "bl", "br", "cf", "ck", "cl", "cm", "cn", "cp", "cr", "ct", "dj", "dr", "dz", "fl", "fr", "gl",
-    "gr", "jb", "jd", "jg", "jm", "jv", "kl", "kr", "ml", "mr", "pl", "pr", "sf", "sk", "sl", "sm",
-    "sn", "sp", "sr", "st", "tc", "tr", "ts", "vl", "vr", "xl", "xr", "zb", "zd", "zg", "zm", "zv",
-];
 
 #[requires(true)]
 #[ensures(true)]

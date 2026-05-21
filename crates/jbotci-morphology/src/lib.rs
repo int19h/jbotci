@@ -164,7 +164,7 @@ impl Word {
     #[requires(!text.is_empty())]
     #[ensures(true)]
     pub fn is_cmavo_text(&self, text: &str) -> bool {
-        self.is_cmavo() && self.canonical_phonemes() == text
+        self.is_cmavo() && canonical_text_eq(&self.phonemes, text)
     }
 
     #[requires(true)]
@@ -592,10 +592,11 @@ fn word_like_data_is_valid(word_like: &WordLikeData) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_single_word_quote_marker(word: &Word) -> bool {
-    matches!(
-        word.canonical_phonemes().as_str(),
-        "zo'oi" | "la'oi" | "ra'oi" | "me'oi" | "go'oi"
-    )
+    canonical_text_eq(&word.phonemes, "zo'oi")
+        || canonical_text_eq(&word.phonemes, "la'oi")
+        || canonical_text_eq(&word.phonemes, "ra'oi")
+        || canonical_text_eq(&word.phonemes, "me'oi")
+        || canonical_text_eq(&word.phonemes, "go'oi")
 }
 
 #[requires(true)]
@@ -789,6 +790,46 @@ pub fn canonicalize_text(text: &str) -> String {
         .flat_map(strip_diacritic)
         .flat_map(char::to_lowercase)
         .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn canonical_text_eq(left: &str, right: &str) -> bool {
+    left.chars()
+        .filter(|value| *value != ',')
+        .flat_map(strip_diacritic)
+        .flat_map(char::to_lowercase)
+        .eq(right
+            .chars()
+            .filter(|value| *value != ',')
+            .flat_map(strip_diacritic)
+            .flat_map(char::to_lowercase))
+}
+
+#[requires(true)]
+#[ensures(ret -> !text.is_empty())]
+pub fn canonical_text_is_all(text: &str, expected: char) -> bool {
+    let mut saw_char = false;
+    for value in text
+        .chars()
+        .filter(|value| *value != ',')
+        .flat_map(strip_diacritic)
+        .flat_map(char::to_lowercase)
+    {
+        if value != expected {
+            return false;
+        }
+        saw_char = true;
+    }
+    saw_char
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn strip_diacritics_eq(left: &str, right: &str) -> bool {
+    left.chars()
+        .filter_map(strip_diacritic)
+        .eq(right.chars().filter_map(strip_diacritic))
 }
 
 #[requires(true)]

@@ -4,7 +4,7 @@ use crate::{MorphologyOptions, WordKind};
 
 mod fast;
 pub(crate) use fast::classify_fast_simple_word;
-use fast::{INITIAL_PAIRS, is_fast_initial_pair_chars, is_fast_permissible_consonant_pair};
+use fast::{is_fast_initial_pair_chars, is_fast_permissible_consonant_pair};
 
 #[requires(true)]
 #[ensures(true)]
@@ -302,7 +302,7 @@ fn parse_initial(chars: &[char], start: usize, end: usize) -> Option<String> {
     let valid_shape = match end - start {
         0 => true,
         1 => is_consonant(chars[start]),
-        2 => INITIAL_PAIRS.contains(&initial.as_str()),
+        2 => is_fast_initial_pair_chars(chars[start], chars[start + 1]),
         _ => false,
     };
     if !valid_shape {
@@ -470,28 +470,24 @@ fn has_geminated_consonant(chars: &[char]) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn has_forbidden_consonant_triple(chars: &[char]) -> bool {
-    consonant_runs(chars).iter().any(|run| {
-        run.windows(3)
-            .any(|triple| matches!(triple, ['n', 'd', 'j' | 'z'] | ['n', 't', 'c' | 's']))
-    })
-}
-
-#[requires(true)]
-#[ensures(ret.iter().all(|run| run.iter().all(|value| is_consonant(*value))))]
-fn consonant_runs(chars: &[char]) -> Vec<Vec<char>> {
-    let mut runs = Vec::new();
-    let mut current = Vec::new();
+    let mut first = None;
+    let mut second = None;
     for value in chars.iter().copied() {
-        if is_consonant(value) {
-            current.push(value);
-        } else if !current.is_empty() {
-            runs.push(std::mem::take(&mut current));
+        if !is_consonant(value) {
+            first = None;
+            second = None;
+            continue;
         }
+        if matches!(
+            (first, second, value),
+            (Some('n'), Some('d'), 'j' | 'z') | (Some('n'), Some('t'), 'c' | 's')
+        ) {
+            return true;
+        }
+        first = second;
+        second = Some(value);
     }
-    if !current.is_empty() {
-        runs.push(current);
-    }
-    runs
+    false
 }
 
 #[requires(true)]

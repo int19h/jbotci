@@ -1249,8 +1249,9 @@ fn statement_parser<'tokens>(
                         nai: connective.nai,
                     }
                 });
-                let connective =
-                    prepend_connective_words([pending_words, vec![i]].concat(), connective);
+                let mut pending_words = pending_words;
+                pending_words.push(i);
+                let connective = prepend_connective_words(pending_words, connective);
                 (
                     false,
                     first_i.expect("at least one pending i connective is parsed"),
@@ -1590,7 +1591,10 @@ fn prepend_i_with_free_modifier(
         return text;
     }
 
-    let mut paragraph = text.paragraphs.remove(0);
+    let paragraph = text
+        .paragraphs
+        .first_mut()
+        .expect("empty paragraphs handled above");
     if paragraph.niho.is_empty() {
         paragraph.statements = prepend_i_to_niho_free_paragraph_statements(
             marker,
@@ -1604,7 +1608,6 @@ fn prepend_i_with_free_modifier(
             std::mem::take(&mut paragraph.statements),
         );
     }
-    text.paragraphs.insert(0, paragraph);
     text
 }
 
@@ -1739,54 +1742,60 @@ fn build_connected_statement(
         statements.push(trailing_statement);
     }
 
-    for index in (0..connectors.len()).rev() {
-        if connective_has_bo(&connectors[index].2) {
-            let trailing_statement = statements.remove(index + 1);
-            let leading_statement = statements.remove(index);
-            let (pre_i, i, connective) = connectors.remove(index);
-            statements.insert(
-                index,
-                if pre_i {
-                    StatementSyntax::PreIConnected {
-                        connective,
-                        i,
-                        leading_statement: Box::new(leading_statement),
-                        trailing_statement: Box::new(trailing_statement),
-                    }
-                } else {
-                    StatementSyntax::Connected {
-                        i,
-                        connective,
-                        leading_statement: Box::new(leading_statement),
-                        trailing_statement: Box::new(trailing_statement),
-                    }
-                },
-            );
+    let mut right_statement = statements
+        .pop()
+        .expect("there is always at least the leading statement");
+    let mut pending_non_bo = Vec::new();
+    while let Some((pre_i, i, connective)) = connectors.pop() {
+        let left_statement = statements
+            .pop()
+            .expect("connectors are paired with a leading statement");
+        if connective_has_bo(&connective) {
+            right_statement =
+                connected_statement_node(pre_i, i, connective, left_statement, right_statement);
+        } else {
+            pending_non_bo.push((pre_i, i, connective, right_statement));
+            right_statement = left_statement;
         }
     }
 
-    let mut statements = statements.into_iter();
-    let mut connected_statement = statements
-        .next()
-        .expect("there is always at least the leading statement");
-    for ((pre_i, i, connective), trailing_statement) in connectors.into_iter().zip(statements) {
-        connected_statement = if pre_i {
-            StatementSyntax::PreIConnected {
-                connective,
-                i,
-                leading_statement: Box::new(connected_statement),
-                trailing_statement: Box::new(trailing_statement),
-            }
-        } else {
-            StatementSyntax::Connected {
-                i,
-                connective,
-                leading_statement: Box::new(connected_statement),
-                trailing_statement: Box::new(trailing_statement),
-            }
-        };
+    let mut connected_statement = right_statement;
+    for (pre_i, i, connective, trailing_statement) in pending_non_bo.into_iter().rev() {
+        connected_statement = connected_statement_node(
+            pre_i,
+            i,
+            connective,
+            connected_statement,
+            trailing_statement,
+        );
     }
     connected_statement
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connected_statement_node(
+    pre_i: bool,
+    i: WithIndicators<WordLike>,
+    connective: ConnectiveSyntax,
+    leading_statement: StatementSyntax,
+    trailing_statement: StatementSyntax,
+) -> StatementSyntax {
+    if pre_i {
+        StatementSyntax::PreIConnected {
+            connective,
+            i,
+            leading_statement: Box::new(leading_statement),
+            trailing_statement: Box::new(trailing_statement),
+        }
+    } else {
+        StatementSyntax::Connected {
+            i,
+            connective,
+            leading_statement: Box::new(leading_statement),
+            trailing_statement: Box::new(trailing_statement),
+        }
+    }
 }
 
 #[requires(true)]
@@ -4094,7 +4103,13 @@ fn free_modifier_anchor(free_modifier: &FreeModifierSyntax) -> Option<WithIndica
 fn vocative_markers<'tokens>() -> BoxedParser<'tokens, Vec<WithIndicators<WordLike>>> {
     let coi_marker = cmavo_of("COI", COI_WORDS)
         .then(cmavo("nai").or_not())
-        .map(|(coi, nai)| [vec![coi], nai.into_iter().collect()].concat());
+        .map(|(coi, nai)| {
+            let mut markers = vec![coi];
+            if let Some(nai) = nai {
+                markers.push(nai);
+            }
+            markers
+        });
 
     choice((
         coi_marker

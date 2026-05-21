@@ -161,10 +161,11 @@ impl<T: fmt::Display> fmt::Display for WithIndicators<T> {
 #[requires(true)]
 #[ensures(true)]
 fn is_indicator_word(word: &Word) -> bool {
+    let canonical = word.canonical_phonemes();
     word.kind == jbotci_morphology::WordKind::Cmavo
-        && (crate::grammar::tokens::UI_WORDS.contains(&word.canonical_phonemes().as_str())
-            || crate::grammar::tokens::CAI_WORDS.contains(&word.canonical_phonemes().as_str())
-            || word.canonical_phonemes() == "y")
+        && (crate::grammar::tokens::UI_WORDS.contains(&canonical.as_str())
+            || crate::grammar::tokens::CAI_WORDS.contains(&canonical.as_str())
+            || canonical == "y")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
