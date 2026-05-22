@@ -32,7 +32,7 @@ struct Cli {
 #[invariant(true)]
 enum Command {
     #[command(name = "vlasei", visible_alias = "lex")]
-    Vlasei(TextInput),
+    Vlasei(VlaseiInput),
     #[command(name = "gentufa", visible_alias = "parse")]
     Gentufa(GentufaInput),
     #[command(name = "mulgau", visible_alias = "completions")]
@@ -60,13 +60,59 @@ enum GentufaFormat {
     Json,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[invariant(true)]
+enum VlaseiFormat {
+    Plain,
+    #[value(alias = "djeisone")]
+    Json,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct VlaseiInput {
+    #[arg(long = "file", alias = "sfaile")]
+    file: Option<PathBuf>,
+    #[arg(
+        long = "turtai",
+        visible_alias = "format",
+        default_value_t = VlaseiFormat::Plain,
+        value_enum
+    )]
+    format: VlaseiFormat,
+    #[arg(long = "trace", alias = "plivei")]
+    trace: Option<String>,
+    #[arg(long = "dialect")]
+    dialect: Option<String>,
+    #[arg(long = "no-postproc", alias = "na-velruhe")]
+    no_postproc: bool,
+    #[arg(long = "camxes")]
+    camxes: bool,
+    #[arg(long = "indent")]
+    indent: Option<usize>,
+    #[arg()]
+    text: Vec<String>,
+}
+
+impl VlaseiInput {
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn read_text(&self) -> Result<String> {
+        read_text_input(self.file.as_ref(), &self.text)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn dialect_definition(&self) -> Result<DialectDefinition> {
+        dialect_definition(self.dialect.as_deref())
+    }
+}
+
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct TextInput {
     #[arg(long = "file", alias = "sfaile")]
     file: Option<PathBuf>,
-    #[arg(long = "format", alias = "termoha")]
-    format: Option<String>,
     #[arg(long = "trace", alias = "plivei")]
     trace: Option<String>,
     #[arg(long = "dialect")]
@@ -101,7 +147,7 @@ struct GentufaInput {
     #[arg(long = "file", alias = "sfaile")]
     file: Option<PathBuf>,
     #[arg(
-        long = "turtau",
+        long = "turtai",
         visible_alias = "format",
         default_value_t = GentufaFormat::Brackets,
         value_enum
@@ -198,17 +244,20 @@ fn run_cli<WOut: Write, WErr: Write>(
             let dialect = input.dialect_definition()?;
             let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
             let words = segment_words_with_modifiers_with_options(&text, &morphology_options)?;
-            if matches!(input.format.as_deref(), Some("json" | "djeisone")) {
-                let rendered = compact_json_string_with_options(
-                    &words,
-                    JsonRenderOptions {
-                        indent: input.indent.unwrap_or(2),
-                    },
-                )?;
-                writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
-            } else {
-                for word in words {
-                    writeln!(stdout, "{word}")?;
+            match input.format {
+                VlaseiFormat::Plain => {
+                    for word in words {
+                        writeln!(stdout, "{word}")?;
+                    }
+                }
+                VlaseiFormat::Json => {
+                    let rendered = compact_json_string_with_options(
+                        &words,
+                        JsonRenderOptions {
+                            indent: input.indent.unwrap_or(2),
+                        },
+                    )?;
+                    writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
                 }
             }
             Ok(())
@@ -342,7 +391,7 @@ fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
                 "`--skicu`/`--defs` is accepted for brackets output, but dictionary definition rendering has not been ported yet"
             )),
             GentufaFormat::Raw | GentufaFormat::Tree | GentufaFormat::Json => Err(anyhow!(
-                "`--skicu`/`--defs` is only meaningful with `--turtau brackets`; dictionary definition rendering has not been ported yet"
+                "`--skicu`/`--defs` is only meaningful with `--turtai brackets`; dictionary definition rendering has not been ported yet"
             )),
         };
     }
@@ -534,8 +583,8 @@ mod tests {
         assert_eq!(default_input.format, GentufaFormat::Brackets);
 
         let Command::Gentufa(brackets_input) =
-            Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "brackets", "coi"])
-                .expect("turtau brackets")
+            Cli::try_parse_from(["jbotci", "gentufa", "--turtai", "brackets", "coi"])
+                .expect("turtai brackets")
                 .command
         else {
             panic!("expected gentufa command")
@@ -552,7 +601,7 @@ mod tests {
         assert_eq!(alias_input.format, GentufaFormat::Brackets);
 
         let Command::Gentufa(raw_input) =
-            Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "raw", "--skicu", "coi"])
+            Cli::try_parse_from(["jbotci", "gentufa", "--turtai", "raw", "--skicu", "coi"])
                 .expect("raw with skicu parses")
                 .command
         else {
@@ -562,7 +611,7 @@ mod tests {
         assert!(raw_input.definitions);
 
         let Command::Gentufa(tree_input) =
-            Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "tree", "coi"])
+            Cli::try_parse_from(["jbotci", "gentufa", "--turtai", "tree", "coi"])
                 .expect("tree parses")
                 .command
         else {
@@ -571,7 +620,7 @@ mod tests {
         assert_eq!(tree_input.format, GentufaFormat::Tree);
 
         let Command::Gentufa(vipcihe_input) =
-            Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "vipcihe", "coi"])
+            Cli::try_parse_from(["jbotci", "gentufa", "--turtai", "vipcihe", "coi"])
                 .expect("vipcihe parses")
                 .command
         else {
@@ -607,12 +656,62 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn parses_vlasei_formats_and_rejects_unknown_values() {
+        let Command::Vlasei(default_input) = Cli::try_parse_from(["jbotci", "vlasei", "coi"])
+            .expect("default vlasei")
+            .command
+        else {
+            panic!("expected vlasei command")
+        };
+        assert_eq!(default_input.format, VlaseiFormat::Plain);
+
+        let Command::Vlasei(json_input) =
+            Cli::try_parse_from(["jbotci", "vlasei", "--turtai", "json", "coi"])
+                .expect("vlasei json")
+                .command
+        else {
+            panic!("expected vlasei command")
+        };
+        assert_eq!(json_input.format, VlaseiFormat::Json);
+
+        let Command::Vlasei(alias_input) =
+            Cli::try_parse_from(["jbotci", "vlasei", "--format", "djeisone", "coi"])
+                .expect("vlasei format alias")
+                .command
+        else {
+            panic!("expected vlasei command")
+        };
+        assert_eq!(alias_input.format, VlaseiFormat::Json);
+
+        assert_eq!(
+            Cli::try_parse_from(["jbotci", "vlasei", "--turtai", "xml", "coi"])
+                .expect_err("unknown vlasei format")
+                .kind(),
+            ErrorKind::InvalidValue
+        );
+        assert_eq!(
+            Cli::try_parse_from(["jbotci", "vlasei", "--termoha", "json", "coi"])
+                .expect_err("old vlasei format option")
+                .kind(),
+            ErrorKind::UnknownArgument
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn rejects_unknown_gentufa_format_and_word_kind_flag() {
         assert_eq!(
-            Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "xml", "coi"])
+            Cli::try_parse_from(["jbotci", "gentufa", "--turtai", "xml", "coi"])
                 .expect_err("unknown format")
                 .kind(),
             ErrorKind::InvalidValue
+        );
+        assert_eq!(
+            Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "raw", "coi"])
+                .expect_err("old gentufa format option")
+                .kind(),
+            ErrorKind::UnknownArgument
         );
         assert_eq!(
             Cli::try_parse_from(["jbotci", "gentufa", "--wordKind", "coi"])
@@ -629,7 +728,7 @@ mod tests {
         let error = Cli::try_parse_from(["jbotci", "gentufa", "--help"]).expect_err("help");
         assert_eq!(error.kind(), ErrorKind::DisplayHelp);
         let help = error.to_string();
-        assert!(help.contains("--turtau"));
+        assert!(help.contains("--turtai"));
         assert!(help.contains("--format"));
         assert!(help.contains("brackets"));
         assert!(help.contains("tree"));
@@ -640,6 +739,23 @@ mod tests {
         assert!(help.contains("--defs"));
         assert!(help.contains("--indent"));
         assert!(!help.contains("--wordKind"));
+        assert!(!help.contains("--turtau"));
+        assert!(!help.contains("--termoha"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_help_lists_restricted_formats() {
+        let error = Cli::try_parse_from(["jbotci", "vlasei", "--help"]).expect_err("help");
+        assert_eq!(error.kind(), ErrorKind::DisplayHelp);
+        let help = error.to_string();
+        assert!(help.contains("--turtai"));
+        assert!(help.contains("--format"));
+        assert!(help.contains("plain"));
+        assert!(help.contains("json"));
+        assert!(!help.contains("--turtau"));
+        assert!(!help.contains("--termoha"));
     }
 
     #[test]
@@ -674,7 +790,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn vlasei_json_outputs_compact_morphology() {
-        let cli = Cli::try_parse_from(["jbotci", "vlasei", "--format", "json", "coi"])
+        let cli = Cli::try_parse_from(["jbotci", "vlasei", "--turtai", "json", "coi"])
             .expect("vlasei json");
         let mut output = Vec::new();
         let mut error = Vec::new();
@@ -812,7 +928,7 @@ mod tests {
     #[ensures(true)]
     fn gentufa_raw_output_is_debug_syntax_parse() {
         run_on_large_stack(|| {
-            let cli = Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "raw", "mi", "klama"])
+            let cli = Cli::try_parse_from(["jbotci", "gentufa", "--turtai", "raw", "mi", "klama"])
                 .expect("gentufa raw");
             let mut output = Vec::new();
             let mut error = Vec::new();
@@ -831,7 +947,7 @@ mod tests {
     fn gentufa_raw_indent_zero_uses_compact_debug() {
         run_on_large_stack(|| {
             let cli = Cli::try_parse_from([
-                "jbotci", "gentufa", "--turtau", "raw", "--indent", "0", "mi", "klama",
+                "jbotci", "gentufa", "--turtai", "raw", "--indent", "0", "mi", "klama",
             ])
             .expect("gentufa raw indent zero");
             let mut output = Vec::new();
@@ -850,7 +966,7 @@ mod tests {
     #[ensures(true)]
     fn gentufa_raw_rejects_nonzero_indent() {
         let cli = Cli::try_parse_from([
-            "jbotci", "gentufa", "--turtau", "raw", "--indent", "2", "mi", "klama",
+            "jbotci", "gentufa", "--turtai", "raw", "--indent", "2", "mi", "klama",
         ])
         .expect("gentufa raw indent parses");
         let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
@@ -869,7 +985,7 @@ mod tests {
         assert!(error.to_string().contains("definition rendering"));
 
         let cli = Cli::try_parse_from([
-            "jbotci", "gentufa", "--turtau", "raw", "--skicu", "mi", "klama",
+            "jbotci", "gentufa", "--turtai", "raw", "--skicu", "mi", "klama",
         ])
         .expect("gentufa raw defs");
         let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
@@ -877,7 +993,7 @@ mod tests {
         assert!(error.to_string().contains("only meaningful"));
 
         let cli = Cli::try_parse_from([
-            "jbotci", "gentufa", "--turtau", "tree", "--skicu", "mi", "klama",
+            "jbotci", "gentufa", "--turtai", "tree", "--skicu", "mi", "klama",
         ])
         .expect("gentufa tree defs");
         let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
@@ -937,7 +1053,6 @@ mod tests {
     fn joins_positional_text() {
         let input = TextInput {
             file: None,
-            format: None,
             trace: None,
             dialect: None,
             no_postproc: false,
