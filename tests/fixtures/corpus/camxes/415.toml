@@ -215,11 +215,13 @@ ParagraphStatement {
             phonemes: "la",
             span: [7,9],
           },
-          names: Word {
-            kind: "cmevla",
-            phonemes: "rik",
-            span: [10,13],
-          },
+          names: [
+            Word {
+              kind: "cmevla",
+              phonemes: "rik",
+              span: [10,13],
+            },
+          ],
         },
       ],
       relation: Word {
@@ -227,48 +229,48 @@ ParagraphStatement {
         phonemes: "cusku",
         span: [15,20],
       },
-      sehu: WithFreeModifiers {
-        Word {
-          kind: "cmavo",
-          phonemes: "se'u",
-          span: [21,25],
-        },
-        free_modifiers: [
-          Vocative {
-            vocative_markers: Word {
+      sehu: Word {
+        kind: "cmavo",
+        phonemes: "se'u",
+        span: [21,25],
+      },
+      free_modifiers: [
+        Vocative {
+          vocative_markers: [
+            Word {
               kind: "cmavo",
               phonemes: "ta'a",
               span: [26,30],
             },
-            argument: Descriptor {
-              tail_elements: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ro",
-                  span: [31,33],
-                },
-              ],
-              relation: Be {
-                Word {
-                  kind: "gismu",
-                  phonemes: "zvati",
-                  span: [34,39],
-                },
-                be: Word {
-                  kind: "cmavo",
-                  phonemes: "be",
-                  span: [40,42],
-                },
-                first_argument: Word {
-                  kind: "cmavo",
-                  phonemes: "ti",
-                  span: [43,45],
-                },
+          ],
+          argument: Descriptor {
+            tail_elements: [
+              Word {
+                kind: "cmavo",
+                phonemes: "ro",
+                span: [31,33],
+              },
+            ],
+            relation: Be {
+              Word {
+                kind: "gismu",
+                phonemes: "zvati",
+                span: [34,39],
+              },
+              be: Word {
+                kind: "cmavo",
+                phonemes: "be",
+                span: [40,42],
+              },
+              first_argument: Word {
+                kind: "cmavo",
+                phonemes: "ti",
+                span: [43,45],
               },
             },
           },
-        ],
-      },
+        },
+      ],
     },
   ],
   Predicate {
@@ -281,7 +283,7 @@ ParagraphStatement {
     ],
     Relation {
       TenseModal {
-        tense_modal: WithFreeModifiers {
+        tense_modal: Composite {
           Word {
             kind: "cmavo",
             phonemes: "ba",

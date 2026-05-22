@@ -84,16 +84,18 @@ brackets = "(.o'e-cu'i [{la .djan.} kláma])"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "o'e",
-        span: [1,4],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "cu'i",
-        span: [4,8],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "o'e",
+          span: [1,4],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "cu'i",
+          span: [4,8],
+        },
       },
     },
   ],
@@ -105,11 +107,13 @@ Text {
           phonemes: "la",
           span: [9,11],
         },
-        names: Word {
-          kind: "cmevla",
-          phonemes: "djan",
-          span: [13,17],
-        },
+        names: [
+          Word {
+            kind: "cmevla",
+            phonemes: "djan",
+            span: [13,17],
+          },
+        ],
       },
     ],
     Word {

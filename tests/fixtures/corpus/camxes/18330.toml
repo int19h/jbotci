@@ -208,18 +208,20 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: Word {
-        kind: "cmavo",
-        phonemes: "doĭ",
-        span: [0,3],
-      },
+      vocative_markers: [
+        Word {
+          kind: "cmavo",
+          phonemes: "doĭ",
+          span: [0,3],
+        },
+      ],
       argument: Quantified {
         quantifier: Word {
           kind: "cmavo",
           phonemes: "ro",
           span: [4,6],
         },
-        WithFreeModifiers {
+        Koha {
           Word {
             kind: "cmavo",
             phonemes: "do",
@@ -227,11 +229,13 @@ Text {
           },
           free_modifiers: [
             Vocative {
-              vocative_markers: Word {
-                kind: "cmavo",
-                phonemes: "pe'u",
-                span: [9,13],
-              },
+              vocative_markers: [
+                Word {
+                  kind: "cmavo",
+                  phonemes: "pe'u",
+                  span: [9,13],
+                },
+              ],
               argument: Word {
                 kind: "cmavo",
                 phonemes: "ko",
@@ -272,11 +276,13 @@ Text {
               phonemes: "la",
               span: [32,34],
             },
-            names: Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [35,41],
-            },
+            names: [
+              Word {
+                kind: "cmevla",
+                phonemes: "lojban",
+                span: [35,41],
+              },
+            ],
           },
         },
       ],
@@ -328,11 +334,13 @@ Text {
                   phonemes: "la",
                   span: [69,71],
                 },
-                names: Word {
-                  kind: "cmevla",
-                  phonemes: "lojban",
-                  span: [72,78],
-                },
+                names: [
+                  Word {
+                    kind: "cmevla",
+                    phonemes: "lojban",
+                    span: [72,78],
+                  },
+                ],
               },
             },
           ],

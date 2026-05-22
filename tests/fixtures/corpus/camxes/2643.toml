@@ -305,53 +305,51 @@ Paragraph {
     Term {
       terms: [
         Lu {
-          lu: WithFreeModifiers {
-            WithIndicator {
-              Word {
+          lu: WithIndicator {
+            Word {
+              kind: "cmavo",
+              phonemes: "lu",
+              span: [3,5],
+            },
+            indicator: Word {
+              kind: "cmavo",
+              phonemes: "e'e",
+              span: [6,9],
+            },
+          },
+          free_modifiers: [
+            Sei {
+              sei: Word {
                 kind: "cmavo",
-                phonemes: "lu",
-                span: [3,5],
+                phonemes: "seĭ",
+                span: [10,13],
               },
-              indicator: Word {
+              terms: [
+                Descriptor {
+                  descriptor: Word {
+                    kind: "cmavo",
+                    phonemes: "la",
+                    span: [14,16],
+                  },
+                  relation: Word {
+                    kind: "lujvo",
+                    phonemes: "cpicinfo",
+                    span: [17,25],
+                  },
+                },
+              ],
+              cu: Word {
                 kind: "cmavo",
-                phonemes: "e'e",
-                span: [6,9],
+                phonemes: "cu",
+                span: [26,28],
+              },
+              relation: Word {
+                kind: "gismu",
+                phonemes: "krixa",
+                span: [29,34],
               },
             },
-            free_modifiers: [
-              Sei {
-                sei: Word {
-                  kind: "cmavo",
-                  phonemes: "seĭ",
-                  span: [10,13],
-                },
-                terms: [
-                  Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "la",
-                      span: [14,16],
-                    },
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "cpicinfo",
-                      span: [17,25],
-                    },
-                  },
-                ],
-                cu: Word {
-                  kind: "cmavo",
-                  phonemes: "cu",
-                  span: [26,28],
-                },
-                relation: Word {
-                  kind: "gismu",
-                  phonemes: "krixa",
-                  span: [29,34],
-                },
-              },
-            ],
-          },
+          ],
           Text {},
           lihu: Word {
             kind: "cmavo",
@@ -371,11 +369,13 @@ Paragraph {
     Predicate {
       leading_terms: [
         Letter {
-          letter: Word {
-            kind: "cmavo",
-            phonemes: "cy",
-            span: [42,44],
-          },
+          letter: [
+            Word {
+              kind: "cmavo",
+              phonemes: "cy",
+              span: [42,44],
+            },
+          ],
         },
       ],
       PredicateTail1 {
@@ -392,11 +392,13 @@ Paragraph {
                 phonemes: "la",
                 span: [51,53],
               },
-              names: Word {
-                kind: "cmevla",
-                phonemes: "alis",
-                span: [54,58],
-              },
+              names: [
+                Word {
+                  kind: "cmevla",
+                  phonemes: "alis",
+                  span: [54,58],
+                },
+              ],
             },
             Fa {
               fa: Word {

@@ -215,7 +215,7 @@ Predicate {
   ],
   Relation {
     TenseModal {
-      tense_modal: WithFreeModifiers {
+      tense_modal: Composite {
         Word {
           kind: "cmavo",
           phonemes: "ba",
@@ -259,55 +259,55 @@ Predicate {
               phonemes: "la",
               span: [25,27],
             },
-            names: WithFreeModifiers {
+            names: [
               Word {
                 kind: "cmevla",
                 phonemes: "skrin",
                 span: [28,33],
               },
-              free_modifiers: [
-                To {
-                  to: Word {
+            ],
+            free_modifiers: [
+              To {
+                to: Word {
+                  kind: "cmavo",
+                  phonemes: "to",
+                  span: [34,36],
+                },
+                Poi {
+                  poi: Word {
                     kind: "cmavo",
-                    phonemes: "to",
-                    span: [34,36],
+                    phonemes: "poĭ",
+                    span: [37,40],
                   },
-                  Poi {
-                    poi: Word {
-                      kind: "cmavo",
-                      phonemes: "poĭ",
-                      span: [37,40],
-                    },
-                    Relation {
-                      Se {
-                        se: Word {
-                          kind: "cmavo",
-                          phonemes: "se",
-                          span: [41,43],
-                        },
-                        Word {
-                          kind: "gismu",
-                          phonemes: "nelci",
-                          span: [44,49],
-                        },
+                  Relation {
+                    Se {
+                      se: Word {
+                        kind: "cmavo",
+                        phonemes: "se",
+                        span: [41,43],
                       },
-                      terms: [
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "mi",
-                          span: [50,52],
-                        },
-                      ],
+                      Word {
+                        kind: "gismu",
+                        phonemes: "nelci",
+                        span: [44,49],
+                      },
                     },
-                  },
-                  toi: Word {
-                    kind: "cmavo",
-                    phonemes: "toĭ",
-                    span: [53,56],
+                    terms: [
+                      Word {
+                        kind: "cmavo",
+                        phonemes: "mi",
+                        span: [50,52],
+                      },
+                    ],
                   },
                 },
-              ],
-            },
+                toi: Word {
+                  kind: "cmavo",
+                  phonemes: "toĭ",
+                  span: [53,56],
+                },
+              },
+            ],
           },
           relative_clauses: [
             GoiRelativeClause {
@@ -322,11 +322,13 @@ Predicate {
                   phonemes: "la",
                   span: [60,62],
                 },
-                names: Word {
-                  kind: "cmevla",
-                  phonemes: "ĭuniks",
-                  span: [63,69],
-                },
+                names: [
+                  Word {
+                    kind: "cmevla",
+                    phonemes: "ĭuniks",
+                    span: [63,69],
+                  },
+                ],
               },
             },
           ],

@@ -254,7 +254,7 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      Word {
+      indicator: Word {
         kind: "cmavo",
         phonemes: "ju'a",
         span: [0,4],
@@ -276,7 +276,7 @@ Text {
             span: [9,13],
           },
           Letter {
-            letter: WithFreeModifiers {
+            letter: [
               Word {
                 kind: "cmavo",
                 phonemes: "cy",
@@ -287,7 +287,7 @@ Text {
                 phonemes: "no",
                 span: [17,19],
               },
-            },
+            ],
           },
           luhu: Word {
             kind: "cmavo",
@@ -381,7 +381,7 @@ Text {
             },
             terms: [
               Letter {
-                letter: WithFreeModifiers {
+                letter: [
                   Word {
                     kind: "cmavo",
                     phonemes: "cy",
@@ -392,7 +392,7 @@ Text {
                     phonemes: "no",
                     span: [79,81],
                   },
-                },
+                ],
               },
               Name {
                 la: Word {
@@ -400,11 +400,13 @@ Text {
                   phonemes: "la",
                   span: [82,84],
                 },
-                names: Word {
-                  kind: "cmevla",
-                  phonemes: "milan",
-                  span: [85,90],
-                },
+                names: [
+                  Word {
+                    kind: "cmevla",
+                    phonemes: "milan",
+                    span: [85,90],
+                  },
+                ],
               },
             ],
           },

@@ -132,11 +132,13 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: Word {
-        kind: "cmavo",
-        phonemes: "je'e",
-        span: [0,4],
-      },
+      vocative_markers: [
+        Word {
+          kind: "cmavo",
+          phonemes: "je'e",
+          span: [0,4],
+        },
+      ],
       dohu: Word {
         kind: "cmavo",
         phonemes: "do'u",
@@ -186,18 +188,20 @@ Text {
       },
       terms: [
         Letter {
-          letter: Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "a",
-              span: [34,35],
+          letter: [
+            Letter {
+              Word {
+                kind: "cmavo",
+                phonemes: "a",
+                span: [34,35],
+              },
+              bu: Word {
+                kind: "cmavo",
+                phonemes: "bu",
+                span: [35,37],
+              },
             },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [35,37],
-            },
-          },
+          ],
         },
       ],
     },

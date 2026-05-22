@@ -396,7 +396,7 @@ Paragraph {
                         span: [21,24],
                       },
                     },
-                    WithFreeModifiers {
+                    Word {
                       Word {
                         kind: "gismu",
                         phonemes: "zgana",
@@ -486,7 +486,7 @@ Paragraph {
       PredicateTail1 {
         Relation {
           TenseModal {
-            tense_modal: WithFreeModifiers {
+            tense_modal: Composite {
               Word {
                 kind: "cmavo",
                 phonemes: "ci",
@@ -534,45 +534,45 @@ Paragraph {
               },
               terms: [
                 Lu {
-                  lu: WithFreeModifiers {
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "lu",
-                      span: [117,119],
-                    },
-                    free_modifiers: [
-                      Vocative {
-                        vocative_markers: Word {
+                  lu: Word {
+                    kind: "cmavo",
+                    phonemes: "lu",
+                    span: [117,119],
+                  },
+                  free_modifiers: [
+                    Vocative {
+                      vocative_markers: [
+                        Word {
                           kind: "cmavo",
                           phonemes: "ju'i",
                           span: [120,124],
                         },
-                        argument: RelationVocative {
-                          relation: Compound {
-                            Moi {
-                              number: [
-                                Word {
-                                  kind: "cmavo",
-                                  phonemes: "pa",
-                                  span: [125,127],
-                                },
-                              ],
-                              moi: Word {
+                      ],
+                      argument: RelationVocative {
+                        relation: Compound {
+                          Moi {
+                            number: [
+                              Word {
                                 kind: "cmavo",
-                                phonemes: "moĭ",
-                                span: [127,130],
+                                phonemes: "pa",
+                                span: [125,127],
                               },
+                            ],
+                            moi: Word {
+                              kind: "cmavo",
+                              phonemes: "moĭ",
+                              span: [127,130],
                             },
-                            Word {
-                              kind: "gismu",
-                              phonemes: "zgana",
-                              span: [131,136],
-                            },
+                          },
+                          Word {
+                            kind: "gismu",
+                            phonemes: "zgana",
+                            span: [131,136],
                           },
                         },
                       },
-                    ],
-                  },
+                    },
+                  ],
                   Text {},
                   lihu: Word {
                     kind: "cmavo",

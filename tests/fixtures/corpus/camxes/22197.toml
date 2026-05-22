@@ -167,10 +167,12 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "la'a",
-      span: [0,4],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "la'a",
+        span: [0,4],
+      },
     },
   ],
   Predicate {
@@ -232,7 +234,7 @@ Text {
                       span: [38,41],
                     },
                     TenseModal {
-                      tense_modal: WithFreeModifiers {
+                      tense_modal: Composite {
                         Word {
                           kind: "cmavo",
                           phonemes: "no",

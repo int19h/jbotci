@@ -131,16 +131,18 @@ brackets = "(xu-kaŭ [{(ca ku) (ca'o ku)} zo'u {do (távla mi)}])"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "kaŭ",
-        span: [3,6],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "xu",
+          span: [0,2],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "kaŭ",
+          span: [3,6],
+        },
       },
     },
   ],

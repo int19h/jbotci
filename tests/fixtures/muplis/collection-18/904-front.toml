@@ -81,16 +81,18 @@ brackets = "(ju'o.aĭ [mi {ba zúkte}])"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "ju'o",
-        span: [0,4],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "aĭ",
-        span: [6,8],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "ju'o",
+          span: [0,4],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "aĭ",
+          span: [6,8],
+        },
       },
     },
   ],

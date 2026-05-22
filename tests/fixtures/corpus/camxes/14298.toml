@@ -148,11 +148,13 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: Word {
-        kind: "cmavo",
-        phonemes: "doĭ",
-        span: [0,3],
-      },
+      vocative_markers: [
+        Word {
+          kind: "cmavo",
+          phonemes: "doĭ",
+          span: [0,3],
+        },
+      ],
       argument: WithIndicator {
         WithIndicator {
           Word {
@@ -177,7 +179,7 @@ Text {
   Predicate {
     leading_terms: [
       Letter {
-        letter: WithFreeModifiers {
+        letter: [
           Word {
             kind: "cmavo",
             phonemes: "by",
@@ -188,12 +190,12 @@ Text {
             phonemes: "fy",
             span: [20,22],
           },
-        },
+        ],
       },
     ],
     Relation {
       TenseModal {
-        tense_modal: WithFreeModifiers {
+        tense_modal: Composite {
           Word {
             kind: "cmavo",
             phonemes: "ba",

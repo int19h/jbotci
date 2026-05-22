@@ -98,7 +98,7 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      Word {
+      indicator: Word {
         kind: "cmavo",
         phonemes: "eĭ",
         span: [0,2],
@@ -109,10 +109,12 @@ Text {
         span: [2,5],
       },
     },
-    Word {
-      kind: "cmavo",
-      phonemes: "saĭ",
-      span: [5,8],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "saĭ",
+        span: [5,8],
+      },
     },
   ],
   Predicate {
@@ -123,11 +125,13 @@ Text {
           phonemes: "la",
           span: [9,11],
         },
-        names: Word {
-          kind: "cmevla",
-          phonemes: "lojban",
-          span: [12,18],
-        },
+        names: [
+          Word {
+            kind: "cmevla",
+            phonemes: "lojban",
+            span: [12,18],
+          },
+        ],
       },
     ],
     Se {

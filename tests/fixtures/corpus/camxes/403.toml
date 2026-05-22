@@ -195,11 +195,13 @@ ParagraphStatement {
             phonemes: "la",
             span: [7,9],
           },
-          names: Word {
-            kind: "cmevla",
-            phonemes: "djordj",
-            span: [10,16],
-          },
+          names: [
+            Word {
+              kind: "cmevla",
+              phonemes: "djordj",
+              span: [10,16],
+            },
+          ],
         },
       ],
       relation: Word {
@@ -207,59 +209,61 @@ ParagraphStatement {
         phonemes: "cusku",
         span: [18,23],
       },
-      sehu: WithFreeModifiers {
-        Word {
-          kind: "cmavo",
-          phonemes: "se'u",
-          span: [24,28],
-        },
-        free_modifiers: [
-          Vocative {
-            vocative_markers: Word {
+      sehu: Word {
+        kind: "cmavo",
+        phonemes: "se'u",
+        span: [24,28],
+      },
+      free_modifiers: [
+        Vocative {
+          vocative_markers: [
+            Word {
               kind: "cmavo",
               phonemes: "co'o",
               span: [29,33],
             },
-            argument: Descriptor {
-              tail_elements: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "ro",
-                  span: [34,36],
-                },
-              ],
-              relation: Word {
-                kind: "gismu",
-                phonemes: "zvati",
-                span: [37,42],
+          ],
+          argument: Descriptor {
+            tail_elements: [
+              Word {
+                kind: "cmavo",
+                phonemes: "ro",
+                span: [34,36],
               },
-              relative_clauses: [
-                GoiRelativeClause {
-                  goi: Word {
-                    kind: "cmavo",
-                    phonemes: "pe",
-                    span: [43,45],
-                  },
-                  Tagged {
-                    tag: Simple {
-                      se: Word {
-                        kind: "cmavo",
-                        phonemes: "se",
-                        span: [46,48],
-                      },
-                      bai: Word {
-                        kind: "cmavo",
-                        phonemes: "caŭ",
-                        span: [48,51],
-                      },
+            ],
+            relation: Word {
+              kind: "gismu",
+              phonemes: "zvati",
+              span: [37,42],
+            },
+            relative_clauses: [
+              GoiRelativeClause {
+                goi: Word {
+                  kind: "cmavo",
+                  phonemes: "pe",
+                  span: [43,45],
+                },
+                Tagged {
+                  tag: Simple {
+                    se: Word {
+                      kind: "cmavo",
+                      phonemes: "se",
+                      span: [46,48],
                     },
-                    Name {
-                      la: Word {
-                        kind: "cmavo",
-                        phonemes: "la",
-                        span: [52,54],
-                      },
-                      names: WithIndicator {
+                    bai: Word {
+                      kind: "cmavo",
+                      phonemes: "caŭ",
+                      span: [48,51],
+                    },
+                  },
+                  Name {
+                    la: Word {
+                      kind: "cmavo",
+                      phonemes: "la",
+                      span: [52,54],
+                    },
+                    names: [
+                      WithIndicator {
                         Word {
                           kind: "cmevla",
                           phonemes: "djan",
@@ -271,14 +275,14 @@ ParagraphStatement {
                           span: [61,65],
                         },
                       },
-                    },
+                    ],
                   },
                 },
-              ],
-            },
+              },
+            ],
           },
-        ],
-      },
+        },
+      ],
     },
   ],
 }"""

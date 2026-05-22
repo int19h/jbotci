@@ -161,8 +161,8 @@ brackets = ".ŭo-ru'e.a'i-saĭ-ro'o-bu'o-naĭ.a'i-ru'e-saĭ-ro'e-bu'o-naĭ"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      WithIndicator {
+    Indicator {
+      indicator: WithIndicator {
         WithIndicator {
           WithIndicator {
             WithIndicator {
@@ -171,79 +171,81 @@ Text {
                   WithIndicator {
                     WithIndicator {
                       WithIndicator {
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "ŭo",
-                          span: [0,2],
+                        WithIndicator {
+                          Word {
+                            kind: "cmavo",
+                            phonemes: "ŭo",
+                            span: [0,2],
+                          },
+                          indicator: Word {
+                            kind: "cmavo",
+                            phonemes: "ru'e",
+                            span: [3,7],
+                          },
                         },
                         indicator: Word {
                           kind: "cmavo",
-                          phonemes: "ru'e",
-                          span: [3,7],
+                          phonemes: "a'i",
+                          span: [8,11],
                         },
                       },
                       indicator: Word {
                         kind: "cmavo",
-                        phonemes: "a'i",
-                        span: [8,11],
+                        phonemes: "saĭ",
+                        span: [12,15],
                       },
                     },
                     indicator: Word {
                       kind: "cmavo",
-                      phonemes: "saĭ",
-                      span: [12,15],
+                      phonemes: "ro'o",
+                      span: [16,20],
                     },
                   },
                   indicator: Word {
                     kind: "cmavo",
-                    phonemes: "ro'o",
-                    span: [16,20],
+                    phonemes: "bu'o",
+                    span: [21,25],
+                  },
+                  nai: Word {
+                    kind: "cmavo",
+                    phonemes: "naĭ",
+                    span: [26,29],
                   },
                 },
                 indicator: Word {
                   kind: "cmavo",
-                  phonemes: "bu'o",
-                  span: [21,25],
-                },
-                nai: Word {
-                  kind: "cmavo",
-                  phonemes: "naĭ",
-                  span: [26,29],
+                  phonemes: "a'i",
+                  span: [30,33],
                 },
               },
               indicator: Word {
                 kind: "cmavo",
-                phonemes: "a'i",
-                span: [30,33],
+                phonemes: "ru'e",
+                span: [34,38],
               },
             },
             indicator: Word {
               kind: "cmavo",
-              phonemes: "ru'e",
-              span: [34,38],
+              phonemes: "saĭ",
+              span: [39,42],
             },
           },
           indicator: Word {
             kind: "cmavo",
-            phonemes: "saĭ",
-            span: [39,42],
+            phonemes: "ro'e",
+            span: [43,47],
           },
         },
         indicator: Word {
           kind: "cmavo",
-          phonemes: "ro'e",
-          span: [43,47],
+          phonemes: "bu'o",
+          span: [48,52],
         },
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "bu'o",
-        span: [48,52],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [53,56],
+        nai: Word {
+          kind: "cmavo",
+          phonemes: "naĭ",
+          span: [53,56],
+        },
       },
     },
   ],

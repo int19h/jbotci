@@ -173,7 +173,7 @@ ParagraphStatement {
     ],
     Relation {
       TenseModal {
-        tense_modal: WithFreeModifiers {
+        tense_modal: Composite {
           Word {
             kind: "cmavo",
             phonemes: "no",
@@ -203,27 +203,29 @@ ParagraphStatement {
             phonemes: "la",
             span: [28,30],
           },
-          names: WithFreeModifiers {
+          names: [
             Word {
               kind: "cmevla",
               phonemes: "cikagos",
               span: [31,38],
             },
-            free_modifiers: [
-              Vocative {
-                vocative_markers: Word {
+          ],
+          free_modifiers: [
+            Vocative {
+              vocative_markers: [
+                Word {
                   kind: "cmavo",
                   phonemes: "doĭ",
                   span: [40,43],
                 },
-                argument: Word {
-                  kind: "cmevla",
-                  phonemes: "xod",
-                  span: [44,47],
-                },
+              ],
+              argument: Word {
+                kind: "cmevla",
+                phonemes: "xod",
+                span: [44,47],
               },
-            ],
-          },
+            },
+          ],
         },
       ],
     },

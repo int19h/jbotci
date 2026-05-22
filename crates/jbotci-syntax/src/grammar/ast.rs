@@ -2,16 +2,13 @@
 // Boxing only for enum-size symmetry would obscure that shape during the port.
 #![allow(clippy::large_enum_variant)]
 
-use crate::{Indicator, SyntaxTree, WithIndicators};
+use crate::WithIndicators;
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use jbotci_morphology::WordLike;
-use serde::Serialize;
+use jbotci_morphology::{Word, WordLike};
 use serde::ser::{SerializeSeq, Serializer};
+use serde::{Deserialize, Serialize};
 use vec1::{Vec1, smallvec_v1::SmallVec1};
-
-pub type WordRun = SmallVec1<[WithIndicators<WordLike>; 2]>;
-pub type MathExpressionVec = Vec1<MathExpressionSyntax>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -203,31 +200,42 @@ fn visit_word_slice(
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+jbotci_tree::tree_model! {
+pub type WordRun = SmallVec1<[WithIndicators<WordLike>; 2]>;
+pub type MathExpressionVec = Vec1<MathExpressionSyntax>;
+
+#[invariant(crate::indicator_data_is_valid(self.as_data()))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Indicator {
+    pub indicator: Box<WithIndicators<WordLike>>,
+    pub nai: Option<Box<Word>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateSyntax {
     pub leading_terms: Vec<TermSyntax>,
     pub cu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub predicate_tail: PredicateTailSyntax,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateTailSyntax {
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub first: PredicateTail1Syntax,
     pub ke_continuation: Option<KePredicateTailSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct KePredicateTailSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<TenseModalSyntax>,
     pub ke: WithFreeModifiers<WithIndicators<WordLike>>,
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub predicate_tail: Box<PredicateTailSyntax>,
     pub kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub tail_terms: Vec<TermSyntax>,
@@ -235,54 +243,54 @@ pub struct KePredicateTailSyntax {
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateTail1Syntax {
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub first: PredicateTail2Syntax,
     pub continuations: Vec<PredicateTailContinuationSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateTailContinuationSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<TenseModalSyntax>,
     pub cu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub predicate_tail: PredicateTail2Syntax,
     pub tail_terms: Vec<TermSyntax>,
     pub vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateTail2Syntax {
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub first: PredicateTail3Syntax,
     pub bo_continuation: Option<BoPredicateTailSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct BoPredicateTailSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<TenseModalSyntax>,
     pub bo: WithFreeModifiers<WithIndicators<WordLike>>,
     pub cu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub predicate_tail: Box<PredicateTail2Syntax>,
     pub tail_terms: Vec<TermSyntax>,
     pub vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum PredicateTail3Syntax {
     Relation {
-        #[tree(primary)]
+        #[tree_child(primary)]
         relation: RelationSyntax,
         terms: Vec<TermSyntax>,
         vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
@@ -291,7 +299,7 @@ pub enum PredicateTail3Syntax {
     GekSentence(GekSentenceSyntax),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum GekSentenceSyntax {
     Pair {
@@ -307,30 +315,30 @@ pub enum GekSentenceSyntax {
     Ke {
         tense_modal: Option<TenseModalSyntax>,
         ke: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner: Box<GekSentenceSyntax>,
         kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Na {
         na: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner: Box<GekSentenceSyntax>,
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum SubsentenceSyntax {
     Plain(PredicateSyntax),
     Prenex {
         prenex_terms: Vec<TermSyntax>,
         zohu: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_subsentence: Box<SubsentenceSyntax>,
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct TextSyntax {
     pub leading_nai: Vec<WithIndicators<WordLike>>,
@@ -338,31 +346,31 @@ pub struct TextSyntax {
     pub leading_indicators: Vec<Indicator>,
     pub leading_free_modifiers: Vec<FreeModifierSyntax>,
     pub leading_connective: Option<ConnectiveSyntax>,
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub paragraphs: Vec<ParagraphSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct ParagraphSyntax {
     pub i: Option<WithIndicators<WordLike>>,
     pub niho: Vec<WithIndicators<WordLike>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub statements: Vec<ParagraphStatementSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct ParagraphStatementSyntax {
     pub i: Option<WithIndicators<WordLike>>,
     pub connective: Option<ConnectiveSyntax>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub statement: Option<StatementSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum FreeModifierSyntax {
     Sei {
@@ -374,13 +382,13 @@ pub enum FreeModifierSyntax {
     },
     To {
         to: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         text: Box<TextSyntax>,
         toi: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Xi {
         xi: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         expression: MathExpressionSyntax,
     },
     Mai {
@@ -407,20 +415,20 @@ pub enum FreeModifierSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum StatementSyntax {
     Tuhe {
         tense_modal: Option<TenseModalSyntax>,
         tuhe: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         text: Box<TextSyntax>,
         tuhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Prenex {
         prenex_terms: Vec<TermSyntax>,
         zohu: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_statement: Box<StatementSyntax>,
     },
     Predicate(PredicateSyntax),
@@ -437,7 +445,7 @@ pub enum StatementSyntax {
         trailing_statement: Box<StatementSyntax>,
     },
     Iau {
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_statement: Box<StatementSyntax>,
         iau: WithFreeModifiers<WithIndicators<WordLike>>,
         reset_terms: Vec<TermSyntax>,
@@ -449,7 +457,7 @@ pub enum StatementSyntax {
     Fragment(FragmentSyntax),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct PredicateStatementContinuationSyntax {
     pub connective: ConnectiveSyntax,
@@ -458,7 +466,7 @@ pub struct PredicateStatementContinuationSyntax {
     pub trailing_subsentence: SubsentenceSyntax,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum PredicateStatementContinuationMarkerSyntax {
     Bo(WithFreeModifiers<WithIndicators<WordLike>>),
@@ -468,7 +476,7 @@ pub enum PredicateStatementContinuationMarkerSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum FragmentSyntax {
     Ek(ConnectiveSyntax),
@@ -499,7 +507,7 @@ pub enum FragmentSyntax {
     Relation(RelationSyntax),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum TermSyntax {
     NuhiTermset {
@@ -531,7 +539,7 @@ pub enum TermSyntax {
     Argument(ArgumentSyntax),
     Fa {
         fa: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         argument: ArgumentSyntax,
         ku: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -556,25 +564,25 @@ pub enum TermSyntax {
     },
     FihoiAdverbial {
         fihoi: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         subsentence: Box<SubsentenceSyntax>,
         fihau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     SoiAdverbial {
         soi: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         subsentence: Box<SubsentenceSyntax>,
         sehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     JaiTagged {
         jai: WithFreeModifiers<WithIndicators<WordLike>>,
         tag: Option<TenseModalSyntax>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         argument: ArgumentSyntax,
     },
     Tagged {
         tense_modal: Option<TenseModalSyntax>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         argument: ArgumentSyntax,
     },
     Connected {
@@ -591,7 +599,7 @@ pub enum TermSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum TermWrapperKindSyntax {
     Lahe,
@@ -599,28 +607,28 @@ pub enum TermWrapperKindSyntax {
     Nahe,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum ArgumentTagSyntax {
     TenseModal(TenseModalSyntax),
     Fa(WithFreeModifiers<WithIndicators<WordLike>>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct ArgumentConnectionSyntax {
     pub connective: ConnectiveSyntax,
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub argument: Box<ArgumentSyntax>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum ArgumentSyntax {
     Quote(QuoteSyntax),
     MathExpression {
         li: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         expression: MathExpressionSyntax,
         loho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -630,7 +638,7 @@ pub enum ArgumentSyntax {
     },
     Quantified {
         quantifier: QuantifierSyntax,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_argument: Box<ArgumentSyntax>,
     },
     RelativeClause {
@@ -646,7 +654,7 @@ pub enum ArgumentSyntax {
     },
     BridiDescription {
         lohoi: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         subsentence: Box<SubsentenceSyntax>,
         kuhau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -656,19 +664,19 @@ pub enum ArgumentSyntax {
     },
     Tagged {
         tag: ArgumentTagSyntax,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_argument: Box<ArgumentSyntax>,
     },
     NaheBo {
         nahe: WithIndicators<WordLike>,
         bo: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_argument: Box<ArgumentSyntax>,
         luhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Nahe {
         nahe: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_argument: Box<ArgumentSyntax>,
         luhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -676,7 +684,7 @@ pub enum ArgumentSyntax {
         term_wrapper_kind: TermWrapperKindSyntax,
         wrapper: WithFreeModifiers<WithIndicators<WordLike>>,
         wrapper_bo: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_term: Box<TermSyntax>,
         luhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -689,7 +697,7 @@ pub enum ArgumentSyntax {
     Lahe {
         lahe: WithFreeModifiers<WithIndicators<WordLike>>,
         relative_clauses: Vec<RelativeClauseSyntax>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_argument: Box<ArgumentSyntax>,
         luhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -700,7 +708,7 @@ pub enum ArgumentSyntax {
     },
     Ke {
         ke: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_argument: Box<ArgumentSyntax>,
         kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -732,58 +740,58 @@ pub enum ArgumentSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum RelativeClauseSyntax {
     Goi(GoiRelativeClauseSyntax),
     Noi {
         noi: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         subsentence: SubsentenceSyntax,
         kuho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Poi {
         poi: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         subsentence: SubsentenceSyntax,
         kuho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Zihe {
         zihe: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner: Box<RelativeClauseSyntax>,
     },
     Connected {
         connective: ConnectiveSyntax,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner: Box<RelativeClauseSyntax>,
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct GoiRelativeClauseSyntax {
     pub goi: WithFreeModifiers<WithIndicators<WordLike>>,
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub argument: ArgumentSyntax,
     pub gehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct SelbriRelativeClauseSyntax {
     pub nohoi: WithFreeModifiers<WithIndicators<WordLike>>,
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub relation: RelationSyntax,
     pub kuhoi: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum QuoteSyntax {
     Lu {
         lu: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         text: TextSyntax,
         lihu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -793,7 +801,7 @@ pub enum QuoteSyntax {
     Lohu(WithFreeModifiers<WithIndicators<WordLike>>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct DescriptorSyntax {
     pub descriptor: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
@@ -804,13 +812,13 @@ pub struct DescriptorSyntax {
     pub ku: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct DescriptorHeadSyntax {
     pub descriptor: WithFreeModifiers<WithIndicators<WordLike>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct ConnectedDescriptorSyntax {
     pub leading_descriptor_head: DescriptorHeadSyntax,
@@ -822,14 +830,14 @@ pub struct ConnectedDescriptorSyntax {
     pub ku: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum ConnectiveSyntax {
     Afterthought {
         se: Option<WithIndicators<WordLike>>,
         nahe: Option<WithIndicators<WordLike>>,
         na: Option<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
         nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -837,7 +845,7 @@ pub enum ConnectiveSyntax {
         se: Option<WithIndicators<WordLike>>,
         nahe: Option<WithIndicators<WordLike>>,
         na: Option<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
         nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -845,7 +853,7 @@ pub enum ConnectiveSyntax {
         se: Option<WithIndicators<WordLike>>,
         nahe: Option<WithIndicators<WordLike>>,
         na: Option<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
         nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -853,7 +861,7 @@ pub enum ConnectiveSyntax {
         se: Option<WithIndicators<WordLike>>,
         nahe: Option<WithIndicators<WordLike>>,
         na: Option<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
         nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -861,7 +869,7 @@ pub enum ConnectiveSyntax {
         se: Option<WithIndicators<WordLike>>,
         nahe: Option<WithIndicators<WordLike>>,
         na: Option<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
         nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -869,13 +877,13 @@ pub enum ConnectiveSyntax {
         se: Option<WithIndicators<WordLike>>,
         nahe: Option<WithIndicators<WordLike>>,
         na: Option<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         cmavo: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
         nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct BeiLinkSyntax {
     pub bei: WithFreeModifiers<WithIndicators<WordLike>>,
@@ -884,14 +892,14 @@ pub struct BeiLinkSyntax {
 }
 
 #[invariant(self.fa.is_none() || self.argument.is_some(), "lifted FA link tags must have an argument")]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LinkArgumentSyntax {
     pub fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub argument: Option<ArgumentSyntax>,
 }
 
 #[invariant(self.fa.is_none() || self.first_argument.is_some(), "lifted FA link tags must have an argument")]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BeLinkSyntax {
     pub be: WithFreeModifiers<WithIndicators<WordLike>>,
     pub fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
@@ -900,7 +908,7 @@ pub struct BeLinkSyntax {
     pub beho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum ConnectiveKind {
     Afterthought,
@@ -911,7 +919,7 @@ pub enum ConnectiveKind {
     Interval,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum ArgumentTailElementSyntax {
     Argument(Box<ArgumentSyntax>),
@@ -919,34 +927,34 @@ pub enum ArgumentTailElementSyntax {
     Quantifier(QuantifierSyntax),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum QuantifierSyntax {
     Number {
-        #[tree(primary)]
+        #[tree_child(primary)]
         number: WithFreeModifiers<WordRun>,
         boi: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Vei {
         vei: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         math_expression: Box<MathExpressionSyntax>,
         veho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum MathExpressionSyntax {
     Number(QuantifierSyntax),
     Letter {
-        #[tree(primary)]
+        #[tree_child(primary)]
         letter: WithFreeModifiers<WordRun>,
         boi: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Vei {
         vei: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_expression: Box<MathExpressionSyntax>,
         veho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -969,25 +977,25 @@ pub enum MathExpressionSyntax {
     },
     Nihe {
         nihe: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         relation: RelationSyntax,
         tehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Mohe {
         mohe: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         argument: Box<ArgumentSyntax>,
         tehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Johi {
         johi: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         expressions: MathExpressionVec,
         tehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Lahe {
         markers: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_expression: Box<MathExpressionSyntax>,
         luhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -1009,35 +1017,35 @@ pub enum MathExpressionSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum MathOperatorSyntax {
     Vuhu(WithFreeModifiers<WithIndicators<WordLike>>),
     Maho {
         maho: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         math_expression: Box<MathExpressionSyntax>,
         tehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Se {
         se: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_operator: Box<MathOperatorSyntax>,
     },
     Nahe {
         nahe: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_operator: Box<MathOperatorSyntax>,
     },
     Nahu {
         nahu: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         relation: RelationSyntax,
         tehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Ke {
         ke: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_operator: Box<MathOperatorSyntax>,
         kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -1054,7 +1062,7 @@ pub enum MathOperatorSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum RelationSyntax {
     Connected {
@@ -1076,25 +1084,25 @@ pub enum RelationSyntax {
     },
     Na {
         na: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_relation: Box<RelationSyntax>,
     },
     Base(WithIndicators<WordLike>),
     Se {
         se: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_relation: Box<RelationSyntax>,
     },
     Ke {
         ke_tense_modal: Option<TenseModalSyntax>,
         ke: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         relation: Box<RelationSyntax>,
         kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     TenseModal {
         tense_modal: TenseModalSyntax,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_relation: Box<RelationSyntax>,
     },
     Guha {
@@ -1110,7 +1118,7 @@ pub enum RelationSyntax {
 
 pub type RelationUnitVec = SmallVec1<[RelationUnitSyntax; 2]>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct TimeTenseSyntax {
     pub direction: Vec<WithIndicators<WordLike>>,
@@ -1119,7 +1127,7 @@ pub struct TimeTenseSyntax {
     pub nai: Option<WithIndicators<WordLike>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct SpaceTenseSyntax {
     pub direction: Vec<WithIndicators<WordLike>>,
@@ -1130,7 +1138,7 @@ pub struct SpaceTenseSyntax {
     pub fehe: Option<WithIndicators<WordLike>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct IntervalTenseSyntax {
     pub number: Option<WordRun>,
@@ -1138,7 +1146,7 @@ pub struct IntervalTenseSyntax {
     pub nai: Option<WithIndicators<WordLike>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct SimpleTenseModalSyntax {
     pub nahe: Option<WithIndicators<WordLike>>,
@@ -1147,7 +1155,7 @@ pub struct SimpleTenseModalSyntax {
     pub nai: Option<WithIndicators<WordLike>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct FihoModalSyntax {
     pub nahe: Option<WithIndicators<WordLike>>,
@@ -1156,18 +1164,18 @@ pub struct FihoModalSyntax {
     pub fehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum CompositeTenseModalPartSyntax {
     Word(WithIndicators<WordLike>),
     Fiho(FihoModalSyntax),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum TenseModalSyntax {
     Composite {
-        #[tree(primary)]
+        #[tree_child(primary)]
         parts: WithFreeModifiers<Vec<CompositeTenseModalPartSyntax>>,
     },
     Pu(WithFreeModifiers<WithIndicators<WordLike>>),
@@ -1197,7 +1205,7 @@ pub enum TenseModalSyntax {
     Ki(WithFreeModifiers<WithIndicators<WordLike>>),
     Fiho {
         fiho: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         relation: Box<RelationSyntax>,
         fehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -1210,18 +1218,18 @@ pub enum TenseModalSyntax {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct AbstractionSyntax {
     pub nu: WithFreeModifiers<WithIndicators<WordLike>>,
     pub nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     pub additional_nu: Vec<AdditionalNuSyntax>,
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub subsentence: Box<SubsentenceSyntax>,
     pub kei: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct AdditionalNuSyntax {
     pub connective: ConnectiveSyntax,
@@ -1229,7 +1237,7 @@ pub struct AdditionalNuSyntax {
     pub nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub enum RelationUnitSyntax {
     Word(WithFreeModifiers<WithIndicators<WordLike>>),
@@ -1239,19 +1247,19 @@ pub enum RelationUnitSyntax {
     },
     Se {
         se: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_unit: Box<RelationUnitSyntax>,
     },
     Ke {
         ke_tense_modal: Option<TenseModalSyntax>,
         ke: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         relation: RelationSyntax,
         kehe: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Nahe {
         nahe: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_unit: Box<RelationUnitSyntax>,
     },
     Bo {
@@ -1267,7 +1275,7 @@ pub enum RelationUnitSyntax {
         trailing_unit: Box<RelationUnitSyntax>,
     },
     SelbriRelativeClause {
-        #[tree(primary)]
+        #[tree_child(primary)]
         base: Box<RelationUnitSyntax>,
         selbri_relative_clauses: Vec<SelbriRelativeClauseSyntax>,
     },
@@ -1275,11 +1283,11 @@ pub enum RelationUnitSyntax {
     Jai {
         jai: WithFreeModifiers<WithIndicators<WordLike>>,
         tense_modal: Option<TenseModalSyntax>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         inner_unit: Box<RelationUnitSyntax>,
     },
     Be {
-        #[tree(primary)]
+        #[tree_child(primary)]
         base: Box<RelationUnitSyntax>,
         be: WithFreeModifiers<WithIndicators<WordLike>>,
         fa: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
@@ -1293,13 +1301,13 @@ pub enum RelationUnitSyntax {
         first_argument: Option<ArgumentSyntax>,
         bei_links: Vec<BeiLinkSyntax>,
         beho: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         base: Box<RelationUnitSyntax>,
     },
     Abstraction(AbstractionSyntax),
     Me {
         me: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         argument: ArgumentSyntax,
         mehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         moi_marker: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
@@ -1309,7 +1317,7 @@ pub enum RelationUnitSyntax {
     Muhoi(WithFreeModifiers<WithIndicators<WordLike>>),
     Luhei {
         luhei: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         text: TextSyntax,
         liau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
@@ -1319,27 +1327,46 @@ pub enum RelationUnitSyntax {
     },
     Nuha {
         nuha: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         math_operator: MathOperatorSyntax,
     },
     Xohi {
         xohi: WithFreeModifiers<WithIndicators<WordLike>>,
-        #[tree(primary)]
+        #[tree_child(primary)]
         tag: TenseModalSyntax,
     },
     Cei {
-        #[tree(primary)]
+        #[tree_child(primary)]
         base: Box<RelationUnitSyntax>,
         assignments: Vec<CeiAssignmentSyntax>,
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, SyntaxTree)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[invariant(true)]
 pub struct CeiAssignmentSyntax {
     pub cei: WithFreeModifiers<WithIndicators<WordLike>>,
-    #[tree(primary)]
+    #[tree_child(primary)]
     pub relation_unit: RelationUnitSyntax,
+}
+
+}
+
+impl<T: TreeNode> TreeNode for WithFreeModifiers<T> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
+    where
+        V: jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
+    {
+        self.value.visit_in_order(visitor);
+        if !self.free_modifiers.is_empty() {
+            let field_ref = jbotci_tree::FieldRef::new(Some("free_modifiers"), false);
+            visitor.enter_field(field_ref);
+            self.free_modifiers.visit_in_order(visitor);
+            visitor.exit_field(field_ref);
+        }
+    }
 }
 
 impl StatementSyntax {

@@ -124,16 +124,18 @@ brackets = "(ba'a-cu'i [{le (túple be mi)} cu {se córtu}])"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "ba'a",
-        span: [0,4],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "cu'i",
-        span: [4,8],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "ba'a",
+          span: [0,4],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "cu'i",
+          span: [4,8],
+        },
       },
     },
   ],

@@ -54,16 +54,18 @@ brackets = ".e'e-se'a"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "e'e",
-        span: [1,4],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "se'a",
-        span: [4,8],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "e'e",
+          span: [1,4],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "se'a",
+          span: [4,8],
+        },
       },
     },
   ],

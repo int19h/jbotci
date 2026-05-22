@@ -118,7 +118,7 @@ Predicate {
     },
     terms: [
       Letter {
-        letter: WithFreeModifiers {
+        letter: [
           Word {
             kind: "cmavo",
             phonemes: "by",
@@ -129,21 +129,23 @@ Predicate {
             phonemes: "fy",
             span: [16,18],
           },
-          free_modifiers: [
-            Vocative {
-              vocative_markers: Word {
+        ],
+        free_modifiers: [
+          Vocative {
+            vocative_markers: [
+              Word {
                 kind: "cmavo",
                 phonemes: "doĭ",
                 span: [19,22],
               },
-              argument: Word {
-                kind: "cmevla",
-                phonemes: "clsn",
-                span: [23,27],
-              },
+            ],
+            argument: Word {
+              kind: "cmevla",
+              phonemes: "clsn",
+              span: [23,27],
             },
-          ],
-        },
+          },
+        ],
       },
     ],
   },

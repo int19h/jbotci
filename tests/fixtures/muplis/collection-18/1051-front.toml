@@ -131,10 +131,12 @@ brackets = "(.ŭi [{(le [{du'e va'e} gúnka]) (na ku)} {(pu co'a) mórsi}])"
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ŭi",
-      span: [0,2],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ŭi",
+        span: [0,2],
+      },
     },
   ],
   Predicate {
@@ -181,7 +183,7 @@ Text {
       },
     ],
     TenseModal {
-      tense_modal: WithFreeModifiers {
+      tense_modal: Composite {
         Word {
           kind: "cmavo",
           phonemes: "pu",

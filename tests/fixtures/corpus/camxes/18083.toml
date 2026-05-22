@@ -278,18 +278,20 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: Word {
-        kind: "cmavo",
-        phonemes: "coĭ",
-        span: [0,3],
-      },
+      vocative_markers: [
+        Word {
+          kind: "cmavo",
+          phonemes: "coĭ",
+          span: [0,3],
+        },
+      ],
       argument: Quantified {
         quantifier: Word {
           kind: "cmavo",
           phonemes: "ro",
           span: [4,6],
         },
-        WithFreeModifiers {
+        Koha {
           Word {
             kind: "cmavo",
             phonemes: "do",
@@ -297,22 +299,26 @@ Text {
           },
           free_modifiers: [
             Vocative {
-              vocative_markers: Word {
-                kind: "cmavo",
-                phonemes: "mi'e",
-                span: [9,13],
-              },
+              vocative_markers: [
+                Word {
+                  kind: "cmavo",
+                  phonemes: "mi'e",
+                  span: [9,13],
+                },
+              ],
               argument: Name {
                 la: Word {
                   kind: "cmavo",
                   phonemes: "la",
                   span: [14,16],
                 },
-                names: Word {
-                  kind: "cmevla",
-                  phonemes: "muxymus",
-                  span: [17,24],
-                },
+                names: [
+                  Word {
+                    kind: "cmevla",
+                    phonemes: "muxymus",
+                    span: [17,24],
+                  },
+                ],
               },
             },
           ],
@@ -409,27 +415,27 @@ Text {
           },
           terms: [
             Lu {
-              lu: WithFreeModifiers {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "lu",
-                  span: [81,83],
-                },
-                free_modifiers: [
-                  Vocative {
-                    vocative_markers: Word {
+              lu: Word {
+                kind: "cmavo",
+                phonemes: "lu",
+                span: [81,83],
+              },
+              free_modifiers: [
+                Vocative {
+                  vocative_markers: [
+                    Word {
                       kind: "cmavo",
                       phonemes: "doĭ",
                       span: [84,87],
                     },
-                    argument: Word {
-                      kind: "cmevla",
-                      phonemes: "muxymus",
-                      span: [88,95],
-                    },
+                  ],
+                  argument: Word {
+                    kind: "cmevla",
+                    phonemes: "muxymus",
+                    span: [88,95],
                   },
-                ],
-              },
+                },
+              ],
               Predicate {
                 leading_terms: [
                   Word {

@@ -143,78 +143,78 @@ Term {
         phonemes: "la",
         span: [0,2],
       },
-      names: WithFreeModifiers {
+      names: [
         Word {
           kind: "cmevla",
           phonemes: "mumymum",
           span: [3,10],
         },
-        free_modifiers: [
-          To {
-            to: Word {
-              kind: "cmavo",
-              phonemes: "to",
-              span: [13,15],
-            },
-            Predicate {
-              leading_terms: [
-                Word {
-                  kind: "cmavo",
-                  phonemes: "mi",
-                  span: [16,18],
-                },
-              ],
-              Relation {
-                TenseModal {
-                  tense_modal: WithFreeModifiers {
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "pu",
-                      span: [19,21],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "zi",
-                      span: [21,23],
-                    },
+      ],
+      free_modifiers: [
+        To {
+          to: Word {
+            kind: "cmavo",
+            phonemes: "to",
+            span: [13,15],
+          },
+          Predicate {
+            leading_terms: [
+              Word {
+                kind: "cmavo",
+                phonemes: "mi",
+                span: [16,18],
+              },
+            ],
+            Relation {
+              TenseModal {
+                tense_modal: Composite {
+                  Word {
+                    kind: "cmavo",
+                    phonemes: "pu",
+                    span: [19,21],
                   },
                   Word {
-                    kind: "gismu",
-                    phonemes: "finti",
-                    span: [24,29],
+                    kind: "cmavo",
+                    phonemes: "zi",
+                    span: [21,23],
                   },
                 },
-                terms: [
-                  Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "le",
-                      span: [30,32],
+                Word {
+                  kind: "gismu",
+                  phonemes: "finti",
+                  span: [24,29],
+                },
+              },
+              terms: [
+                Descriptor {
+                  descriptor: Word {
+                    kind: "cmavo",
+                    phonemes: "le",
+                    span: [30,32],
+                  },
+                  relation: Compound {
+                    Word {
+                      kind: "gismu",
+                      phonemes: "cnino",
+                      span: [33,38],
                     },
-                    relation: Compound {
-                      Word {
-                        kind: "gismu",
-                        phonemes: "cnino",
-                        span: [33,38],
-                      },
-                      Word {
-                        kind: "gismu",
-                        phonemes: "cmene",
-                        span: [39,44],
-                      },
+                    Word {
+                      kind: "gismu",
+                      phonemes: "cmene",
+                      span: [39,44],
                     },
                   },
-                ],
-              },
-            },
-            toi: Word {
-              kind: "cmavo",
-              phonemes: "toĭ",
-              span: [45,48],
+                },
+              ],
             },
           },
-        ],
-      },
+          toi: Word {
+            kind: "cmavo",
+            phonemes: "toĭ",
+            span: [45,48],
+          },
+        },
+      ],
     },
   ],
 }"""

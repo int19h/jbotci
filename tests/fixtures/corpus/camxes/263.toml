@@ -132,51 +132,53 @@ tree = """
 Predicate {
   leading_terms: [
     Letter {
-      letter: WithIndicator {
+      letter: [
         WithIndicator {
           WithIndicator {
             WithIndicator {
-              Letter {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "yyyyy",
-                  span: [1,6],
+              WithIndicator {
+                Letter {
+                  Word {
+                    kind: "cmavo",
+                    phonemes: "yyyyy",
+                    span: [1,6],
+                  },
+                  bu: Word {
+                    kind: "cmavo",
+                    phonemes: "bu",
+                    span: [8,10],
+                  },
                 },
-                bu: Word {
+                indicator: Word {
                   kind: "cmavo",
-                  phonemes: "bu",
-                  span: [8,10],
+                  phonemes: "fu'e",
+                  span: [11,15],
                 },
               },
               indicator: Word {
                 kind: "cmavo",
-                phonemes: "fu'e",
-                span: [11,15],
+                phonemes: "ŭi",
+                span: [16,18],
+              },
+              nai: Word {
+                kind: "cmavo",
+                phonemes: "naĭ",
+                span: [18,21],
               },
             },
             indicator: Word {
               kind: "cmavo",
-              phonemes: "ŭi",
-              span: [16,18],
-            },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [18,21],
+              phonemes: "saĭ",
+              span: [21,24],
             },
           },
           indicator: Word {
             kind: "cmavo",
-            phonemes: "saĭ",
-            span: [21,24],
+            phonemes: "ro'i",
+            span: [24,28],
           },
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ro'i",
-          span: [24,28],
-        },
-      },
+      ],
     },
   ],
   Relation {

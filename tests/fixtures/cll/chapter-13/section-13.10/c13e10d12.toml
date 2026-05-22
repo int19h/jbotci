@@ -84,33 +84,35 @@ brackets = ".ĭu-bu'o-naĭ.ŭi-naĭ"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ĭu",
-          span: [1,3],
+    Indicator {
+      indicator: WithIndicator {
+        WithIndicator {
+          Word {
+            kind: "cmavo",
+            phonemes: "ĭu",
+            span: [1,3],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "bu'o",
+            span: [4,8],
+          },
+          nai: Word {
+            kind: "cmavo",
+            phonemes: "naĭ",
+            span: [8,11],
+          },
         },
         indicator: Word {
           kind: "cmavo",
-          phonemes: "bu'o",
-          span: [4,8],
+          phonemes: "ŭi",
+          span: [13,15],
         },
         nai: Word {
           kind: "cmavo",
           phonemes: "naĭ",
-          span: [8,11],
+          span: [15,18],
         },
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [13,15],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [15,18],
       },
     },
   ],

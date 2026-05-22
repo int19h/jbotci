@@ -62,25 +62,27 @@ tree = """
 Term {
   terms: [
     Letter {
-      letter: WithIndicator {
-        Letter {
-          Word {
-            kind: "cmavo",
-            phonemes: "e",
-            span: [0,1],
+      letter: [
+        WithIndicator {
+          Letter {
+            Word {
+              kind: "cmavo",
+              phonemes: "e",
+              span: [0,1],
+            },
+            bu: Word {
+              kind: "cmavo",
+              phonemes: "bu",
+              span: [1,3],
+            },
           },
-          bu: Word {
+          indicator: Word {
             kind: "cmavo",
-            phonemes: "bu",
-            span: [1,3],
+            phonemes: "ki'a",
+            span: [4,8],
           },
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ki'a",
-          span: [4,8],
-        },
-      },
+      ],
     },
   ],
 }"""

@@ -457,11 +457,13 @@ Paragraph {
               phonemes: "la",
               span: [32,34],
             },
-            names: Word {
-              kind: "cmevla",
-              phonemes: "alis",
-              span: [35,39],
-            },
+            names: [
+              Word {
+                kind: "cmevla",
+                phonemes: "alis",
+                span: [35,39],
+              },
+            ],
           },
         ],
         Relation {
@@ -528,7 +530,7 @@ Paragraph {
         phonemes: "i",
         span: [76,77],
       },
-      connective: WithFreeModifiers {
+      connective: Relation {
         Word {
           kind: "cmavo",
           phonemes: "je",
@@ -609,7 +611,7 @@ Paragraph {
           phonemes: "i",
           span: [123,124],
         },
-        connective: WithFreeModifiers {
+        connective: Relation {
           Word {
             kind: "cmavo",
             phonemes: "se",
@@ -629,18 +631,20 @@ Paragraph {
         trailing_statement: Predicate {
           leading_terms: [
             Letter {
-              letter: Letter {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "a",
-                  span: [133,134],
+              letter: [
+                Letter {
+                  Word {
+                    kind: "cmavo",
+                    phonemes: "a",
+                    span: [133,134],
+                  },
+                  bu: Word {
+                    kind: "cmavo",
+                    phonemes: "bu",
+                    span: [134,136],
+                  },
                 },
-                bu: Word {
-                  kind: "cmavo",
-                  phonemes: "bu",
-                  span: [134,136],
-                },
-              },
+              ],
             },
           ],
           TenseModal {

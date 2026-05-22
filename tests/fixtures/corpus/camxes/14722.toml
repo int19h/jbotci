@@ -77,21 +77,23 @@ json = """[{"Bare":{"span":[1,4],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"spa
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "a'o",
-        span: [1,4],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "be'u",
-        span: [4,8],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [8,11],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "a'o",
+          span: [1,4],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "be'u",
+          span: [4,8],
+        },
+        nai: Word {
+          kind: "cmavo",
+          phonemes: "naĭ",
+          span: [8,11],
+        },
       },
     },
   ],

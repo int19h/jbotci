@@ -51,16 +51,18 @@ brackets = ".e'o-caĭ"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "e'o",
-        span: [0,3],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "caĭ",
-        span: [4,7],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "e'o",
+          span: [0,3],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "caĭ",
+          span: [4,7],
+        },
       },
     },
   ],

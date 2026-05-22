@@ -97,10 +97,12 @@ json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"spa
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "oĭ",
-      span: [1,3],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "oĭ",
+        span: [1,3],
+      },
     },
   ],
   Predicate {
@@ -117,7 +119,7 @@ Text {
         phonemes: "ze'a",
         span: [7,11],
       },
-      WithFreeModifiers {
+      Word {
         Word {
           kind: "gismu",
           phonemes: "cliva",
@@ -125,11 +127,13 @@ Text {
         },
         free_modifiers: [
           Vocative {
-            vocative_markers: Word {
-              kind: "cmavo",
-              phonemes: "co'o",
-              span: [18,22],
-            },
+            vocative_markers: [
+              Word {
+                kind: "cmavo",
+                phonemes: "co'o",
+                span: [18,22],
+              },
+            ],
             argument: Quantified {
               quantifier: Word {
                 kind: "cmavo",

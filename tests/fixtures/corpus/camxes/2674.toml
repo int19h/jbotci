@@ -612,11 +612,13 @@ Paragraph {
             phonemes: "la",
             span: [8,10],
           },
-          names: Word {
-            kind: "cmevla",
-            phonemes: "alis",
-            span: [11,15],
-          },
+          names: [
+            Word {
+              kind: "cmevla",
+              phonemes: "alis",
+              span: [11,15],
+            },
+          ],
         },
       ],
       Relation {
@@ -652,18 +654,20 @@ Paragraph {
                   },
                   terms: [
                     Letter {
-                      letter: Letter {
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "a",
-                          span: [41,42],
+                      letter: [
+                        Letter {
+                          Word {
+                            kind: "cmavo",
+                            phonemes: "a",
+                            span: [41,42],
+                          },
+                          bu: Word {
+                            kind: "cmavo",
+                            phonemes: "bu",
+                            span: [42,44],
+                          },
                         },
-                        bu: Word {
-                          kind: "cmavo",
-                          phonemes: "bu",
-                          span: [42,44],
-                        },
-                      },
+                      ],
                     },
                     Tagged {
                       tense_modal: Word {
@@ -748,23 +752,25 @@ Paragraph {
     Predicate {
       leading_terms: [
         Letter {
-          letter: Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "a",
-              span: [84,85],
+          letter: [
+            Letter {
+              Word {
+                kind: "cmavo",
+                phonemes: "a",
+                span: [84,85],
+              },
+              bu: Word {
+                kind: "cmavo",
+                phonemes: "bu",
+                span: [85,87],
+              },
             },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [85,87],
-            },
-          },
+          ],
         },
       ],
       PredicateTail1 {
         TenseModal {
-          tense_modal: WithFreeModifiers {
+          tense_modal: Composite {
             Word {
               kind: "cmavo",
               phonemes: "ca'o",
@@ -801,7 +807,7 @@ Paragraph {
         },
         continuations: [
           PredicateTailContinuation {
-            connective: WithFreeModifiers {
+            connective: PredicateTail {
               Word {
                 kind: "cmavo",
                 phonemes: "gi'e",
@@ -875,7 +881,7 @@ Paragraph {
             },
           },
           PredicateTailContinuation {
-            connective: WithFreeModifiers {
+            connective: PredicateTail {
               WithIndicator {
                 Word {
                   kind: "cmavo",

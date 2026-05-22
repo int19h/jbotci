@@ -408,56 +408,58 @@ ParagraphStatement {
   Term {
     terms: [
       Lu {
-        lu: WithFreeModifiers {
-          WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "lu",
-              span: [3,5],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "oĭ",
-              span: [6,8],
-            },
+        lu: WithIndicator {
+          Word {
+            kind: "cmavo",
+            phonemes: "lu",
+            span: [3,5],
           },
-          free_modifiers: [
-            Vocative {
-              vocative_markers: Word {
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "oĭ",
+            span: [6,8],
+          },
+        },
+        free_modifiers: [
+          Vocative {
+            vocative_markers: [
+              Word {
                 kind: "cmavo",
                 phonemes: "doĭ",
                 span: [9,12],
               },
-              argument: RelativeClause {
-                base_argument: Word {
-                  kind: "cmevla",
-                  phonemes: "alis",
-                  span: [13,17],
-                },
-                relative_clauses: [
-                  Noi {
-                    noi: Word {
-                      kind: "cmavo",
-                      phonemes: "noĭ",
-                      span: [18,21],
-                    },
-                    Relation {
-                      WithFreeModifiers {
-                        Word {
-                          kind: "gismu",
-                          phonemes: "bebna",
-                          span: [22,27],
-                        },
-                        free_modifiers: [
-                          Sei {
-                            sei: Word {
-                              kind: "cmavo",
-                              phonemes: "seĭ",
-                              span: [28,31],
-                            },
-                            terms: [
-                              Letter {
-                                letter: Letter {
+            ],
+            argument: RelativeClause {
+              base_argument: Word {
+                kind: "cmevla",
+                phonemes: "alis",
+                span: [13,17],
+              },
+              relative_clauses: [
+                Noi {
+                  noi: Word {
+                    kind: "cmavo",
+                    phonemes: "noĭ",
+                    span: [18,21],
+                  },
+                  Relation {
+                    Word {
+                      Word {
+                        kind: "gismu",
+                        phonemes: "bebna",
+                        span: [22,27],
+                      },
+                      free_modifiers: [
+                        Sei {
+                          sei: Word {
+                            kind: "cmavo",
+                            phonemes: "seĭ",
+                            span: [28,31],
+                          },
+                          terms: [
+                            Letter {
+                              letter: [
+                                Letter {
                                   Word {
                                     kind: "cmavo",
                                     phonemes: "a",
@@ -469,52 +471,52 @@ ParagraphStatement {
                                     span: [33,35],
                                   },
                                 },
-                              },
-                            ],
-                            relation: Word {
-                              kind: "lujvo",
-                              phonemes: "sezyspuda",
-                              span: [36,45],
+                              ],
                             },
+                          ],
+                          relation: Word {
+                            kind: "lujvo",
+                            phonemes: "sezyspuda",
+                            span: [36,45],
                           },
-                        ],
-                      },
-                      terms: [
-                        Tagged {
-                          tense_modal: Simple {
-                            bai: Word {
-                              kind: "cmavo",
-                              phonemes: "ta'i",
-                              span: [46,50],
-                            },
-                          },
-                          Word {
-                            kind: "cmavo",
-                            phonemes: "ma",
-                            span: [51,53],
-                          },
-                        },
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "do",
-                          span: [54,56],
-                        },
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "da",
-                          span: [57,59],
                         },
                       ],
                     },
+                    terms: [
+                      Tagged {
+                        tense_modal: Simple {
+                          bai: Word {
+                            kind: "cmavo",
+                            phonemes: "ta'i",
+                            span: [46,50],
+                          },
+                        },
+                        Word {
+                          kind: "cmavo",
+                          phonemes: "ma",
+                          span: [51,53],
+                        },
+                      },
+                      Word {
+                        kind: "cmavo",
+                        phonemes: "do",
+                        span: [54,56],
+                      },
+                      Word {
+                        kind: "cmavo",
+                        phonemes: "da",
+                        span: [57,59],
+                      },
+                    ],
                   },
-                ],
-              },
+                },
+              ],
             },
-          ],
-        },
+          },
+        ],
         Paragraph {
           TenseModal {
-            tense_modal: WithFreeModifiers {
+            tense_modal: Composite {
               Word {
                 kind: "cmavo",
                 phonemes: "bu'u",

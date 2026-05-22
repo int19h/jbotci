@@ -112,7 +112,7 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      Word {
+      indicator: Word {
         kind: "cmavo",
         phonemes: "do'a",
         span: [0,4],
@@ -138,7 +138,7 @@ Text {
       },
     },
     terms: [
-      WithFreeModifiers {
+      Zo {
         ZoQuote {
           zo: Word {
             kind: "cmavo",
@@ -153,11 +153,13 @@ Text {
         },
         free_modifiers: [
           Vocative {
-            vocative_markers: Word {
-              kind: "cmavo",
-              phonemes: "doĭ",
-              span: [23,26],
-            },
+            vocative_markers: [
+              Word {
+                kind: "cmavo",
+                phonemes: "doĭ",
+                span: [23,26],
+              },
+            ],
             argument: RelationVocative {
               relation: Word {
                 kind: "gismu",

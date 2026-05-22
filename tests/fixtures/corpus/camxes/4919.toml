@@ -113,18 +113,20 @@ ParagraphStatement {
   },
   free_modifiers: [
     Vocative {
-      vocative_markers: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "ki'e",
-          span: [2,6],
+      vocative_markers: [
+        WithIndicator {
+          Word {
+            kind: "cmavo",
+            phonemes: "ki'e",
+            span: [2,6],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "ku'i",
+            span: [6,10],
+          },
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ku'i",
-          span: [6,10],
-        },
-      },
+      ],
       argument: Word {
         kind: "cmavo",
         phonemes: "mi",
@@ -134,7 +136,7 @@ ParagraphStatement {
   ],
   Relation {
     TenseModal {
-      tense_modal: WithFreeModifiers {
+      tense_modal: Composite {
         Word {
           kind: "cmavo",
           phonemes: "pu",

@@ -68,18 +68,20 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [0,4],
+      vocative_markers: [
+        WithIndicator {
+          Word {
+            kind: "cmavo",
+            phonemes: "co'o",
+            span: [0,4],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "ji'a",
+            span: [5,9],
+          },
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ji'a",
-          span: [5,9],
-        },
-      },
+      ],
       argument: Quantified {
         quantifier: Word {
           kind: "cmavo",

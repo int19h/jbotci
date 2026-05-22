@@ -117,10 +117,12 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "za'a",
-      span: [0,4],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "za'a",
+        span: [0,4],
+      },
     },
   ],
   Paragraph {
@@ -137,7 +139,7 @@ Text {
             phonemes: "bo",
             span: [9,11],
           },
-          WithFreeModifiers {
+          Koha {
             Word {
               kind: "cmavo",
               phonemes: "do",
@@ -145,17 +147,21 @@ Text {
             },
             free_modifiers: [
               Vocative {
-                vocative_markers: Word {
-                  kind: "cmavo",
-                  phonemes: "doĭ",
-                  span: [15,18],
-                },
-                argument: Letter {
-                  letter: Word {
+                vocative_markers: [
+                  Word {
                     kind: "cmavo",
-                    phonemes: "xy",
-                    span: [19,21],
+                    phonemes: "doĭ",
+                    span: [15,18],
                   },
+                ],
+                argument: Letter {
+                  letter: [
+                    Word {
+                      kind: "cmavo",
+                      phonemes: "xy",
+                      span: [19,21],
+                    },
+                  ],
                 },
               },
             ],

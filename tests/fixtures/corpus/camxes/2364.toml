@@ -415,7 +415,7 @@ ParagraphStatement {
           Prenex {
             prenex_terms: [
               Tagged {
-                tense_modal: WithFreeModifiers {
+                tense_modal: Composite {
                   Word {
                     kind: "cmavo",
                     phonemes: "pu",
@@ -462,58 +462,56 @@ ParagraphStatement {
                 },
               },
             ],
-            zohu: WithFreeModifiers {
-              Word {
-                kind: "cmavo",
-                phonemes: "zo'u",
-                span: [30,34],
-              },
-              free_modifiers: [
-                Sei {
-                  sei: Word {
-                    kind: "cmavo",
-                    phonemes: "seĭ",
-                    span: [35,38],
-                  },
-                  terms: [
-                    Descriptor {
-                      descriptor: Word {
-                        kind: "cmavo",
-                        phonemes: "la",
-                        span: [39,41],
-                      },
-                      relation: Word {
-                        kind: "lujvo",
-                        phonemes: "sipsmacu",
-                        span: [42,50],
-                      },
+            zohu: Word {
+              kind: "cmavo",
+              phonemes: "zo'u",
+              span: [30,34],
+            },
+            free_modifiers: [
+              Sei {
+                sei: Word {
+                  kind: "cmavo",
+                  phonemes: "seĭ",
+                  span: [35,38],
+                },
+                terms: [
+                  Descriptor {
+                    descriptor: Word {
+                      kind: "cmavo",
+                      phonemes: "la",
+                      span: [39,41],
                     },
-                  ],
-                  cu: Word {
-                    kind: "cmavo",
-                    phonemes: "cu",
-                    span: [51,53],
-                  },
-                  relation: Compound {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "mutce",
-                      span: [54,59],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "sutra",
-                      span: [60,65],
-                    },
-                    Word {
+                    relation: Word {
                       kind: "lujvo",
-                      phonemes: "tolsisti",
-                      span: [66,74],
+                      phonemes: "sipsmacu",
+                      span: [42,50],
                     },
+                  },
+                ],
+                cu: Word {
+                  kind: "cmavo",
+                  phonemes: "cu",
+                  span: [51,53],
+                },
+                relation: Compound {
+                  Word {
+                    kind: "gismu",
+                    phonemes: "mutce",
+                    span: [54,59],
+                  },
+                  Word {
+                    kind: "gismu",
+                    phonemes: "sutra",
+                    span: [60,65],
+                  },
+                  Word {
+                    kind: "lujvo",
+                    phonemes: "tolsisti",
+                    span: [66,74],
                   },
                 },
-              ],
-            },
+              },
+            ],
             Predicate {
               leading_terms: [
                 Connected {
@@ -567,11 +565,13 @@ ParagraphStatement {
                   },
                 },
                 Letter {
-                  letter: Word {
-                    kind: "cmavo",
-                    phonemes: "my",
-                    span: [112,114],
-                  },
+                  letter: [
+                    Word {
+                      kind: "cmavo",
+                      phonemes: "my",
+                      span: [112,114],
+                    },
+                  ],
                 },
               ],
               Word {
@@ -590,11 +590,13 @@ ParagraphStatement {
             Predicate {
               leading_terms: [
                 Letter {
-                  letter: Word {
-                    kind: "cmavo",
-                    phonemes: "my",
-                    span: [123,125],
-                  },
+                  letter: [
+                    Word {
+                      kind: "cmavo",
+                      phonemes: "my",
+                      span: [123,125],
+                    },
+                  ],
                 },
               ],
               Relation {

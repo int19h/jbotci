@@ -81,10 +81,12 @@ brackets = "(.a'o [ra {(ba zi) kánro}])"
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "a'o",
-      span: [1,4],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "a'o",
+        span: [1,4],
+      },
     },
   ],
   Predicate {
@@ -96,7 +98,7 @@ Text {
       },
     ],
     TenseModal {
-      tense_modal: WithFreeModifiers {
+      tense_modal: Composite {
         Word {
           kind: "cmavo",
           phonemes: "ba",

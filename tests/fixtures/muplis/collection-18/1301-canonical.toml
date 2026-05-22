@@ -274,7 +274,7 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      Word {
+      indicator: Word {
         kind: "cmavo",
         phonemes: "ju'a",
         span: [0,4],
@@ -290,7 +290,7 @@ Text {
     Predicate {
       leading_terms: [
         Letter {
-          letter: WithFreeModifiers {
+          letter: [
             Word {
               kind: "cmavo",
               phonemes: "cy",
@@ -301,7 +301,7 @@ Text {
               phonemes: "no",
               span: [12,14],
             },
-          },
+          ],
         },
       ],
       Abstraction {
@@ -340,11 +340,13 @@ Text {
                   phonemes: "la",
                   span: [31,33],
                 },
-                names: Word {
-                  kind: "cmevla",
-                  phonemes: "maris",
-                  span: [34,39],
-                },
+                names: [
+                  Word {
+                    kind: "cmevla",
+                    phonemes: "maris",
+                    span: [34,39],
+                  },
+                ],
               },
             ],
             Relation {
@@ -360,11 +362,13 @@ Text {
                     phonemes: "la",
                     span: [47,49],
                   },
-                  names: Word {
-                    kind: "cmevla",
-                    phonemes: "tom",
-                    span: [50,53],
-                  },
+                  names: [
+                    Word {
+                      kind: "cmevla",
+                      phonemes: "tom",
+                      span: [50,53],
+                    },
+                  ],
                 },
               ],
             },
@@ -435,7 +439,7 @@ Text {
             },
             terms: [
               Letter {
-                letter: WithFreeModifiers {
+                letter: [
                   Word {
                     kind: "cmavo",
                     phonemes: "cy",
@@ -446,7 +450,7 @@ Text {
                     phonemes: "no",
                     span: [92,94],
                   },
-                },
+                ],
               },
             ],
           },

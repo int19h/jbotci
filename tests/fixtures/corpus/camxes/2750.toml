@@ -329,11 +329,13 @@ ParagraphStatement {
         Predicate {
           leading_terms: [
             Letter {
-              letter: Word {
-                kind: "cmavo",
-                phonemes: "py",
-                span: [11,13],
-              },
+              letter: [
+                Word {
+                  kind: "cmavo",
+                  phonemes: "py",
+                  span: [11,13],
+                },
+              ],
             },
           ],
           Relation {
@@ -379,7 +381,7 @@ ParagraphStatement {
                         phonemes: "lo",
                         span: [43,45],
                       },
-                      relation: WithFreeModifiers {
+                      relation: Word {
                         Word {
                           kind: "gismu",
                           phonemes: "drata",
@@ -426,81 +428,79 @@ ParagraphStatement {
             ],
           },
         },
-        lihu: WithFreeModifiers {
-          Word {
-            kind: "cmavo",
-            phonemes: "li'u",
-            span: [78,82],
-          },
-          free_modifiers: [
-            To {
-              to: Word {
+        lihu: Word {
+          kind: "cmavo",
+          phonemes: "li'u",
+          span: [78,82],
+        },
+        free_modifiers: [
+          To {
+            to: Word {
+              kind: "cmavo",
+              phonemes: "to",
+              span: [83,85],
+            },
+            Predicate {
+              leading_terms: [
+                Descriptor {
+                  descriptor: Word {
+                    kind: "cmavo",
+                    phonemes: "le",
+                    span: [89,91],
+                  },
+                  outer_quantifier: Word {
+                    kind: "cmavo",
+                    phonemes: "ro",
+                    span: [86,88],
+                  },
+                  relation: Word {
+                    kind: "lujvo",
+                    phonemes: "paĭrkamnycmi",
+                    span: [92,104],
+                  },
+                },
+              ],
+              cu: Word {
                 kind: "cmavo",
-                phonemes: "to",
-                span: [83,85],
+                phonemes: "cu",
+                span: [105,107],
               },
-              Predicate {
-                leading_terms: [
+              Relation {
+                Word {
+                  kind: "gismu",
+                  phonemes: "xruti",
+                  span: [108,113],
+                },
+                terms: [
                   Descriptor {
                     descriptor: Word {
                       kind: "cmavo",
                       phonemes: "le",
-                      span: [89,91],
+                      span: [114,116],
                     },
-                    outer_quantifier: Word {
-                      kind: "cmavo",
-                      phonemes: "ro",
-                      span: [86,88],
-                    },
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "paĭrkamnycmi",
-                      span: [92,104],
+                    relation: Abstraction {
+                      nu: Word {
+                        kind: "cmavo",
+                        phonemes: "ka",
+                        span: [117,119],
+                      },
+                      Word {
+                        kind: "lujvo",
+                        phonemes: "cikygeĭ",
+                        span: [120,127],
+                      },
                     },
                   },
                 ],
-                cu: Word {
-                  kind: "cmavo",
-                  phonemes: "cu",
-                  span: [105,107],
-                },
-                Relation {
-                  Word {
-                    kind: "gismu",
-                    phonemes: "xruti",
-                    span: [108,113],
-                  },
-                  terms: [
-                    Descriptor {
-                      descriptor: Word {
-                        kind: "cmavo",
-                        phonemes: "le",
-                        span: [114,116],
-                      },
-                      relation: Abstraction {
-                        nu: Word {
-                          kind: "cmavo",
-                          phonemes: "ka",
-                          span: [117,119],
-                        },
-                        Word {
-                          kind: "lujvo",
-                          phonemes: "cikygeĭ",
-                          span: [120,127],
-                        },
-                      },
-                    },
-                  ],
-                },
-              },
-              toi: Word {
-                kind: "cmavo",
-                phonemes: "toĭ",
-                span: [128,131],
               },
             },
-          ],
-        },
+            toi: Word {
+              kind: "cmavo",
+              phonemes: "toĭ",
+              span: [128,131],
+            },
+          },
+        ],
       },
     ],
   },

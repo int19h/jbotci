@@ -127,64 +127,66 @@ json = '[{"Bare":{"span":[1,3],"phonemes":"ŭo","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      WithIndicator {
+    Indicator {
+      indicator: WithIndicator {
         WithIndicator {
           WithIndicator {
             WithIndicator {
-              Word {
-                kind: "cmavo",
-                phonemes: "ŭo",
-                span: [1,3],
+              WithIndicator {
+                Word {
+                  kind: "cmavo",
+                  phonemes: "ŭo",
+                  span: [1,3],
+                },
+                indicator: Word {
+                  kind: "cmavo",
+                  phonemes: "ŭo",
+                  span: [5,7],
+                },
               },
               indicator: Word {
                 kind: "cmavo",
                 phonemes: "ŭo",
-                span: [5,7],
+                span: [9,11],
+              },
+              nai: Word {
+                kind: "cmavo",
+                phonemes: "naĭ",
+                span: [11,14],
               },
             },
             indicator: Word {
               kind: "cmavo",
-              phonemes: "ŭo",
-              span: [9,11],
+              phonemes: "ŭe",
+              span: [16,18],
             },
             nai: Word {
               kind: "cmavo",
               phonemes: "naĭ",
-              span: [11,14],
+              span: [18,21],
             },
           },
           indicator: Word {
             kind: "cmavo",
-            phonemes: "ŭe",
-            span: [16,18],
+            phonemes: "ŭa",
+            span: [23,25],
           },
           nai: Word {
             kind: "cmavo",
             phonemes: "naĭ",
-            span: [18,21],
+            span: [25,28],
           },
         },
         indicator: Word {
           kind: "cmavo",
-          phonemes: "ŭa",
-          span: [23,25],
+          phonemes: "ŭi",
+          span: [30,32],
         },
         nai: Word {
           kind: "cmavo",
           phonemes: "naĭ",
-          span: [25,28],
+          span: [32,35],
         },
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [30,32],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [32,35],
       },
     },
   ],

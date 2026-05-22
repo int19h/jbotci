@@ -258,11 +258,13 @@ ParagraphStatement {
           phonemes: "la",
           span: [16,18],
         },
-        names: Word {
-          kind: "cmevla",
-          phonemes: "zel",
-          span: [19,22],
-        },
+        names: [
+          Word {
+            kind: "cmevla",
+            phonemes: "zel",
+            span: [19,22],
+          },
+        ],
       },
     ],
     PredicateTail1 {
@@ -286,34 +288,34 @@ ParagraphStatement {
             },
             terms: [
               Lu {
-                lu: WithFreeModifiers {
-                  WithIndicator {
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "lu",
-                      span: [43,45],
-                    },
-                    indicator: Word {
-                      kind: "cmavo",
-                      phonemes: "e'e",
-                      span: [46,49],
-                    },
+                lu: WithIndicator {
+                  Word {
+                    kind: "cmavo",
+                    phonemes: "lu",
+                    span: [43,45],
                   },
-                  free_modifiers: [
-                    Vocative {
-                      vocative_markers: Word {
+                  indicator: Word {
+                    kind: "cmavo",
+                    phonemes: "e'e",
+                    span: [46,49],
+                  },
+                },
+                free_modifiers: [
+                  Vocative {
+                    vocative_markers: [
+                      Word {
                         kind: "cmavo",
                         phonemes: "doĭ",
                         span: [50,53],
                       },
-                      argument: Word {
-                        kind: "cmevla",
-                        phonemes: "mum",
-                        span: [54,57],
-                      },
+                    ],
+                    argument: Word {
+                      kind: "cmevla",
+                      phonemes: "mum",
+                      span: [54,57],
                     },
-                  ],
-                },
+                  },
+                ],
                 Predicate {
                   leading_terms: [
                     Word {
@@ -324,7 +326,7 @@ ParagraphStatement {
                   ],
                   Relation {
                     TenseModal {
-                      tense_modal: WithFreeModifiers {
+                      tense_modal: Composite {
                         Word {
                           kind: "cmavo",
                           phonemes: "ro",

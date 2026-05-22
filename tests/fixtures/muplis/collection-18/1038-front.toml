@@ -121,10 +121,12 @@ brackets = "(.u'e [ni {(la .tom.) cu (sútra [lo {ka távla}])}])"
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "u'e",
-      span: [0,3],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "u'e",
+        span: [0,3],
+      },
     },
   ],
   Abstraction {
@@ -141,11 +143,13 @@ Text {
             phonemes: "la",
             span: [7,9],
           },
-          names: Word {
-            kind: "cmevla",
-            phonemes: "tom",
-            span: [11,14],
-          },
+          names: [
+            Word {
+              kind: "cmevla",
+              phonemes: "tom",
+              span: [11,14],
+            },
+          ],
         },
       ],
       cu: Word {

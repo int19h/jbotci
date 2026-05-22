@@ -118,24 +118,28 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: Word {
-        kind: "cmavo",
-        phonemes: "doĭ",
-        span: [0,3],
-      },
-      argument: Letter {
-        letter: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "zy",
-            span: [4,6],
-          },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "ji'a",
-            span: [8,12],
-          },
+      vocative_markers: [
+        Word {
+          kind: "cmavo",
+          phonemes: "doĭ",
+          span: [0,3],
         },
+      ],
+      argument: Letter {
+        letter: [
+          WithIndicator {
+            Word {
+              kind: "cmavo",
+              phonemes: "zy",
+              span: [4,6],
+            },
+            indicator: Word {
+              kind: "cmavo",
+              phonemes: "ji'a",
+              span: [8,12],
+            },
+          },
+        ],
       },
     },
   ],
@@ -153,11 +157,13 @@ Text {
           span: [17,18],
         },
         trailing_argument: Letter {
-          letter: Word {
-            kind: "cmavo",
-            phonemes: "by",
-            span: [19,21],
-          },
+          letter: [
+            Word {
+              kind: "cmavo",
+              phonemes: "by",
+              span: [19,21],
+            },
+          ],
         },
       },
     ],

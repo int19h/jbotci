@@ -258,11 +258,13 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: Word {
-        kind: "cmavo",
-        phonemes: "doĭ",
-        span: [0,3],
-      },
+      vocative_markers: [
+        Word {
+          kind: "cmavo",
+          phonemes: "doĭ",
+          span: [0,3],
+        },
+      ],
       argument: Word {
         kind: "cmevla",
         phonemes: "rlp",
@@ -373,7 +375,7 @@ Text {
                                       phonemes: "je",
                                       span: [79,81],
                                     },
-                                    trailing_relation: WithFreeModifiers {
+                                    trailing_relation: Word {
                                       Word {
                                         kind: "gismu",
                                         phonemes: "xamgu",
@@ -381,15 +383,15 @@ Text {
                                       },
                                       free_modifiers: [
                                         To {
-                                          to: WithFreeModifiers {
-                                            Word {
-                                              kind: "cmavo",
-                                              phonemes: "to",
-                                              span: [88,90],
-                                            },
-                                            free_modifiers: [
-                                              Vocative {
-                                                vocative_markers: WithIndicator {
+                                          to: Word {
+                                            kind: "cmavo",
+                                            phonemes: "to",
+                                            span: [88,90],
+                                          },
+                                          free_modifiers: [
+                                            Vocative {
+                                              vocative_markers: [
+                                                WithIndicator {
                                                   Word {
                                                     kind: "cmavo",
                                                     phonemes: "ki'e",
@@ -401,9 +403,9 @@ Text {
                                                     span: [95,98],
                                                   },
                                                 },
-                                              },
-                                            ],
-                                          },
+                                              ],
+                                            },
+                                          ],
                                           Text {},
                                           toi: Word {
                                             kind: "cmavo",

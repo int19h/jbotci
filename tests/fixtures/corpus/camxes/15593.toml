@@ -88,12 +88,14 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: Word {
-        kind: "cmavo",
-        phonemes: "doĭ",
-        span: [0,3],
-      },
-      argument: WithFreeModifiers {
+      vocative_markers: [
+        Word {
+          kind: "cmavo",
+          phonemes: "doĭ",
+          span: [0,3],
+        },
+      ],
+      argument: Cmevla {
         WithIndicator {
           Word {
             kind: "cmevla",
@@ -108,11 +110,13 @@ Text {
         },
         free_modifiers: [
           Vocative {
-            vocative_markers: Word {
-              kind: "cmavo",
-              phonemes: "coĭ",
-              span: [16,19],
-            },
+            vocative_markers: [
+              Word {
+                kind: "cmavo",
+                phonemes: "coĭ",
+                span: [16,19],
+              },
+            ],
             argument: Word {
               kind: "cmavo",
               phonemes: "mi",

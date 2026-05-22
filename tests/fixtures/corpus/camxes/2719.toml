@@ -547,7 +547,7 @@ Paragraph {
                 phonemes: "na",
                 span: [6,8],
               },
-              WithFreeModifiers {
+              Word {
                 Word {
                   kind: "gismu",
                   phonemes: "vajni",
@@ -663,11 +663,13 @@ Paragraph {
     Predicate {
       leading_terms: [
         Letter {
-          letter: Word {
-            kind: "cmavo",
-            phonemes: "ny",
-            span: [87,89],
-          },
+          letter: [
+            Word {
+              kind: "cmavo",
+              phonemes: "ny",
+              span: [87,89],
+            },
+          ],
         },
       ],
       Relation {
@@ -720,43 +722,43 @@ Paragraph {
               span: [133,135],
             },
             Lu {
-              lu: WithFreeModifiers {
-                WithIndicator {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "lu",
-                    span: [136,138],
-                  },
-                  indicator: Word {
-                    kind: "cmavo",
-                    phonemes: "i'u",
-                    span: [139,142],
-                  },
+              lu: WithIndicator {
+                Word {
+                  kind: "cmavo",
+                  phonemes: "lu",
+                  span: [136,138],
                 },
-                free_modifiers: [
-                  Vocative {
-                    vocative_markers: Word {
+                indicator: Word {
+                  kind: "cmavo",
+                  phonemes: "i'u",
+                  span: [139,142],
+                },
+              },
+              free_modifiers: [
+                Vocative {
+                  vocative_markers: [
+                    Word {
                       kind: "cmavo",
                       phonemes: "doĭ",
                       span: [143,146],
                     },
-                    argument: RelationVocative {
-                      relation: WithIndicator {
-                        Word {
-                          kind: "gismu",
-                          phonemes: "dirba",
-                          span: [147,152],
-                        },
-                        indicator: Word {
-                          kind: "cmavo",
-                          phonemes: "eĭ",
-                          span: [153,155],
-                        },
+                  ],
+                  argument: RelationVocative {
+                    relation: WithIndicator {
+                      Word {
+                        kind: "gismu",
+                        phonemes: "dirba",
+                        span: [147,152],
+                      },
+                      indicator: Word {
+                        kind: "cmavo",
+                        phonemes: "eĭ",
+                        span: [153,155],
                       },
                     },
                   },
-                ],
-              },
+                },
+              ],
               Paragraph {
                 Predicate {
                   leading_terms: [

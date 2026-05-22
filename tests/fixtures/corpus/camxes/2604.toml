@@ -294,11 +294,13 @@ Paragraph {
             phonemes: "la",
             span: [3,5],
           },
-          names: Word {
-            kind: "cmevla",
-            phonemes: "alis",
-            span: [6,10],
-          },
+          names: [
+            Word {
+              kind: "cmevla",
+              phonemes: "alis",
+              span: [6,10],
+            },
+          ],
         },
       ],
       Relation {
@@ -395,7 +397,7 @@ Paragraph {
                     phonemes: "lo'e",
                     span: [62,66],
                   },
-                  relation: WithFreeModifiers {
+                  relation: Word {
                     Word {
                       kind: "lujvo",
                       phonemes: "selsku",
@@ -410,18 +412,20 @@ Paragraph {
                         },
                         terms: [
                           Letter {
-                            letter: Letter {
-                              Word {
-                                kind: "cmavo",
-                                phonemes: "a",
-                                span: [78,79],
+                            letter: [
+                              Letter {
+                                Word {
+                                  kind: "cmavo",
+                                  phonemes: "a",
+                                  span: [78,79],
+                                },
+                                bu: Word {
+                                  kind: "cmavo",
+                                  phonemes: "bu",
+                                  span: [79,81],
+                                },
                               },
-                              bu: Word {
-                                kind: "cmavo",
-                                phonemes: "bu",
-                                span: [79,81],
-                              },
-                            },
+                            ],
                           },
                         ],
                         relation: Compound {

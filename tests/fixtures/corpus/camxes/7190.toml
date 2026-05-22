@@ -78,7 +78,7 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      Word {
+      indicator: Word {
         kind: "cmavo",
         phonemes: "paŭ",
         span: [0,3],
@@ -93,11 +93,13 @@ Text {
   Predicate {
     leading_terms: [
       Letter {
-        letter: Word {
-          kind: "cmavo",
-          phonemes: "zy",
-          span: [7,9],
-        },
+        letter: [
+          Word {
+            kind: "cmavo",
+            phonemes: "zy",
+            span: [7,9],
+          },
+        ],
       },
     ],
     Relation {

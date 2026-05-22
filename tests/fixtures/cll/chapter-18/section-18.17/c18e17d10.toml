@@ -95,46 +95,46 @@ tree = """
 Term {
   terms: [
     Letter {
-      letter: WithFreeModifiers {
+      letter: [
         Word {
           kind: "cmavo",
           phonemes: "xy",
           span: [0,2],
         },
-        free_modifiers: [
-          Xi {
-            xi: Word {
+      ],
+      free_modifiers: [
+        Xi {
+          xi: Word {
+            kind: "cmavo",
+            phonemes: "xi",
+            span: [4,6],
+          },
+          Vei {
+            vei: Word {
               kind: "cmavo",
-              phonemes: "xi",
-              span: [4,6],
+              phonemes: "veĭ",
+              span: [7,10],
             },
-            Vei {
-              vei: Word {
+            Connected {
+              left_expression: Word {
                 kind: "cmavo",
-                phonemes: "veĭ",
-                span: [7,10],
+                phonemes: "by",
+                span: [11,13],
               },
-              Connected {
-                left_expression: Word {
-                  kind: "cmavo",
-                  phonemes: "by",
-                  span: [11,13],
-                },
-                connective: Word {
-                  kind: "cmavo",
-                  phonemes: "ce'o",
-                  span: [15,19],
-                },
-                right_expression: Word {
-                  kind: "cmavo",
-                  phonemes: "dy",
-                  span: [20,22],
-                },
+              connective: Word {
+                kind: "cmavo",
+                phonemes: "ce'o",
+                span: [15,19],
+              },
+              right_expression: Word {
+                kind: "cmavo",
+                phonemes: "dy",
+                span: [20,22],
               },
             },
           },
-        ],
-      },
+        },
+      ],
     },
   ],
 }"""

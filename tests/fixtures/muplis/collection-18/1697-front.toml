@@ -91,10 +91,12 @@ brackets = "(xu [do {(pu'i zváti) (la .paris.)}])"
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [0,2],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "xu",
+        span: [0,2],
+      },
     },
   ],
   Predicate {
@@ -125,11 +127,13 @@ Text {
             phonemes: "la",
             span: [17,19],
           },
-          names: Word {
-            kind: "cmevla",
-            phonemes: "paris",
-            span: [21,26],
-          },
+          names: [
+            Word {
+              kind: "cmevla",
+              phonemes: "paris",
+              span: [21,26],
+            },
+          ],
         },
       ],
     },

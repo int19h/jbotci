@@ -313,18 +313,20 @@ ParagraphStatement {
   },
   free_modifiers: [
     Vocative {
-      vocative_markers: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [3,7],
+      vocative_markers: [
+        WithIndicator {
+          Word {
+            kind: "cmavo",
+            phonemes: "je'e",
+            span: [3,7],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "ku'i",
+            span: [8,12],
+          },
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ku'i",
-          span: [8,12],
-        },
-      },
+      ],
       argument: Word {
         kind: "cmavo",
         phonemes: "mi",
@@ -334,7 +336,7 @@ ParagraphStatement {
   ],
   Relation {
     TenseModal {
-      tense_modal: WithFreeModifiers {
+      tense_modal: Composite {
         Word {
           kind: "cmavo",
           phonemes: "so'e",
@@ -360,35 +362,33 @@ ParagraphStatement {
           span: [30,32],
         },
         relation: Abstraction {
-          nu: WithFreeModifiers {
-            Word {
-              kind: "cmavo",
-              phonemes: "nu",
-              span: [33,35],
-            },
-            free_modifiers: [
-              To {
-                to: WithIndicator {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "to",
-                    span: [36,38],
-                  },
-                  indicator: Word {
-                    kind: "cmavo",
-                    phonemes: "u'i",
-                    span: [40,43],
-                  },
-                },
-                Text {},
-                toi: Word {
+          nu: Word {
+            kind: "cmavo",
+            phonemes: "nu",
+            span: [33,35],
+          },
+          free_modifiers: [
+            To {
+              to: WithIndicator {
+                Word {
                   kind: "cmavo",
-                  phonemes: "toĭ",
-                  span: [44,47],
+                  phonemes: "to",
+                  span: [36,38],
+                },
+                indicator: Word {
+                  kind: "cmavo",
+                  phonemes: "u'i",
+                  span: [40,43],
                 },
               },
-            ],
-          },
+              Text {},
+              toi: Word {
+                kind: "cmavo",
+                phonemes: "toĭ",
+                span: [44,47],
+              },
+            },
+          ],
           Relation {
             Na {
               na: Word {

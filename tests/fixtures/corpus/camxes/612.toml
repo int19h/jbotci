@@ -188,11 +188,13 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: Word {
-        kind: "cmavo",
-        phonemes: "doĭ",
-        span: [0,3],
-      },
+      vocative_markers: [
+        Word {
+          kind: "cmavo",
+          phonemes: "doĭ",
+          span: [0,3],
+        },
+      ],
       argument: Word {
         kind: "cmevla",
         phonemes: "lisas",
@@ -222,57 +224,55 @@ Text {
             span: [20,22],
           },
           relation: Abstraction {
-            nu: WithFreeModifiers {
-              Word {
-                kind: "cmavo",
-                phonemes: "nu",
-                span: [23,25],
-              },
-              free_modifiers: [
-                To {
-                  to: WithFreeModifiers {
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "to",
-                      span: [26,28],
-                    },
-                    free_modifiers: [
-                      Vocative {
-                        vocative_markers: Word {
-                          kind: "cmavo",
-                          phonemes: "doĭ",
-                          span: [29,32],
-                        },
-                        argument: Word {
-                          kind: "cmevla",
-                          phonemes: "frank",
-                          span: [33,38],
-                        },
-                      },
-                    ],
-                  },
-                  Predicate {
-                    leading_terms: [
+            nu: Word {
+              kind: "cmavo",
+              phonemes: "nu",
+              span: [23,25],
+            },
+            free_modifiers: [
+              To {
+                to: Word {
+                  kind: "cmavo",
+                  phonemes: "to",
+                  span: [26,28],
+                },
+                free_modifiers: [
+                  Vocative {
+                    vocative_markers: [
                       Word {
                         kind: "cmavo",
-                        phonemes: "ko",
-                        span: [40,42],
+                        phonemes: "doĭ",
+                        span: [29,32],
                       },
                     ],
-                    Word {
-                      kind: "gismu",
-                      phonemes: "sisti",
-                      span: [43,48],
+                    argument: Word {
+                      kind: "cmevla",
+                      phonemes: "frank",
+                      span: [33,38],
                     },
                   },
-                  toi: Word {
-                    kind: "cmavo",
-                    phonemes: "toĭ",
-                    span: [49,52],
+                ],
+                Predicate {
+                  leading_terms: [
+                    Word {
+                      kind: "cmavo",
+                      phonemes: "ko",
+                      span: [40,42],
+                    },
+                  ],
+                  Word {
+                    kind: "gismu",
+                    phonemes: "sisti",
+                    span: [43,48],
                   },
                 },
-              ],
-            },
+                toi: Word {
+                  kind: "cmavo",
+                  phonemes: "toĭ",
+                  span: [49,52],
+                },
+              },
+            ],
             Predicate {
               leading_terms: [
                 Word {

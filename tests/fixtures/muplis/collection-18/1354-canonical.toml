@@ -224,7 +224,7 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      Word {
+      indicator: Word {
         kind: "cmavo",
         phonemes: "ju'a",
         span: [0,4],
@@ -240,7 +240,7 @@ Text {
     Predicate {
       leading_terms: [
         Letter {
-          letter: WithFreeModifiers {
+          letter: [
             Word {
               kind: "cmavo",
               phonemes: "cy",
@@ -251,7 +251,7 @@ Text {
               phonemes: "no",
               span: [12,14],
             },
-          },
+          ],
         },
       ],
       Abstraction {
@@ -268,11 +268,13 @@ Text {
                 phonemes: "la",
                 span: [18,20],
               },
-              names: Word {
-                kind: "cmevla",
-                phonemes: "tom",
-                span: [21,24],
-              },
+              names: [
+                Word {
+                  kind: "cmevla",
+                  phonemes: "tom",
+                  span: [21,24],
+                },
+              ],
             },
           ],
           Relation {
@@ -333,11 +335,13 @@ Text {
                 phonemes: "la",
                 span: [53,55],
               },
-              names: Word {
-                kind: "cmevla",
-                phonemes: "tom",
-                span: [56,59],
-              },
+              names: [
+                Word {
+                  kind: "cmevla",
+                  phonemes: "tom",
+                  span: [56,59],
+                },
+              ],
             },
           ],
           Relation {
@@ -348,7 +352,7 @@ Text {
             },
             terms: [
               Letter {
-                letter: WithFreeModifiers {
+                letter: [
                   Word {
                     kind: "cmavo",
                     phonemes: "cy",
@@ -359,7 +363,7 @@ Text {
                     phonemes: "no",
                     span: [70,72],
                   },
-                },
+                ],
               },
             ],
           },

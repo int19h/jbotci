@@ -45,6 +45,14 @@ pub trait TreeVisitor<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn enter_sequence(&mut self) {}
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_sequence(&mut self) {}
+
+    #[requires(true)]
+    #[ensures(true)]
     fn visit_atom(&mut self, _atom: Self::Atom) {}
 }
 
@@ -57,6 +65,9 @@ mod tests {
     use vec1::Vec1;
 
     tree_model! {
+        pub type LeafAlias = LeafNode;
+        pub type LeafList = Vec<LeafNode>;
+
         #[derive(Debug, Clone, PartialEq, Eq)]
         #[invariant(true)]
         pub struct LeafNode {
@@ -72,6 +83,8 @@ mod tests {
             #[tree_child(primary)]
             pub rest: Option<Box<LeafNode>>,
             pub many: Vec<LeafNode>,
+            pub aliases: LeafList,
+            pub alias: Option<LeafAlias>,
             pub vec1: Vec1<LeafNode>,
             pub small: SmallVec<[LeafNode; 2]>,
         }
@@ -147,6 +160,12 @@ mod tests {
             many: vec![LeafNode {
                 text: "many".to_owned(),
             }],
+            aliases: vec![LeafNode {
+                text: "aliases".to_owned(),
+            }],
+            alias: Some(LeafNode {
+                text: "alias".to_owned(),
+            }),
             vec1: Vec1::new(LeafNode {
                 text: "vec1".to_owned(),
             }),
@@ -175,6 +194,16 @@ mod tests {
                 "enter:LeafNode",
                 "field:text:false",
                 "atom:many",
+                "exit:LeafNode",
+                "field:aliases:false",
+                "enter:LeafNode",
+                "field:text:false",
+                "atom:aliases",
+                "exit:LeafNode",
+                "field:alias:false",
+                "enter:LeafNode",
+                "field:text:false",
+                "atom:alias",
                 "exit:LeafNode",
                 "field:vec1:false",
                 "enter:LeafNode",

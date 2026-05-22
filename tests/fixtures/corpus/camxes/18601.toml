@@ -115,7 +115,7 @@ Paragraph {
       },
     ],
     TenseModal {
-      tense_modal: WithFreeModifiers {
+      tense_modal: Composite {
         Word {
           kind: "cmavo",
           phonemes: "ca",
@@ -142,11 +142,13 @@ Paragraph {
     },
     free_modifiers: [
       Vocative {
-        vocative_markers: Word {
-          kind: "cmavo",
-          phonemes: "co'o",
-          span: [16,20],
-        },
+        vocative_markers: [
+          Word {
+            kind: "cmavo",
+            phonemes: "co'o",
+            span: [16,20],
+          },
+        ],
         argument: Quantified {
           quantifier: Word {
             kind: "cmavo",

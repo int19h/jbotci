@@ -509,11 +509,13 @@ Paragraph {
               phonemes: "la",
               span: [25,27],
             },
-            names: Word {
-              kind: "cmevla",
-              phonemes: "alis",
-              span: [28,32],
-            },
+            names: [
+              Word {
+                kind: "cmevla",
+                phonemes: "alis",
+                span: [28,32],
+              },
+            ],
           },
         },
       ],
@@ -527,7 +529,7 @@ Paragraph {
     },
     Relation {
       TenseModal {
-        tense_modal: WithFreeModifiers {
+        tense_modal: Composite {
           Word {
             kind: "cmavo",
             phonemes: "ru'i",
@@ -554,18 +556,20 @@ Paragraph {
           },
           tail_elements: [
             Letter {
-              letter: Letter {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "a",
-                  span: [53,54],
+              letter: [
+                Letter {
+                  Word {
+                    kind: "cmavo",
+                    phonemes: "a",
+                    span: [53,54],
+                  },
+                  bu: Word {
+                    kind: "cmavo",
+                    phonemes: "bu",
+                    span: [54,56],
+                  },
                 },
-                bu: Word {
-                  kind: "cmavo",
-                  phonemes: "bu",
-                  span: [54,56],
-                },
-              },
+              ],
             },
           ],
           relation: Word {
@@ -692,7 +696,7 @@ Paragraph {
         phonemes: "i",
         span: [135,136],
       },
-      connective: WithFreeModifiers {
+      connective: Relation {
         Word {
           kind: "cmavo",
           phonemes: "ze'a",

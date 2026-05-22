@@ -579,7 +579,6 @@ mod tests {
     #[ensures(true)]
     fn keeps_free_modifiers_label_when_present() {
         let output = render("mi klama to coi toi", false);
-        assert!(output.contains("WithFreeModifiers"));
         assert!(output.contains("free_modifiers: ["));
         assert!(output.contains("To {"));
     }

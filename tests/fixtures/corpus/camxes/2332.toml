@@ -396,7 +396,7 @@ ParagraphStatement {
                 span: [6,8],
               },
               Tagged {
-                tense_modal: WithFreeModifiers {
+                tense_modal: Composite {
                   Word {
                     kind: "cmavo",
                     phonemes: "ro",
@@ -476,60 +476,58 @@ ParagraphStatement {
                                 ],
                                 Relation {
                                   Goha {
-                                    goha: WithFreeModifiers {
-                                      Word {
-                                        kind: "cmavo",
-                                        phonemes: "no'a",
-                                        span: [55,59],
-                                      },
-                                      free_modifiers: [
-                                        Sei {
-                                          sei: Word {
-                                            kind: "cmavo",
-                                            phonemes: "seĭ",
-                                            span: [60,63],
-                                          },
-                                          terms: [
-                                            Descriptor {
-                                              descriptor: Word {
-                                                kind: "cmavo",
-                                                phonemes: "la",
-                                                span: [64,66],
-                                              },
-                                              relation: Compound {
-                                                Word {
-                                                  kind: "lujvo",
-                                                  phonemes: "mapypre",
-                                                  span: [67,74],
-                                                },
-                                                Word {
-                                                  kind: "gismu",
-                                                  phonemes: "cusku",
-                                                  span: [75,80],
-                                                },
-                                              },
-                                            },
-                                          ],
-                                          cu: Word {
-                                            kind: "cmavo",
-                                            phonemes: "cu",
-                                            span: [81,83],
-                                          },
-                                          relation: Na {
-                                            na: Word {
+                                    goha: Word {
+                                      kind: "cmavo",
+                                      phonemes: "no'a",
+                                      span: [55,59],
+                                    },
+                                    free_modifiers: [
+                                      Sei {
+                                        sei: Word {
+                                          kind: "cmavo",
+                                          phonemes: "seĭ",
+                                          span: [60,63],
+                                        },
+                                        terms: [
+                                          Descriptor {
+                                            descriptor: Word {
                                               kind: "cmavo",
-                                              phonemes: "na",
-                                              span: [84,86],
+                                              phonemes: "la",
+                                              span: [64,66],
                                             },
-                                            Word {
-                                              kind: "gismu",
-                                              phonemes: "pilno",
-                                              span: [87,92],
+                                            relation: Compound {
+                                              Word {
+                                                kind: "lujvo",
+                                                phonemes: "mapypre",
+                                                span: [67,74],
+                                              },
+                                              Word {
+                                                kind: "gismu",
+                                                phonemes: "cusku",
+                                                span: [75,80],
+                                              },
                                             },
+                                          },
+                                        ],
+                                        cu: Word {
+                                          kind: "cmavo",
+                                          phonemes: "cu",
+                                          span: [81,83],
+                                        },
+                                        relation: Na {
+                                          na: Word {
+                                            kind: "cmavo",
+                                            phonemes: "na",
+                                            span: [84,86],
+                                          },
+                                          Word {
+                                            kind: "gismu",
+                                            phonemes: "pilno",
+                                            span: [87,92],
                                           },
                                         },
-                                      ],
-                                    },
+                                      },
+                                    ],
                                   },
                                   terms: [
                                     ZoQuote {
@@ -564,11 +562,13 @@ ParagraphStatement {
                                           },
                                           terms: [
                                             Letter {
-                                              letter: Word {
-                                                kind: "cmavo",
-                                                phonemes: "ty",
-                                                span: [111,113],
-                                              },
+                                              letter: [
+                                                Word {
+                                                  kind: "cmavo",
+                                                  phonemes: "ty",
+                                                  span: [111,113],
+                                                },
+                                              ],
                                             },
                                           ],
                                         },

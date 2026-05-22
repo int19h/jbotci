@@ -81,10 +81,12 @@ brackets = "(.a'o [{la .tam.} cu gléki])"
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "a'o",
-      span: [1,4],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "a'o",
+        span: [1,4],
+      },
     },
   ],
   Predicate {
@@ -95,11 +97,13 @@ Text {
           phonemes: "la",
           span: [5,7],
         },
-        names: Word {
-          kind: "cmevla",
-          phonemes: "tam",
-          span: [9,12],
-        },
+        names: [
+          Word {
+            kind: "cmevla",
+            phonemes: "tam",
+            span: [9,12],
+          },
+        ],
       },
     ],
     cu: Word {

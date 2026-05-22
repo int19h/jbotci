@@ -170,7 +170,7 @@ Paragraph {
                 span: [14,16],
               },
               TenseModal {
-                tense_modal: WithFreeModifiers {
+                tense_modal: Composite {
                   Word {
                     kind: "cmavo",
                     phonemes: "ba",
@@ -202,18 +202,20 @@ Paragraph {
     },
     free_modifiers: [
       Vocative {
-        vocative_markers: WithIndicator {
-          Word {
-            kind: "cmavo",
-            phonemes: "je'e",
-            span: [31,35],
+        vocative_markers: [
+          WithIndicator {
+            Word {
+              kind: "cmavo",
+              phonemes: "je'e",
+              span: [31,35],
+            },
+            indicator: Word {
+              kind: "cmavo",
+              phonemes: "xu",
+              span: [35,37],
+            },
           },
-          indicator: Word {
-            kind: "cmavo",
-            phonemes: "xu",
-            span: [35,37],
-          },
-        },
+        ],
       },
     ],
   },

@@ -48,22 +48,24 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: WithFreeModifiers {
+      vocative_markers: [
         Word {
           kind: "cmavo",
           phonemes: "doĭ",
           span: [0,3],
         },
-        free_modifiers: [
-          Vocative {
-            vocative_markers: Word {
+      ],
+      free_modifiers: [
+        Vocative {
+          vocative_markers: [
+            Word {
               kind: "cmavo",
               phonemes: "doĭ",
               span: [4,7],
             },
-          },
-        ],
-      },
+          ],
+        },
+      ],
     },
   ],
 }"""

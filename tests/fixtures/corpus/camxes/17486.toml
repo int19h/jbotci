@@ -288,58 +288,58 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: WithFreeModifiers {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [0,2],
-        },
-        free_modifiers: [
-          Vocative {
-            vocative_markers: Word {
+      to: Word {
+        kind: "cmavo",
+        phonemes: "to",
+        span: [0,2],
+      },
+      free_modifiers: [
+        Vocative {
+          vocative_markers: [
+            Word {
               kind: "cmavo",
               phonemes: "doĭ",
               span: [3,6],
             },
-            argument: Descriptor {
-              descriptor: Word {
-                kind: "cmavo",
-                phonemes: "le",
-                span: [7,9],
-              },
-              relation: Be {
-                Word {
-                  kind: "gismu",
-                  phonemes: "tcidu",
-                  span: [10,15],
-                },
-                be: Word {
-                  kind: "cmavo",
-                  phonemes: "be",
-                  span: [16,18],
-                },
-                first_argument: Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "le",
-                    span: [19,21],
-                  },
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "vreji",
-                    span: [22,27],
-                  },
-                },
-              },
-            },
-            dohu: Word {
+          ],
+          argument: Descriptor {
+            descriptor: Word {
               kind: "cmavo",
-              phonemes: "do'u",
-              span: [28,32],
+              phonemes: "le",
+              span: [7,9],
+            },
+            relation: Be {
+              Word {
+                kind: "gismu",
+                phonemes: "tcidu",
+                span: [10,15],
+              },
+              be: Word {
+                kind: "cmavo",
+                phonemes: "be",
+                span: [16,18],
+              },
+              first_argument: Descriptor {
+                descriptor: Word {
+                  kind: "cmavo",
+                  phonemes: "le",
+                  span: [19,21],
+                },
+                relation: Word {
+                  kind: "gismu",
+                  phonemes: "vreji",
+                  span: [22,27],
+                },
+              },
             },
           },
-        ],
-      },
+          dohu: Word {
+            kind: "cmavo",
+            phonemes: "do'u",
+            span: [28,32],
+          },
+        },
+      ],
       Connected {
         leading_statement: Predicate {
           leading_terms: [
@@ -362,11 +362,13 @@ Text {
                   phonemes: "la",
                   span: [42,44],
                 },
-                names: Word {
-                  kind: "cmevla",
-                  phonemes: "jaden",
-                  span: [45,50],
-                },
+                names: [
+                  Word {
+                    kind: "cmevla",
+                    phonemes: "jaden",
+                    span: [45,50],
+                  },
+                ],
               },
               Fa {
                 fa: Word {
@@ -415,11 +417,13 @@ Text {
                 phonemes: "la",
                 span: [72,74],
               },
-              names: Word {
-                kind: "cmevla",
-                phonemes: "jaden",
-                span: [75,80],
-              },
+              names: [
+                Word {
+                  kind: "cmevla",
+                  phonemes: "jaden",
+                  span: [75,80],
+                },
+              ],
             },
           ],
           Relation {

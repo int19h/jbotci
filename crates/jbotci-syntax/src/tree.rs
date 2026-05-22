@@ -6,8 +6,9 @@ use jbotci_morphology::{Word, WordLike};
 use smallvec::SmallVec;
 use vec1::{Vec1, smallvec_v1::SmallVec1};
 
-use crate::grammar::ast::WithFreeModifiers;
+use crate::ast::{AtomRef, NodeRef, TextSyntax, TreeNode as AstTreeNode};
 use crate::{Indicator, WithIndicators};
+use jbotci_tree::{FieldRef, TreeVisitor};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -150,18 +151,6 @@ impl SyntaxTree for Indicator {
 }
 
 #[contract_trait]
-impl<T: SyntaxTree> SyntaxTree for WithFreeModifiers<T> {
-    #[requires(true)]
-    #[ensures(true)]
-    fn syntax_tree_value(&self) -> Option<SyntaxTreeValue> {
-        let mut entries = Vec::new();
-        push_primary_entry(&mut entries, &self.value);
-        push_labelled_entry(&mut entries, "free_modifiers", &self.free_modifiers);
-        Some(SyntaxTreeValue::node("WithFreeModifiers", entries))
-    }
-}
-
-#[contract_trait]
 impl<T: SyntaxTree + ?Sized> SyntaxTree for Box<T> {
     #[requires(true)]
     #[ensures(true)]
@@ -241,6 +230,175 @@ impl SyntaxTree for String {
     fn syntax_tree_value(&self) -> Option<SyntaxTreeValue> {
         Some(SyntaxTreeValue::Text(self.clone()))
     }
+}
+
+#[contract_trait]
+impl SyntaxTree for TextSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_tree_value(&self) -> Option<SyntaxTreeValue> {
+        let mut builder = SyntaxTreeBuilder::default();
+        self.visit_in_order(&mut builder);
+        builder.finish()
+    }
+}
+
+#[derive(Debug, Default)]
+#[invariant(true)]
+struct SyntaxTreeBuilder {
+    stack: Vec<SyntaxTreeFrame>,
+    fields: Vec<FieldRef>,
+    root: Option<SyntaxTreeValue>,
+}
+
+impl SyntaxTreeBuilder {
+    #[requires(true)]
+    #[ensures(true)]
+    fn finish(self) -> Option<SyntaxTreeValue> {
+        self.root
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_value(&mut self, value: SyntaxTreeValue) {
+        let Some(frame) = self.stack.last_mut() else {
+            self.root = Some(value);
+            return;
+        };
+        if let SyntaxTreeFrame::Collection { items } = frame {
+            items.push(value);
+            return;
+        }
+        let field = self.fields.last().copied();
+        if field.is_some_and(|field| field.primary || field.name.is_none()) {
+            match value {
+                SyntaxTreeValue::Collection(items) => {
+                    frame.entries_mut().extend(
+                        items
+                            .into_iter()
+                            .map(|value| SyntaxTreeEntry { label: None, value }),
+                    );
+                }
+                value => frame
+                    .entries_mut()
+                    .push(SyntaxTreeEntry { label: None, value }),
+            }
+        } else {
+            frame.entries_mut().push(SyntaxTreeEntry {
+                label: field.and_then(|field| field.name),
+                value,
+            });
+        }
+    }
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+enum SyntaxTreeFrame {
+    Node {
+        constructor: &'static str,
+        entries: Vec<SyntaxTreeEntry>,
+    },
+    Collection {
+        items: Vec<SyntaxTreeValue>,
+    },
+}
+
+impl SyntaxTreeFrame {
+    #[requires(matches!(self, Self::Node { .. }))]
+    #[ensures(true)]
+    fn entries_mut(&mut self) -> &mut Vec<SyntaxTreeEntry> {
+        match self {
+            Self::Node { entries, .. } => entries,
+            Self::Collection { .. } => unreachable!("precondition rejects collection frames"),
+        }
+    }
+}
+
+#[contract_trait]
+impl<'tree> TreeVisitor<'tree> for SyntaxTreeBuilder {
+    type Node = NodeRef<'tree>;
+    type Atom = AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        self.stack.push(SyntaxTreeFrame::Node {
+            constructor: node.constructor_name(),
+            entries: Vec::new(),
+        });
+    }
+
+    #[requires(!self.stack.is_empty())]
+    #[ensures(true)]
+    fn exit_node(&mut self, _node: Self::Node) {
+        let frame = self.stack.pop().expect("precondition checked above");
+        let SyntaxTreeFrame::Node {
+            constructor,
+            entries,
+        } = frame
+        else {
+            unreachable!("node exit must close a node frame");
+        };
+        self.push_value(SyntaxTreeValue::node(
+            syntax_constructor_name(constructor),
+            entries,
+        ));
+    }
+
+    #[requires(true)]
+    #[ensures(self.fields.len() == old(self.fields.len()) + 1)]
+    fn enter_field(&mut self, field: FieldRef) {
+        self.fields.push(field);
+    }
+
+    #[requires(!self.fields.is_empty())]
+    #[ensures(self.fields.len() == old(self.fields.len()) - 1)]
+    fn exit_field(&mut self, _field: FieldRef) {
+        self.fields.pop();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_sequence(&mut self) {
+        self.stack
+            .push(SyntaxTreeFrame::Collection { items: Vec::new() });
+    }
+
+    #[requires(matches!(self.stack.last(), Some(SyntaxTreeFrame::Collection { .. })))]
+    #[ensures(true)]
+    fn exit_sequence(&mut self) {
+        let frame = self.stack.pop().expect("precondition checked above");
+        let SyntaxTreeFrame::Collection { items } = frame else {
+            unreachable!("precondition checked above");
+        };
+        if !items.is_empty() {
+            self.push_value(SyntaxTreeValue::Collection(items));
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        if let Some(value) = atom_syntax_tree_value(atom) {
+            self.push_value(value);
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn atom_syntax_tree_value(atom: AtomRef<'_>) -> Option<SyntaxTreeValue> {
+    match atom {
+        AtomRef::WithIndicatorsWordLike(word) => word.syntax_tree_value(),
+        AtomRef::Word(word) => word.syntax_tree_value(),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.ends_with("Syntax"))]
+fn syntax_constructor_name(constructor: &'static str) -> &'static str {
+    constructor.strip_suffix("Syntax").unwrap_or(constructor)
 }
 
 #[cfg(test)]

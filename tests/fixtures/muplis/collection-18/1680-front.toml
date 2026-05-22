@@ -203,10 +203,12 @@ brackets = "(xu [do {(ka'e zváti) (ti'u [li {(cácra bu) pa no (másti bu) mu (
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [0,2],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "xu",
+        span: [0,2],
+      },
     },
   ],
   Predicate {
@@ -245,7 +247,7 @@ Text {
               phonemes: "li",
               span: [22,24],
             },
-            WithFreeModifiers {
+            Letter {
               Letter {
                 Word {
                   kind: "gismu",

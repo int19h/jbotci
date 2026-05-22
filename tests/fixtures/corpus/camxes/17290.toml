@@ -45,7 +45,7 @@ json = '[{"Bare":{"span":[0,1],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[
 
 [expectations.output.gentufa]
 tree = """
-WithFreeModifiers {
+Afterthought {
   Word {
     kind: "cmavo",
     phonemes: "e",
@@ -53,11 +53,13 @@ WithFreeModifiers {
   },
   free_modifiers: [
     Vocative {
-      vocative_markers: Word {
-        kind: "cmavo",
-        phonemes: "coĭ",
-        span: [2,5],
-      },
+      vocative_markers: [
+        Word {
+          kind: "cmavo",
+          phonemes: "coĭ",
+          span: [2,5],
+        },
+      ],
     },
   ],
 }"""

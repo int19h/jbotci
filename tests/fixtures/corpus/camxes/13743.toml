@@ -56,28 +56,30 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"sp
 [expectations.output.gentufa]
 tree = """
 Goha {
-  goha: WithFreeModifiers {
-    Word {
-      kind: "cmavo",
-      phonemes: "go'i",
-      span: [0,4],
-    },
-    free_modifiers: [
-      Vocative {
-        vocative_markers: Word {
+  goha: Word {
+    kind: "cmavo",
+    phonemes: "go'i",
+    span: [0,4],
+  },
+  free_modifiers: [
+    Vocative {
+      vocative_markers: [
+        Word {
           kind: "cmavo",
           phonemes: "doĭ",
           span: [5,8],
         },
-        argument: Letter {
-          letter: Word {
+      ],
+      argument: Letter {
+        letter: [
+          Word {
             kind: "cmavo",
             phonemes: "ty",
             span: [9,11],
           },
-        },
+        ],
       },
-    ],
-  },
+    },
+  ],
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Goha":{"goha":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"go'i","kind":"cmavo"}}},{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[5,8],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"ty","kind":"cmavo"}}}]}}}}]}}]}}}}}}}}]}]}"""

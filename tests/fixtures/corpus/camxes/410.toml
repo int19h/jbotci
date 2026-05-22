@@ -195,11 +195,13 @@ ParagraphStatement {
             phonemes: "la",
             span: [7,9],
           },
-          names: Word {
-            kind: "cmevla",
-            phonemes: "pam",
-            span: [10,13],
-          },
+          names: [
+            Word {
+              kind: "cmevla",
+              phonemes: "pam",
+              span: [10,13],
+            },
+          ],
         },
       ],
       relation: Word {
@@ -207,39 +209,39 @@ ParagraphStatement {
         phonemes: "cusku",
         span: [15,20],
       },
-      sehu: WithFreeModifiers {
-        Word {
-          kind: "cmavo",
-          phonemes: "se'u",
-          span: [21,25],
-        },
-        free_modifiers: [
-          Vocative {
-            vocative_markers: Word {
+      sehu: Word {
+        kind: "cmavo",
+        phonemes: "se'u",
+        span: [21,25],
+      },
+      free_modifiers: [
+        Vocative {
+          vocative_markers: [
+            Word {
               kind: "cmavo",
               phonemes: "ju'i",
               span: [26,30],
             },
-            argument: WithIndicator {
-              Word {
-                kind: "cmevla",
-                phonemes: "djordj",
-                span: [32,38],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "e'u",
-                span: [42,45],
-              },
-              nai: Word {
-                kind: "cmavo",
-                phonemes: "naĭ",
-                span: [45,48],
-              },
+          ],
+          argument: WithIndicator {
+            Word {
+              kind: "cmevla",
+              phonemes: "djordj",
+              span: [32,38],
+            },
+            indicator: Word {
+              kind: "cmavo",
+              phonemes: "e'u",
+              span: [42,45],
+            },
+            nai: Word {
+              kind: "cmavo",
+              phonemes: "naĭ",
+              span: [45,48],
             },
           },
-        ],
-      },
+        },
+      ],
     },
   ],
   Predicate {
@@ -258,7 +260,7 @@ ParagraphStatement {
       },
     ],
     TenseModal {
-      tense_modal: WithFreeModifiers {
+      tense_modal: Composite {
         Word {
           kind: "cmavo",
           phonemes: "ba",

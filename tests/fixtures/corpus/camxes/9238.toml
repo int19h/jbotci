@@ -177,10 +177,12 @@ json = """[{"Bare":{"span":[1,5],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ku'i",
-      span: [1,5],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ku'i",
+        span: [1,5],
+      },
     },
   ],
   Connected {
@@ -233,7 +235,7 @@ Text {
       phonemes: "i",
       span: [37,38],
     },
-    connective: WithFreeModifiers {
+    connective: Relation {
       Word {
         kind: "cmavo",
         phonemes: "se",

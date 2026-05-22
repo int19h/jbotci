@@ -91,16 +91,18 @@ brackets = "(.ŭe-saĭ [{taĭ .ĭa naĭ} mélbi])"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "ŭe",
-        span: [0,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "saĭ",
-        span: [3,6],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "ŭe",
+          span: [0,2],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "saĭ",
+          span: [3,6],
+        },
       },
     },
   ],

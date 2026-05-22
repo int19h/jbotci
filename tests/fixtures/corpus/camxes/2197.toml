@@ -284,58 +284,56 @@ ParagraphStatement {
   Term {
     terms: [
       Lu {
-        lu: WithFreeModifiers {
-          WithIndicator {
-            Word {
+        lu: WithIndicator {
+          Word {
+            kind: "cmavo",
+            phonemes: "lu",
+            span: [3,5],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "ĭa",
+            span: [6,8],
+          },
+          nai: Word {
+            kind: "cmavo",
+            phonemes: "naĭ",
+            span: [8,11],
+          },
+        },
+        free_modifiers: [
+          Sei {
+            sei: Word {
               kind: "cmavo",
-              phonemes: "lu",
-              span: [3,5],
+              phonemes: "seĭ",
+              span: [12,15],
             },
-            indicator: Word {
+            terms: [
+              Descriptor {
+                descriptor: Word {
+                  kind: "cmavo",
+                  phonemes: "la",
+                  span: [16,18],
+                },
+                relation: Word {
+                  kind: "lujvo",
+                  phonemes: "tcacpi",
+                  span: [19,25],
+                },
+              },
+            ],
+            cu: Word {
               kind: "cmavo",
-              phonemes: "ĭa",
-              span: [6,8],
+              phonemes: "cu",
+              span: [26,28],
             },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [8,11],
+            relation: Word {
+              kind: "gismu",
+              phonemes: "cusku",
+              span: [29,34],
             },
           },
-          free_modifiers: [
-            Sei {
-              sei: Word {
-                kind: "cmavo",
-                phonemes: "seĭ",
-                span: [12,15],
-              },
-              terms: [
-                Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [16,18],
-                  },
-                  relation: Word {
-                    kind: "lujvo",
-                    phonemes: "tcacpi",
-                    span: [19,25],
-                  },
-                },
-              ],
-              cu: Word {
-                kind: "cmavo",
-                phonemes: "cu",
-                span: [26,28],
-              },
-              relation: Word {
-                kind: "gismu",
-                phonemes: "cusku",
-                span: [29,34],
-              },
-            },
-          ],
-        },
+        ],
         Paragraph {
           ParagraphStatement {
             i: Word {
@@ -343,7 +341,7 @@ ParagraphStatement {
               phonemes: "i",
               span: [35,36],
             },
-            connective: WithFreeModifiers {
+            connective: Relation {
               Word {
                 kind: "cmavo",
                 phonemes: "se",

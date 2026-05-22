@@ -19,14 +19,8 @@ pub mod ast {
     pub use crate::grammar::ast::*;
 }
 use ast::TextSyntax;
+pub use ast::{Indicator, IndicatorData};
 pub use jbotci_syntax_macros::{SourceTree, SyntaxTree};
-
-#[invariant(indicator_data_is_valid(self.as_data()))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Indicator {
-    pub indicator: Box<WithIndicators<WordLike>>,
-    pub nai: Option<Box<Word>>,
-}
 
 impl Indicator {
     #[requires(true)]

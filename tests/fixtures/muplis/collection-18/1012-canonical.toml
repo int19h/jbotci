@@ -292,7 +292,7 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      Word {
+      indicator: Word {
         kind: "cmavo",
         phonemes: "ju'a",
         span: [0,4],
@@ -308,7 +308,7 @@ Text {
     Predicate {
       leading_terms: [
         Letter {
-          letter: WithFreeModifiers {
+          letter: [
             Word {
               kind: "cmavo",
               phonemes: "cy",
@@ -319,7 +319,7 @@ Text {
               phonemes: "no",
               span: [12,14],
             },
-          },
+          ],
         },
       ],
       Abstraction {
@@ -386,41 +386,39 @@ Text {
                 span: [47,49],
               },
               Letter {
-                WithFreeModifiers {
-                  Letter {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "cacra",
-                      span: [50,55],
-                    },
-                    bu: Word {
-                      kind: "cmavo",
-                      phonemes: "bu",
-                      span: [56,58],
-                    },
-                  },
+                Letter {
                   Word {
+                    kind: "gismu",
+                    phonemes: "cacra",
+                    span: [50,55],
+                  },
+                  bu: Word {
                     kind: "cmavo",
-                    phonemes: "so",
-                    span: [59,61],
+                    phonemes: "bu",
+                    span: [56,58],
                   },
-                  Letter {
-                    Word {
-                      kind: "gismu",
-                      phonemes: "mentu",
-                      span: [62,67],
-                    },
-                    bu: Word {
-                      kind: "cmavo",
-                      phonemes: "bu",
-                      span: [68,70],
-                    },
-                  },
+                },
+                Word {
+                  kind: "cmavo",
+                  phonemes: "so",
+                  span: [59,61],
+                },
+                Letter {
                   Word {
-                    kind: "cmavo",
-                    phonemes: "no",
-                    span: [71,73],
+                    kind: "gismu",
+                    phonemes: "mentu",
+                    span: [62,67],
                   },
+                  bu: Word {
+                    kind: "cmavo",
+                    phonemes: "bu",
+                    span: [68,70],
+                  },
+                },
+                Word {
+                  kind: "cmavo",
+                  phonemes: "no",
+                  span: [71,73],
                 },
                 boi: Word {
                   kind: "cmavo",
@@ -449,7 +447,7 @@ Text {
           },
           terms: [
             Letter {
-              letter: WithFreeModifiers {
+              letter: [
                 Word {
                   kind: "cmavo",
                   phonemes: "cy",
@@ -460,7 +458,7 @@ Text {
                   phonemes: "no",
                   span: [97,99],
                 },
-              },
+              ],
             },
           ],
         },

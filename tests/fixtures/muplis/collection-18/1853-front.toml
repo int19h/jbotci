@@ -115,16 +115,18 @@ brackets = "(ta'o-xu [do {(se cméne) ([zo .robin.] si'a)}])"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "ta'o",
-        span: [0,4],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [5,7],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "ta'o",
+          span: [0,4],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "xu",
+          span: [5,7],
+        },
       },
     },
   ],

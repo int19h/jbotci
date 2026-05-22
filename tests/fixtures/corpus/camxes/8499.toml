@@ -58,7 +58,7 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: WithFreeModifiers {
+      tense_modal: Composite {
         Word {
           kind: "cmavo",
           phonemes: "ci",
@@ -71,11 +71,13 @@ Term {
         },
         free_modifiers: [
           Vocative {
-            vocative_markers: Word {
-              kind: "cmavo",
-              phonemes: "coĭ",
-              span: [6,9],
-            },
+            vocative_markers: [
+              Word {
+                kind: "cmavo",
+                phonemes: "coĭ",
+                span: [6,9],
+              },
+            ],
           },
         ],
       },

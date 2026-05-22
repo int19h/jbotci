@@ -1671,18 +1671,20 @@ Paragraph {
           },
         },
         Letter {
-          letter: Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "a",
-              span: [7,8],
+          letter: [
+            Letter {
+              Word {
+                kind: "cmavo",
+                phonemes: "a",
+                span: [7,8],
+              },
+              bu: Word {
+                kind: "cmavo",
+                phonemes: "bu",
+                span: [8,10],
+              },
             },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [8,10],
-            },
-          },
+          ],
           boi: Word {
             kind: "cmavo",
             phonemes: "boĭ",
@@ -1691,7 +1693,7 @@ Paragraph {
         },
       ],
       TenseModal {
-        tense_modal: WithFreeModifiers {
+        tense_modal: Composite {
           Word {
             kind: "cmavo",
             phonemes: "za'u",
@@ -1983,7 +1985,7 @@ Paragraph {
                         phonemes: "le",
                         span: [183,185],
                       },
-                      relation: WithFreeModifiers {
+                      relation: Word {
                         Word {
                           kind: "lujvo",
                           phonemes: "smudukti",
@@ -2020,18 +2022,20 @@ Paragraph {
                                   },
                                 },
                                 Letter {
-                                  letter: Letter {
-                                    Word {
-                                      kind: "cmavo",
-                                      phonemes: "a",
-                                      span: [207,208],
+                                  letter: [
+                                    Letter {
+                                      Word {
+                                        kind: "cmavo",
+                                        phonemes: "a",
+                                        span: [207,208],
+                                      },
+                                      bu: Word {
+                                        kind: "cmavo",
+                                        phonemes: "bu",
+                                        span: [208,210],
+                                      },
                                     },
-                                    bu: Word {
-                                      kind: "cmavo",
-                                      phonemes: "bu",
-                                      span: [208,210],
-                                    },
-                                  },
+                                  ],
                                 },
                               ],
                               Relation {
@@ -2264,36 +2268,34 @@ Paragraph {
               Term {
                 terms: [
                   Lu {
-                    lu: WithFreeModifiers {
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "lu",
-                        span: [333,335],
-                      },
-                      free_modifiers: [
-                        Vocative {
-                          vocative_markers: WithFreeModifiers {
-                            Word {
-                              kind: "cmavo",
-                              phonemes: "pe'u",
-                              span: [336,340],
-                            },
-                            Word {
-                              kind: "cmavo",
-                              phonemes: "doĭ",
-                              span: [341,344],
-                            },
+                    lu: Word {
+                      kind: "cmavo",
+                      phonemes: "lu",
+                      span: [333,335],
+                    },
+                    free_modifiers: [
+                      Vocative {
+                        vocative_markers: [
+                          Word {
+                            kind: "cmavo",
+                            phonemes: "pe'u",
+                            span: [336,340],
                           },
-                          argument: RelationVocative {
-                            relation: Word {
-                              kind: "gismu",
-                              phonemes: "ninmu",
-                              span: [345,350],
-                            },
+                          Word {
+                            kind: "cmavo",
+                            phonemes: "doĭ",
+                            span: [341,344],
+                          },
+                        ],
+                        argument: RelationVocative {
+                          relation: Word {
+                            kind: "gismu",
+                            phonemes: "ninmu",
+                            span: [345,350],
                           },
                         },
-                      ],
-                    },
+                      },
+                    ],
                     Paragraph {
                       Predicate {
                         leading_terms: [
@@ -2316,7 +2318,7 @@ Paragraph {
                                 phonemes: "gi'i",
                                 span: [360,364],
                               },
-                              WithFreeModifiers {
+                              Word {
                                 Word {
                                   kind: "gismu",
                                   phonemes: "sralo",
@@ -2340,18 +2342,20 @@ Paragraph {
                                       Predicate {
                                         leading_terms: [
                                           Letter {
-                                            letter: Letter {
-                                              Word {
-                                                kind: "cmavo",
-                                                phonemes: "a",
-                                                span: [378,379],
+                                            letter: [
+                                              Letter {
+                                                Word {
+                                                  kind: "cmavo",
+                                                  phonemes: "a",
+                                                  span: [378,379],
+                                                },
+                                                bu: Word {
+                                                  kind: "cmavo",
+                                                  phonemes: "bu",
+                                                  span: [379,381],
+                                                },
                                               },
-                                              bu: Word {
-                                                kind: "cmavo",
-                                                phonemes: "bu",
-                                                span: [379,381],
-                                              },
-                                            },
+                                            ],
                                           },
                                         ],
                                         Relation {
@@ -2559,11 +2563,13 @@ Paragraph {
                         Predicate {
                           leading_terms: [
                             Letter {
-                              letter: Word {
-                                kind: "cmavo",
-                                phonemes: "ny",
-                                span: [496,498],
-                              },
+                              letter: [
+                                Word {
+                                  kind: "cmavo",
+                                  phonemes: "ny",
+                                  span: [496,498],
+                                },
+                              ],
                             },
                           ],
                           Relation {

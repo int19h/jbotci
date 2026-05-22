@@ -555,7 +555,7 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      Word {
+      indicator: Word {
         kind: "cmavo",
         phonemes: "ju'a",
         span: [0,4],
@@ -671,7 +671,7 @@ Text {
                       phonemes: "ma'o",
                       span: [62,66],
                     },
-                    WithFreeModifiers {
+                    Letter {
                       Word {
                         kind: "cmavo",
                         phonemes: "fy",
@@ -742,7 +742,7 @@ Text {
                     phonemes: "ma'o",
                     span: [100,104],
                   },
-                  WithFreeModifiers {
+                  Letter {
                     Word {
                       kind: "cmavo",
                       phonemes: "fy",
@@ -803,7 +803,7 @@ Text {
       Predicate {
         leading_terms: [
           Letter {
-            letter: WithFreeModifiers {
+            letter: [
               Word {
                 kind: "cmavo",
                 phonemes: "cy",
@@ -814,7 +814,7 @@ Text {
                 phonemes: "no",
                 span: [136,138],
               },
-            },
+            ],
           },
         ],
         Relation {
@@ -830,11 +830,13 @@ Text {
                 phonemes: "la",
                 span: [145,147],
               },
-              names: Word {
-                kind: "cmevla",
-                phonemes: "djo'uns",
-                span: [148,155],
-              },
+              names: [
+                Word {
+                  kind: "cmevla",
+                  phonemes: "djo'uns",
+                  span: [148,155],
+                },
+              ],
             },
           ],
         },
@@ -849,7 +851,7 @@ Text {
       Predicate {
         leading_terms: [
           Letter {
-            letter: WithFreeModifiers {
+            letter: [
               Word {
                 kind: "cmavo",
                 phonemes: "cy",
@@ -860,7 +862,7 @@ Text {
                 phonemes: "no",
                 span: [163,165],
               },
-            },
+            ],
           },
         ],
         Relation {
@@ -883,7 +885,7 @@ Text {
                     phonemes: "ma'o",
                     span: [175,179],
                   },
-                  WithFreeModifiers {
+                  Letter {
                     Word {
                       kind: "cmavo",
                       phonemes: "fy",
@@ -904,7 +906,7 @@ Text {
                       span: [185,189],
                     },
                     Letter {
-                      letter: WithFreeModifiers {
+                      letter: [
                         Word {
                           kind: "cmavo",
                           phonemes: "cy",
@@ -915,7 +917,7 @@ Text {
                           phonemes: "no",
                           span: [193,195],
                         },
-                      },
+                      ],
                     },
                   },
                 ],

@@ -78,11 +78,13 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: Word {
-        kind: "cmavo",
-        phonemes: "pe'u",
-        span: [0,4],
-      },
+      vocative_markers: [
+        Word {
+          kind: "cmavo",
+          phonemes: "pe'u",
+          span: [0,4],
+        },
+      ],
       argument: Word {
         kind: "cmavo",
         phonemes: "ko",
@@ -91,7 +93,7 @@ Text {
     },
   ],
   TenseModal {
-    tense_modal: WithFreeModifiers {
+    tense_modal: Composite {
       Word {
         kind: "cmavo",
         phonemes: "ba",

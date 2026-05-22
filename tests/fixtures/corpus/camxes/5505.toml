@@ -287,16 +287,18 @@ json = """[{"Bare":{"span":[1,4],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"spa
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "u'i",
-      span: [1,4],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "u'i",
+        span: [1,4],
+      },
     },
   ],
   Predicate {
     leading_terms: [
       Letter {
-        letter: WithFreeModifiers {
+        letter: [
           Word {
             kind: "cmavo",
             phonemes: "ny",
@@ -312,7 +314,7 @@ Text {
             phonemes: "ry",
             span: [9,11],
           },
-        },
+        ],
       },
     ],
     cu: Word {
@@ -398,7 +400,7 @@ Text {
                                   phonemes: "le",
                                   span: [57,59],
                                 },
-                                relation: WithFreeModifiers {
+                                relation: Word {
                                   Word {
                                     kind: "gismu",
                                     phonemes: "kisto",
@@ -412,11 +414,13 @@ Text {
                                         span: [66,69],
                                       },
                                       leading_argument: Letter {
-                                        letter: Word {
-                                          kind: "cmavo",
-                                          phonemes: "xy",
-                                          span: [70,72],
-                                        },
+                                        letter: [
+                                          Word {
+                                            kind: "cmavo",
+                                            phonemes: "xy",
+                                            span: [70,72],
+                                          },
+                                        ],
                                       },
                                     },
                                   ],

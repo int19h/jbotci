@@ -128,11 +128,13 @@ tree = """
 Predicate {
   leading_terms: [
     Letter {
-      letter: Word {
-        kind: "cmavo",
-        phonemes: "by",
-        span: [0,2],
-      },
+      letter: [
+        Word {
+          kind: "cmavo",
+          phonemes: "by",
+          span: [0,2],
+        },
+      ],
     },
   ],
   PredicateTail1 {
@@ -162,7 +164,7 @@ Predicate {
         },
         Relation {
           TenseModal {
-            tense_modal: WithFreeModifiers {
+            tense_modal: Composite {
               Word {
                 kind: "cmavo",
                 phonemes: "ba",

@@ -257,10 +257,12 @@ json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"spa
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "oĭ",
-      span: [1,3],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "oĭ",
+        span: [1,3],
+      },
     },
   ],
   Paragraph {
@@ -293,7 +295,7 @@ Text {
           },
           terms: [
             Letter {
-              letter: WithFreeModifiers {
+              letter: [
                 Word {
                   kind: "cmavo",
                   phonemes: "ly",
@@ -304,7 +306,7 @@ Text {
                   phonemes: "by",
                   span: [22,24],
                 },
-              },
+              ],
             },
           ],
         },
@@ -324,11 +326,13 @@ Text {
               phonemes: "la",
               span: [29,31],
             },
-            names: Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [32,38],
-            },
+            names: [
+              Word {
+                kind: "cmevla",
+                phonemes: "lojban",
+                span: [32,38],
+              },
+            ],
           },
         ],
         cu: Word {
@@ -397,11 +401,13 @@ Text {
                             span: [78,80],
                           },
                           first_argument: Letter {
-                            letter: Word {
-                              kind: "cmavo",
-                              phonemes: "ly",
-                              span: [81,83],
-                            },
+                            letter: [
+                              Word {
+                                kind: "cmavo",
+                                phonemes: "ly",
+                                span: [81,83],
+                              },
+                            ],
                           },
                         },
                       },

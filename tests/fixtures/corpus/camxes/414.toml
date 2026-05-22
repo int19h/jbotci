@@ -145,11 +145,13 @@ ParagraphStatement {
             phonemes: "la",
             span: [7,9],
           },
-          names: Word {
-            kind: "cmevla",
-            phonemes: "rik",
-            span: [10,13],
-          },
+          names: [
+            Word {
+              kind: "cmevla",
+              phonemes: "rik",
+              span: [10,13],
+            },
+          ],
         },
       ],
       relation: Word {
@@ -157,45 +159,47 @@ ParagraphStatement {
         phonemes: "cusku",
         span: [15,20],
       },
-      sehu: WithFreeModifiers {
-        Word {
-          kind: "cmavo",
-          phonemes: "se'u",
-          span: [21,25],
-        },
-        free_modifiers: [
-          Vocative {
-            vocative_markers: Word {
+      sehu: Word {
+        kind: "cmavo",
+        phonemes: "se'u",
+        span: [21,25],
+      },
+      free_modifiers: [
+        Vocative {
+          vocative_markers: [
+            Word {
               kind: "cmavo",
               phonemes: "mi'e",
               span: [26,30],
             },
-            argument: WithFreeModifiers {
-              Word {
-                kind: "cmevla",
-                phonemes: "rik",
-                span: [32,35],
-              },
-              free_modifiers: [
-                Vocative {
-                  vocative_markers: Word {
+          ],
+          argument: Cmevla {
+            Word {
+              kind: "cmevla",
+              phonemes: "rik",
+              span: [32,35],
+            },
+            free_modifiers: [
+              Vocative {
+                vocative_markers: [
+                  Word {
                     kind: "cmavo",
                     phonemes: "doĭ",
                     span: [37,40],
                   },
-                  argument: RelationVocative {
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "terpreti",
-                      span: [41,49],
-                    },
+                ],
+                argument: RelationVocative {
+                  relation: Word {
+                    kind: "lujvo",
+                    phonemes: "terpreti",
+                    span: [41,49],
                   },
                 },
-              ],
-            },
+              },
+            ],
           },
-        ],
-      },
+        },
+      ],
     },
   ],
 }"""

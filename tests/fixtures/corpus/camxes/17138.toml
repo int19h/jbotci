@@ -108,7 +108,7 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      Word {
+      indicator: Word {
         kind: "cmavo",
         phonemes: "bi'u",
         span: [0,4],
@@ -119,16 +119,18 @@ Text {
         span: [4,7],
       },
     },
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "ŭi",
-        span: [8,10],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ja'o",
-        span: [11,15],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "ŭi",
+          span: [8,10],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ja'o",
+          span: [11,15],
+        },
       },
     },
   ],
@@ -153,11 +155,13 @@ Text {
             phonemes: "la",
             span: [25,27],
           },
-          names: Word {
-            kind: "cmevla",
-            phonemes: "anakatas",
-            span: [28,36],
-          },
+          names: [
+            Word {
+              kind: "cmevla",
+              phonemes: "anakatas",
+              span: [28,36],
+            },
+          ],
         },
       ],
     },

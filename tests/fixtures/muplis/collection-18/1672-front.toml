@@ -111,10 +111,12 @@ brackets = "(xu [do {.áĭdji (lo [ka {kláma (za'u re'u)}])}])"
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [0,2],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "xu",
+        span: [0,2],
+      },
     },
   ],
   Predicate {
@@ -152,7 +154,7 @@ Text {
               },
               terms: [
                 Tagged {
-                  tense_modal: WithFreeModifiers {
+                  tense_modal: Composite {
                     Word {
                       kind: "cmavo",
                       phonemes: "za'u",

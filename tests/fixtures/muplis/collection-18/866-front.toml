@@ -141,21 +141,23 @@ brackets = "(ja'o.i'a-naĭ [ko {lífri (lo [ka {(na jímpe) (fi ce'u)}])}])"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "ja'o",
-        span: [0,4],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "i'a",
-        span: [5,8],
-      },
-      nai: Word {
-        kind: "cmavo",
-        phonemes: "naĭ",
-        span: [9,12],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "ja'o",
+          span: [0,4],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "i'a",
+          span: [5,8],
+        },
+        nai: Word {
+          kind: "cmavo",
+          phonemes: "naĭ",
+          span: [9,12],
+        },
       },
     },
   ],

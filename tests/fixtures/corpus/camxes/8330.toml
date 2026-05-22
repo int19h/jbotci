@@ -88,50 +88,50 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: WithFreeModifiers {
+      vocative_markers: [
         Word {
           kind: "cmavo",
           phonemes: "co'o",
           span: [0,4],
         },
-        free_modifiers: [
-          To {
-            to: Word {
-              kind: "cmavo",
-              phonemes: "to",
-              span: [5,7],
-            },
-            Term {
-              terms: [
-                Descriptor {
-                  descriptor: Word {
+      ],
+      free_modifiers: [
+        To {
+          to: Word {
+            kind: "cmavo",
+            phonemes: "to",
+            span: [5,7],
+          },
+          Term {
+            terms: [
+              Descriptor {
+                descriptor: Word {
+                  kind: "cmavo",
+                  phonemes: "le",
+                  span: [8,10],
+                },
+                relation: Abstraction {
+                  nu: Word {
                     kind: "cmavo",
-                    phonemes: "le",
-                    span: [8,10],
+                    phonemes: "nu",
+                    span: [10,12],
                   },
-                  relation: Abstraction {
-                    nu: Word {
-                      kind: "cmavo",
-                      phonemes: "nu",
-                      span: [10,12],
-                    },
-                    Word {
-                      kind: "gismu",
-                      phonemes: "gunka",
-                      span: [13,18],
-                    },
+                  Word {
+                    kind: "gismu",
+                    phonemes: "gunka",
+                    span: [13,18],
                   },
                 },
-              ],
-            },
-            toi: Word {
-              kind: "cmavo",
-              phonemes: "toĭ",
-              span: [19,22],
-            },
+              },
+            ],
           },
-        ],
-      },
+          toi: Word {
+            kind: "cmavo",
+            phonemes: "toĭ",
+            span: [19,22],
+          },
+        },
+      ],
     },
   ],
 }"""

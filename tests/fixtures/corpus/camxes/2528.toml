@@ -955,7 +955,7 @@ Paragraph {
                           span: [70,72],
                         },
                         relation: TenseModal {
-                          tense_modal: WithFreeModifiers {
+                          tense_modal: Composite {
                             Word {
                               kind: "cmavo",
                               phonemes: "ru'i",
@@ -1105,11 +1105,13 @@ Paragraph {
               phonemes: "la",
               span: [174,176],
             },
-            names: Word {
-              kind: "cmevla",
-              phonemes: "alis",
-              span: [177,181],
-            },
+            names: [
+              Word {
+                kind: "cmevla",
+                phonemes: "alis",
+                span: [177,181],
+              },
+            ],
           },
         ],
         PredicateTail1 {
@@ -1140,36 +1142,34 @@ Paragraph {
             },
             terms: [
               Lu {
-                lu: WithFreeModifiers {
-                  Word {
-                    kind: "cmavo",
-                    phonemes: "lu",
-                    span: [206,208],
-                  },
-                  free_modifiers: [
-                    Vocative {
-                      vocative_markers: WithFreeModifiers {
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "ki'e",
-                          span: [209,213],
-                        },
-                        Word {
-                          kind: "cmavo",
-                          phonemes: "doĭ",
-                          span: [214,217],
-                        },
+                lu: Word {
+                  kind: "cmavo",
+                  phonemes: "lu",
+                  span: [206,208],
+                },
+                free_modifiers: [
+                  Vocative {
+                    vocative_markers: [
+                      Word {
+                        kind: "cmavo",
+                        phonemes: "ki'e",
+                        span: [209,213],
                       },
-                      argument: RelationVocative {
-                        relation: Word {
-                          kind: "gismu",
-                          phonemes: "prenu",
-                          span: [218,223],
-                        },
+                      Word {
+                        kind: "cmavo",
+                        phonemes: "doĭ",
+                        span: [214,217],
+                      },
+                    ],
+                    argument: RelationVocative {
+                      relation: Word {
+                        kind: "gismu",
+                        phonemes: "prenu",
+                        span: [218,223],
                       },
                     },
-                  ],
-                },
+                  },
+                ],
                 Predicate {
                   leading_terms: [
                     Word {
@@ -1338,7 +1338,7 @@ Paragraph {
         phonemes: "i",
         span: [319,320],
       },
-      connective: WithFreeModifiers {
+      connective: Relation {
         Word {
           kind: "cmavo",
           phonemes: "se",
@@ -1358,18 +1358,20 @@ Paragraph {
       trailing_statement: Predicate {
         leading_terms: [
           Letter {
-            letter: Letter {
-              Word {
-                kind: "cmavo",
-                phonemes: "a",
-                span: [330,331],
+            letter: [
+              Letter {
+                Word {
+                  kind: "cmavo",
+                  phonemes: "a",
+                  span: [330,331],
+                },
+                bu: Word {
+                  kind: "cmavo",
+                  phonemes: "bu",
+                  span: [331,333],
+                },
               },
-              bu: Word {
-                kind: "cmavo",
-                phonemes: "bu",
-                span: [331,333],
-              },
-            },
+            ],
           },
         ],
         PredicateTail1 {

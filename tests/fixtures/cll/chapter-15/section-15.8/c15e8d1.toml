@@ -134,10 +134,12 @@ brackets = "(xu [{la .djan.} {(pu kláma) ([la .paris.] .e [la .rom.])}])"
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [0,2],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "xu",
+        span: [0,2],
+      },
     },
   ],
   Predicate {
@@ -148,11 +150,13 @@ Text {
           phonemes: "la",
           span: [3,5],
         },
-        names: Word {
-          kind: "cmevla",
-          phonemes: "djan",
-          span: [6,10],
-        },
+        names: [
+          Word {
+            kind: "cmevla",
+            phonemes: "djan",
+            span: [6,10],
+          },
+        ],
       },
     ],
     Relation {
@@ -176,11 +180,13 @@ Text {
               phonemes: "la",
               span: [21,23],
             },
-            names: Word {
-              kind: "cmevla",
-              phonemes: "paris",
-              span: [24,29],
-            },
+            names: [
+              Word {
+                kind: "cmevla",
+                phonemes: "paris",
+                span: [24,29],
+              },
+            ],
           },
           connective: Word {
             kind: "cmavo",
@@ -193,11 +199,13 @@ Text {
               phonemes: "la",
               span: [34,36],
             },
-            names: Word {
-              kind: "cmevla",
-              phonemes: "rom",
-              span: [37,40],
-            },
+            names: [
+              Word {
+                kind: "cmevla",
+                phonemes: "rom",
+                span: [37,40],
+              },
+            ],
           },
         },
       ],

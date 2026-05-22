@@ -122,27 +122,27 @@ tree = """
 Term {
   terms: [
     Lu {
-      lu: WithFreeModifiers {
-        Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [0,2],
-        },
-        free_modifiers: [
-          Vocative {
-            vocative_markers: Word {
+      lu: Word {
+        kind: "cmavo",
+        phonemes: "lu",
+        span: [0,2],
+      },
+      free_modifiers: [
+        Vocative {
+          vocative_markers: [
+            Word {
               kind: "cmavo",
               phonemes: "coĭ",
               span: [3,6],
             },
-            argument: Word {
-              kind: "cmevla",
-              phonemes: "djan",
-              span: [7,11],
-            },
+          ],
+          argument: Word {
+            kind: "cmevla",
+            phonemes: "djan",
+            span: [7,11],
           },
-        ],
-      },
+        },
+      ],
       Text {},
       lihu: Word {
         kind: "cmavo",
@@ -151,34 +151,32 @@ Term {
       },
     },
     Lu {
-      lu: WithFreeModifiers {
-        Word {
-          kind: "cmavo",
-          phonemes: "lu",
-          span: [17,19],
-        },
-        free_modifiers: [
-          Vocative {
-            vocative_markers: WithFreeModifiers {
-              Word {
-                kind: "cmavo",
-                phonemes: "mi'e",
-                span: [20,24],
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "naĭ",
-                span: [25,28],
-              },
-            },
-            argument: Word {
-              kind: "cmevla",
-              phonemes: "djan",
-              span: [29,33],
-            },
-          },
-        ],
+      lu: Word {
+        kind: "cmavo",
+        phonemes: "lu",
+        span: [17,19],
       },
+      free_modifiers: [
+        Vocative {
+          vocative_markers: [
+            Word {
+              kind: "cmavo",
+              phonemes: "mi'e",
+              span: [20,24],
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "naĭ",
+              span: [25,28],
+            },
+          ],
+          argument: Word {
+            kind: "cmevla",
+            phonemes: "djan",
+            span: [29,33],
+          },
+        },
+      ],
       Text {},
       lihu: Word {
         kind: "cmavo",

@@ -58,23 +58,25 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: WithIndicator {
-        Word {
-          kind: "cmavo",
-          phonemes: "je'e",
-          span: [0,4],
+      vocative_markers: [
+        WithIndicator {
+          Word {
+            kind: "cmavo",
+            phonemes: "je'e",
+            span: [0,4],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "ĭa",
+            span: [6,8],
+          },
+          nai: Word {
+            kind: "cmavo",
+            phonemes: "naĭ",
+            span: [8,11],
+          },
         },
-        indicator: Word {
-          kind: "cmavo",
-          phonemes: "ĭa",
-          span: [6,8],
-        },
-        nai: Word {
-          kind: "cmavo",
-          phonemes: "naĭ",
-          span: [8,11],
-        },
-      },
+      ],
     },
   ],
 }"""

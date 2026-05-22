@@ -168,104 +168,100 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: WithFreeModifiers {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [0,2],
-        },
-        free_modifiers: [
-          To {
-            to: WithFreeModifiers {
-              Word {
+      to: Word {
+        kind: "cmavo",
+        phonemes: "to",
+        span: [0,2],
+      },
+      free_modifiers: [
+        To {
+          to: Word {
+            kind: "cmavo",
+            phonemes: "to",
+            span: [3,5],
+          },
+          free_modifiers: [
+            To {
+              to: Word {
                 kind: "cmavo",
                 phonemes: "to",
-                span: [3,5],
+                span: [6,8],
               },
-              free_modifiers: [
-                To {
-                  to: Word {
+              Predicate {
+                leading_terms: [
+                  Word {
                     kind: "cmavo",
-                    phonemes: "to",
-                    span: [6,8],
+                    phonemes: "ri",
+                    span: [9,11],
                   },
-                  Predicate {
-                    leading_terms: [
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "ri",
-                        span: [9,11],
-                      },
-                    ],
-                    Relation {
-                      TenseModal {
-                        tense_modal: Word {
-                          kind: "cmavo",
-                          phonemes: "mo'u",
-                          span: [12,16],
-                        },
-                        Word {
-                          kind: "gismu",
-                          phonemes: "zasti",
-                          span: [17,22],
-                        },
-                      },
-                      terms: [
-                        Tagged {
-                          tense_modal: Simple {
-                            bai: Word {
-                              kind: "cmavo",
-                              phonemes: "ri'a",
-                              span: [23,27],
-                            },
-                          },
-                          Descriptor {
-                            descriptor: Word {
-                              kind: "cmavo",
-                              phonemes: "le",
-                              span: [28,30],
-                            },
-                            relation: Abstraction {
-                              nu: Word {
-                                kind: "cmavo",
-                                phonemes: "nu",
-                                span: [30,32],
-                              },
-                              Compound {
-                                Word {
-                                  kind: "gismu",
-                                  phonemes: "danmo",
-                                  span: [33,38],
-                                },
-                                Word {
-                                  kind: "gismu",
-                                  phonemes: "binxo",
-                                  span: [39,44],
-                                },
-                              },
-                            },
-                          },
-                        },
-                      ],
+                ],
+                Relation {
+                  TenseModal {
+                    tense_modal: Word {
+                      kind: "cmavo",
+                      phonemes: "mo'u",
+                      span: [12,16],
+                    },
+                    Word {
+                      kind: "gismu",
+                      phonemes: "zasti",
+                      span: [17,22],
                     },
                   },
-                  toi: Word {
-                    kind: "cmavo",
-                    phonemes: "toĭ",
-                    span: [45,48],
-                  },
+                  terms: [
+                    Tagged {
+                      tense_modal: Simple {
+                        bai: Word {
+                          kind: "cmavo",
+                          phonemes: "ri'a",
+                          span: [23,27],
+                        },
+                      },
+                      Descriptor {
+                        descriptor: Word {
+                          kind: "cmavo",
+                          phonemes: "le",
+                          span: [28,30],
+                        },
+                        relation: Abstraction {
+                          nu: Word {
+                            kind: "cmavo",
+                            phonemes: "nu",
+                            span: [30,32],
+                          },
+                          Compound {
+                            Word {
+                              kind: "gismu",
+                              phonemes: "danmo",
+                              span: [33,38],
+                            },
+                            Word {
+                              kind: "gismu",
+                              phonemes: "binxo",
+                              span: [39,44],
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
                 },
-              ],
+              },
+              toi: Word {
+                kind: "cmavo",
+                phonemes: "toĭ",
+                span: [45,48],
+              },
             },
-            Text {},
-            toi: Word {
-              kind: "cmavo",
-              phonemes: "toĭ",
-              span: [49,52],
-            },
+          ],
+          Text {},
+          toi: Word {
+            kind: "cmavo",
+            phonemes: "toĭ",
+            span: [49,52],
           },
-        ],
-      },
+        },
+      ],
       Text {},
       toi: Word {
         kind: "cmavo",

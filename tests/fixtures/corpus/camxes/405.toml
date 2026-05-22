@@ -215,11 +215,13 @@ ParagraphStatement {
             phonemes: "la",
             span: [7,9],
           },
-          names: Word {
-            kind: "cmevla",
-            phonemes: "fred",
-            span: [10,14],
-          },
+          names: [
+            Word {
+              kind: "cmevla",
+              phonemes: "fred",
+              span: [10,14],
+            },
+          ],
         },
       ],
       relation: Word {
@@ -288,27 +290,29 @@ ParagraphStatement {
             phonemes: "la",
             span: [55,57],
           },
-          names: WithFreeModifiers {
+          names: [
             Word {
               kind: "cmevla",
               phonemes: "alis",
               span: [59,63],
             },
-            free_modifiers: [
-              Vocative {
-                vocative_markers: Word {
+          ],
+          free_modifiers: [
+            Vocative {
+              vocative_markers: [
+                Word {
                   kind: "cmavo",
                   phonemes: "fe'o",
                   span: [66,70],
                 },
-                argument: Word {
-                  kind: "cmevla",
-                  phonemes: "rik",
-                  span: [72,75],
-                },
+              ],
+              argument: Word {
+                kind: "cmevla",
+                phonemes: "rik",
+                span: [72,75],
               },
-            ],
-          },
+            },
+          ],
         },
       ],
     },

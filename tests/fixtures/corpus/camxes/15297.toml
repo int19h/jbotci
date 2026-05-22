@@ -90,7 +90,7 @@ Predicate {
       span: [3,8],
     },
     terms: [
-      WithFreeModifiers {
+      Koha {
         Word {
           kind: "cmavo",
           phonemes: "do",
@@ -98,17 +98,21 @@ Predicate {
         },
         free_modifiers: [
           Vocative {
-            vocative_markers: Word {
-              kind: "cmavo",
-              phonemes: "doĭ",
-              span: [12,15],
-            },
-            argument: Letter {
-              letter: Word {
+            vocative_markers: [
+              Word {
                 kind: "cmavo",
-                phonemes: "by",
-                span: [16,18],
+                phonemes: "doĭ",
+                span: [12,15],
               },
+            ],
+            argument: Letter {
+              letter: [
+                Word {
+                  kind: "cmavo",
+                  phonemes: "by",
+                  span: [16,18],
+                },
+              ],
             },
           },
         ],

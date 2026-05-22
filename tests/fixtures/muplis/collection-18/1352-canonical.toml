@@ -144,7 +144,7 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      Word {
+      indicator: Word {
         kind: "cmavo",
         phonemes: "ju'a",
         span: [0,4],
@@ -160,7 +160,7 @@ Text {
     Predicate {
       leading_terms: [
         Letter {
-          letter: WithFreeModifiers {
+          letter: [
             Word {
               kind: "cmavo",
               phonemes: "cy",
@@ -171,7 +171,7 @@ Text {
               phonemes: "no",
               span: [12,14],
             },
-          },
+          ],
         },
       ],
       Word {
@@ -194,11 +194,13 @@ Text {
               phonemes: "la",
               span: [24,26],
             },
-            names: Word {
-              kind: "cmevla",
-              phonemes: "tom",
-              span: [27,30],
-            },
+            names: [
+              Word {
+                kind: "cmevla",
+                phonemes: "tom",
+                span: [27,30],
+              },
+            ],
           },
         ],
         Relation {
@@ -209,7 +211,7 @@ Text {
           },
           terms: [
             Letter {
-              letter: WithFreeModifiers {
+              letter: [
                 Word {
                   kind: "cmavo",
                   phonemes: "cy",
@@ -220,7 +222,7 @@ Text {
                   phonemes: "no",
                   span: [41,43],
                 },
-              },
+              ],
             },
           ],
         },

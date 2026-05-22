@@ -57,10 +57,12 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ge'e","kind":"cmavo"}},{"Bare":{"sp
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ge'e",
-      span: [0,4],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ge'e",
+        span: [0,4],
+      },
     },
   ],
   ParagraphStatement {
@@ -71,11 +73,13 @@ Text {
     },
     free_modifiers: [
       Vocative {
-        vocative_markers: Word {
-          kind: "cmavo",
-          phonemes: "coĭ",
-          span: [8,11],
-        },
+        vocative_markers: [
+          Word {
+            kind: "cmavo",
+            phonemes: "coĭ",
+            span: [8,11],
+          },
+        ],
       },
     ],
   },

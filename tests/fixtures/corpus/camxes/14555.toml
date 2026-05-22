@@ -97,10 +97,12 @@ json = '[{"Bare":{"span":[1,3],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "aĭ",
-      span: [1,3],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "aĭ",
+        span: [1,3],
+      },
     },
   ],
   Relation {
@@ -116,11 +118,13 @@ Text {
           phonemes: "la",
           span: [10,12],
         },
-        names: Word {
-          kind: "cmevla",
-          phonemes: "galf",
-          span: [13,17],
-        },
+        names: [
+          Word {
+            kind: "cmevla",
+            phonemes: "galf",
+            span: [13,17],
+          },
+        ],
       },
       Tagged {
         tense_modal: Word {

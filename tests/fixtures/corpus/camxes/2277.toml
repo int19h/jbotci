@@ -524,60 +524,58 @@ ParagraphStatement {
   Term {
     terms: [
       Lu {
-        lu: WithFreeModifiers {
-          WithIndicator {
-            Word {
+        lu: WithIndicator {
+          Word {
+            kind: "cmavo",
+            phonemes: "lu",
+            span: [3,5],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "ka'u",
+            span: [6,10],
+          },
+        },
+        free_modifiers: [
+          Sei {
+            sei: Word {
               kind: "cmavo",
-              phonemes: "lu",
-              span: [3,5],
+              phonemes: "seĭ",
+              span: [11,14],
             },
-            indicator: Word {
+            terms: [
+              Descriptor {
+                descriptor: Word {
+                  kind: "cmavo",
+                  phonemes: "la",
+                  span: [15,17],
+                },
+                relation: Word {
+                  kind: "gismu",
+                  phonemes: "mlatu",
+                  span: [18,23],
+                },
+              },
+            ],
+            cu: Word {
               kind: "cmavo",
-              phonemes: "ka'u",
-              span: [6,10],
+              phonemes: "cu",
+              span: [24,26],
+            },
+            relation: TenseModal {
+              tense_modal: Word {
+                kind: "cmavo",
+                phonemes: "di'a",
+                span: [27,31],
+              },
+              Word {
+                kind: "gismu",
+                phonemes: "cusku",
+                span: [32,37],
+              },
             },
           },
-          free_modifiers: [
-            Sei {
-              sei: Word {
-                kind: "cmavo",
-                phonemes: "seĭ",
-                span: [11,14],
-              },
-              terms: [
-                Descriptor {
-                  descriptor: Word {
-                    kind: "cmavo",
-                    phonemes: "la",
-                    span: [15,17],
-                  },
-                  relation: Word {
-                    kind: "gismu",
-                    phonemes: "mlatu",
-                    span: [18,23],
-                  },
-                },
-              ],
-              cu: Word {
-                kind: "cmavo",
-                phonemes: "cu",
-                span: [24,26],
-              },
-              relation: TenseModal {
-                tense_modal: Word {
-                  kind: "cmavo",
-                  phonemes: "di'a",
-                  span: [27,31],
-                },
-                Word {
-                  kind: "gismu",
-                  phonemes: "cusku",
-                  span: [32,37],
-                },
-              },
-            },
-          ],
-        },
+        ],
         Paragraph {
           Predicate {
             leading_terms: [
@@ -819,7 +817,7 @@ ParagraphStatement {
                 phonemes: "i",
                 span: [193,194],
               },
-              connective: WithFreeModifiers {
+              connective: Relation {
                 Word {
                   kind: "cmavo",
                   phonemes: "se",

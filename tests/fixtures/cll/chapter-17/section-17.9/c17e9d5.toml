@@ -89,18 +89,20 @@ tree = """
 Predicate {
   leading_terms: [
     Letter {
-      letter: Letter {
-        Word {
-          kind: "cmavo",
-          phonemes: "a",
-          span: [1,2],
+      letter: [
+        Letter {
+          Word {
+            kind: "cmavo",
+            phonemes: "a",
+            span: [1,2],
+          },
+          bu: Word {
+            kind: "cmavo",
+            phonemes: "bu",
+            span: [2,4],
+          },
         },
-        bu: Word {
-          kind: "cmavo",
-          phonemes: "bu",
-          span: [2,4],
-        },
-      },
+      ],
     },
   ],
   Relation {
@@ -111,7 +113,7 @@ Predicate {
     },
     terms: [
       Letter {
-        letter: WithFreeModifiers {
+        letter: [
           Word {
             kind: "cmavo",
             phonemes: "by",
@@ -122,7 +124,7 @@ Predicate {
             phonemes: "cy",
             span: [15,17],
           },
-        },
+        ],
       },
     ],
   },

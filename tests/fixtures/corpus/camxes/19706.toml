@@ -93,27 +93,27 @@ Predicate {
     },
   ],
   Goha {
-    goha: WithFreeModifiers {
-      Word {
-        kind: "cmavo",
-        phonemes: "go'a",
-        span: [8,12],
-      },
-      free_modifiers: [
-        Vocative {
-          vocative_markers: Word {
+    goha: Word {
+      kind: "cmavo",
+      phonemes: "go'a",
+      span: [8,12],
+    },
+    free_modifiers: [
+      Vocative {
+        vocative_markers: [
+          Word {
             kind: "cmavo",
             phonemes: "doĭ",
             span: [13,16],
           },
-          argument: Word {
-            kind: "cmevla",
-            phonemes: "xod",
-            span: [17,20],
-          },
+        ],
+        argument: Word {
+          kind: "cmevla",
+          phonemes: "xod",
+          span: [17,20],
         },
-      ],
-    },
+      },
+    ],
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}}}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Goha":{"goha":[{"Bare":{"Bare":{"span":[8,12],"phonemes":"go'a","kind":"cmavo"}}},{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[13,16],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[17,20],"phonemes":"xod","kind":"cmevla"}}}]}}}]}}]}}}}}}}}]}]}"""

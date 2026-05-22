@@ -450,7 +450,7 @@ ParagraphStatement {
               },
             ],
             TenseModal {
-              tense_modal: WithFreeModifiers {
+              tense_modal: Composite {
                 Word {
                   kind: "cmavo",
                   phonemes: "ze'a",
@@ -468,7 +468,7 @@ ParagraphStatement {
                   phonemes: "se",
                   span: [19,21],
                 },
-                WithFreeModifiers {
+                Word {
                   Word {
                     kind: "gismu",
                     phonemes: "zdile",
@@ -488,11 +488,13 @@ ParagraphStatement {
                             phonemes: "la",
                             span: [32,34],
                           },
-                          names: Word {
-                            kind: "cmevla",
-                            phonemes: "alis",
-                            span: [35,39],
-                          },
+                          names: [
+                            Word {
+                              kind: "cmevla",
+                              phonemes: "alis",
+                              span: [35,39],
+                            },
+                          ],
                         },
                       ],
                       relation: Word {
@@ -648,7 +650,7 @@ ParagraphStatement {
                                 phonemes: "la'e",
                                 span: [127,131],
                               },
-                              WithFreeModifiers {
+                              Koha {
                                 Word {
                                   kind: "cmavo",
                                   phonemes: "di'u",
@@ -663,18 +665,20 @@ ParagraphStatement {
                                     },
                                     terms: [
                                       Letter {
-                                        letter: Letter {
-                                          Word {
-                                            kind: "cmavo",
-                                            phonemes: "a",
-                                            span: [141,142],
+                                        letter: [
+                                          Letter {
+                                            Word {
+                                              kind: "cmavo",
+                                              phonemes: "a",
+                                              span: [141,142],
+                                            },
+                                            bu: Word {
+                                              kind: "cmavo",
+                                              phonemes: "bu",
+                                              span: [142,144],
+                                            },
                                           },
-                                          bu: Word {
-                                            kind: "cmavo",
-                                            phonemes: "bu",
-                                            span: [142,144],
-                                          },
-                                        },
+                                        ],
                                       },
                                     ],
                                     relation: Compound {

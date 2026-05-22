@@ -98,55 +98,53 @@ tree = """
 Term {
   terms: [
     Letter {
-      letter: Word {
-        kind: "cmavo",
-        phonemes: "xy",
-        span: [0,2],
-      },
-      boi: WithFreeModifiers {
+      letter: [
         Word {
           kind: "cmavo",
-          phonemes: "boĭ",
-          span: [3,6],
+          phonemes: "xy",
+          span: [0,2],
         },
-        free_modifiers: [
-          Xi {
-            xi: Word {
+      ],
+      boi: Word {
+        kind: "cmavo",
+        phonemes: "boĭ",
+        span: [3,6],
+      },
+      free_modifiers: [
+        Xi {
+          xi: Word {
+            kind: "cmavo",
+            phonemes: "xi",
+            span: [7,9],
+          },
+          Number {
+            Word {
               kind: "cmavo",
-              phonemes: "xi",
-              span: [7,9],
+              phonemes: "by",
+              span: [10,12],
             },
-            Number {
-              Word {
-                kind: "cmavo",
-                phonemes: "by",
-                span: [10,12],
-              },
-              boi: WithFreeModifiers {
+            boi: Word {
+              kind: "cmavo",
+              phonemes: "boĭ",
+              span: [13,16],
+            },
+            free_modifiers: [
+              Xi {
+                xi: Word {
+                  kind: "cmavo",
+                  phonemes: "xi",
+                  span: [17,19],
+                },
                 Word {
                   kind: "cmavo",
-                  phonemes: "boĭ",
-                  span: [13,16],
+                  phonemes: "vo",
+                  span: [20,22],
                 },
-                free_modifiers: [
-                  Xi {
-                    xi: Word {
-                      kind: "cmavo",
-                      phonemes: "xi",
-                      span: [17,19],
-                    },
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "vo",
-                      span: [20,22],
-                    },
-                  },
-                ],
               },
-            },
+            ],
           },
-        ],
-      },
+        },
+      ],
     },
   ],
 }"""

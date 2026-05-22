@@ -293,28 +293,32 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"mu'a","kind":"cmavo"}},{"Letter":{"
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "mu'a",
-      span: [0,4],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "mu'a",
+        span: [0,4],
+      },
     },
   ],
   Connected {
     leading_statement: Predicate {
       leading_terms: [
         Letter {
-          letter: Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "a",
-              span: [5,6],
+          letter: [
+            Letter {
+              Word {
+                kind: "cmavo",
+                phonemes: "a",
+                span: [5,6],
+              },
+              bu: Word {
+                kind: "cmavo",
+                phonemes: "bu",
+                span: [6,8],
+              },
             },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [6,8],
-            },
-          },
+          ],
         },
       ],
       Relation {
@@ -338,18 +342,20 @@ Text {
               },
               tail_elements: [
                 Letter {
-                  letter: Letter {
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "a",
-                      span: [21,22],
+                  letter: [
+                    Letter {
+                      Word {
+                        kind: "cmavo",
+                        phonemes: "a",
+                        span: [21,22],
+                      },
+                      bu: Word {
+                        kind: "cmavo",
+                        phonemes: "bu",
+                        span: [22,24],
+                      },
                     },
-                    bu: Word {
-                      kind: "cmavo",
-                      phonemes: "bu",
-                      span: [22,24],
-                    },
-                  },
+                  ],
                 },
               ],
               relation: Word {
@@ -394,18 +400,20 @@ Text {
     trailing_statement: Predicate {
       leading_terms: [
         Letter {
-          letter: Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "a",
-              span: [44,45],
+          letter: [
+            Letter {
+              Word {
+                kind: "cmavo",
+                phonemes: "a",
+                span: [44,45],
+              },
+              bu: Word {
+                kind: "cmavo",
+                phonemes: "bu",
+                span: [45,47],
+              },
             },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [45,47],
-            },
-          },
+          ],
         },
       ],
       Relation {
@@ -448,18 +456,20 @@ Text {
               },
               tail_elements: [
                 Letter {
-                  letter: Letter {
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "a",
-                      span: [68,69],
+                  letter: [
+                    Letter {
+                      Word {
+                        kind: "cmavo",
+                        phonemes: "a",
+                        span: [68,69],
+                      },
+                      bu: Word {
+                        kind: "cmavo",
+                        phonemes: "bu",
+                        span: [69,71],
+                      },
                     },
-                    bu: Word {
-                      kind: "cmavo",
-                      phonemes: "bu",
-                      span: [69,71],
-                    },
-                  },
+                  ],
                 },
               ],
               relation: Word {

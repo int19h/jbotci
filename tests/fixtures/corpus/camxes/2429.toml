@@ -555,108 +555,106 @@ Paragraph {
     Term {
       terms: [
         Lu {
-          lu: WithFreeModifiers {
-            Word {
-              kind: "cmavo",
-              phonemes: "lu",
-              span: [3,5],
-            },
-            free_modifiers: [
-              Vocative {
-                vocative_markers: WithFreeModifiers {
-                  WithIndicator {
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "je'e",
-                      span: [6,10],
-                    },
-                    indicator: Word {
-                      kind: "cmavo",
-                      phonemes: "li'a",
-                      span: [11,15],
-                    },
+          lu: Word {
+            kind: "cmavo",
+            phonemes: "lu",
+            span: [3,5],
+          },
+          free_modifiers: [
+            Vocative {
+              vocative_markers: [
+                WithIndicator {
+                  Word {
+                    kind: "cmavo",
+                    phonemes: "je'e",
+                    span: [6,10],
                   },
-                  free_modifiers: [
-                    Sei {
-                      sei: Word {
+                  indicator: Word {
+                    kind: "cmavo",
+                    phonemes: "li'a",
+                    span: [11,15],
+                  },
+                },
+              ],
+              free_modifiers: [
+                Sei {
+                  sei: Word {
+                    kind: "cmavo",
+                    phonemes: "seĭ",
+                    span: [16,19],
+                  },
+                  terms: [
+                    Descriptor {
+                      descriptor: Word {
                         kind: "cmavo",
-                        phonemes: "seĭ",
-                        span: [16,19],
-                      },
-                      terms: [
-                        Descriptor {
-                          descriptor: Word {
-                            kind: "cmavo",
-                            phonemes: "la",
-                            span: [20,22],
-                          },
-                          relation: Word {
-                            kind: "lujvo",
-                            phonemes: "noltruni'u",
-                            span: [23,33],
-                          },
-                          relative_clauses: [
-                            Noi {
-                              noi: Word {
-                                kind: "cmavo",
-                                phonemes: "noĭ",
-                                span: [34,37],
-                              },
-                              Relation {
-                                TenseModal {
-                                  tense_modal: WithFreeModifiers {
-                                    Word {
-                                      kind: "cmavo",
-                                      phonemes: "pu",
-                                      span: [38,40],
-                                    },
-                                    Word {
-                                      kind: "cmavo",
-                                      phonemes: "ca'o",
-                                      span: [41,45],
-                                    },
-                                  },
-                                  Word {
-                                    kind: "gismu",
-                                    phonemes: "lanli",
-                                    span: [46,51],
-                                  },
-                                },
-                                terms: [
-                                  Descriptor {
-                                    descriptor: Word {
-                                      kind: "cmavo",
-                                      phonemes: "leĭ",
-                                      span: [52,55],
-                                    },
-                                    relation: Word {
-                                      kind: "gismu",
-                                      phonemes: "rozgu",
-                                      span: [56,61],
-                                    },
-                                  },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      ],
-                      cu: Word {
-                        kind: "cmavo",
-                        phonemes: "cu",
-                        span: [62,64],
+                        phonemes: "la",
+                        span: [20,22],
                       },
                       relation: Word {
-                        kind: "gismu",
-                        phonemes: "cusku",
-                        span: [65,70],
+                        kind: "lujvo",
+                        phonemes: "noltruni'u",
+                        span: [23,33],
                       },
+                      relative_clauses: [
+                        Noi {
+                          noi: Word {
+                            kind: "cmavo",
+                            phonemes: "noĭ",
+                            span: [34,37],
+                          },
+                          Relation {
+                            TenseModal {
+                              tense_modal: Composite {
+                                Word {
+                                  kind: "cmavo",
+                                  phonemes: "pu",
+                                  span: [38,40],
+                                },
+                                Word {
+                                  kind: "cmavo",
+                                  phonemes: "ca'o",
+                                  span: [41,45],
+                                },
+                              },
+                              Word {
+                                kind: "gismu",
+                                phonemes: "lanli",
+                                span: [46,51],
+                              },
+                            },
+                            terms: [
+                              Descriptor {
+                                descriptor: Word {
+                                  kind: "cmavo",
+                                  phonemes: "leĭ",
+                                  span: [52,55],
+                                },
+                                relation: Word {
+                                  kind: "gismu",
+                                  phonemes: "rozgu",
+                                  span: [56,61],
+                                },
+                              },
+                            ],
+                          },
+                        },
+                      ],
                     },
                   ],
+                  cu: Word {
+                    kind: "cmavo",
+                    phonemes: "cu",
+                    span: [62,64],
+                  },
+                  relation: Word {
+                    kind: "gismu",
+                    phonemes: "cusku",
+                    span: [65,70],
+                  },
                 },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           ParagraphStatement {
             i: Word {
               kind: "cmavo",
@@ -860,11 +858,13 @@ Paragraph {
                                     phonemes: "la",
                                     span: [213,215],
                                   },
-                                  names: Word {
-                                    kind: "cmevla",
-                                    phonemes: "alis",
-                                    span: [216,220],
-                                  },
+                                  names: [
+                                    Word {
+                                      kind: "cmevla",
+                                      phonemes: "alis",
+                                      span: [216,220],
+                                    },
+                                  ],
                                 },
                               },
                               Tagged {

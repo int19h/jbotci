@@ -7,8 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-    Attribute, Fields, GenericArgument, Ident, Item, ItemEnum, ItemStruct, PathArguments, Type,
-    parse_macro_input,
+    Attribute, Fields, GenericArgument, Ident, Item, ItemEnum, ItemStruct, ItemType, PathArguments,
+    Type, parse_macro_input,
 };
 
 #[proc_macro]
@@ -21,7 +21,8 @@ pub fn tree_model(input: TokenStream) -> TokenStream {
 
 fn expand_tree_model(mut items: Vec<Item>) -> syn::Result<proc_macro2::TokenStream> {
     let node_names = collect_node_names(&items)?;
-    let atom_types = collect_atom_types(&items, &node_names)?;
+    let aliases = collect_type_aliases(&items);
+    let atom_types = collect_atom_types(&items, &node_names, &aliases)?;
     let node_ref = node_ref_enum(&items)?;
     let atom_ref = atom_ref_enum(&atom_types);
     let trait_impls = tree_node_trait_impls(&items, &node_names)?;
@@ -62,15 +63,26 @@ fn collect_node_names(items: &[Item]) -> syn::Result<BTreeSet<String>> {
                 reject_generic_node(&item.ident, &item.generics)?;
                 names.insert(item.ident.to_string());
             }
+            Item::Type(_) => {}
             other => {
                 return Err(syn::Error::new_spanned(
                     other,
-                    "tree_model! currently accepts only struct and enum items",
+                    "tree_model! currently accepts only struct, enum, and type alias items",
                 ));
             }
         }
     }
     Ok(names)
+}
+
+fn collect_type_aliases(items: &[Item]) -> BTreeMap<String, Type> {
+    items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Type(item) => Some((item.ident.to_string(), (*item.ty).clone())),
+            _ => None,
+        })
+        .collect()
 }
 
 fn reject_generic_node(ident: &Ident, generics: &syn::Generics) -> syn::Result<()> {
@@ -86,14 +98,17 @@ fn reject_generic_node(ident: &Ident, generics: &syn::Generics) -> syn::Result<(
 fn collect_atom_types(
     items: &[Item],
     node_names: &BTreeSet<String>,
+    aliases: &BTreeMap<String, Type>,
 ) -> syn::Result<BTreeMap<String, Type>> {
     let mut atoms = BTreeMap::new();
     for item in items {
         match item {
-            Item::Struct(item) => collect_atoms_from_fields(&item.fields, node_names, &mut atoms)?,
+            Item::Struct(item) => {
+                collect_atoms_from_fields(&item.fields, node_names, aliases, &mut atoms)?
+            }
             Item::Enum(item) => {
                 for variant in &item.variants {
-                    collect_atoms_from_fields(&variant.fields, node_names, &mut atoms)?;
+                    collect_atoms_from_fields(&variant.fields, node_names, aliases, &mut atoms)?;
                 }
             }
             _ => {}
@@ -105,6 +120,7 @@ fn collect_atom_types(
 fn collect_atoms_from_fields(
     fields: &Fields,
     node_names: &BTreeSet<String>,
+    aliases: &BTreeMap<String, Type>,
     atoms: &mut BTreeMap<String, Type>,
 ) -> syn::Result<()> {
     for field in fields {
@@ -112,13 +128,18 @@ fn collect_atoms_from_fields(
         if flags.skip {
             continue;
         }
-        collect_atom_type(&field.ty, node_names, atoms);
+        collect_atom_type(&field.ty, node_names, aliases, atoms);
     }
     Ok(())
 }
 
-fn collect_atom_type(ty: &Type, node_names: &BTreeSet<String>, atoms: &mut BTreeMap<String, Type>) {
-    match unwrap_tree_type(ty, node_names) {
+fn collect_atom_type(
+    ty: &Type,
+    node_names: &BTreeSet<String>,
+    aliases: &BTreeMap<String, Type>,
+    atoms: &mut BTreeMap<String, Type>,
+) {
+    match unwrap_tree_type(ty, node_names, aliases) {
         UnwrappedTreeType::Node => {}
         UnwrappedTreeType::Atom(atom) => {
             let key = quote!(#atom).to_string();
@@ -126,7 +147,7 @@ fn collect_atom_type(ty: &Type, node_names: &BTreeSet<String>, atoms: &mut BTree
         }
         UnwrappedTreeType::Children(children) => {
             for child in children {
-                collect_atom_type(child, node_names, atoms);
+                collect_atom_type(child, node_names, aliases, atoms);
             }
         }
     }
@@ -138,7 +159,20 @@ enum UnwrappedTreeType<'a> {
     Children(Vec<&'a Type>),
 }
 
-fn unwrap_tree_type<'a>(ty: &'a Type, node_names: &BTreeSet<String>) -> UnwrappedTreeType<'a> {
+fn unwrap_tree_type<'a>(
+    ty: &'a Type,
+    node_names: &BTreeSet<String>,
+    aliases: &'a BTreeMap<String, Type>,
+) -> UnwrappedTreeType<'a> {
+    unwrap_tree_type_with_seen(ty, node_names, aliases, &mut BTreeSet::new())
+}
+
+fn unwrap_tree_type_with_seen<'a>(
+    ty: &'a Type,
+    node_names: &BTreeSet<String>,
+    aliases: &'a BTreeMap<String, Type>,
+    seen_aliases: &mut BTreeSet<String>,
+) -> UnwrappedTreeType<'a> {
     match ty {
         Type::Path(path) => {
             if path.qself.is_none()
@@ -159,19 +193,36 @@ fn unwrap_tree_type<'a>(ty: &'a Type, node_names: &BTreeSet<String>) -> Unwrappe
             let Some(last) = path.path.segments.last() else {
                 return UnwrappedTreeType::Atom(ty);
             };
+            if path.qself.is_none()
+                && path.path.segments.len() == 1
+                && let Some(alias) = aliases.get(&last.ident.to_string())
+                && seen_aliases.insert(last.ident.to_string())
+            {
+                return unwrap_tree_type_with_seen(alias, node_names, aliases, seen_aliases);
+            }
             if path.path.segments.len() == 1 && node_names.contains(&last.ident.to_string()) {
                 UnwrappedTreeType::Node
             } else {
                 UnwrappedTreeType::Atom(ty)
             }
         }
-        Type::Reference(reference) => unwrap_tree_type(&reference.elem, node_names),
+        Type::Reference(reference) => {
+            unwrap_tree_type_with_seen(&reference.elem, node_names, aliases, seen_aliases)
+        }
         Type::Array(array) => UnwrappedTreeType::Children(vec![&array.elem]),
         _ => UnwrappedTreeType::Atom(ty),
     }
 }
 
-const WRAPPER_TYPES: &[&str] = &["Box", "Option", "Vec", "Vec1", "SmallVec", "SmallVec1"];
+const WRAPPER_TYPES: &[&str] = &[
+    "Box",
+    "Option",
+    "Vec",
+    "Vec1",
+    "SmallVec",
+    "SmallVec1",
+    "WithFreeModifiers",
+];
 
 fn first_type_argument(arguments: &PathArguments) -> Option<&Type> {
     let PathArguments::AngleBracketed(arguments) = arguments else {
@@ -195,9 +246,19 @@ fn strip_tree_attrs_from_item(item: &mut Item) -> syn::Result<Item> {
             }
             Ok(Item::Enum(item.clone()))
         }
+        Item::Type(item) => Ok(Item::Type(ItemType {
+            attrs: item.attrs.clone(),
+            vis: item.vis.clone(),
+            type_token: item.type_token,
+            ident: item.ident.clone(),
+            generics: item.generics.clone(),
+            eq_token: item.eq_token,
+            ty: item.ty.clone(),
+            semi_token: item.semi_token,
+        })),
         other => Err(syn::Error::new_spanned(
             other,
-            "tree_model! currently accepts only struct and enum items",
+            "tree_model! currently accepts only struct, enum, and type alias items",
         )),
     }
 }
@@ -354,9 +415,11 @@ fn wrapper_trait_impls() -> proc_macro2::TokenStream {
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                visitor.enter_sequence();
                 for value in self {
                     value.visit_in_order(visitor);
                 }
+                visitor.exit_sequence();
             }
         }
 
@@ -365,9 +428,11 @@ fn wrapper_trait_impls() -> proc_macro2::TokenStream {
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                visitor.enter_sequence();
                 for value in self {
                     value.visit_in_order(visitor);
                 }
+                visitor.exit_sequence();
             }
         }
 
@@ -380,9 +445,11 @@ fn wrapper_trait_impls() -> proc_macro2::TokenStream {
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                visitor.enter_sequence();
                 for value in self {
                     value.visit_in_order(visitor);
                 }
+                visitor.exit_sequence();
             }
         }
 
@@ -395,9 +462,11 @@ fn wrapper_trait_impls() -> proc_macro2::TokenStream {
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                visitor.enter_sequence();
                 for value in self {
                     value.visit_in_order(visitor);
                 }
+                visitor.exit_sequence();
             }
         }
     }
@@ -413,9 +482,10 @@ fn tree_node_trait_impls(
         .map(|item| match item {
             Item::Struct(item) => tree_node_struct_impl(item),
             Item::Enum(item) => tree_node_enum_impl(item),
+            Item::Type(_) => Ok(quote!()),
             other => Err(syn::Error::new_spanned(
                 other,
-                "tree_model! currently accepts only struct and enum items",
+                "tree_model! currently accepts only struct, enum, and type alias items",
             )),
         })
         .collect::<syn::Result<Vec<_>>>()?;

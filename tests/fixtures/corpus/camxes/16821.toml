@@ -178,7 +178,7 @@ tree = """
 Predicate {
   leading_terms: [
     Tagged {
-      tense_modal: WithFreeModifiers {
+      tense_modal: Composite {
         Word {
           kind: "cmavo",
           phonemes: "pu",
@@ -263,18 +263,20 @@ Predicate {
             phonemes: "la",
             span: [47,49],
           },
-          names: WithIndicator {
-            Word {
-              kind: "cmevla",
-              phonemes: "lojban",
-              span: [50,56],
+          names: [
+            WithIndicator {
+              Word {
+                kind: "cmevla",
+                phonemes: "lojban",
+                span: [50,56],
+              },
+              indicator: Word {
+                kind: "cmavo",
+                phonemes: "po'o",
+                span: [57,61],
+              },
             },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "po'o",
-              span: [57,61],
-            },
-          },
+          ],
         },
       },
     ],

@@ -168,7 +168,7 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: WithFreeModifiers {
+      vocative_markers: [
         Word {
           kind: "cmavo",
           phonemes: "je'e",
@@ -179,7 +179,7 @@ Text {
           phonemes: "naĭ",
           span: [4,7],
         },
-      },
+      ],
     },
   ],
   ParagraphStatement {
@@ -217,11 +217,13 @@ Text {
         terms: [
           RelativeClause {
             base_argument: Letter {
-              letter: Word {
-                kind: "cmavo",
-                phonemes: "vy",
-                span: [31,33],
-              },
+              letter: [
+                Word {
+                  kind: "cmavo",
+                  phonemes: "vy",
+                  span: [31,33],
+                },
+              ],
             },
             relative_clauses: [
               GoiRelativeClause {

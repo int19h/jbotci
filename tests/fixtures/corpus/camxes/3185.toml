@@ -148,19 +148,23 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "xu",
-      span: [0,2],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "xu",
+        span: [0,2],
+      },
     },
   ],
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: Word {
-        kind: "cmavo",
-        phonemes: "pe'u",
-        span: [3,7],
-      },
+      vocative_markers: [
+        Word {
+          kind: "cmavo",
+          phonemes: "pe'u",
+          span: [3,7],
+        },
+      ],
       argument: Descriptor {
         descriptor: Word {
           kind: "cmavo",

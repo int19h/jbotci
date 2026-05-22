@@ -68,27 +68,27 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: WithFreeModifiers {
-        Word {
-          kind: "cmavo",
-          phonemes: "to",
-          span: [0,2],
-        },
-        free_modifiers: [
-          Vocative {
-            vocative_markers: Word {
+      to: Word {
+        kind: "cmavo",
+        phonemes: "to",
+        span: [0,2],
+      },
+      free_modifiers: [
+        Vocative {
+          vocative_markers: [
+            Word {
               kind: "cmavo",
               phonemes: "doĭ",
               span: [3,6],
             },
-            argument: Word {
-              kind: "cmevla",
-              phonemes: "bancus",
-              span: [7,13],
-            },
+          ],
+          argument: Word {
+            kind: "cmevla",
+            phonemes: "bancus",
+            span: [7,13],
           },
-        ],
-      },
+        },
+      ],
       Text {},
       toi: Word {
         kind: "cmavo",

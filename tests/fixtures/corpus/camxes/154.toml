@@ -98,31 +98,33 @@ tree = """
 Predicate {
   leading_terms: [
     Letter {
-      letter: Letter {
-        ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [0,3],
+      letter: [
+        Letter {
+          ZoiQuote {
+            zoi: Word {
+              kind: "cmavo",
+              phonemes: "zoĭ",
+              span: [0,3],
+            },
+            opening_delimiter: Word {
+              kind: "cmavo",
+              phonemes: "ba'e",
+              span: [4,8],
+            },
+            quoted_text: [8,11],
+            closing_delimiter: Word {
+              kind: "cmavo",
+              phonemes: "ba'e",
+              span: [12,16],
+            },
           },
-          opening_delimiter: Word {
+          bu: Word {
             kind: "cmavo",
-            phonemes: "ba'e",
-            span: [4,8],
-          },
-          quoted_text: [8,11],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "ba'e",
-            span: [12,16],
+            phonemes: "bu",
+            span: [17,19],
           },
         },
-        bu: Word {
-          kind: "cmavo",
-          phonemes: "bu",
-          span: [17,19],
-        },
-      },
+      ],
     },
   ],
   cu: Word {

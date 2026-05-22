@@ -500,7 +500,7 @@ Paragraph {
     leading_statement: Predicate {
       leading_terms: [
         Tagged {
-          tense_modal: WithFreeModifiers {
+          tense_modal: Composite {
             Word {
               kind: "cmavo",
               phonemes: "pu",
@@ -584,7 +584,7 @@ Paragraph {
       phonemes: "i",
       span: [49,50],
     },
-    connective: WithFreeModifiers {
+    connective: Relation {
       Word {
         kind: "cmavo",
         phonemes: "ba",
@@ -669,7 +669,7 @@ Paragraph {
         phonemes: "i",
         span: [96,97],
       },
-      connective: WithFreeModifiers {
+      connective: Relation {
         Word {
           kind: "cmavo",
           phonemes: "ri'a",
@@ -735,7 +735,7 @@ Paragraph {
         },
       ],
       TenseModal {
-        tense_modal: WithFreeModifiers {
+        tense_modal: Composite {
           Word {
             kind: "cmavo",
             phonemes: "ca",
@@ -747,7 +747,7 @@ Paragraph {
             span: [135,137],
           },
         },
-        WithFreeModifiers {
+        Word {
           Word {
             kind: "gismu",
             phonemes: "klama",
@@ -755,11 +755,13 @@ Paragraph {
           },
           free_modifiers: [
             Vocative {
-              vocative_markers: Word {
-                kind: "cmavo",
-                phonemes: "doĭ",
-                span: [144,147],
-              },
+              vocative_markers: [
+                Word {
+                  kind: "cmavo",
+                  phonemes: "doĭ",
+                  span: [144,147],
+                },
+              ],
               argument: RelationVocative {
                 relation: Word {
                   kind: "lujvo",

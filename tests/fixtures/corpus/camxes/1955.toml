@@ -109,56 +109,56 @@ tree = """
 Term {
   terms: [
     Letter {
-      letter: Word {
-        kind: "cmavo",
-        phonemes: "xy",
-        span: [0,2],
-      },
-      boi: WithFreeModifiers {
+      letter: [
         Word {
           kind: "cmavo",
-          phonemes: "boĭ",
-          span: [3,6],
+          phonemes: "xy",
+          span: [0,2],
         },
-        free_modifiers: [
-          Xi {
-            xi: Word {
+      ],
+      boi: Word {
+        kind: "cmavo",
+        phonemes: "boĭ",
+        span: [3,6],
+      },
+      free_modifiers: [
+        Xi {
+          xi: Word {
+            kind: "cmavo",
+            phonemes: "xi",
+            span: [6,8],
+          },
+          Vei {
+            vei: Word {
               kind: "cmavo",
-              phonemes: "xi",
-              span: [6,8],
+              phonemes: "veĭ",
+              span: [9,12],
             },
-            Vei {
-              vei: Word {
+            Binary {
+              left_expression: Word {
                 kind: "cmavo",
-                phonemes: "veĭ",
-                span: [9,12],
+                phonemes: "ny",
+                span: [13,15],
               },
-              Binary {
-                left_expression: Word {
-                  kind: "cmavo",
-                  phonemes: "ny",
-                  span: [13,15],
-                },
-                operator: Word {
-                  kind: "cmavo",
-                  phonemes: "su'i",
-                  span: [17,21],
-                },
-                right_expression: Word {
-                  kind: "cmavo",
-                  phonemes: "pa",
-                  span: [22,24],
-                },
-              },
-              veho: Word {
+              operator: Word {
                 kind: "cmavo",
-                phonemes: "ve'o",
-                span: [26,30],
+                phonemes: "su'i",
+                span: [17,21],
               },
+              right_expression: Word {
+                kind: "cmavo",
+                phonemes: "pa",
+                span: [22,24],
+              },
+            },
+            veho: Word {
+              kind: "cmavo",
+              phonemes: "ve'o",
+              span: [26,30],
             },
           },
-        ],
-      },
+        },
+      ],
     },
   ],
 }"""

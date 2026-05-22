@@ -152,11 +152,13 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: Word {
-        kind: "cmavo",
-        phonemes: "doĭ",
-        span: [0,3],
-      },
+      vocative_markers: [
+        Word {
+          kind: "cmavo",
+          phonemes: "doĭ",
+          span: [0,3],
+        },
+      ],
       argument: WithIndicator {
         Word {
           kind: "cmevla",
@@ -181,7 +183,7 @@ Text {
     ],
     Relation {
       TenseModal {
-        tense_modal: WithFreeModifiers {
+        tense_modal: Composite {
           Word {
             kind: "cmavo",
             phonemes: "so'a",
@@ -207,7 +209,7 @@ Text {
         },
       },
       terms: [
-        WithFreeModifiers {
+        Zo {
           ZoQuote {
             zo: Word {
               kind: "cmavo",
@@ -222,11 +224,13 @@ Text {
           },
           free_modifiers: [
             Vocative {
-              vocative_markers: Word {
-                kind: "cmavo",
-                phonemes: "ki'e",
-                span: [43,47],
-              },
+              vocative_markers: [
+                Word {
+                  kind: "cmavo",
+                  phonemes: "ki'e",
+                  span: [43,47],
+                },
+              ],
               argument: Word {
                 kind: "cmevla",
                 phonemes: "xod",

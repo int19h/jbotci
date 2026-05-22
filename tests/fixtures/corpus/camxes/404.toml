@@ -135,11 +135,13 @@ ParagraphStatement {
             phonemes: "la",
             span: [7,9],
           },
-          names: Word {
-            kind: "cmevla",
-            phonemes: "djordj",
-            span: [10,16],
-          },
+          names: [
+            Word {
+              kind: "cmevla",
+              phonemes: "djordj",
+              span: [10,16],
+            },
+          ],
         },
       ],
       relation: Word {
@@ -147,34 +149,34 @@ ParagraphStatement {
         phonemes: "cusku",
         span: [18,23],
       },
-      sehu: WithFreeModifiers {
-        Word {
-          kind: "cmavo",
-          phonemes: "se'u",
-          span: [24,28],
-        },
-        free_modifiers: [
-          Vocative {
-            vocative_markers: Word {
+      sehu: Word {
+        kind: "cmavo",
+        phonemes: "se'u",
+        span: [24,28],
+      },
+      free_modifiers: [
+        Vocative {
+          vocative_markers: [
+            Word {
               kind: "cmavo",
               phonemes: "ke'o",
               span: [29,33],
             },
-            argument: WithIndicator {
-              Word {
-                kind: "cmevla",
-                phonemes: "djan",
-                span: [35,39],
-              },
-              indicator: Word {
-                kind: "cmavo",
-                phonemes: "zo'o",
-                span: [41,45],
-              },
+          ],
+          argument: WithIndicator {
+            Word {
+              kind: "cmevla",
+              phonemes: "djan",
+              span: [35,39],
+            },
+            indicator: Word {
+              kind: "cmavo",
+              phonemes: "zo'o",
+              span: [41,45],
             },
           },
-        ],
-      },
+        },
+      ],
     },
   ],
 }"""

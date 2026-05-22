@@ -253,16 +253,18 @@ brackets = "(xu-kaŭ [{(ka'e ku) (ti'u [li {([cácra bu] pa no [másti bu] mu [d
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "xu",
-        span: [0,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "kaŭ",
-        span: [3,6],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "xu",
+          span: [0,2],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "kaŭ",
+          span: [3,6],
+        },
       },
     },
   ],
@@ -297,63 +299,61 @@ Text {
             span: [20,22],
           },
           Letter {
-            WithFreeModifiers {
-              Letter {
-                Word {
-                  kind: "gismu",
-                  phonemes: "cacra",
-                  span: [23,28],
-                },
-                bu: Word {
-                  kind: "cmavo",
-                  phonemes: "bu",
-                  span: [29,31],
-                },
-              },
+            Letter {
               Word {
-                kind: "cmavo",
-                phonemes: "pa",
-                span: [32,34],
+                kind: "gismu",
+                phonemes: "cacra",
+                span: [23,28],
               },
+              bu: Word {
+                kind: "cmavo",
+                phonemes: "bu",
+                span: [29,31],
+              },
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "pa",
+              span: [32,34],
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "no",
+              span: [35,37],
+            },
+            Letter {
               Word {
+                kind: "gismu",
+                phonemes: "masti",
+                span: [38,43],
+              },
+              bu: Word {
                 kind: "cmavo",
-                phonemes: "no",
-                span: [35,37],
+                phonemes: "bu",
+                span: [44,46],
               },
-              Letter {
-                Word {
-                  kind: "gismu",
-                  phonemes: "masti",
-                  span: [38,43],
-                },
-                bu: Word {
-                  kind: "cmavo",
-                  phonemes: "bu",
-                  span: [44,46],
-                },
-              },
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "mu",
+              span: [47,49],
+            },
+            Letter {
               Word {
+                kind: "gismu",
+                phonemes: "djedi",
+                span: [50,55],
+              },
+              bu: Word {
                 kind: "cmavo",
-                phonemes: "mu",
-                span: [47,49],
+                phonemes: "bu",
+                span: [56,58],
               },
-              Letter {
-                Word {
-                  kind: "gismu",
-                  phonemes: "djedi",
-                  span: [50,55],
-                },
-                bu: Word {
-                  kind: "cmavo",
-                  phonemes: "bu",
-                  span: [56,58],
-                },
-              },
-              Word {
-                kind: "cmavo",
-                phonemes: "re",
-                span: [59,61],
-              },
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "re",
+              span: [59,61],
             },
             boi: Word {
               kind: "cmavo",

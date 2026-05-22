@@ -125,7 +125,7 @@ Predicate {
   ],
   Relation {
     TenseModal {
-      tense_modal: WithFreeModifiers {
+      tense_modal: Composite {
         Word {
           kind: "cmavo",
           phonemes: "pu",
@@ -145,34 +145,34 @@ Predicate {
     },
     terms: [
       Lu {
-        lu: WithFreeModifiers {
-          WithIndicator {
-            Word {
-              kind: "cmavo",
-              phonemes: "lu",
-              span: [14,16],
-            },
-            indicator: Word {
-              kind: "cmavo",
-              phonemes: "ŭi",
-              span: [18,20],
-            },
-            nai: Word {
-              kind: "cmavo",
-              phonemes: "naĭ",
-              span: [20,23],
-            },
+        lu: WithIndicator {
+          Word {
+            kind: "cmavo",
+            phonemes: "lu",
+            span: [14,16],
           },
-          free_modifiers: [
-            Vocative {
-              vocative_markers: Word {
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "ŭi",
+            span: [18,20],
+          },
+          nai: Word {
+            kind: "cmavo",
+            phonemes: "naĭ",
+            span: [20,23],
+          },
+        },
+        free_modifiers: [
+          Vocative {
+            vocative_markers: [
+              Word {
                 kind: "cmavo",
                 phonemes: "vi'o",
                 span: [24,28],
               },
-            },
-          ],
-        },
+            ],
+          },
+        ],
         Text {},
         lihu: Word {
           kind: "cmavo",

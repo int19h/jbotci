@@ -74,27 +74,27 @@ Predicate {
     },
   ],
   Goha {
-    goha: WithFreeModifiers {
-      Word {
-        kind: "cmavo",
-        phonemes: "mo",
-        span: [3,5],
-      },
-      free_modifiers: [
-        Vocative {
-          vocative_markers: Word {
+    goha: Word {
+      kind: "cmavo",
+      phonemes: "mo",
+      span: [3,5],
+    },
+    free_modifiers: [
+      Vocative {
+        vocative_markers: [
+          Word {
             kind: "cmavo",
             phonemes: "doĭ",
             span: [6,9],
           },
-          argument: Word {
-            kind: "cmevla",
-            phonemes: "bancus",
-            span: [10,16],
-          },
+        ],
+        argument: Word {
+          kind: "cmevla",
+          phonemes: "bancus",
+          span: [10,16],
         },
-      ],
-    },
+      },
+    ],
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Goha":{"goha":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"mo","kind":"cmavo"}}},{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[6,9],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[10,16],"phonemes":"bancus","kind":"cmevla"}}}]}}}]}}]}}}}}}}}]}]}'

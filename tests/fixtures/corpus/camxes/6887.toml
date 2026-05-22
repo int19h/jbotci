@@ -47,16 +47,18 @@ json = '[{"Bare":{"span":[0,2],"phonemes":"ĭo","kind":"cmavo"}},{"Bare":{"span"
 tree = """
 Text {
   leading_indicators: [
-    WithIndicator {
-      Word {
-        kind: "cmavo",
-        phonemes: "ĭo",
-        span: [0,2],
-      },
-      indicator: Word {
-        kind: "cmavo",
-        phonemes: "ĭo",
-        span: [3,5],
+    Indicator {
+      indicator: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "ĭo",
+          span: [0,2],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ĭo",
+          span: [3,5],
+        },
       },
     },
   ],

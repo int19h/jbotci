@@ -575,53 +575,51 @@ Paragraph {
     Term {
       terms: [
         Lu {
-          lu: WithFreeModifiers {
-            WithIndicator {
-              Word {
+          lu: WithIndicator {
+            Word {
+              kind: "cmavo",
+              phonemes: "lu",
+              span: [3,5],
+            },
+            indicator: Word {
+              kind: "cmavo",
+              phonemes: "i'e",
+              span: [6,9],
+            },
+          },
+          free_modifiers: [
+            Sei {
+              sei: Word {
                 kind: "cmavo",
-                phonemes: "lu",
-                span: [3,5],
+                phonemes: "seĭ",
+                span: [10,13],
               },
-              indicator: Word {
+              terms: [
+                Descriptor {
+                  descriptor: Word {
+                    kind: "cmavo",
+                    phonemes: "la",
+                    span: [14,16],
+                  },
+                  relation: Word {
+                    kind: "lujvo",
+                    phonemes: "noltrunaŭ",
+                    span: [17,26],
+                  },
+                },
+              ],
+              cu: Word {
                 kind: "cmavo",
-                phonemes: "i'e",
-                span: [6,9],
+                phonemes: "cu",
+                span: [27,29],
+              },
+              relation: Word {
+                kind: "gismu",
+                phonemes: "cusku",
+                span: [30,35],
               },
             },
-            free_modifiers: [
-              Sei {
-                sei: Word {
-                  kind: "cmavo",
-                  phonemes: "seĭ",
-                  span: [10,13],
-                },
-                terms: [
-                  Descriptor {
-                    descriptor: Word {
-                      kind: "cmavo",
-                      phonemes: "la",
-                      span: [14,16],
-                    },
-                    relation: Word {
-                      kind: "lujvo",
-                      phonemes: "noltrunaŭ",
-                      span: [17,26],
-                    },
-                  },
-                ],
-                cu: Word {
-                  kind: "cmavo",
-                  phonemes: "cu",
-                  span: [27,29],
-                },
-                relation: Word {
-                  kind: "gismu",
-                  phonemes: "cusku",
-                  span: [30,35],
-                },
-              },
-            ],
-          },
+          ],
           Text {},
           lihu: Word {
             kind: "cmavo",
@@ -641,11 +639,13 @@ Paragraph {
     Predicate {
       leading_terms: [
         Letter {
-          letter: Word {
-            kind: "cmavo",
-            phonemes: "ny",
-            span: [43,45],
-          },
+          letter: [
+            Word {
+              kind: "cmavo",
+              phonemes: "ny",
+              span: [43,45],
+            },
+          ],
         },
       ],
       Relation {
@@ -703,41 +703,39 @@ Paragraph {
             Predicate {
               leading_terms: [
                 Lu {
-                  lu: WithFreeModifiers {
-                    Word {
-                      kind: "cmavo",
-                      phonemes: "lu",
-                      span: [81,83],
-                    },
-                    free_modifiers: [
-                      To {
-                        to: Word {
-                          kind: "cmavo",
-                          phonemes: "to",
-                          span: [84,86],
-                        },
-                        Predicate {
-                          leading_terms: [
-                            Word {
-                              kind: "cmavo",
-                              phonemes: "mi'o",
-                              span: [87,91],
-                            },
-                          ],
+                  lu: Word {
+                    kind: "cmavo",
+                    phonemes: "lu",
+                    span: [81,83],
+                  },
+                  free_modifiers: [
+                    To {
+                      to: Word {
+                        kind: "cmavo",
+                        phonemes: "to",
+                        span: [84,86],
+                      },
+                      Predicate {
+                        leading_terms: [
                           Word {
-                            kind: "gismu",
-                            phonemes: "djuno",
-                            span: [92,97],
+                            kind: "cmavo",
+                            phonemes: "mi'o",
+                            span: [87,91],
                           },
-                        },
-                        toi: Word {
-                          kind: "cmavo",
-                          phonemes: "toĭ",
-                          span: [98,101],
+                        ],
+                        Word {
+                          kind: "gismu",
+                          phonemes: "djuno",
+                          span: [92,97],
                         },
                       },
-                    ],
-                  },
+                      toi: Word {
+                        kind: "cmavo",
+                        phonemes: "toĭ",
+                        span: [98,101],
+                      },
+                    },
+                  ],
                   Text {},
                   lihu: Word {
                     kind: "cmavo",

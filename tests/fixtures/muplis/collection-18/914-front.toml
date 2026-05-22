@@ -101,10 +101,12 @@ brackets = "(.aĭ [pénmi {do (ti'u [li {cy mu}])}])"
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "aĭ",
-      span: [1,3],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "aĭ",
+        span: [1,3],
+      },
     },
   ],
   Relation {
@@ -133,7 +135,7 @@ Text {
             phonemes: "li",
             span: [18,20],
           },
-          WithFreeModifiers {
+          Letter {
             Word {
               kind: "cmavo",
               phonemes: "cy",

@@ -78,31 +78,33 @@ tree = """
 Term {
   terms: [
     Letter {
-      letter: Letter {
-        ZoiQuote {
-          zoi: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [0,3],
+      letter: [
+        Letter {
+          ZoiQuote {
+            zoi: Word {
+              kind: "cmavo",
+              phonemes: "zoĭ",
+              span: [0,3],
+            },
+            opening_delimiter: Word {
+              kind: "cmavo",
+              phonemes: "zoĭ",
+              span: [4,7],
+            },
+            quoted_text: [7,87],
+            closing_delimiter: Word {
+              kind: "cmavo",
+              phonemes: "zoĭ",
+              span: [88,91],
+            },
           },
-          opening_delimiter: Word {
+          bu: Word {
             kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [4,7],
-          },
-          quoted_text: [7,87],
-          closing_delimiter: Word {
-            kind: "cmavo",
-            phonemes: "zoĭ",
-            span: [88,91],
+            phonemes: "bu",
+            span: [92,94],
           },
         },
-        bu: Word {
-          kind: "cmavo",
-          phonemes: "bu",
-          span: [92,94],
-        },
-      },
+      ],
     },
   ],
 }"""

@@ -121,10 +121,12 @@ json = """[{"Bare":{"span":[0,4],"phonemes":"ru'a","kind":"cmavo"}},{"ZoQuote":{
 tree = """
 Text {
   leading_indicators: [
-    Word {
-      kind: "cmavo",
-      phonemes: "ru'a",
-      span: [0,4],
+    Indicator {
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ru'a",
+        span: [0,4],
+      },
     },
   ],
   Predicate {
@@ -155,7 +157,7 @@ Text {
             phonemes: "le",
             span: [22,24],
           },
-          outer_quantifier: WithFreeModifiers {
+          outer_quantifier: Number {
             Word {
               kind: "cmavo",
               phonemes: "pi",

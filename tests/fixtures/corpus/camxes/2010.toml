@@ -1663,7 +1663,7 @@ Paragraph {
     Predicate {
       leading_terms: [
         Tagged {
-          tense_modal: WithFreeModifiers {
+          tense_modal: Composite {
             Word {
               kind: "cmavo",
               phonemes: "ba",
@@ -1684,18 +1684,20 @@ Paragraph {
           },
         },
         Letter {
-          letter: Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "a",
-              span: [9,10],
+          letter: [
+            Letter {
+              Word {
+                kind: "cmavo",
+                phonemes: "a",
+                span: [9,10],
+              },
+              bu: Word {
+                kind: "cmavo",
+                phonemes: "bu",
+                span: [10,12],
+              },
             },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [10,12],
-            },
-          },
+          ],
         },
       ],
       PredicateTail1 {
@@ -2084,11 +2086,13 @@ Paragraph {
     Predicate {
       leading_terms: [
         Letter {
-          letter: Word {
-            kind: "cmavo",
-            phonemes: "ry",
-            span: [253,255],
-          },
+          letter: [
+            Word {
+              kind: "cmavo",
+              phonemes: "ry",
+              span: [253,255],
+            },
+          ],
         },
       ],
       PredicateTail1 {
@@ -2166,11 +2170,13 @@ Paragraph {
                     Predicate {
                       leading_terms: [
                         Letter {
-                          letter: Word {
-                            kind: "cmavo",
-                            phonemes: "ny",
-                            span: [317,319],
-                          },
+                          letter: [
+                            Word {
+                              kind: "cmavo",
+                              phonemes: "ny",
+                              span: [317,319],
+                            },
+                          ],
                         },
                       ],
                       Relation {
@@ -2244,11 +2250,13 @@ Paragraph {
                                           Predicate {
                                             leading_terms: [
                                               Letter {
-                                                letter: Word {
-                                                  kind: "cmavo",
-                                                  phonemes: "ny",
-                                                  span: [361,363],
-                                                },
+                                                letter: [
+                                                  Word {
+                                                    kind: "cmavo",
+                                                    phonemes: "ny",
+                                                    span: [361,363],
+                                                  },
+                                                ],
                                               },
                                             ],
                                             Word {
@@ -2297,11 +2305,13 @@ Paragraph {
               phonemes: "la",
               span: [377,379],
             },
-            names: Word {
-              kind: "cmevla",
-              phonemes: "alis",
-              span: [380,384],
-            },
+            names: [
+              Word {
+                kind: "cmevla",
+                phonemes: "alis",
+                span: [380,384],
+              },
+            ],
           },
         ],
         Relation {
@@ -2431,7 +2441,7 @@ Paragraph {
         phonemes: "i",
         span: [463,464],
       },
-      connective: WithFreeModifiers {
+      connective: Relation {
         Word {
           kind: "cmavo",
           phonemes: "se",
@@ -2451,18 +2461,20 @@ Paragraph {
       trailing_statement: Predicate {
         leading_terms: [
           Letter {
-            letter: Letter {
-              Word {
-                kind: "cmavo",
-                phonemes: "a",
-                span: [473,474],
+            letter: [
+              Letter {
+                Word {
+                  kind: "cmavo",
+                  phonemes: "a",
+                  span: [473,474],
+                },
+                bu: Word {
+                  kind: "cmavo",
+                  phonemes: "bu",
+                  span: [474,476],
+                },
               },
-              bu: Word {
-                kind: "cmavo",
-                phonemes: "bu",
-                span: [474,476],
-              },
-            },
+            ],
           },
           Tagged {
             tense_modal: Word {
@@ -2577,36 +2589,34 @@ Paragraph {
               },
             },
             Lu {
-              lu: WithFreeModifiers {
-                Word {
-                  kind: "cmavo",
-                  phonemes: "lu",
-                  span: [553,555],
-                },
-                free_modifiers: [
-                  Vocative {
-                    vocative_markers: WithFreeModifiers {
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "pe'u",
-                        span: [556,560],
-                      },
-                      Word {
-                        kind: "cmavo",
-                        phonemes: "doĭ",
-                        span: [561,564],
-                      },
+              lu: Word {
+                kind: "cmavo",
+                phonemes: "lu",
+                span: [553,555],
+              },
+              free_modifiers: [
+                Vocative {
+                  vocative_markers: [
+                    Word {
+                      kind: "cmavo",
+                      phonemes: "pe'u",
+                      span: [556,560],
                     },
-                    argument: RelationVocative {
-                      relation: Word {
-                        kind: "gismu",
-                        phonemes: "ractu",
-                        span: [565,570],
-                      },
+                    Word {
+                      kind: "cmavo",
+                      phonemes: "doĭ",
+                      span: [561,564],
+                    },
+                  ],
+                  argument: RelationVocative {
+                    relation: Word {
+                      kind: "gismu",
+                      phonemes: "ractu",
+                      span: [565,570],
                     },
                   },
-                ],
-              },
+                },
+              ],
               Text {},
               lihu: Word {
                 kind: "cmavo",
@@ -2748,7 +2758,7 @@ Paragraph {
               },
               terms: [
                 Tagged {
-                  tense_modal: WithFreeModifiers {
+                  tense_modal: Composite {
                     Word {
                       kind: "cmavo",
                       phonemes: "mo'i",

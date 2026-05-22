@@ -374,11 +374,13 @@ Paragraph {
             phonemes: "la",
             span: [3,5],
           },
-          names: Word {
-            kind: "cmevla",
-            phonemes: "alis",
-            span: [6,10],
-          },
+          names: [
+            Word {
+              kind: "cmevla",
+              phonemes: "alis",
+              span: [6,10],
+            },
+          ],
         },
         Quantified {
           quantifier: Word {
@@ -409,18 +411,20 @@ Paragraph {
     Predicate {
       leading_terms: [
         Letter {
-          letter: Letter {
-            Word {
-              kind: "cmavo",
-              phonemes: "a",
-              span: [24,25],
+          letter: [
+            Letter {
+              Word {
+                kind: "cmavo",
+                phonemes: "a",
+                span: [24,25],
+              },
+              bu: Word {
+                kind: "cmavo",
+                phonemes: "bu",
+                span: [25,27],
+              },
             },
-            bu: Word {
-              kind: "cmavo",
-              phonemes: "bu",
-              span: [25,27],
-            },
-          },
+          ],
         },
       ],
       PredicateTail1 {
@@ -430,7 +434,7 @@ Paragraph {
             phonemes: "ca'o",
             span: [28,32],
           },
-          WithFreeModifiers {
+          Word {
             Word {
               kind: "gismu",
               phonemes: "zutse",
@@ -557,7 +561,7 @@ Paragraph {
                         },
                       ],
                       TenseModal {
-                        tense_modal: WithFreeModifiers {
+                        tense_modal: Composite {
                           Word {
                             kind: "cmavo",
                             phonemes: "ba",

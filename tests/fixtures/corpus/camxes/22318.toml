@@ -46,21 +46,21 @@ json = """[{"Bare":{"span":[0,2],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span
 [expectations.output.gentufa]
 tree = """
 Goha {
-  goha: WithFreeModifiers {
-    Word {
-      kind: "cmavo",
-      phonemes: "mo",
-      span: [0,2],
-    },
-    free_modifiers: [
-      Vocative {
-        vocative_markers: Word {
+  goha: Word {
+    kind: "cmavo",
+    phonemes: "mo",
+    span: [0,2],
+  },
+  free_modifiers: [
+    Vocative {
+      vocative_markers: [
+        Word {
           kind: "cmavo",
           phonemes: "re'i",
           span: [3,7],
         },
-      },
-    ],
-  },
+      ],
+    },
+  ],
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Goha":{"goha":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"mo","kind":"cmavo"}}},{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[3,7],"phonemes":"re'i","kind":"cmavo"}}}]}}]}}]}}}}}}}}]}]}"""
