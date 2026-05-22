@@ -4,8 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use bityzba::{contract_trait, data, invariant, new, requires};
-use jbotci_morphology::{WordKind, WordLike, WordLikeData};
+#[allow(unused_imports)]
+use bityzba::{contract_trait, ensures, invariant, requires};
 use jbotci_source::SourceId;
 use support::fixtures::{
     CllSelector, CommandOutputExpectation, ExpectationStatus, Expectations, Facet, FacetResult,
@@ -25,14 +25,17 @@ fn loads_smoke_fixture() {
     assert_eq!(test_case.id, "adhoc.smoke.coi");
     assert_eq!(test_case.lojban, "coi");
     assert!(test_case.tags.contains(&"smoke".to_owned()));
-    assert_eq!(
+    assert!(
         test_case
             .expectations
-            .morphology
-            .expect("morphology expectation")
-            .words[0]
-            .base_word_kind(),
-        Some(WordKind::Cmavo)
+            .output
+            .expect("output expectation")
+            .vlasei
+            .expect("vlasei output")
+            .json
+            .expect("vlasei JSON")
+            .text
+            .contains(r#""kind":"cmavo""#)
     );
 }
 
@@ -232,7 +235,7 @@ fn parallel_runner_matches_serial_summary() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn morphology_matches_simple_cll_fixture() {
+fn morphology_raw_matches_simple_cll_fixture() {
     let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/cll/chapter-05/section-5.1/c5e1d1.toml");
     let test_case = load_fixture_file(fixture_path).expect("fixture should load");
@@ -240,13 +243,15 @@ fn morphology_matches_simple_cll_fixture() {
         .expectations
         .morphology
         .expect("morphology expectation")
-        .words;
+        .raw
+        .expect("morphology raw")
+        .text;
     let actual = jbotci_morphology::segment_words_with_modifiers_with_source_id(
         &test_case.lojban,
         SourceId("<fixture>".to_owned()),
     )
     .expect("simple fixture should segment");
-    assert_eq!(actual, expected);
+    assert_eq!(format!("{actual:?}"), expected);
 }
 
 #[test]
@@ -322,15 +327,10 @@ fn fixture_check_rejects_invalid_xfail_metadata() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn writer_keeps_tree_and_words_as_values() {
+fn writer_keeps_tree_and_output_values() {
     let temp_root = temp_root("jbotci-fixtures-writer-test");
     fs::create_dir_all(&temp_root).expect("temp root");
     let fixture_path = temp_root.join("fixture.toml");
-    let word = WordLike::bare(new!(jbotci_morphology::Word {
-        kind: WordKind::Cmavo,
-        phonemes: String::from("coi"),
-        span: jbotci_source_span(),
-    }));
     let test_case = TestCase {
         id: "adhoc.syntax".into(),
         lojban: "coi".into(),
@@ -366,7 +366,6 @@ fn writer_keeps_tree_and_words_as_values() {
                 raw: Some(TextExpectation {
                     text: "[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: \"coi\", span: SourceSpan(SourceSpanData { source_id: None, byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))]".into(),
                 }),
-                words: vec![word],
                 error: None,
             }),
             syntax: Some(SyntaxExpectation {
@@ -391,7 +390,7 @@ fn writer_keeps_tree_and_words_as_values() {
     assert!(text.contains("[expectations.output.gentufa]\nbrackets = \"[coi]\""));
     assert!(text.contains("tree = '\"coi\"'"));
     assert!(text.contains("[expectations.morphology]\nstatus = \"success\"\nraw = "));
-    assert!(text.contains("words = ["));
+    assert!(!text.contains("words = ["));
     assert!(!text.contains("options = "));
     assert!(text.contains("[expectations.syntax]\nstatus = \"success\"\nraw = "));
     assert!(!text.contains("parse-tree"));
@@ -482,36 +481,4 @@ fn temp_root(prefix: &str) -> PathBuf {
             .expect("clock")
             .as_nanos()
     ))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn jbotci_source_span() -> jbotci_source::SourceSpan {
-    jbotci_source::SourceSpan::new(
-        Some(jbotci_source::SourceId("<fixture>".to_owned())),
-        0,
-        3,
-        0,
-        3,
-    )
-    .expect("valid span")
-}
-
-#[contract_trait]
-trait WordLikeExpectationExt {
-    #[requires(true)]
-    #[ensures(true)]
-    fn base_word_kind(&self) -> Option<WordKind>;
-}
-
-#[contract_trait]
-impl WordLikeExpectationExt for WordLike {
-    #[requires(true)]
-    #[ensures(true)]
-    fn base_word_kind(&self) -> Option<WordKind> {
-        match self.as_data() {
-            data!(WordLike::Bare(word)) => Some(word.kind),
-            _ => None,
-        }
-    }
 }

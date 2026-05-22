@@ -9,37 +9,6 @@ entry-id = "17020"
 [expectations.morphology]
 status = "success"
 raw = """[WordLike(LohuQuote { lohu: Word(WordData { kind: Cmavo, phonemes: "lo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }), quoted_words: [Word(WordData { kind: Gismu, phonemes: "ticta", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) })], lehu: Word(WordData { kind: Cmavo, phonemes: "le'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None }) }) }), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "gismu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 24, char_start: 19, char_end: 24, start: None, end: None }) })))]"""
-words = [
-    {LohuQuote = {
-        lohu = {
-            span = [0, 4],
-            phonemes = "lo'u",
-            kind = "cmavo"
-        },
-        quoted_words = [
-            {
-                span = [5, 10],
-                phonemes = "ticta",
-                kind = "gismu"
-            },
-        ],
-        lehu = {
-            span = [11, 15],
-            phonemes = "le'u",
-            kind = "cmavo"
-        }
-    }},
-    {Bare = {
-        span = [16, 18],
-        phonemes = "na",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [19, 24],
-        phonemes = "gismu",
-        kind = "gismu"
-    }},
-]
 
 [expectations.syntax]
 status = "success"

@@ -15,42 +15,6 @@ source-path = "vendor/cll/chapters/17.xml"
 [expectations.morphology]
 status = "success"
 raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ky", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }) }), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "y'y", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }))), WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 17, char_start: 16, char_end: 17, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) }) })]"""
-words = [
-    {Bare = {
-        span = [0, 2],
-        phonemes = "ky",
-        kind = "cmavo"
-    }},
-    {Letter = {
-        base = {Bare = {
-            span = [5, 6],
-            phonemes = "o",
-            kind = "cmavo"
-        }},
-        bu = {
-            span = [6, 8],
-            phonemes = "bu",
-            kind = "cmavo"
-        }
-    }},
-    {Bare = {
-        span = [10, 13],
-        phonemes = "y'y",
-        kind = "cmavo"
-    }},
-    {Letter = {
-        base = {Bare = {
-            span = [16, 17],
-            phonemes = "a",
-            kind = "cmavo"
-        }},
-        bu = {
-            span = [17, 19],
-            phonemes = "bu",
-            kind = "cmavo"
-        }
-    }},
-]
 
 [expectations.syntax]
 status = "success"

@@ -9,47 +9,6 @@ entry-id = "31"
 [expectations.morphology]
 status = "success"
 raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "ciska", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "me'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 13, char_start: 9, char_end: 13, start: None, end: None }) }))), WordLike(Letter { base: WordLike(ZeiLujvo { left: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ŭi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) }))), zei: Word(WordData { kind: Cmavo, phonemes: "zeĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 21, char_start: 18, char_end: 21, start: None, end: None }) }), right: Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 25, char_start: 22, char_end: 25, start: None, end: None }) }) }), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 28, char_start: 26, char_end: 28, start: None, end: None }) }) })]"""
-words = [
-    {Bare = {
-        span = [0, 2],
-        phonemes = "mi",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [3, 8],
-        phonemes = "ciska",
-        kind = "gismu"
-    }},
-    {Bare = {
-        span = [9, 13],
-        phonemes = "me'o",
-        kind = "cmavo"
-    }},
-    {Letter = {
-        base = {ZeiLujvo = {
-            left = {Bare = {
-                span = [15, 17],
-                phonemes = "ŭi",
-                kind = "cmavo"
-            }},
-            zei = {
-                span = [18, 21],
-                phonemes = "zeĭ",
-                kind = "cmavo"
-            },
-            right = {
-                span = [22, 25],
-                phonemes = "naĭ",
-                kind = "cmavo"
-            }
-        }},
-        bu = {
-            span = [26, 28],
-            phonemes = "bu",
-            kind = "cmavo"
-        }
-    }},
-]
 
 [expectations.syntax]
 status = "success"

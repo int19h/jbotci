@@ -8,7 +8,7 @@ use anyhow::{Context, Result, bail};
 use bityzba::{contract_trait, ensures, invariant, requires};
 use clap::{Args, Parser, Subcommand};
 use jbotci_morphology::{
-    MorphologyOptions, WordLike, segment_words_with_modifiers_with_options_and_source_id,
+    MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_output::{
     BracketRenderOptions, JsonRenderOptions, TreeRenderOptions, compact_json_value,
@@ -291,7 +291,6 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
     {
         let morphology_words = words.clone()?;
         morphology.raw = Some(text_expectation(format_debug_value(&morphology_words)));
-        morphology.words = morphology_words.clone();
         let vlasei = ensure_vlasei_output(&mut fixture.test_case.expectations);
         vlasei.json = Some(text_expectation(
             compact_morphology_json_string_with_options(
@@ -1507,29 +1506,22 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
                 Some(SourceId("<fixture>".to_owned())),
             ) {
                 Ok(actual)
-                    if actual == expectation.words
-                        && expectation
-                            .raw
-                            .as_ref()
-                            .is_none_or(|raw| raw.text == format_debug_value(&actual)) =>
+                    if expectation
+                        .raw
+                        .as_ref()
+                        .is_some_and(|raw| raw.text == format_debug_value(&actual)) =>
                 {
                     FacetResult::passed()
                 }
-                Ok(actual) => {
-                    if expectation.words != actual {
-                        FacetResult::failed(format_morphology_mismatch(&expectation.words, &actual))
-                    } else {
-                        FacetResult::failed(format_text_mismatch(
-                            "morphology raw",
-                            &expectation
-                                .raw
-                                .as_ref()
-                                .map(|raw| raw.text.as_str())
-                                .unwrap_or_default(),
-                            &format_debug_value(&actual),
-                        ))
-                    }
-                }
+                Ok(actual) => FacetResult::failed(format_text_mismatch(
+                    "morphology raw",
+                    &expectation
+                        .raw
+                        .as_ref()
+                        .map(|raw| raw.text.as_str())
+                        .unwrap_or_default(),
+                    &format_debug_value(&actual),
+                )),
                 Err(error) => FacetResult::failed(format!("morphology error: {error}")),
             }
         }
@@ -1552,41 +1544,6 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
         }
         ExpectationStatus::Pending | ExpectationStatus::NotApplicable => FacetResult::skipped(
             format!("morphology expectation is {:?}", expectation.status),
-        ),
-    }
-}
-
-#[ensures(!ret.is_empty())]
-#[requires(true)]
-fn format_morphology_mismatch(expected: &[WordLike], actual: &[WordLike]) -> String {
-    let first_difference = expected
-        .iter()
-        .zip(actual.iter())
-        .position(|(left, right)| left != right);
-    match first_difference {
-        Some(index) => {
-            let expected_text = expected[index].to_string();
-            let actual_text = actual[index].to_string();
-            if expected_text == actual_text {
-                format!(
-                    "morphology mismatch at word {index}: expected {:#?}, got {:#?} (expected {} word(s), got {} word(s))",
-                    expected[index],
-                    actual[index],
-                    expected.len(),
-                    actual.len()
-                )
-            } else {
-                format!(
-                    "morphology mismatch at word {index}: expected `{expected_text}`, got `{actual_text}` (expected {} word(s), got {} word(s))",
-                    expected.len(),
-                    actual.len()
-                )
-            }
-        }
-        None => format!(
-            "morphology mismatch: expected {} word(s), got {} word(s)",
-            expected.len(),
-            actual.len()
         ),
     }
 }

@@ -9,35 +9,6 @@ entry-id = "12798"
 [expectations.morphology]
 status = "success"
 raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "jimpe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }), word: Word(WordData { kind: Cmavo, phonemes: "mu'eĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) }) })]"""
-words = [
-    {Bare = {
-        span = [0, 2],
-        phonemes = "mi",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [3, 5],
-        phonemes = "na",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [6, 11],
-        phonemes = "jimpe",
-        kind = "gismu"
-    }},
-    {ZoQuote = {
-        zo = {
-            span = [12, 14],
-            phonemes = "zo",
-            kind = "cmavo"
-        },
-        word = {
-            span = [15, 20],
-            phonemes = "mu'eĭ",
-            kind = "cmavo"
-        }
-    }},
-]
 
 [expectations.syntax]
 status = "success"

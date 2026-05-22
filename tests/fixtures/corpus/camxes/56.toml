@@ -9,47 +9,6 @@ entry-id = "56"
 [expectations.morphology]
 status = "success"
 raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cusku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) }))), WordLike(LohuQuote { lohu: Word(WordData { kind: Cmavo, phonemes: "lo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 20, char_start: 16, char_end: 20, start: None, end: None }) }), quoted_words: [Word(WordData { kind: Gismu, phonemes: "spacu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None }) })], lehu: Word(WordData { kind: Cmavo, phonemes: "le'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 31, char_start: 27, char_end: 31, start: None, end: None }) }) })]"""
-words = [
-    {Bare = {
-        span = [1, 3],
-        phonemes = "oĭ",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [4, 6],
-        phonemes = "mi",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [7, 9],
-        phonemes = "pu",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [10, 15],
-        phonemes = "cusku",
-        kind = "gismu"
-    }},
-    {LohuQuote = {
-        lohu = {
-            span = [16, 20],
-            phonemes = "lo'u",
-            kind = "cmavo"
-        },
-        quoted_words = [
-            {
-                span = [21, 26],
-                phonemes = "spacu",
-                kind = "gismu"
-            },
-        ],
-        lehu = {
-            span = [27, 31],
-            phonemes = "le'u",
-            kind = "cmavo"
-        }
-    }},
-]
 
 [expectations.syntax]
 status = "success"

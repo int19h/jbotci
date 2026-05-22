@@ -9,51 +9,6 @@ entry-id = "12375"
 [expectations.morphology]
 status = "success"
 raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ko", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "troci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "nu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tcidu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) }))), WordLike(ZoiQuote { zoi: Word(WordData { kind: Cmavo, phonemes: "la'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 25, char_start: 21, char_end: 25, start: None, end: None }) }), opening_delimiter: Word(WordData { kind: Cmavo, phonemes: "gy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 28, char_start: 26, char_end: 28, start: None, end: None }) }), quoted_text: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 45, char_start: 30, char_end: 45, start: None, end: None }), closing_delimiter: Word(WordData { kind: Cmavo, phonemes: "gy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 46, byte_end: 48, char_start: 46, char_end: 48, start: None, end: None }) }) })]"""
-words = [
-    {Bare = {
-        span = [0, 2],
-        phonemes = "ko",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [3, 8],
-        phonemes = "troci",
-        kind = "gismu"
-    }},
-    {Bare = {
-        span = [9, 11],
-        phonemes = "le",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [12, 14],
-        phonemes = "nu",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [15, 20],
-        phonemes = "tcidu",
-        kind = "gismu"
-    }},
-    {ZoiQuote = {
-        zoi = {
-            span = [21, 25],
-            phonemes = "la'o",
-            kind = "cmavo"
-        },
-        opening_delimiter = {
-            span = [26, 28],
-            phonemes = "gy",
-            kind = "cmavo"
-        },
-        quoted_text = [30, 45],
-        closing_delimiter = {
-            span = [46, 48],
-            phonemes = "gy",
-            kind = "cmavo"
-        }
-    }},
-]
 
 [expectations.syntax]
 status = "success"

@@ -9,41 +9,6 @@ entry-id = "22251"
 [expectations.morphology]
 status = "success"
 raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "dukse", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nelci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))), WordLike(SingleWordQuote { marker: Word(WordData { kind: Cmavo, phonemes: "la'oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) }), quoted_text: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 35, char_start: 24, char_end: 35, start: None, end: None }) }), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "toĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 39, char_start: 36, char_end: 39, start: None, end: None }) })))]"""
-words = [
-    {Bare = {
-        span = [0, 2],
-        phonemes = "to",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [3, 5],
-        phonemes = "mi",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [6, 11],
-        phonemes = "dukse",
-        kind = "gismu"
-    }},
-    {Bare = {
-        span = [12, 17],
-        phonemes = "nelci",
-        kind = "gismu"
-    }},
-    {SingleWordQuote = {
-        marker = {
-            span = [18, 23],
-            phonemes = "la'oĭ",
-            kind = "cmavo"
-        },
-        quoted_text = [24, 35]
-    }},
-    {Bare = {
-        span = [36, 39],
-        phonemes = "toĭ",
-        kind = "cmavo"
-    }},
-]
 
 [expectations.syntax]
 status = "success"

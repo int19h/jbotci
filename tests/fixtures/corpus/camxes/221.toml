@@ -9,41 +9,6 @@ entry-id = "221"
 [expectations.morphology]
 status = "success"
 raw = '[WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "broda", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }))), WordLike(ZoiQuote { zoi: Word(WordData { kind: Cmavo, phonemes: "zoĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 34, byte_end: 37, char_start: 34, char_end: 37, start: None, end: None }) }), opening_delimiter: Word(WordData { kind: Cmavo, phonemes: "si", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 38, byte_end: 40, char_start: 38, char_end: 40, start: None, end: None }) }), quoted_text: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 40, char_start: 40, char_end: 40, start: None, end: None }), closing_delimiter: Word(WordData { kind: Cmavo, phonemes: "si", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 41, byte_end: 43, char_start: 41, char_end: 43, start: None, end: None }) }) }), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 46, char_start: 44, char_end: 46, start: None, end: None }) })))]'
-words = [
-    {Bare = {
-        span = [0, 5],
-        phonemes = "broda",
-        kind = "gismu"
-    }},
-    {Bare = {
-        span = [6, 8],
-        phonemes = "co",
-        kind = "cmavo"
-    }},
-    {ZoiQuote = {
-        zoi = {
-            span = [34, 37],
-            phonemes = "zoĭ",
-            kind = "cmavo"
-        },
-        opening_delimiter = {
-            span = [38, 40],
-            phonemes = "si",
-            kind = "cmavo"
-        },
-        quoted_text = [40, 40],
-        closing_delimiter = {
-            span = [41, 43],
-            phonemes = "si",
-            kind = "cmavo"
-        }
-    }},
-    {Bare = {
-        span = [44, 46],
-        phonemes = "da",
-        kind = "cmavo"
-    }},
-]
 
 [expectations.syntax]
 status = "failure"

@@ -1161,6 +1161,29 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn word_like_deserializes_compact_constructor_json() {
+        let word_like = serde_json::from_str::<WordLike>(
+            r#"{
+                "ZoQuote": {
+                    "zo": {"kind": "cmavo", "phonemes": "zo", "span": [0, 2]},
+                    "word": {"kind": "cmavo", "phonemes": "coi", "span": [3, 6]}
+                }
+            }"#,
+        )
+        .expect("compact constructor JSON should deserialize");
+
+        let data!(WordLike::ZoQuote { zo, word }) = word_like.as_data() else {
+            panic!("expected zo quote");
+        };
+        assert!(zo.is_cmavo_text("zo"));
+        assert_eq!(word.phonemes, "coi");
+        assert_eq!(word.span.char_start, 3);
+        assert_eq!(word.span.char_end, 6);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn word_like_constructor_rejects_wrong_zo_marker() {
         let panic = std::panic::catch_unwind(|| {
             let _ = WordLike::zo_quote(

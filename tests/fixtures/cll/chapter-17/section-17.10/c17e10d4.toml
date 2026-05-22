@@ -15,40 +15,6 @@ source-path = "vendor/cll/chapters/17.xml"
 [expectations.morphology]
 status = "success"
 raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 5, char_start: 4, char_end: 5, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }) }), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "lerfu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None }) })))]"""
-words = [
-    {Bare = {
-        span = [0, 2],
-        phonemes = "lu",
-        kind = "cmavo"
-    }},
-    {Letter = {
-        base = {Bare = {
-            span = [4, 5],
-            phonemes = "a",
-            kind = "cmavo"
-        }},
-        bu = {
-            span = [5, 7],
-            phonemes = "bu",
-            kind = "cmavo"
-        }
-    }},
-    {Bare = {
-        span = [8, 12],
-        phonemes = "li'u",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [13, 15],
-        phonemes = "cu",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [16, 21],
-        phonemes = "lerfu",
-        kind = "gismu"
-    }},
-]
 
 [expectations.syntax]
 status = "success"

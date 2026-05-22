@@ -9,36 +9,6 @@ entry-id = "182"
 [expectations.morphology]
 status = "success"
 raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(ZoiQuote { zoi: Word(WordData { kind: Cmavo, phonemes: "zoĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }), opening_delimiter: Word(WordData { kind: Cmavo, phonemes: "si", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }), quoted_text: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 9, char_start: 9, char_end: 9, start: None, end: None }), closing_delimiter: Word(WordData { kind: Cmavo, phonemes: "si", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }) }), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "broda", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))]'
-words = [
-    {Bare = {
-        span = [0, 2],
-        phonemes = "co",
-        kind = "cmavo"
-    }},
-    {ZoiQuote = {
-        zoi = {
-            span = [3, 6],
-            phonemes = "zoĭ",
-            kind = "cmavo"
-        },
-        opening_delimiter = {
-            span = [7, 9],
-            phonemes = "si",
-            kind = "cmavo"
-        },
-        quoted_text = [9, 9],
-        closing_delimiter = {
-            span = [10, 12],
-            phonemes = "si",
-            kind = "cmavo"
-        }
-    }},
-    {Bare = {
-        span = [13, 18],
-        phonemes = "broda",
-        kind = "gismu"
-    }},
-]
 
 [expectations.syntax]
 status = "failure"

@@ -9,40 +9,6 @@ entry-id = "22203"
 [expectations.morphology]
 status = "success"
 raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "me", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))), WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) }), word: Word(WordData { kind: Cmavo, phonemes: "noĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 19, char_start: 16, char_end: 19, start: None, end: None }) }) }), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "valsi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 25, char_start: 20, char_end: 25, start: None, end: None }) })))]"""
-words = [
-    {Bare = {
-        span = [0, 4],
-        phonemes = "gi'e",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [5, 9],
-        phonemes = "na'e",
-        kind = "cmavo"
-    }},
-    {Bare = {
-        span = [10, 12],
-        phonemes = "me",
-        kind = "cmavo"
-    }},
-    {ZoQuote = {
-        zo = {
-            span = [13, 15],
-            phonemes = "zo",
-            kind = "cmavo"
-        },
-        word = {
-            span = [16, 19],
-            phonemes = "noĭ",
-            kind = "cmavo"
-        }
-    }},
-    {Bare = {
-        span = [20, 25],
-        phonemes = "valsi",
-        kind = "gismu"
-    }},
-]
 
 [expectations.syntax]
 status = "failure"
