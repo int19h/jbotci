@@ -64,6 +64,7 @@ enum GentufaFormat {
 #[invariant(true)]
 enum VlaseiFormat {
     Plain,
+    Raw,
     #[value(alias = "djeisone")]
     Json,
 }
@@ -240,6 +241,7 @@ fn run_cli<WOut: Write, WErr: Write>(
     let color_enabled = cli.color || color_enabled;
     match cli.command {
         Command::Vlasei(input) => {
+            validate_vlasei_options(&input)?;
             let text = input.read_text()?;
             let dialect = input.dialect_definition()?;
             let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
@@ -259,6 +261,7 @@ fn run_cli<WOut: Write, WErr: Write>(
                     )?;
                     writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
                 }
+                VlaseiFormat::Raw => write_debug_output(stdout, &words, input.indent)?,
             }
             Ok(())
         }
@@ -310,11 +313,7 @@ fn run_gentufa<WOut: Write, WErr: Write>(
             writeln!(stdout, "{rendered}")?;
         }
         GentufaFormat::Raw => {
-            if input.indent == Some(0) {
-                writeln!(stdout, "{:?}", parsed.parse_tree)?;
-            } else {
-                writeln!(stdout, "{:#?}", parsed.parse_tree)?;
-            }
+            write_debug_output(stdout, &parsed.parse_tree, input.indent)?;
         }
         GentufaFormat::Tree => {
             let rendered = pretty_tree_with_options(
@@ -384,6 +383,15 @@ fn render_syntax_warnings<W: Write>(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_vlasei_options(input: &VlaseiInput) -> Result<()> {
+    if input.format == VlaseiFormat::Raw {
+        validate_raw_indent(input.indent)?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
     if input.definitions {
         return match input.format {
@@ -395,13 +403,36 @@ fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
             )),
         };
     }
-    if input.format == GentufaFormat::Raw
-        && let Some(indent) = input.indent
+    if input.format == GentufaFormat::Raw {
+        validate_raw_indent(input.indent)?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_raw_indent(indent: Option<usize>) -> Result<()> {
+    if let Some(indent) = indent
         && indent != 0
     {
         return Err(anyhow!(
             "`--indent` for raw output only supports `0`, because Rust Debug formatting only supports pretty or compact output"
         ));
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn write_debug_output<W: Write, T: std::fmt::Debug>(
+    stdout: &mut W,
+    value: &T,
+    indent: Option<usize>,
+) -> Result<()> {
+    if indent == Some(0) {
+        writeln!(stdout, "{value:?}")?;
+    } else {
+        writeln!(stdout, "{value:#?}")?;
     }
     Ok(())
 }
@@ -674,6 +705,15 @@ mod tests {
         };
         assert_eq!(json_input.format, VlaseiFormat::Json);
 
+        let Command::Vlasei(raw_input) =
+            Cli::try_parse_from(["jbotci", "vlasei", "--format", "raw", "coi"])
+                .expect("vlasei raw")
+                .command
+        else {
+            panic!("expected vlasei command")
+        };
+        assert_eq!(raw_input.format, VlaseiFormat::Raw);
+
         let Command::Vlasei(alias_input) =
             Cli::try_parse_from(["jbotci", "vlasei", "--format", "djeisone", "coi"])
                 .expect("vlasei format alias")
@@ -753,6 +793,7 @@ mod tests {
         assert!(help.contains("--turtai"));
         assert!(help.contains("--format"));
         assert!(help.contains("plain"));
+        assert!(help.contains("raw"));
         assert!(help.contains("json"));
         assert!(!help.contains("--turtau"));
         assert!(!help.contains("--termoha"));
@@ -806,6 +847,57 @@ mod tests {
                 .expect("utf8")
                 .contains("\"Bare\"")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_raw_output_is_debug_morphology() {
+        let cli = Cli::try_parse_from(["jbotci", "vlasei", "--format", "raw", "coi"])
+            .expect("vlasei raw");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("vlasei raw run");
+        assert!(error.is_empty());
+        let output = String::from_utf8(output).expect("utf8");
+
+        assert!(output.starts_with("[\n"));
+        assert!(output.contains("WordLike("));
+        assert!(output.contains("Bare("));
+        assert!(output.contains("kind: Cmavo"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_raw_indent_zero_uses_compact_debug() {
+        let cli = Cli::try_parse_from([
+            "jbotci", "vlasei", "--format", "raw", "--indent", "0", "coi",
+        ])
+        .expect("vlasei raw indent zero");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        run_cli(cli, &mut output, &mut error, false).expect("vlasei raw run");
+        assert!(error.is_empty());
+        let output = String::from_utf8(output).expect("utf8");
+
+        assert!(!output.trim_end().contains('\n'));
+        assert!(output.starts_with("[WordLike("));
+        assert!(output.contains("Bare("));
+        assert!(output.contains("kind: Cmavo"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_raw_rejects_nonzero_indent() {
+        let cli = Cli::try_parse_from([
+            "jbotci", "vlasei", "--format", "raw", "--indent", "2", "coi",
+        ])
+        .expect("vlasei raw indent parses");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("raw nonzero indent rejected");
+        assert!(error.to_string().contains("only supports `0`"));
     }
 
     #[test]
