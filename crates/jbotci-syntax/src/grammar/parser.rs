@@ -6277,20 +6277,70 @@ fn flat_tag_chunk_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSynta
             leaves
         })
         .or(cmavo_of("SE", &["se", "te", "ve", "xe"]).map(|se| vec![se]));
+    let zantufa_prefix = choice((
+        feature_cmavo("NAhE", "na'e", DialectFeature::ZantufaTags),
+        feature_cmavo("NAhE", "to'e", DialectFeature::ZantufaTags),
+        feature_cmavo("NAhE", "no'e", DialectFeature::ZantufaTags),
+        feature_cmavo("NAhE", "je'a", DialectFeature::ZantufaTags),
+        feature_cmavo("SE", "se", DialectFeature::ZantufaTags),
+        feature_cmavo("SE", "te", DialectFeature::ZantufaTags),
+        feature_cmavo("SE", "ve", DialectFeature::ZantufaTags),
+        feature_cmavo("SE", "xe", DialectFeature::ZantufaTags),
+    ));
     let atom = choice((
-        cmavo_of("FA", FA_WORDS).map(|fa| vec![fa]),
-        simple_tense_modal().map(|tense_modal| tense_modal.leaf_words()),
-        composite_tense_modal().map(|tense_modal| tense_modal.leaf_words()),
+        cmavo_of("FA", FA_WORDS).map(|fa| (vec![fa.clone()], Some(fa))),
+        simple_tense_modal().map(|tense_modal| (tense_modal.leaf_words(), None)),
+        composite_tense_modal().map(|tense_modal| (tense_modal.leaf_words(), None)),
     ));
 
-    prefixes
-        .then(atom)
-        .map(|(mut prefix_leaves, atom_leaves)| {
+    let prefixed = prefixes.then(atom.clone()).map_with(
+        |(mut prefix_leaves, (atom_leaves, fa)),
+         extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+            let anchor = prefix_leaves
+                .first()
+                .expect("flat tag prefixes parser produces at least one word");
+            extra
+                .state()
+                .warn(ExperimentalConstruct::ExperimentalFlattenedTag, anchor);
+            if let Some(fa) = &fa {
+                extra
+                    .state()
+                    .warn(ExperimentalConstruct::ExperimentalFaAsTag, fa);
+            }
             prefix_leaves.extend(atom_leaves);
             tense_modal_from_leaves(prefix_leaves, Vec::new())
-        })
-        .or(cmavo_of("FA", FA_WORDS).map(|fa| tense_modal_from_leaves(vec![fa], Vec::new())))
-        .boxed()
+        },
+    );
+    let fa = cmavo_of("FA", FA_WORDS).map_with(
+        |fa, extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+            extra
+                .state()
+                .warn(ExperimentalConstruct::ExperimentalFaAsTag, &fa);
+            tense_modal_from_leaves(vec![fa], Vec::new())
+        },
+    );
+    let zantufa_recursive = zantufa_prefix
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .then(atom)
+        .map_with(|(mut prefix_leaves, (atom_leaves, fa)), extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+            let anchor = prefix_leaves
+                .first()
+                .expect("Zantufa recursive tag prefixes parser produces at least one word");
+            extra
+                .state()
+                .warn(ExperimentalConstruct::ExperimentalZantufaRecursiveTag, anchor);
+            if let Some(fa) = &fa {
+                extra
+                    .state()
+                    .warn(ExperimentalConstruct::ExperimentalFaAsTag, fa);
+            }
+            prefix_leaves.extend(atom_leaves);
+            tense_modal_from_leaves(prefix_leaves, Vec::new())
+        });
+
+    choice((prefixed, fa, zantufa_recursive)).boxed()
 }
 
 #[requires(true)]

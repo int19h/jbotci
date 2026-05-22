@@ -532,6 +532,53 @@ mod tests {
         });
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn warns_for_flat_tag_forms() {
+        run_on_large_stack(|| {
+            let words =
+                segment_words_with_modifiers("na'e fa mi cu klama").expect("valid morphology");
+
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default())
+                .expect("valid flattened FA tag");
+
+            assert!(
+                parsed
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.kind == ExperimentalConstruct::ExperimentalFlattenedTag)
+            );
+            assert!(
+                parsed
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.kind == ExperimentalConstruct::ExperimentalFaAsTag)
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gates_zantufa_recursive_tags() {
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("na'e se na'e se fa mi cu klama")
+                .expect("valid morphology");
+
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let dialect =
+                parse_dialect_definition("(+ZANTUFA-TAGS)").expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let parsed = parse_syntax_tree(&words, &options).expect("valid recursive tag");
+
+            assert!(parsed.warnings.iter().any(|warning| {
+                warning.kind == ExperimentalConstruct::ExperimentalZantufaRecursiveTag
+            }));
+        });
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {
