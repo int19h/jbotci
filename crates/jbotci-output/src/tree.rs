@@ -28,6 +28,7 @@ pub(crate) fn pretty_tree_with_options(
     let mut renderer = TreeRenderer {
         source,
         color: options.color,
+        indent_step: options.indent,
         output: String::new(),
     };
     renderer.render_value(&value, 0);
@@ -75,6 +76,7 @@ fn collapse_node(node: SyntaxTreeNode) -> SyntaxTreeValue {
 struct TreeRenderer<'a> {
     source: &'a str,
     color: bool,
+    indent_step: usize,
     output: String,
 }
 
@@ -102,16 +104,21 @@ impl TreeRenderer<'_> {
             return;
         }
         let entries = node.entries.iter().map(render_entry).collect::<Vec<_>>();
-        self.render_entries(&entries, indent);
-        self.output.push('\n');
-        self.push_indent(indent);
+        if self.indent_step == 0 {
+            self.render_inline_entries(&entries);
+            self.output.push(' ');
+        } else {
+            self.render_entries(&entries, indent);
+            self.output.push('\n');
+            self.push_indent(indent);
+        }
         self.output.push_str(&self.punctuation_token("}"));
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn render_entries(&mut self, entries: &[RenderEntry], indent: usize) {
-        let child_indent = indent + 4;
+        let child_indent = indent + self.indent_step;
         for entry in entries {
             self.output.push('\n');
             self.push_indent(child_indent);
@@ -130,13 +137,45 @@ impl TreeRenderer<'_> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn render_inline_entries(&mut self, entries: &[RenderEntry]) {
+        self.output.push(' ');
+        for (index, entry) in entries.iter().enumerate() {
+            if index > 0 {
+                self.output.push_str(&self.punctuation_token(","));
+                self.output.push(' ');
+            }
+            match entry {
+                RenderEntry::Primary(value) => self.render_value(value, 0),
+                RenderEntry::Labelled(label, value) => {
+                    self.output.push_str(&self.field_token(label));
+                    self.output.push_str(&self.punctuation_token(":"));
+                    self.output.push(' ');
+                    self.render_value(value, 0);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn render_collection(&mut self, items: &[SyntaxTreeValue], indent: usize) {
         self.output.push_str(&self.punctuation_token("["));
         if items.is_empty() {
             self.output.push_str(&self.punctuation_token("]"));
             return;
         }
-        let child_indent = indent + 4;
+        if self.indent_step == 0 {
+            for (index, item) in items.iter().enumerate() {
+                if index > 0 {
+                    self.output.push_str(&self.punctuation_token(","));
+                    self.output.push(' ');
+                }
+                self.render_value(item, 0);
+            }
+            self.output.push_str(&self.punctuation_token("]"));
+            return;
+        }
+        let child_indent = indent + self.indent_step;
         for item in items {
             self.output.push('\n');
             self.push_indent(child_indent);
@@ -244,7 +283,7 @@ mod tests {
         let output = render("mi klama", false);
         assert_eq!(
             output,
-            "Predicate {\n    leading_terms: [\n        \"mi\",\n    ],\n    \"kláma\",\n}"
+            "Predicate {\n  leading_terms: [\n    \"mi\",\n  ],\n  \"kláma\",\n}"
         );
     }
 
@@ -289,12 +328,34 @@ mod tests {
         assert!(zei.contains("\"bróda-zeĭ-bróde\""));
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_single_line_when_indent_is_zero() {
+        let words = segment_words_with_modifiers("mi klama").expect("morphology");
+        let parsed = parse_syntax_tree(&words).expect("syntax");
+        let output = pretty_tree_with_options(
+            &parsed.parse_tree,
+            "mi klama",
+            TreeRenderOptions {
+                color: false,
+                indent: 0,
+            },
+        )
+        .expect("tree render");
+        assert_eq!(output, r#"Predicate { leading_terms: ["mi"], "kláma" }"#);
+    }
+
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     fn render(text: &str, color: bool) -> String {
         let words = segment_words_with_modifiers(text).expect("morphology");
         let parsed = parse_syntax_tree(&words).expect("syntax");
-        pretty_tree_with_options(&parsed.parse_tree, text, TreeRenderOptions { color })
-            .expect("tree render")
+        pretty_tree_with_options(
+            &parsed.parse_tree,
+            text,
+            TreeRenderOptions { color, indent: 2 },
+        )
+        .expect("tree render")
     }
 }

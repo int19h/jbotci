@@ -9,8 +9,8 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options};
 use jbotci_output::{
-    BracketRenderOptions, TreeRenderOptions, compact_json_string, pretty_brackets_with_options,
-    pretty_tree_with_options,
+    BracketRenderOptions, JsonRenderOptions, TreeRenderOptions, compact_json_string_with_options,
+    pretty_brackets_with_options, pretty_tree_with_options,
 };
 use jbotci_syntax::{
     ParseOptions, SyntaxParse, parse_syntax_tree_with_source_and_options, syntax_warning_displays,
@@ -75,6 +75,8 @@ struct TextInput {
     no_postproc: bool,
     #[arg(long = "camxes")]
     camxes: bool,
+    #[arg(long = "indent")]
+    indent: Option<usize>,
     #[arg()]
     text: Vec<String>,
 }
@@ -115,6 +117,8 @@ struct GentufaInput {
     camxes: bool,
     #[arg(long = "skicu", visible_alias = "defs")]
     definitions: bool,
+    #[arg(long = "indent")]
+    indent: Option<usize>,
     #[arg()]
     text: Vec<String>,
 }
@@ -195,7 +199,12 @@ fn run_cli<WOut: Write, WErr: Write>(
             let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
             let words = segment_words_with_modifiers_with_options(&text, &morphology_options)?;
             if matches!(input.format.as_deref(), Some("json" | "djeisone")) {
-                let rendered = compact_json_string(&words)?;
+                let rendered = compact_json_string_with_options(
+                    &words,
+                    JsonRenderOptions {
+                        indent: input.indent.unwrap_or(2),
+                    },
+                )?;
                 writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
             } else {
                 for word in words {
@@ -260,12 +269,18 @@ fn run_gentufa<WOut: Write, WErr: Write>(
                 &text,
                 TreeRenderOptions {
                     color: color_enabled,
+                    indent: input.indent.unwrap_or(2),
                 },
             )?;
             writeln!(stdout, "{rendered}")?;
         }
         GentufaFormat::Json => {
-            let rendered = compact_json_string(&parsed.parse_tree)?;
+            let rendered = compact_json_string_with_options(
+                &parsed.parse_tree,
+                JsonRenderOptions {
+                    indent: input.indent.unwrap_or(2),
+                },
+            )?;
             writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
         }
     }
@@ -612,6 +627,7 @@ mod tests {
         assert!(help.contains("raw"));
         assert!(help.contains("--skicu"));
         assert!(help.contains("--defs"));
+        assert!(help.contains("--indent"));
         assert!(!help.contains("--wordKind"));
     }
 
@@ -703,10 +719,51 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
 
             assert!(output.starts_with("Predicate {\n"));
+            assert!(output.contains("\n  leading_terms: [\n    \"mi\","));
             assert!(output.contains("leading_terms: ["));
             assert!(output.contains("\"mi\""));
             assert!(output.contains("\"kláma\""));
             assert!(!output.contains("Text {"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_indent_zero_makes_tree_single_line() {
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from([
+                "jbotci", "gentufa", "--format", "tree", "--indent", "0", "mi", "klama",
+            ])
+            .expect("gentufa tree indent zero");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa tree run");
+            assert!(error.is_empty());
+            let output = String::from_utf8(output).expect("utf8");
+            assert_eq!(
+                output.trim_end(),
+                r#"Predicate { leading_terms: ["mi"], "kláma" }"#
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_indent_zero_makes_json_single_line() {
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from([
+                "jbotci", "gentufa", "--format", "json", "--indent", "0", "mi", "klama",
+            ])
+            .expect("gentufa json indent zero");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa json run");
+            assert!(error.is_empty());
+            let output = String::from_utf8(output).expect("utf8");
+            assert!(!output.trim_end().contains('\n'));
+            let _: serde_json::Value = serde_json::from_str(&output).expect("valid JSON");
         });
     }
 
@@ -841,6 +898,7 @@ mod tests {
             dialect: None,
             no_postproc: false,
             camxes: false,
+            indent: None,
             text: vec!["coi".into(), "rodo".into()],
         };
         assert_eq!(input.read_text().expect("text"), "coi rodo");

@@ -82,10 +82,37 @@ pub struct BracketRenderOptions {
     pub color: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[invariant(true)]
+pub struct JsonRenderOptions {
+    pub indent: usize,
+}
+
+impl Default for JsonRenderOptions {
+    #[requires(true)]
+    #[ensures(ret.indent == 2)]
+    fn default() -> Self {
+        Self { indent: 2 }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct TreeRenderOptions {
     pub color: bool,
+    pub indent: usize,
+}
+
+impl Default for TreeRenderOptions {
+    #[requires(true)]
+    #[ensures(!ret.color)]
+    #[ensures(ret.indent == 2)]
+    fn default() -> Self {
+        Self {
+            color: false,
+            indent: 2,
+        }
+    }
 }
 
 #[requires(true)]
@@ -105,7 +132,20 @@ pub fn compact_json_value<T: Serialize>(value: &T) -> Result<Value, OutputError>
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn compact_json_string<T: Serialize>(value: &T) -> Result<String, OutputError> {
-    Ok(format_compact_json_value(&compact_json_value(value)?, 0))
+    compact_json_string_with_options(value, JsonRenderOptions::default())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn compact_json_string_with_options<T: Serialize>(
+    value: &T,
+    options: JsonRenderOptions,
+) -> Result<String, OutputError> {
+    Ok(format_compact_json_value(
+        &compact_json_value(value)?,
+        0,
+        options,
+    ))
 }
 
 #[requires(true)]
@@ -189,52 +229,56 @@ fn compact_json_shape(value: Value) -> Value {
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn format_compact_json_value(value: &Value, indent: usize) -> String {
+fn format_compact_json_value(value: &Value, indent: usize, options: JsonRenderOptions) -> String {
     match value {
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {
             serde_json::to_string(value).expect("serializing JSON scalar cannot fail")
         }
-        Value::Array(items) => format_compact_json_array(items, indent),
+        Value::Array(items) => format_compact_json_array(items, indent, options),
         Value::Object(object) if is_constructor_object(object) => {
-            format_compact_json_constructor(object, indent)
+            format_compact_json_constructor(object, indent, options)
         }
-        Value::Object(object) => format_compact_json_object(object, indent),
+        Value::Object(object) => format_compact_json_object(object, indent, options),
     }
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn format_compact_json_field_value(value: &Value, field_indent: usize) -> String {
+fn format_compact_json_field_value(
+    value: &Value,
+    field_indent: usize,
+    options: JsonRenderOptions,
+) -> String {
     match value {
         Value::Object(object) if is_constructor_object(object) => {
-            format_compact_json_constructor(object, field_indent)
+            format_compact_json_constructor(object, field_indent, options)
         }
-        _ => format_compact_json_value(value, field_indent),
+        _ => format_compact_json_value(value, field_indent, options),
     }
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn format_compact_json_array(items: &[Value], indent: usize) -> String {
+fn format_compact_json_array(items: &[Value], indent: usize, options: JsonRenderOptions) -> String {
     if items.is_empty() {
         return "[]".to_owned();
     }
-    if items.iter().all(is_compact_json_scalar) {
+    if options.indent == 0 || items.iter().all(is_compact_json_scalar) {
         let items = items
             .iter()
-            .map(|item| format_compact_json_value(item, indent))
+            .map(|item| format_compact_json_value(item, indent, options))
             .collect::<Vec<_>>()
             .join(", ");
         return format!("[{items}]");
     }
 
-    let item_indent = indent + 2;
+    let item_indent = indent + options.indent;
     let pad = " ".repeat(item_indent);
     let end = " ".repeat(indent);
     let mut output = String::from("[\n");
     for (index, item) in items.iter().enumerate() {
         output.push_str(&pad);
-        output.push_str(&format_compact_json_value(item, item_indent));
+        output.push_str(&format_compact_json_value(item, item_indent, options));
         if index + 1 != items.len() {
             output.push(',');
         }
@@ -247,12 +291,30 @@ fn format_compact_json_array(items: &[Value], indent: usize) -> String {
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn format_compact_json_object(object: &serde_json::Map<String, Value>, indent: usize) -> String {
+fn format_compact_json_object(
+    object: &serde_json::Map<String, Value>,
+    indent: usize,
+    options: JsonRenderOptions,
+) -> String {
     if object.is_empty() {
         return "{}".to_owned();
     }
+    if options.indent == 0 {
+        let fields = object
+            .iter()
+            .map(|(key, value)| {
+                format!(
+                    "{}: {}",
+                    json_string(key),
+                    format_compact_json_field_value(value, indent, options)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        return format!("{{{fields}}}");
+    }
 
-    let field_indent = indent + 2;
+    let field_indent = indent + options.indent;
     let pad = " ".repeat(field_indent);
     let end = " ".repeat(indent);
     let mut output = String::from("{\n");
@@ -260,7 +322,11 @@ fn format_compact_json_object(object: &serde_json::Map<String, Value>, indent: u
         output.push_str(&pad);
         output.push_str(&json_string(key));
         output.push_str(": ");
-        output.push_str(&format_compact_json_field_value(value, field_indent));
+        output.push_str(&format_compact_json_field_value(
+            value,
+            field_indent,
+            options,
+        ));
         if index + 1 != object.len() {
             output.push(',');
         }
@@ -276,13 +342,28 @@ fn format_compact_json_object(object: &serde_json::Map<String, Value>, indent: u
 fn format_compact_json_constructor(
     object: &serde_json::Map<String, Value>,
     constructor_indent: usize,
+    options: JsonRenderOptions,
 ) -> String {
     let (constructor, payload) = object.iter().next().expect("constructor object has item");
     let constructor = json_string(constructor);
     match payload {
         Value::Object(fields) if fields.is_empty() => format!("{{{constructor}: {{}}}}"),
+        Value::Object(fields) if options.indent == 0 => {
+            let fields = fields
+                .iter()
+                .map(|(key, value)| {
+                    format!(
+                        "{}: {}",
+                        json_string(key),
+                        format_compact_json_field_value(value, constructor_indent, options)
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{{{constructor}: {{{fields}}}}}")
+        }
         Value::Object(fields) => {
-            let field_indent = constructor_indent + 2;
+            let field_indent = constructor_indent + options.indent;
             let pad = " ".repeat(field_indent);
             let end = " ".repeat(constructor_indent);
             let mut output = format!("{{{constructor}: {{\n");
@@ -290,7 +371,11 @@ fn format_compact_json_constructor(
                 output.push_str(&pad);
                 output.push_str(&json_string(key));
                 output.push_str(": ");
-                output.push_str(&format_compact_json_field_value(value, field_indent));
+                output.push_str(&format_compact_json_field_value(
+                    value,
+                    field_indent,
+                    options,
+                ));
                 if index + 1 != fields.len() {
                     output.push(',');
                 }
@@ -302,7 +387,7 @@ fn format_compact_json_constructor(
         }
         other => format!(
             "{{{constructor}: {}}}",
-            format_compact_json_value(other, constructor_indent + 2)
+            format_compact_json_value(other, constructor_indent + options.indent, options)
         ),
     }
 }
