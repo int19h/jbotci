@@ -1,6 +1,7 @@
 //! Lojban syntax model and parser facade.
 
 mod grammar;
+pub mod tree;
 
 extern crate self as jbotci_syntax;
 
