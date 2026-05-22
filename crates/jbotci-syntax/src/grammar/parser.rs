@@ -86,14 +86,8 @@ fn attach_tense_modal_free_modifiers(
             mut bai,
             mut nai,
             mut ki,
-            mut connectives,
-            mut extra_leaves,
         } => {
-            if !extra_leaves.value.is_empty() {
-                extra_leaves.free_modifiers.extend(free_modifiers);
-            } else if !connectives.value.is_empty() {
-                connectives.free_modifiers.extend(free_modifiers);
-            } else if let Some(ki) = &mut ki {
+            if let Some(ki) = &mut ki {
                 ki.free_modifiers.extend(free_modifiers);
             } else if let Some(nai) = &mut nai {
                 nai.free_modifiers.extend(free_modifiers);
@@ -106,8 +100,6 @@ fn attach_tense_modal_free_modifiers(
                 bai,
                 nai,
                 ki,
-                connectives,
-                extra_leaves,
             }
         }
         TenseModalSyntax::Ki(mut ki) => {
@@ -6971,8 +6963,6 @@ fn simple_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             bai: WithFreeModifiers::new(bai, Vec::new()),
             nai: nai.map(|nai| WithFreeModifiers::new(nai, Vec::new())),
             ki: ki.map(|ki| WithFreeModifiers::new(ki, Vec::new())),
-            connectives: WithFreeModifiers::new(Vec::new(), Vec::new()),
-            extra_leaves: WithFreeModifiers::new(Vec::new(), Vec::new()),
         })
         .boxed()
 }

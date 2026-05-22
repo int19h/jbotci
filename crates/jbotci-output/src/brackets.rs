@@ -1830,8 +1830,6 @@ fn tense_modal_syntax(value: &TenseModalSyntax, source: &str) -> sexpr::SExpr {
             bai,
             nai,
             ki,
-            connectives,
-            extra_leaves,
         } => {
             let mut children = Vec::new();
             if let Some(nahe) = nahe {
@@ -1847,8 +1845,6 @@ fn tense_modal_syntax(value: &TenseModalSyntax, source: &str) -> sexpr::SExpr {
             if let Some(ki) = ki {
                 children.push(with_free_word(ki, source));
             }
-            children.push(with_free_words(connectives, source));
-            children.push(with_free_words(extra_leaves, source));
             sexpr::node(children)
         }
         TenseModalSyntax::Pu(word)

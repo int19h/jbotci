@@ -1128,8 +1128,6 @@ pub enum TenseModalSyntax {
         bai: WithFreeModifiers<WithIndicators<WordLike>>,
         nai: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         ki: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
-        connectives: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
-        extra_leaves: WithFreeModifiers<Vec<WithIndicators<WordLike>>>,
     },
     Ki(WithFreeModifiers<WithIndicators<WordLike>>),
     Fiho {
@@ -3282,8 +3280,6 @@ impl TenseModalSyntax {
                 bai,
                 nai,
                 ki,
-                connectives,
-                extra_leaves,
             } => {
                 if let Some(nahe) = nahe {
                     nahe.visit_words(visitor);
@@ -3298,8 +3294,6 @@ impl TenseModalSyntax {
                 if let Some(ki) = ki {
                     ki.visit_words(visitor);
                 }
-                connectives.visit_words(visitor);
-                extra_leaves.visit_words(visitor);
             }
             TenseModalSyntax::Ki(ki) => ki.visit_words(visitor),
             TenseModalSyntax::Fiho {
@@ -4727,14 +4721,8 @@ impl TenseModalSyntax {
                 bai,
                 nai,
                 ki,
-                connectives,
-                extra_leaves,
             } => {
-                if !extra_leaves.value.is_empty() {
-                    extra_leaves.free_modifiers.len()
-                } else if !connectives.value.is_empty() {
-                    connectives.free_modifiers.len()
-                } else if let Some(ki) = ki {
+                if let Some(ki) = ki {
                     ki.free_modifiers.len()
                 } else if let Some(nai) = nai {
                     nai.free_modifiers.len()
@@ -4805,8 +4793,6 @@ impl TenseModalSyntax {
                 bai,
                 nai,
                 ki,
-                connectives,
-                extra_leaves,
             } => {
                 let mut words = Vec::new();
                 let nahe_is_some = nahe.is_some();
@@ -4839,17 +4825,7 @@ impl TenseModalSyntax {
                 } else {
                     Vec::new()
                 };
-                let connectives_have_words = !connectives.value.is_empty();
-                words.extend(connectives.value);
-                let connectives_free_modifiers = connectives.free_modifiers;
-                let extra_leaves_have_words = !extra_leaves.value.is_empty();
-                words.extend(extra_leaves.value);
-                let extra_leaves_free_modifiers = extra_leaves.free_modifiers;
-                let free_modifiers = if extra_leaves_have_words {
-                    extra_leaves_free_modifiers
-                } else if connectives_have_words {
-                    connectives_free_modifiers
-                } else if ki_is_some {
+                let free_modifiers = if ki_is_some {
                     ki_free_modifiers
                 } else if nai_is_some {
                     nai_free_modifiers
