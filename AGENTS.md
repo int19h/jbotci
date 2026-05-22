@@ -1,3 +1,6 @@
+### !!! IMPORTANT !!!
+Always keep in mind: our primary goals are correctness and code quality. If something is badly written and needs to be refactored, do it even if that means code churn; we have tests precisely so that we can refactor boldly to maintain high quality and clarity of the code. And correctness is always an absolute goal that is above everything else, so never take any shortcuts or skip verification because it's more convenient to just assume that something is now correct; always verify, and be skeptical and thorough.
+
 # Project repo
 
 jbotci ("Lojban tool") is intended to be a "swiss army knife" of Lojban in a single self-contained binary. Thus we want to compile it as a static no-deps binary for Linux, and as close as we can get to that for macOS and Windows (the old repo has that for Haskell, you can use it as a baseline but bear in mind that some things are the way they are because of Haskell toolchain limitations that may not apply to Rust so always think about how idiomatic Rust would approach the same problem first). We will eventually use Dioxus for the web part but the initial goal is to get CLI fully functional.
@@ -239,6 +242,11 @@ Use cheap contracts for local scalar checks, shape checks already needed by call
 All non-bityzba workspace crates run `bityzba::require_contracts().unwrap()` from `build.rs` with the `contract_scanner` feature enabled. The scanner is syntactic: it checks explicit source attributes under `src`, `tests`, `benches`, `examples`, and `build.rs`; it does not inspect macro expansions and does not count contracts hidden inside `cfg_attr`.
 
 
+# Test suite
+
+In all cases, when updating expectations, be VERY careful and do not blindly assume that new output is correct. Ideally expectations need to be updated manually rather than taking the output of the parser. When that is infeasible (e.g. you have more than a few hundred expectations that need updating), you need to definitively ascertain that the change is purely surface representation before doing any kind of automatic expectation update whatsoever. That is, if the change is predictable and mechanical, write a script that validates this while comparing the old and the new expectations, and only for those entries where such a script confirms that it is indeed only that mechanical change that is the difference, it is okay to update with new output; any cases that get flagged as more than that need careful *manual* review individually, one by one.
+
+
 # CLL Errata: Commas and Glides
 
 BPFK morphology treats commas as syllable separators only; commas do not affect glide/hiatus detection.
@@ -248,7 +256,7 @@ The CgV (consonant-glide-vowel) ban applies across commas, so names that rely on
 The semantics of `le` and `lo` and default quantification rules are different. If you have read CLL regarding either of these as part of your research, you must also check https://mw.lojban.org/papri/How_to_use_xorlo for an important clarification before using the information from CLL for any decisions pertaining to Lojban semantics.
 
 
-## Lojban EBNF Grammar
+# Lojban EBNF Grammar
 
 Explanation of notation: All rules have the form:
 ```
