@@ -556,6 +556,34 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn warns_for_jek_gek_and_bo_gek_extensions() {
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("je gi mi klama gi do klama")
+                .expect("valid morphology");
+            let parsed =
+                parse_syntax_tree(&words, &ParseOptions::default()).expect("valid jek GEK");
+            assert!(
+                parsed
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaGek)
+            );
+
+            let words = segment_words_with_modifiers("joi gi bo mi klama gi do klama")
+                .expect("valid morphology");
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid BO GEK");
+            assert!(
+                parsed
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaGek)
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn warns_for_flat_tag_forms() {
         run_on_large_stack(|| {
             let words =

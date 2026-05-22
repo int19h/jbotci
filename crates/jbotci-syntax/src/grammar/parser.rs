@@ -4375,15 +4375,31 @@ fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyn
         .map(|((se, ga), nai)| {
             connective_syntax(ConnectiveKind::Forethought, se, None, None, vec![ga], nai)
         });
-    let modal_gi = tense_modal().then(cmavo("gi")).map(|(tense_modal, gi)| {
-        let mut cmavo = Vec::new();
-        tense_modal.extend_words_into(&mut cmavo);
-        cmavo.push(gi);
-        connective_syntax(ConnectiveKind::Forethought, None, None, None, cmavo, None)
-    });
-    let joik_gi = joik_connective()
+    let modal_gi =
+        tense_modal()
+            .then(cmavo("gi"))
+            .then(zantufa_gek_bo())
+            .map(|((tense_modal, gi), bo)| {
+                let mut cmavo = Vec::new();
+                tense_modal.extend_words_into(&mut cmavo);
+                cmavo.push(gi);
+                cmavo.extend(bo);
+                connective_syntax(ConnectiveKind::Forethought, None, None, None, cmavo, None)
+            });
+    let jek_as_gek = jek_connective().map_with(
+        |connective,
+         extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+            if let Some(anchor) = connective.cmavo().value.first() {
+                extra
+                    .state()
+                    .warn(ExperimentalConstruct::ExperimentalZantufaGek, anchor);
+            }
+            connective
+        },
+    );
+    let joik_jek_gi = choice((joik_connective(), jek_as_gek))
         .then(cmavo("gi"))
-        .then(cmavo("bo").or_not())
+        .then(zantufa_gek_bo())
         .map(|((connective, gi), bo)| {
             let extra = [Some(gi), bo].into_iter().flatten().collect::<Vec<_>>();
             append_connective_words(connective, extra)
@@ -4416,7 +4432,23 @@ fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyn
             cmavo.extend(bo);
             connective_syntax(ConnectiveKind::Forethought, None, None, None, cmavo, None)
         });
-    choice((ga, zantufa_initial_gi, joik_gi, modal_gi)).boxed()
+    choice((ga, zantufa_initial_gi, joik_jek_gi, modal_gi)).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn zantufa_gek_bo<'tokens>() -> BoxedParser<'tokens, Option<WithIndicators<WordLike>>> {
+    cmavo("bo")
+        .map_with(
+            |bo, extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+                extra
+                    .state()
+                    .warn(ExperimentalConstruct::ExperimentalZantufaGek, &bo);
+                bo
+            },
+        )
+        .or_not()
+        .boxed()
 }
 
 #[requires(true)]
