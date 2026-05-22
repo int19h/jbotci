@@ -542,6 +542,11 @@ pub enum TermSyntax {
         subsentence: Box<SubsentenceSyntax>,
         sehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
+    JaiTagged {
+        jai: WithFreeModifiers<WithIndicators<WordLike>>,
+        tag: Option<TenseModalSyntax>,
+        argument: ArgumentSyntax,
+    },
     Tagged {
         tense_modal: Option<TenseModalSyntax>,
         argument: ArgumentSyntax,
@@ -1959,6 +1964,13 @@ impl TermSyntax {
                 if let Some(sehu) = sehu {
                     sehu.visit_words(visitor);
                 }
+            }
+            TermSyntax::JaiTagged { jai, tag, argument } => {
+                jai.visit_words(visitor);
+                if let Some(tag) = tag {
+                    tag.visit_words(visitor);
+                }
+                argument.visit_words(visitor);
             }
             TermSyntax::Tagged {
                 tense_modal,
@@ -3555,6 +3567,14 @@ impl TermSyntax {
                 if let Some(sehu) = sehu {
                     words.extend(sehu.words());
                 }
+                words
+            }
+            TermSyntax::JaiTagged { jai, tag, argument } => {
+                let mut words = jai.words();
+                if let Some(tag) = tag {
+                    words.extend(tag.words());
+                }
+                words.extend(argument.words());
                 words
             }
             TermSyntax::Tagged {

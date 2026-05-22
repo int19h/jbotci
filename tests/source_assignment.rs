@@ -46,6 +46,19 @@ fn syntax_assignment_includes_muhoi_raw_quoted_text_once() {
     });
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn syntax_assignment_handles_zantufa_jai_tag_term() {
+    run_on_large_stack(|| {
+        let dialect =
+            parse_dialect_definition("(+ZANTUFA-TAGS)").expect("valid dialect definition");
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+
+        assert_source_assignment_with_options("jai pu mi cu klama", &options);
+    });
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {

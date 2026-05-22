@@ -492,6 +492,14 @@ fn term(value: &TermSyntax, source: &str) -> sexpr::SExpr {
             children.push(argument_syntax(argument, source));
             sexpr::node(children)
         }
+        TermSyntax::JaiTagged { jai, tag, argument } => {
+            let mut children = vec![with_free_word(jai, source)];
+            if let Some(tag) = tag {
+                children.push(tense_modal_syntax(tag, source));
+            }
+            children.push(argument_syntax(argument, source));
+            sexpr::node(children)
+        }
         TermSyntax::Fa { fa, argument, ku } => {
             let mut children = vec![
                 with_free_word(fa, source),

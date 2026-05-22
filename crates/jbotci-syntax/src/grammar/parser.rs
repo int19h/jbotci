@@ -272,6 +272,33 @@ fn statement_parser<'tokens>(
             argument,
             ku: None,
         });
+    let zantufa_jai_tag_term = cmavo("jai")
+        .map_with(
+            |jai, extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+                extra
+                    .state()
+                    .warn(ExperimentalConstruct::ExperimentalZantufaJaiTagTerm, &jai);
+                jai
+            },
+        )
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(tense_modal().or_not())
+        .then(
+            argument.clone().or(cmavo("ku")
+                .or_not()
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .map(|(maybe_ku, free_modifiers)| {
+                    build_zohe_argument(None, maybe_ku, free_modifiers)
+                })),
+        )
+        .map(
+            |(((jai, free_modifiers), tag), argument)| TermSyntax::JaiTagged {
+                jai: WithFreeModifiers::new(jai, free_modifiers),
+                tag,
+                argument,
+            },
+        )
+        .boxed();
     let na_ku_term = na_cmavo()
         .then(cmavo("ku"))
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -424,8 +451,12 @@ fn statement_parser<'tokens>(
         .dialect
         .features
         .contains(&DialectFeature::SoiAdverbials);
+    let zantufa_tags_enabled = options
+        .dialect
+        .features
+        .contains(&DialectFeature::ZantufaTags);
     let base_simple_term = if soi_adverbials_enabled {
-        choice((
+        let non_jai_term = choice((
             fa_term.clone(),
             tagged_term.clone(),
             noiha_adverbial.clone(),
@@ -434,10 +465,14 @@ fn statement_parser<'tokens>(
             na_ku_term.clone(),
             argument_term.clone(),
             bare_na_term.clone(),
-        ))
-        .boxed()
+        ));
+        if zantufa_tags_enabled {
+            zantufa_jai_tag_term.or(non_jai_term).boxed()
+        } else {
+            non_jai_term.boxed()
+        }
     } else {
-        choice((
+        let non_jai_term = choice((
             fa_term,
             tagged_term,
             noiha_adverbial,
@@ -445,8 +480,12 @@ fn statement_parser<'tokens>(
             na_ku_term,
             argument_term,
             bare_na_term,
-        ))
-        .boxed()
+        ));
+        if zantufa_tags_enabled {
+            zantufa_jai_tag_term.or(non_jai_term).boxed()
+        } else {
+            non_jai_term.boxed()
+        }
     };
     let term_body = {
         let term = term.clone();
