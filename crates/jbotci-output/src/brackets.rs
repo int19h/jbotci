@@ -341,6 +341,7 @@ fn gek_sentence(value: &GekSentenceSyntax, source: &str) -> sexpr::SExpr {
             first,
             gik,
             second,
+            gihi,
             tail_terms,
             vau,
             free_modifiers,
@@ -351,6 +352,9 @@ fn gek_sentence(value: &GekSentenceSyntax, source: &str) -> sexpr::SExpr {
                 connective_syntax(gik, source),
                 subsentence(second, source),
             ];
+            if let Some(gihi) = gihi {
+                children.push(word(gihi, source));
+            }
             children.push(list_node(
                 tail_terms.iter().map(|item| term(item, source)).collect(),
             ));
@@ -535,6 +539,7 @@ fn term(value: &TermSyntax, source: &str) -> sexpr::SExpr {
             nuhu,
             gik,
             gik_terms,
+            gihi,
             gik_nuhu,
         } => {
             let mut children = Vec::new();
@@ -552,6 +557,9 @@ fn term(value: &TermSyntax, source: &str) -> sexpr::SExpr {
             children.push(list_node(
                 gik_terms.iter().map(|item| term(item, source)).collect(),
             ));
+            if let Some(gihi) = gihi {
+                children.push(word(gihi, source));
+            }
             if let Some(nuhu) = gik_nuhu {
                 children.push(with_free_word(nuhu, source));
             }
@@ -952,12 +960,18 @@ fn argument_syntax(value: &ArgumentSyntax, source: &str) -> sexpr::SExpr {
             leading_argument,
             gik,
             trailing_argument,
-        } => sexpr::node(vec![
-            connective_syntax(gek, source),
-            argument_syntax(leading_argument, source),
-            connective_syntax(gik, source),
-            argument_syntax(trailing_argument, source),
-        ]),
+            gihi,
+        } => sexpr::node(
+            vec![
+                connective_syntax(gek, source),
+                argument_syntax(leading_argument, source),
+                connective_syntax(gik, source),
+                argument_syntax(trailing_argument, source),
+            ]
+            .into_iter()
+            .chain(gihi.iter().map(|gihi| word(gihi, source)))
+            .collect(),
+        ),
         ArgumentSyntax::RelationVocative {
             leading_relative_clauses,
             relation,
@@ -1519,12 +1533,18 @@ fn relation_syntax(value: &RelationSyntax, source: &str) -> sexpr::SExpr {
             leading_predicate,
             gik,
             trailing_predicate,
-        } => sexpr::node(vec![
-            connective_syntax(guhek, source),
-            predicate_syntax(leading_predicate, source),
-            connective_syntax(gik, source),
-            predicate_syntax(trailing_predicate, source),
-        ]),
+            gihi,
+        } => sexpr::node(
+            vec![
+                connective_syntax(guhek, source),
+                predicate_syntax(leading_predicate, source),
+                connective_syntax(gik, source),
+                predicate_syntax(trailing_predicate, source),
+            ]
+            .into_iter()
+            .chain(gihi.iter().map(|gihi| word(gihi, source)))
+            .collect(),
+        ),
         RelationSyntax::Abstraction(abstraction) => abstraction_syntax(abstraction, source),
     }
 }

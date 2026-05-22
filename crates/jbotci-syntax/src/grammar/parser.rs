@@ -518,13 +518,14 @@ fn statement_parser<'tokens>(
             )
             .then(gik_connective_with_free_modifiers(free_modifier.clone()))
             .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
+            .then(optional_gihi_terminator())
             .then(
                 cmavo("nu'u")
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                     .or_not(),
             )
             .map(
-                |((((((m_nuhi, gek), terms), nuhu), gik), gik_terms), gik_nuhu)| {
+                |(((((((m_nuhi, gek), terms), nuhu), gik), gik_terms), gihi), gik_nuhu)| {
                     TermSyntax::GekNuhiTermset {
                         m_nuhi: m_nuhi.map(|(nuhi, free_modifiers)| {
                             WithFreeModifiers::new(nuhi, free_modifiers)
@@ -536,6 +537,7 @@ fn statement_parser<'tokens>(
                         }),
                         gik,
                         gik_terms,
+                        gihi,
                         gik_nuhu: gik_nuhu.map(|(nuhu, free_modifiers)| {
                             WithFreeModifiers::new(nuhu, free_modifiers)
                         }),
@@ -682,11 +684,15 @@ fn statement_parser<'tokens>(
                 .then(subsentence.clone())
                 .then(gik_connective_with_free_modifiers(free_modifier.clone()))
                 .then(subsentence.clone())
+                .then(optional_gihi_terminator())
                 .then(tail_term.clone().repeated().collect::<Vec<_>>())
                 .then(cmavo("vau").or_not())
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .map(
-                    |((((((gek, first), gik), second), tail_terms), vau), free_modifiers)| {
+                    |(
+                        ((((((gek, first), gik), second), gihi), tail_terms), vau),
+                        free_modifiers,
+                    )| {
                         let (vau, free_modifiers) =
                             split_optional_word_free_modifiers(vau, free_modifiers);
                         GekSentenceSyntax::Pair {
@@ -694,6 +700,7 @@ fn statement_parser<'tokens>(
                             first: Box::new(first),
                             gik,
                             second: Box::new(second),
+                            gihi,
                             tail_terms,
                             vau,
                             free_modifiers,
@@ -3114,12 +3121,14 @@ where
             .then(argument.clone())
             .then(gik_connective_with_free_modifiers(free_modifier.clone()))
             .then(argument4)
+            .then(optional_gihi_terminator())
             .map(
-                |(((gek, leading_argument), gik), trailing_argument)| ArgumentSyntax::Gek {
+                |((((gek, leading_argument), gik), trailing_argument), gihi)| ArgumentSyntax::Gek {
                     gek,
                     leading_argument: Box::new(leading_argument),
                     gik,
                     trailing_argument: Box::new(trailing_argument),
+                    gihi,
                 },
             );
 
@@ -4467,6 +4476,23 @@ where
 
 #[requires(true)]
 #[ensures(true)]
+fn optional_gihi_terminator<'tokens>() -> BoxedParser<'tokens, Option<WithIndicators<WordLike>>> {
+    feature_cmavo("GIhI", "gi'i", DialectFeature::ZantufaConnectives)
+        .map_with(
+            |gihi, extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+                extra.state().warn(
+                    ExperimentalConstruct::ExperimentalZantufaForethoughtGihi,
+                    &gihi,
+                );
+                gihi
+            },
+        )
+        .or_not()
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn gihek_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyntax> {
     na_cmavo()
         .or_not()
@@ -5387,16 +5413,20 @@ where
             .then(relation.clone())
             .then(gik_connective_with_free_modifiers(free_modifier.clone()))
             .then(bo_unit.clone())
-            .map(|(((guhek, leading_relation), gik), trailing_unit)| {
-                RelationUnitSyntax::Wrapped(RelationSyntax::Guha {
-                    guhek,
-                    leading_predicate: Box::new(relation_to_empty_predicate(leading_relation)),
-                    gik,
-                    trailing_predicate: Box::new(relation_to_empty_predicate(
-                        relation_unit_to_relation(&trailing_unit),
-                    )),
-                })
-            });
+            .then(optional_gihi_terminator())
+            .map(
+                |((((guhek, leading_relation), gik), trailing_unit), gihi)| {
+                    RelationUnitSyntax::Wrapped(RelationSyntax::Guha {
+                        guhek,
+                        leading_predicate: Box::new(relation_to_empty_predicate(leading_relation)),
+                        gik,
+                        trailing_predicate: Box::new(relation_to_empty_predicate(
+                            relation_unit_to_relation(&trailing_unit),
+                        )),
+                        gihi,
+                    })
+                },
+            );
         let atom_unit = choice((
             guha_unit,
             preposed_unit.clone(),
@@ -5977,16 +6007,22 @@ where
                 .then(inner_relation.clone())
                 .then(gik_connective_with_free_modifiers(free_modifier.clone()))
                 .then(bo_unit.clone())
-                .map(|(((guhek, leading_relation), gik), trailing_unit)| {
-                    RelationUnitSyntax::Wrapped(RelationSyntax::Guha {
-                        guhek,
-                        leading_predicate: Box::new(relation_to_empty_predicate(leading_relation)),
-                        gik,
-                        trailing_predicate: Box::new(relation_to_empty_predicate(
-                            relation_unit_to_relation(&trailing_unit),
-                        )),
-                    })
-                });
+                .then(optional_gihi_terminator())
+                .map(
+                    |((((guhek, leading_relation), gik), trailing_unit), gihi)| {
+                        RelationUnitSyntax::Wrapped(RelationSyntax::Guha {
+                            guhek,
+                            leading_predicate: Box::new(relation_to_empty_predicate(
+                                leading_relation,
+                            )),
+                            gik,
+                            trailing_predicate: Box::new(relation_to_empty_predicate(
+                                relation_unit_to_relation(&trailing_unit),
+                            )),
+                            gihi,
+                        })
+                    },
+                );
             let atom_unit = choice((
                 guha_unit,
                 preposed_unit.clone(),

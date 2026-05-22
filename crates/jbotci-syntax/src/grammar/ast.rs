@@ -291,6 +291,7 @@ pub enum GekSentenceSyntax {
         first: Box<SubsentenceSyntax>,
         gik: ConnectiveSyntax,
         second: Box<SubsentenceSyntax>,
+        gihi: Option<WithIndicators<WordLike>>,
         tail_terms: Vec<TermSyntax>,
         vau: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         free_modifiers: Vec<FreeModifierSyntax>,
@@ -494,6 +495,7 @@ pub enum TermSyntax {
         nuhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         gik: ConnectiveSyntax,
         gik_terms: Vec<TermSyntax>,
+        gihi: Option<WithIndicators<WordLike>>,
         gik_nuhu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
     Cehe {
@@ -680,6 +682,7 @@ pub enum ArgumentSyntax {
         leading_argument: Box<ArgumentSyntax>,
         gik: ConnectiveSyntax,
         trailing_argument: Box<ArgumentSyntax>,
+        gihi: Option<WithIndicators<WordLike>>,
     },
     Descriptor(DescriptorSyntax),
     ConnectedDescriptor(ConnectedDescriptorSyntax),
@@ -1035,6 +1038,7 @@ pub enum RelationSyntax {
         leading_predicate: Box<PredicateSyntax>,
         gik: ConnectiveSyntax,
         trailing_predicate: Box<PredicateSyntax>,
+        gihi: Option<WithIndicators<WordLike>>,
     },
     Abstraction(AbstractionSyntax),
     Compound(Box<RelationUnitVec>),
@@ -1687,6 +1691,7 @@ impl GekSentenceSyntax {
                 first,
                 gik,
                 second,
+                gihi,
                 tail_terms,
                 vau,
                 free_modifiers,
@@ -1695,6 +1700,9 @@ impl GekSentenceSyntax {
                 words.extend(first.words());
                 words.extend(gik.words());
                 words.extend(second.words());
+                if let Some(gihi) = gihi {
+                    words.push(gihi);
+                }
                 for term in tail_terms {
                     words.extend(term.words());
                 }
@@ -1842,6 +1850,7 @@ impl TermSyntax {
                 nuhu,
                 gik,
                 gik_terms,
+                gihi,
                 gik_nuhu,
             } => {
                 if let Some(nuhi) = m_nuhi {
@@ -1857,6 +1866,9 @@ impl TermSyntax {
                 gik.visit_words(visitor);
                 for term in gik_terms {
                     term.visit_words(visitor);
+                }
+                if let Some(gihi) = gihi {
+                    visitor(gihi);
                 }
                 if let Some(nuhu) = gik_nuhu {
                     nuhu.visit_words(visitor);
@@ -2365,11 +2377,15 @@ impl ArgumentSyntax {
                 leading_argument,
                 gik,
                 trailing_argument,
+                gihi,
             } => {
                 gek.visit_words(visitor);
                 leading_argument.visit_words(visitor);
                 gik.visit_words(visitor);
                 trailing_argument.visit_words(visitor);
+                if let Some(gihi) = gihi {
+                    visitor(gihi);
+                }
             }
             ArgumentSyntax::Descriptor(descriptor) => descriptor.visit_words(visitor),
             ArgumentSyntax::ConnectedDescriptor(connected_descriptor) => {
@@ -2933,11 +2949,15 @@ impl RelationSyntax {
                 leading_predicate,
                 gik,
                 trailing_predicate,
+                gihi,
             } => {
                 guhek.visit_words(visitor);
                 leading_predicate.visit_words(visitor);
                 gik.visit_words(visitor);
                 trailing_predicate.visit_words(visitor);
+                if let Some(gihi) = gihi {
+                    visitor(gihi);
+                }
             }
             RelationSyntax::Abstraction(abstraction) => abstraction.visit_words(visitor),
             RelationSyntax::Compound(units) => {
@@ -3434,6 +3454,7 @@ impl TermSyntax {
                 nuhu,
                 gik,
                 gik_terms,
+                gihi,
                 gik_nuhu,
             } => {
                 let mut words = Vec::new();
@@ -3450,6 +3471,9 @@ impl TermSyntax {
                 words.extend(gik.words());
                 for term in gik_terms {
                     words.extend(term.words());
+                }
+                if let Some(gihi) = gihi {
+                    words.push(gihi);
                 }
                 if let Some(nuhu) = gik_nuhu {
                     words.extend(nuhu.words());
@@ -4006,11 +4030,15 @@ impl ArgumentSyntax {
                 leading_argument,
                 gik,
                 trailing_argument,
+                gihi,
             } => {
                 let mut words = gek.words();
                 words.extend(leading_argument.words());
                 words.extend(gik.words());
                 words.extend(trailing_argument.words());
+                if let Some(gihi) = gihi {
+                    words.push(gihi);
+                }
                 words
             }
             ArgumentSyntax::Descriptor(descriptor) => descriptor.words(),
@@ -4432,11 +4460,15 @@ impl RelationSyntax {
                 leading_predicate,
                 gik,
                 trailing_predicate,
+                gihi,
             } => {
                 let mut words = guhek.words();
                 words.extend(leading_predicate.words());
                 words.extend(gik.words());
                 words.extend(trailing_predicate.words());
+                if let Some(gihi) = gihi {
+                    words.push(gihi);
+                }
                 words
             }
             RelationSyntax::Abstraction(abstraction) => abstraction.words(),
@@ -5350,6 +5382,7 @@ impl GekSentenceSyntax {
                 first,
                 gik,
                 second,
+                gihi,
                 tail_terms,
                 vau,
                 free_modifiers,
@@ -5358,6 +5391,9 @@ impl GekSentenceSyntax {
                 first.visit_words(visitor);
                 gik.visit_words(visitor);
                 second.visit_words(visitor);
+                if let Some(gihi) = gihi {
+                    visitor(gihi);
+                }
                 for term in tail_terms {
                     term.visit_words(visitor);
                 }

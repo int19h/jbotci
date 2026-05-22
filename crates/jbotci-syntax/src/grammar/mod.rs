@@ -535,6 +535,27 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn gates_zantufa_gihi_forethought_terminator() {
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("ge mi klama gi do klama gi'i")
+                .expect("valid morphology");
+
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
+                .expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let parsed = parse_syntax_tree(&words, &options).expect("valid Zantufa GIhI");
+
+            assert!(parsed.warnings.iter().any(|warning| {
+                warning.kind == ExperimentalConstruct::ExperimentalZantufaForethoughtGihi
+            }));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn warns_for_flat_tag_forms() {
         run_on_large_stack(|| {
             let words =
