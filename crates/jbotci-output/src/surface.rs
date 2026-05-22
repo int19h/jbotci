@@ -186,18 +186,12 @@ fn is_visible_pause_dot(ch: char) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn render_word(word: &Word) -> String {
-    if let Some(surface_override) = &word.surface_override {
-        return surface_override.clone();
-    }
     render_visible_word_surface(word)
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn render_word_without_pause(word: &Word) -> String {
-    if let Some(surface_override) = &word.surface_override {
-        return surface_override.clone();
-    }
     match word.kind {
         WordKind::Cmavo | WordKind::Cmevla => strip_stress_accents(&add_diacritics(&word.phonemes)),
         WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => add_diacritics(&word.phonemes),

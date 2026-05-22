@@ -145,21 +145,6 @@ impl CmavoDialectEntry {
     }
 }
 
-#[invariant(!self.source_text.is_empty(), "transform source text must not be empty")]
-#[invariant(!self.target_text.is_empty(), "transform target text must not be empty")]
-#[invariant(!self.group_key.is_empty(), "transform group key must not be empty")]
-#[invariant(self.output_count > 0, "transform output count must be positive")]
-#[invariant(self.output_index < self.output_count, "transform output index must be in range")]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct CmavoDialectTransform {
-    pub source_text: String,
-    pub target_text: String,
-    pub group_key: String,
-    pub output_index: usize,
-    pub output_count: usize,
-}
-
 #[invariant(self.cmavo_entries.iter().all(CmavoDialectEntry::is_valid), "cmavo dialect entries must be normalized and internally valid")]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -1058,7 +1043,7 @@ impl DialectToken {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bityzba::{contract_trait, data, ensures, invariant, requires};
+    use bityzba::{contract_trait, ensures, invariant, requires};
 
     #[test]
     #[requires(true)]
@@ -1173,22 +1158,6 @@ mod tests {
     #[ensures(true)]
     fn direct_contract_violation_is_reported() {
         let _ = DialectError::new(String::new());
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn cmavo_transform_validity_checks_output_bounds() {
-        assert!(
-            CmavoDialectTransform::try_from_data(data!(CmavoDialectTransform {
-                source_text: String::from("mi"),
-                target_text: String::from("do"),
-                group_key: String::from("mi->do"),
-                output_index: 1,
-                output_count: 1,
-            }))
-            .is_err()
-        );
     }
 
     #[contract_trait]

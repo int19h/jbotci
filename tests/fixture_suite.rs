@@ -330,8 +330,6 @@ fn writer_keeps_tree_and_words_as_values() {
         kind: WordKind::Cmavo,
         phonemes: String::from("coi"),
         span: jbotci_source_span(),
-        surface_override: None,
-        dialect_transform: None,
     }));
     let test_case = TestCase {
         id: "adhoc.syntax".into(),

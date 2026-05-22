@@ -781,8 +781,6 @@ impl<'a> Segmenter<'a> {
             kind: kind,
             phonemes: phonemes,
             span: span,
-            surface_override: None,
-            dialect_transform: None,
         }))))
     }
 

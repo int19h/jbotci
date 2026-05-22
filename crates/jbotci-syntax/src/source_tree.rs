@@ -206,8 +206,6 @@ mod tests {
             phonemes: text.to_owned(),
             span: SourceSpan::new(None, byte_start, byte_end, byte_start, byte_end)
                 .expect("valid test span"),
-            surface_override: None,
-            dialect_transform: None,
         }))))
     }
 }

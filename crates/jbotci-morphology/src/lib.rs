@@ -7,9 +7,7 @@ mod syntax_eq;
 use std::fmt;
 
 use bityzba::{data, ensures, invariant, new, requires};
-pub use jbotci_dialect::{
-    CmavoDialectEntry, CmavoDialectTransform, DialectDefinition, DialectFeature,
-};
+pub use jbotci_dialect::{CmavoDialectEntry, DialectDefinition, DialectFeature};
 use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -121,8 +119,6 @@ pub struct Word {
     pub kind: WordKind,
     pub phonemes: String,
     pub span: SourceSpan,
-    pub surface_override: Option<String>,
-    pub dialect_transform: Option<CmavoDialectTransform>,
 }
 
 impl fmt::Display for Word {
@@ -1190,9 +1186,7 @@ mod tests {
                     "char_end": 0,
                     "start": null,
                     "end": null
-                },
-                "surface_override": null,
-                "dialect_transform": null
+                }
             }"#,
         )
         .expect_err("empty phoneme text must be rejected");
@@ -1255,8 +1249,6 @@ mod tests {
             phonemes: phonemes.to_owned(),
             span: SourceSpan::new(None, byte_start, byte_end, byte_start, char_end)
                 .expect("valid test span"),
-            surface_override: None,
-            dialect_transform: None,
         })
     }
 
