@@ -1,11 +1,12 @@
 use bityzba::data;
 #[allow(unused_imports)]
 use bityzba::ensures;
-use bityzba::{contract_trait, requires};
+use bityzba::{invariant, requires};
 use jbotci_morphology::{Word, WordLike, WordLikeData};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::ast::*;
 use jbotci_syntax::{Indicator, WithIndicators};
+use jbotci_tree::TreeVisitor;
 
 use crate::{BracketRenderOptions, OutputError, sexpr, surface};
 
@@ -2427,53 +2428,38 @@ fn list_node(children: Vec<sexpr::SExpr>) -> sexpr::SExpr {
 #[ensures(true)]
 fn source_words_node<T>(value: &T, source: &str) -> sexpr::SExpr
 where
-    T: VisitSourceWords,
+    T: TreeNode,
 {
-    let mut children = Vec::new();
-    value.visit_source_words(&mut |word| children.push(self::word(word, source)));
-    sexpr::node(children)
+    let mut visitor = SourceWordBracketVisitor {
+        source,
+        children: Vec::new(),
+    };
+    value.visit_in_order(&mut visitor);
+    sexpr::node(visitor.children)
 }
 
-#[contract_trait]
-trait VisitSourceWords {
+#[derive(Debug)]
+#[invariant(true)]
+struct SourceWordBracketVisitor<'source> {
+    source: &'source str,
+    children: Vec<sexpr::SExpr>,
+}
+
+impl<'tree> TreeVisitor<'tree> for SourceWordBracketVisitor<'_> {
+    type Node = NodeRef<'tree>;
+    type Atom = AtomRef<'tree>;
+
     #[requires(true)]
     #[ensures(true)]
-    fn visit_source_words(&self, visitor: &mut dyn FnMut(&WithIndicators<WordLike>));
-}
-
-macro_rules! impl_visit_source_words {
-    ($($ty:ty),* $(,)?) => {
-        $(
-            #[contract_trait]
-            impl VisitSourceWords for $ty {
-                fn visit_source_words(&self, visitor: &mut dyn FnMut(&WithIndicators<WordLike>)) {
-                    self.visit_words(&mut |word| visitor(word));
-                }
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        match atom {
+            AtomRef::WithIndicatorsWordLike(word) => {
+                self.children.push(self::word(word, self.source))
             }
-        )*
-    };
+            AtomRef::Word(word) => self.children.push(word_leaf(word, self.source)),
+        }
+    }
 }
-
-impl_visit_source_words!(
-    PredicateStatementContinuationSyntax,
-    KePredicateTailSyntax,
-    PredicateTailContinuationSyntax,
-    BoPredicateTailSyntax,
-    GekSentenceSyntax,
-    FragmentSyntax,
-    TermSyntax,
-    ArgumentSyntax,
-    ConnectedDescriptorSyntax,
-    ArgumentTailElementSyntax,
-    MathExpressionSyntax,
-    MathOperatorSyntax,
-    RelationSyntax,
-    RelationUnitSyntax,
-    TenseModalSyntax,
-    FreeModifierSyntax,
-    RelativeClauseSyntax,
-    ConnectiveSyntax,
-);
 
 #[requires(true)]
 #[ensures(true)]
