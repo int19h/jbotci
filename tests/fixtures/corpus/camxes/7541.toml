@@ -8,66 +8,43 @@ entry-id = "7541"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "denver", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 11, char_start: 5, char_end: 11, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "i",
         span = [0, 1],
+        phonemes = "i",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "la",
         span = [2, 4],
+        phonemes = "la",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "denver",
         span = [5, 11],
+        phonemes = "denver",
         kind = "cmevla"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    i = {Bare = {
-                        Bare = {
-                            phonemes = "i",
-                            span = [0, 1],
-                            kind = "cmavo"
-                        }
-                    }},
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Name = {
-                                        la = {Bare = {
-                                            Bare = {
-                                                phonemes = "la",
-                                                span = [2, 4],
-                                                kind = "cmavo"
-                                            }
-                                        }},
-                                        names = [
-                                            {Bare = {
-                                                Bare = {
-                                                    phonemes = "denver",
-                                                    span = [5, 11],
-                                                    kind = "cmevla"
-                                                }
-                                            }},
-                                        ]
-                                    }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "denver", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 11, char_start: 5, char_end: 11, start: None, end: None }) }))))], free_modifiers: [] } })], vau: None })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[5,11],"phonemes":"denver","kind":"cmevla"}}]'
+
+[expectations.output.gentufa]
+tree = """
+ParagraphStatement {
+  i: ".i",
+  Term {
+    terms: [
+      Name {
+        la: "la",
+        names: ".denver.",
+      },
+    ],
+  },
+}"""
+json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[2,4],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[5,11],"phonemes":"denver","kind":"cmevla"}}}]}}}]}}}}]}]}'

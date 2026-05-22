@@ -8,36 +8,35 @@ entry-id = "18192"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "jinx", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zo'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "jinx",
         span = [0, 4],
+        phonemes = "jinx",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "zo'o",
         span = [5, 9],
+        phonemes = "zo'o",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_cmevla = [
-        {WithIndicator = {
-            base = {Bare = {
-                Bare = {
-                    phonemes = "jinx",
-                    span = [0, 4],
-                    kind = "cmevla"
-                }
-            }},
-            indicator = {
-                phonemes = "zo'o",
-                span = [5, 9],
-                kind = "cmavo"
-            }
-        }},
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "jinx", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "zo'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }), nai: None }], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"jinx","kind":"cmevla"}},{"Bare":{"span":[5,9],"phonemes":"zo'o","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_cmevla: [
+    WithIndicator {
+      ".jinx.",
+      indicator: "zo'o",
+    },
+  ],
+}"""
+json = """{"leading_cmevla":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,4],"phonemes":"jinx","kind":"cmevla"}}},"indicator":{"span":[5,9],"phonemes":"zo'o","kind":"cmavo"}}}]}"""

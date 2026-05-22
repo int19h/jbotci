@@ -8,86 +8,47 @@ entry-id = "6924"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "aŭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "rectu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "joĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "titygrute", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 23, char_start: 14, char_end: 23, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "aŭ",
         span = [1, 3],
+        phonemes = "aŭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "rectu",
         span = [4, 9],
+        phonemes = "rectu",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "joĭ",
         span = [10, 13],
+        phonemes = "joĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "titygrute",
         span = [14, 23],
+        phonemes = "titygrute",
         kind = "lujvo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Predicate = {
-                        predicate_tail = {
-                            first = {
-                                first = {
-                                    first = {Relation = {
-                                        Connected = {
-                                            connective = {NonLogical = {
-                                                cmavo = [
-                                                    {Bare = {
-                                                        Bare = {
-                                                            phonemes = "joĭ",
-                                                            span = [10, 13],
-                                                            kind = "cmavo"
-                                                        }
-                                                    }},
-                                                ]
-                                            }},
-                                            leading_relation = {Base = {
-                                                Bare = {Bare = {
-                                                    phonemes = "rectu",
-                                                    span = [4, 9],
-                                                    kind = "gismu"
-                                                }}
-                                            }},
-                                            trailing_relation = {Base = {
-                                                Bare = {Bare = {
-                                                    phonemes = "titygrute",
-                                                    span = [14, 23],
-                                                    kind = "lujvo"
-                                                }}
-                                            }}
-                                        }
-                                    }}
-                                }
-                            }
-                        }
-                    }}
-                },
-            ]
-        },
-    ],
-    leading_indicators = [
-        {
-            indicator = {Bare = {
-                Bare = {
-                    phonemes = "aŭ",
-                    span = [1, 3],
-                    kind = "cmavo"
-                }
-            }}
-        },
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "aŭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Connected { leading_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "rectu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))))), connective: NonLogical { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "joĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "titygrute", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 23, char_start: 14, char_end: 23, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[1,3],"phonemes":"aŭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"rectu","kind":"gismu"}},{"Bare":{"span":[10,13],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[14,23],"phonemes":"titygrute","kind":"lujvo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_indicators: [
+    ".aŭ",
+  ],
+  Connected {
+    leading_relation: "réctu",
+    connective: "joĭ",
+    trailing_relation: "titygrúte",
+  },
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[4,9],"phonemes":"rectu","kind":"gismu"}}}},"connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[10,13],"phonemes":"joĭ","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[14,23],"phonemes":"titygrute","kind":"lujvo"}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"aŭ","kind":"cmavo"}}}}]}'

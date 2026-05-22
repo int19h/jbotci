@@ -9,41 +9,38 @@ item-id = "1794"
 form = "front"
 url = "https://lensisku.lojban.org/en/collections/18"
 
-[expectations.output]
-brackets = "zo'o-naĭ"
-
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zo'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "zo'o",
         span = [0, 4],
+        phonemes = "zo'o",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "naĭ",
         span = [5, 8],
+        phonemes = "naĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {Bare = {
-                Bare = {
-                    phonemes = "zo'o",
-                    span = [0, 4],
-                    kind = "cmavo"
-                }
-            }},
-            nai = {
-                phonemes = "naĭ",
-                span = [5, 8],
-                kind = "cmavo"
-            }
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zo'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None }) })) })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+brackets = "zo'o-naĭ"
+tree = """
+Text {
+  leading_indicators: [
+    Indicator {
+      "zo'o",
+      nai: "naĭ",
+    },
+  ],
+}"""
+json = """{"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,4],"phonemes":"zo'o","kind":"cmavo"}}},"nai":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}}]}"""

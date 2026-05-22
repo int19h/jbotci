@@ -8,29 +8,30 @@ entry-id = "13247"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "doĭ",
         span = [3, 6],
+        phonemes = "doĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "failure"
-parse-tree = {
-    leading_free_modifiers = [
-        {Vocative = {
-            vocative_markers = [
-                {Bare = {
-                    Bare = {
-                        phonemes = "doĭ",
-                        span = [3, 6],
-                        kind = "cmavo"
-                    }
-                }},
-            ]
-        }},
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [] }'
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[3,6],"phonemes":"doĭ","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_free_modifiers: [
+    Vocative {
+      vocative_markers: "doĭ",
+    },
+  ],
+}"""
+json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[3,6],"phonemes":"doĭ","kind":"cmavo"}}}]}}]}'

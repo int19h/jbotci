@@ -8,11 +8,11 @@ use bityzba::{contract_trait, data, invariant, new, requires};
 use jbotci_morphology::{WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceId;
 use support::fixtures::{
-    CllSelector, ExpectationStatus, Expectations, Facet, FacetResult, FixtureBackend,
-    FixtureExport, FixtureSelector, LoadedTestCase, MorphologyExpectation, MuplisForm,
-    OutputExpectation, Provenance, SyntaxExpectation, TestCase, TextExpectation, XfailExpectation,
-    filter_fixtures, import_export_file, load_fixture_file, load_fixture_tree, run_fixture_facets,
-    run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
+    CllSelector, CommandOutputExpectation, ExpectationStatus, Expectations, Facet, FacetResult,
+    FixtureBackend, FixtureExport, FixtureSelector, LoadedTestCase, MorphologyExpectation,
+    MuplisForm, OutputExpectations, Provenance, SyntaxExpectation, TestCase, TextExpectation,
+    XfailExpectation, filter_fixtures, import_export_file, load_fixture_file, load_fixture_tree,
+    run_fixture_facets, run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
 };
 
 #[test]
@@ -340,22 +340,40 @@ fn writer_keeps_tree_and_words_as_values() {
         tags: vec![],
         provenance: vec![],
         expectations: Expectations {
-            output: Some(OutputExpectation {
-                brackets: Some(TextExpectation {
-                    text: "[coi]".into(),
+            output: Some(OutputExpectations {
+                vlasei: Some(CommandOutputExpectation {
+                    json: Some(TextExpectation {
+                        text: "[{\"Bare\":{\"kind\":\"cmavo\",\"phonemes\":\"coi\",\"span\":[0,3]}}]"
+                            .into(),
+                    }),
+                    ..CommandOutputExpectation::default()
                 }),
-                tree: Some(TextExpectation {
-                    text: "\"coi\"".into(),
+                gentufa: Some(CommandOutputExpectation {
+                    brackets: Some(TextExpectation {
+                        text: "[coi]".into(),
+                    }),
+                    tree: Some(TextExpectation {
+                        text: "\"coi\"".into(),
+                    }),
+                    json: Some(TextExpectation {
+                        text: "{}".into(),
+                    }),
                 }),
+                ..OutputExpectations::default()
             }),
             morphology: Some(MorphologyExpectation {
                 status: ExpectationStatus::Success,
+                raw: Some(TextExpectation {
+                    text: "[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: \"coi\", span: SourceSpan(SourceSpanData { source_id: None, byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))]".into(),
+                }),
                 words: vec![word],
                 error: None,
             }),
             syntax: Some(SyntaxExpectation {
                 status: ExpectationStatus::Success,
-                parse_tree: Some(serde_json::json!({})),
+                raw: Some(TextExpectation {
+                    text: "TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }".into(),
+                }),
                 error: None,
                 xfail: Some(XfailExpectation {
                     source: "test".into(),
@@ -369,11 +387,14 @@ fn writer_keeps_tree_and_words_as_values() {
     write_fixture_file(&fixture_path, &test_case).expect("write fixture");
     let text = fs::read_to_string(&fixture_path).expect("read fixture");
     assert!(text.starts_with("id = \"adhoc.syntax\"\nlojban = \"coi\"\ndialect = \"(allow-cgv)\""));
-    assert!(text.contains("[expectations.output]\nbrackets = \"[coi]\""));
+    assert!(text.contains("[expectations.output.vlasei]\njson = "));
+    assert!(text.contains("[expectations.output.gentufa]\nbrackets = \"[coi]\""));
     assert!(text.contains("tree = '\"coi\"'"));
-    assert!(text.contains("[expectations.morphology]\nstatus = \"success\"\nwords = ["));
+    assert!(text.contains("[expectations.morphology]\nstatus = \"success\"\nraw = "));
+    assert!(text.contains("words = ["));
     assert!(!text.contains("options = "));
-    assert!(text.contains("[expectations.syntax]\nstatus = \"success\"\nparse-tree = {"));
+    assert!(text.contains("[expectations.syntax]\nstatus = \"success\"\nraw = "));
+    assert!(!text.contains("parse-tree"));
     assert!(
         text.contains(
             "xfail = { source = \"test\", reason = \"intentional writer coverage\", accepted-status = \"failure\" }"
@@ -401,22 +422,24 @@ fn available_facets_include_tree_expectations() {
         tags: vec![],
         provenance: vec![],
         expectations: Expectations {
-            output: Some(OutputExpectation {
-                brackets: None,
-                tree: Some(TextExpectation {
-                    text: "\"coi\"".into(),
+            output: Some(OutputExpectations {
+                gentufa: Some(CommandOutputExpectation {
+                    tree: Some(TextExpectation {
+                        text: "\"coi\"".into(),
+                    }),
+                    ..CommandOutputExpectation::default()
                 }),
+                ..OutputExpectations::default()
             }),
             ..Expectations::default()
         },
     };
     let facets = case.available_facets();
-    assert!(facets.contains(&Facet::Tree));
-    assert!(!facets.contains(&Facet::Brackets));
-    assert_eq!("tree".parse::<Facet>().expect("tree facet"), Facet::Tree);
+    assert!(facets.contains(&Facet::GentufaTree));
+    assert!(!facets.contains(&Facet::GentufaBrackets));
     assert_eq!(
-        "vipcihe".parse::<Facet>().expect("vipcihe facet"),
-        Facet::Tree
+        "gentufa-tree".parse::<Facet>().expect("tree facet"),
+        Facet::GentufaTree
     );
 }
 

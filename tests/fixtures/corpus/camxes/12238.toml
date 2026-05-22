@@ -8,70 +8,45 @@ entry-id = "12238"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "i",
         span = [1, 2],
+        phonemes = "i",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "se",
         span = [2, 4],
+        phonemes = "se",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ju",
         span = [4, 6],
+        phonemes = "ju",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "naĭ",
         span = [6, 9],
+        phonemes = "naĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    i = {Bare = {
-                        Bare = {
-                            phonemes = "i",
-                            span = [1, 2],
-                            kind = "cmavo"
-                        }
-                    }},
-                    connective = {Relation = {
-                        se = {Bare = {
-                            Bare = {
-                                phonemes = "se",
-                                span = [2, 4],
-                                kind = "cmavo"
-                            }
-                        }},
-                        cmavo = [
-                            {Bare = {
-                                Bare = {
-                                    phonemes = "ju",
-                                    span = [4, 6],
-                                    kind = "cmavo"
-                                }
-                            }},
-                        ],
-                        nai = {Bare = {
-                            Bare = {
-                                phonemes = "naĭ",
-                                span = [6, 9],
-                                kind = "cmavo"
-                            }
-                        }}
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))))), connective: Some(Relation { se: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }))))), nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))))], free_modifiers: [] }, nai: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }) }), free_modifiers: [], statement: None }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"naĭ","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+ParagraphStatement {
+  i: ".i",
+  connective: Relation {
+    se: "se",
+    "ju",
+    nai: "naĭ",
+  },
+}"""
+json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"se":{"Bare":{"Bare":{"span":[2,4],"phonemes":"se","kind":"cmavo"}}},"cmavo":[{"Bare":{"Bare":{"span":[4,6],"phonemes":"ju","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[6,9],"phonemes":"naĭ","kind":"cmavo"}}}}}}]}]}'

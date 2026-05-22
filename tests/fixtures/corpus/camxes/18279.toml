@@ -8,202 +8,117 @@ entry-id = "18279"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "tal", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "mutce", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "certu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 29, char_start: 27, char_end: 29, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "kusru", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 35, char_start: 30, char_end: 35, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cusku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 41, char_start: 36, char_end: 41, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "u'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 43, byte_end: 46, char_start: 43, char_end: 46, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 48, byte_end: 51, char_start: 48, char_end: 51, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "daĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 51, byte_end: 54, char_start: 51, char_end: 54, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "doĭ",
         span = [0, 3],
+        phonemes = "doĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "tal",
         span = [4, 7],
+        phonemes = "tal",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "do",
         span = [9, 11],
+        phonemes = "do",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "mutce",
         span = [12, 17],
+        phonemes = "mutce",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "certu",
         span = [18, 23],
+        phonemes = "certu",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "le",
         span = [24, 26],
+        phonemes = "le",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ca",
         span = [27, 29],
+        phonemes = "ca",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "kusru",
         span = [30, 35],
+        phonemes = "kusru",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "cusku",
         span = [36, 41],
+        phonemes = "cusku",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "u'i",
         span = [43, 46],
+        phonemes = "u'i",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "e'e",
         span = [48, 51],
+        phonemes = "e'e",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "daĭ",
         span = [51, 54],
+        phonemes = "daĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_free_modifiers = [
-        {Vocative = {
-            vocative_markers = [
-                {Bare = {
-                    Bare = {
-                        phonemes = "doĭ",
-                        span = [0, 3],
-                        kind = "cmavo"
-                    }
-                }},
-            ],
-            argument = {Cmevla = [
-                    {Bare = {
-                        Bare = {
-                            phonemes = "tal",
-                            span = [4, 7],
-                            kind = "cmevla"
-                        }
-                    }},
-                ] }
-        }},
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "tal", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "mutce", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "certu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) })))), free_modifiers: [] })]), terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 29, char_start: 27, char_end: 29, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "kusru", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 35, char_start: 30, char_end: 35, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: WithIndicator { base: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cusku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 41, char_start: 36, char_end: 41, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "u'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 43, byte_end: 46, char_start: 43, char_end: 46, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "e'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 48, byte_end: 51, char_start: 48, char_end: 51, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "daĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 51, byte_end: 54, char_start: 51, char_end: 54, start: None, end: None }) }), nai: None }, free_modifiers: [] })]) }), relative_clauses: [], ku: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"tal","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"certu","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"kusru","kind":"gismu"}},{"Bare":{"span":[36,41],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[43,46],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[48,51],"phonemes":"e'e","kind":"cmavo"}},{"Bare":{"span":[51,54],"phonemes":"daĭ","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_free_modifiers: [
+    Vocative {
+      vocative_markers: "doĭ",
+      argument: ".tal.",
+    },
+  ],
+  Predicate {
+    leading_terms: [
+      "do",
     ],
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Predicate = {
-                        leading_terms = [
-                            {Argument = {
-                                Koha = {Bare = {
-                                    Bare = {
-                                        phonemes = "do",
-                                        span = [9, 11],
-                                        kind = "cmavo"
-                                    }
-                                }}
-                            }},
-                        ],
-                        predicate_tail = {
-                            first = {
-                                first = {
-                                    first = {Relation = {
-                                        relation = {Compound = [
-                                                {Word = {
-                                                    Bare = {Bare = {
-                                                        phonemes = "mutce",
-                                                        span = [12, 17],
-                                                        kind = "gismu"
-                                                    }}
-                                                }},
-                                                {Word = {
-                                                    Bare = {Bare = {
-                                                        phonemes = "certu",
-                                                        span = [18, 23],
-                                                        kind = "gismu"
-                                                    }}
-                                                }},
-                                            ] },
-                                        terms = [
-                                            {Argument = {
-                                                Descriptor = {
-                                                    descriptor = {Bare = {
-                                                        Bare = {
-                                                            phonemes = "le",
-                                                            span = [24, 26],
-                                                            kind = "cmavo"
-                                                        }
-                                                    }},
-                                                    relation = {TenseModal = {
-                                                        tense_modal = {Composite = {
-                                                            parts = [
-                                                                {Word = {
-                                                                    Bare = {Bare = {
-                                                                        phonemes = "ca",
-                                                                        span = [27, 29],
-                                                                        kind = "cmavo"
-                                                                    }}
-                                                                }},
-                                                            ]
-                                                        }},
-                                                        inner_relation = {Compound = [
-                                                                {Word = {
-                                                                    Bare = {Bare = {
-                                                                        phonemes = "kusru",
-                                                                        span = [30, 35],
-                                                                        kind = "gismu"
-                                                                    }}
-                                                                }},
-                                                                {Word = {
-                                                                    WithIndicator = {
-                                                                        base = {WithIndicator = {
-                                                                            base = {WithIndicator = {
-                                                                                base = {Bare = {
-                                                                                    Bare = {
-                                                                                        phonemes = "cusku",
-                                                                                        span = [36, 41],
-                                                                                        kind = "gismu"
-                                                                                    }
-                                                                                }},
-                                                                                indicator = {
-                                                                                    phonemes = "u'i",
-                                                                                    span = [43, 46],
-                                                                                    kind = "cmavo"
-                                                                                }
-                                                                            }},
-                                                                            indicator = {
-                                                                                phonemes = "e'e",
-                                                                                span = [48, 51],
-                                                                                kind = "cmavo"
-                                                                            }
-                                                                        }},
-                                                                        indicator = {
-                                                                            phonemes = "daĭ",
-                                                                            span = [51, 54],
-                                                                            kind = "cmavo"
-                                                                        }
-                                                                    }
-                                                                }},
-                                                            ] }
-                                                    }}
-                                                }
-                                            }},
-                                        ]
-                                    }}
-                                }
-                            }
-                        }
-                    }}
+    Relation {
+      Compound {
+        "mútce",
+        "cértu",
+      },
+      terms: [
+        Descriptor {
+          descriptor: "le",
+          relation: TenseModal {
+            tense_modal: "ca",
+            Compound {
+              "kúsru",
+              WithIndicator {
+                WithIndicator {
+                  WithIndicator {
+                    "cúsku",
+                    indicator: ".u'i",
+                  },
+                  indicator: ".e'e",
                 },
-            ]
+                indicator: "daĭ",
+              },
+            },
+          },
         },
-    ]
-}
+      ],
+    },
+  },
+}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[4,7],"phonemes":"tal","kind":"cmevla"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"mutce","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"certu","kind":"gismu"}}}}]},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}}},"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[27,29],"phonemes":"ca","kind":"cmavo"}}}}]}},"inner_relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[30,35],"phonemes":"kusru","kind":"gismu"}}}},{"Word":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[36,41],"phonemes":"cusku","kind":"gismu"}}},"indicator":{"span":[43,46],"phonemes":"u'i","kind":"cmavo"}}},"indicator":{"span":[48,51],"phonemes":"e'e","kind":"cmavo"}}},"indicator":{"span":[51,54],"phonemes":"daĭ","kind":"cmavo"}}}}]}}}}}}]}}}}}}}}]}]}"""

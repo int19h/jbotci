@@ -8,78 +8,51 @@ entry-id = "18470"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lo'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 6, char_start: 2, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "vasxu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "i",
         span = [0, 1],
+        phonemes = "i",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "lo'e",
         span = [2, 6],
+        phonemes = "lo'e",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "se",
         span = [7, 9],
+        phonemes = "se",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "vasxu",
         span = [10, 15],
+        phonemes = "vasxu",
         kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    i = {Bare = {
-                        Bare = {
-                            phonemes = "i",
-                            span = [0, 1],
-                            kind = "cmavo"
-                        }
-                    }},
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Descriptor = {
-                                        descriptor = {Bare = {
-                                            Bare = {
-                                                phonemes = "lo'e",
-                                                span = [2, 6],
-                                                kind = "cmavo"
-                                            }
-                                        }},
-                                        relation = {Se = {
-                                            se = {Bare = {
-                                                Bare = {
-                                                    phonemes = "se",
-                                                    span = [7, 9],
-                                                    kind = "cmavo"
-                                                }
-                                            }},
-                                            inner_relation = {Base = {
-                                                Bare = {Bare = {
-                                                    phonemes = "vasxu",
-                                                    span = [10, 15],
-                                                    kind = "gismu"
-                                                }}
-                                            }}
-                                        }}
-                                    }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lo'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 6, char_start: 2, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "vasxu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) }))))) }), relative_clauses: [], ku: None }))], vau: None })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"vasxu","kind":"gismu"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+ParagraphStatement {
+  i: ".i",
+  Term {
+    terms: [
+      Descriptor {
+        descriptor: "lo'e",
+        relation: Se {
+          se: "se",
+          "vásxu",
         },
-    ]
-}
+      },
+    ],
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[2,6],"phonemes":"lo'e","kind":"cmavo"}}},"relation":{"Se":{"se":{"Bare":{"Bare":{"span":[7,9],"phonemes":"se","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"vasxu","kind":"gismu"}}}}}}}}}]}}}}]}]}"""

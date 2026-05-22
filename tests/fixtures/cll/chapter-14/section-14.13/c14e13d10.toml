@@ -12,53 +12,34 @@ example-number = "14.101"
 example-id = "c14e13d10"
 source-path = "vendor/cll/chapters/14.xml"
 
-[expectations.output]
-brackets = "(gi'e nai)"
-
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "gi'e",
         span = [0, 4],
+        phonemes = "gi'e",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "naĭ",
         span = [4, 7],
+        phonemes = "naĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Gihek = {PredicateTail = {
-                            cmavo = [
-                                {Bare = {
-                                    Bare = {
-                                        phonemes = "gi'e",
-                                        span = [0, 4],
-                                        kind = "cmavo"
-                                    }
-                                }},
-                            ],
-                            nai = {Bare = {
-                                Bare = {
-                                    phonemes = "naĭ",
-                                    span = [4, 7],
-                                    kind = "cmavo"
-                                }
-                            }}
-                        }}
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Gihek(PredicateTail { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, nai: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }) }))) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+brackets = "(gi'e naĭ)"
+tree = """
+PredicateTail {
+  "gi'e",
+  nai: "naĭ",
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Gihek":{"PredicateTail":{"cmavo":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"gi'e","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}}}}}}}}]}]}"""

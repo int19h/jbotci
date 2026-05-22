@@ -9,111 +9,68 @@ item-id = "1044"
 form = "front"
 url = "https://lensisku.lojban.org/en/collections/18"
 
-[expectations.output]
-brackets = "(.ŭe-saĭ [taĭ.ĭa-naĭ mélbi])"
-
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ŭe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "saĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "taĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ĭa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 16, char_start: 13, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "melbi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 22, char_start: 17, char_end: 22, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "ŭe",
         span = [0, 2],
+        phonemes = "ŭe",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "saĭ",
         span = [3, 6],
+        phonemes = "saĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "taĭ",
         span = [7, 10],
+        phonemes = "taĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ĭa",
         span = [11, 13],
+        phonemes = "ĭa",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "naĭ",
         span = [13, 16],
+        phonemes = "naĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "melbi",
         span = [17, 22],
+        phonemes = "melbi",
         kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Predicate = {
-                        predicate_tail = {
-                            first = {
-                                first = {
-                                    first = {Relation = {
-                                        TenseModal = {
-                                            tense_modal = {Simple = {
-                                                bai = {WithIndicator = {
-                                                    base = {Bare = {
-                                                        Bare = {
-                                                            phonemes = "taĭ",
-                                                            span = [7, 10],
-                                                            kind = "cmavo"
-                                                        }
-                                                    }},
-                                                    indicator = {
-                                                        phonemes = "ĭa",
-                                                        span = [11, 13],
-                                                        kind = "cmavo"
-                                                    },
-                                                    nai = {
-                                                        phonemes = "naĭ",
-                                                        span = [13, 16],
-                                                        kind = "cmavo"
-                                                    }
-                                                }}
-                                            }},
-                                            inner_relation = {Base = {
-                                                Bare = {Bare = {
-                                                    phonemes = "melbi",
-                                                    span = [17, 22],
-                                                    kind = "gismu"
-                                                }}
-                                            }}
-                                        }
-                                    }}
-                                }
-                            }
-                        }
-                    }}
-                },
-            ]
-        },
-    ],
-    leading_indicators = [
-        {
-            indicator = {WithIndicator = {
-                base = {Bare = {
-                    Bare = {
-                        phonemes = "ŭe",
-                        span = [0, 2],
-                        kind = "cmavo"
-                    }
-                }},
-                indicator = {
-                    phonemes = "saĭ",
-                    span = [3, 6],
-                    kind = "cmavo"
-                }
-            }}
-        },
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ŭe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "saĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Simple { nahe: None, se: None, bai: WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "taĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ĭa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) }), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 16, char_start: 13, char_end: 16, start: None, end: None }) })) }, free_modifiers: [] }, nai: None, ki: None }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "melbi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 22, char_start: 17, char_end: 22, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,2],"phonemes":"ŭe","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ĭa","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"melbi","kind":"gismu"}}]'
+
+[expectations.output.gentufa]
+brackets = "(.ŭe-saĭ [taĭ.ĭa-naĭ mélbi])"
+tree = """
+Text {
+  leading_indicators: [
+    WithIndicator {
+      ".ŭe",
+      indicator: "saĭ",
+    },
+  ],
+  TenseModal {
+    tense_modal: Simple {
+      bai: WithIndicator {
+        "taĭ",
+        indicator: ".ĭa",
+        nai: "naĭ",
+      },
+    },
+    "mélbi",
+  },
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Simple":{"bai":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[7,10],"phonemes":"taĭ","kind":"cmavo"}}},"indicator":{"span":[11,13],"phonemes":"ĭa","kind":"cmavo"},"nai":{"span":[13,16],"phonemes":"naĭ","kind":"cmavo"}}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"melbi","kind":"gismu"}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ŭe","kind":"cmavo"}}},"indicator":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}}}}]}'

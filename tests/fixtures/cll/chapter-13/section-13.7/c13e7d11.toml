@@ -12,53 +12,44 @@ example-number = "13.58"
 example-id = "c13e7d11"
 source-path = "vendor/cll/chapters/13.xml"
 
-[expectations.output]
-brackets = "é'e-sé'a-naĭ"
-
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "e'e",
         span = [1, 4],
+        phonemes = "e'e",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "se'a",
         span = [4, 8],
+        phonemes = "se'a",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "naĭ",
         span = [8, 11],
+        phonemes = "naĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {WithIndicator = {
-                base = {Bare = {
-                    Bare = {
-                        phonemes = "e'e",
-                        span = [1, 4],
-                        kind = "cmavo"
-                    }
-                }},
-                indicator = {
-                    phonemes = "se'a",
-                    span = [4, 8],
-                    kind = "cmavo"
-                },
-                nai = {
-                    phonemes = "naĭ",
-                    span = [8, 11],
-                    kind = "cmavo"
-                }
-            }}
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "se'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None }) })) }, nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[1,4],"phonemes":"e'e","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"se'a","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"naĭ","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+brackets = ".e'e-se'a-naĭ"
+tree = """
+Text {
+  leading_indicators: [
+    WithIndicator {
+      ".e'e",
+      indicator: "se'a",
+      nai: "naĭ",
+    },
+  ],
+}"""
+json = """{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,4],"phonemes":"e'e","kind":"cmavo"}}},"indicator":{"span":[4,8],"phonemes":"se'a","kind":"cmavo"},"nai":{"span":[8,11],"phonemes":"naĭ","kind":"cmavo"}}}}]}"""

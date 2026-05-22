@@ -8,70 +8,45 @@ entry-id = "22259"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "coĭr", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ro", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "coĭr",
         span = [0, 4],
+        phonemes = "coĭr",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "ro",
         span = [5, 7],
+        phonemes = "ro",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "do",
         span = [7, 9],
+        phonemes = "do",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_cmevla = [
-        {Bare = {
-            Bare = {
-                phonemes = "coĭr",
-                span = [0, 4],
-                kind = "cmevla"
-            }
-        }},
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "coĭr", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ro", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }) })], vau: None })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,4],"phonemes":"coĭr","kind":"cmevla"}},{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_cmevla: [
+    ".coĭr.",
+  ],
+  Term {
+    terms: [
+      Quantified {
+        quantifier: "ro",
+        "do",
+      },
     ],
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Quantified = {
-                                        quantifier = {Number = {
-                                            number = [
-                                                {Bare = {
-                                                    Bare = {
-                                                        phonemes = "ro",
-                                                        span = [5, 7],
-                                                        kind = "cmavo"
-                                                    }
-                                                }},
-                                            ]
-                                        }},
-                                        inner_argument = {Koha = {
-                                            Bare = {Bare = {
-                                                phonemes = "do",
-                                                span = [7, 9],
-                                                kind = "cmavo"
-                                            }}
-                                        }}
-                                    }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+  },
+}"""
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"coĭr","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}}}}}}}]}}}}]}]}'

@@ -12,65 +12,52 @@ example-number = "13.54"
 example-id = "c13e7d7"
 source-path = "vendor/cll/chapters/13.xml"
 
-[expectations.output]
-brackets = "ó'o-naĭ-rí'e-naĭ"
-
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "o'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ri'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "o'o",
         span = [1, 4],
+        phonemes = "o'o",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "naĭ",
         span = [4, 7],
-        kind = "cmavo"
-    }},
-    {Bare = {
-        phonemes = "ri'e",
-        span = [8, 12],
-        kind = "cmavo"
-    }},
-    {Bare = {
         phonemes = "naĭ",
+        kind = "cmavo"
+    }},
+    {Bare = {
+        span = [8, 12],
+        phonemes = "ri'e",
+        kind = "cmavo"
+    }},
+    {Bare = {
         span = [12, 15],
+        phonemes = "naĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {Bare = {
-                Bare = {
-                    phonemes = "o'o",
-                    span = [1, 4],
-                    kind = "cmavo"
-                }
-            }},
-            nai = {
-                phonemes = "naĭ",
-                span = [4, 7],
-                kind = "cmavo"
-            }
-        },
-        {
-            indicator = {Bare = {
-                Bare = {
-                    phonemes = "ri'e",
-                    span = [8, 12],
-                    kind = "cmavo"
-                }
-            }},
-            nai = {
-                phonemes = "naĭ",
-                span = [12, 15],
-                kind = "cmavo"
-            }
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "o'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None }) })))), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) })) }), Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ri'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) })))), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) })) })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[1,4],"phonemes":"o'o","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ri'e","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"naĭ","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+brackets = ".o'o-naĭ-ri'e-naĭ"
+tree = """
+Text {
+  leading_indicators: [
+    Indicator {
+      ".o'o",
+      nai: "naĭ",
+    },
+    Indicator {
+      "ri'e",
+      nai: "naĭ",
+    },
+  ],
+}"""
+json = """{"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,4],"phonemes":"o'o","kind":"cmavo"}}},"nai":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"indicator":{"Bare":{"Bare":{"span":[8,12],"phonemes":"ri'e","kind":"cmavo"}}},"nai":{"span":[12,15],"phonemes":"naĭ","kind":"cmavo"}}]}"""

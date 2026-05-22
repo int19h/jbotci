@@ -8,30 +8,31 @@ entry-id = "11858"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "kansa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "djica", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "is", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ce", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "kansa",
         span = [0, 5],
+        phonemes = "kansa",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "djica",
         span = [6, 11],
+        phonemes = "djica",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "is",
         span = [12, 14],
+        phonemes = "is",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "ni",
         span = [15, 17],
+        phonemes = "ni",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ce",
         span = [17, 19],
+        phonemes = "ce",
         kind = "cmavo"
     }},
 ]
@@ -39,3 +40,6 @@ words = [
 [expectations.syntax]
 status = "failure"
 error = { position = 2, allowed-next = [] }
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,5],"phonemes":"kansa","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"is","kind":"cmevla"}},{"Bare":{"span":[15,17],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ce","kind":"cmavo"}}]'

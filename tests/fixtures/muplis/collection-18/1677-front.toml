@@ -9,29 +9,30 @@ item-id = "1677"
 form = "front"
 url = "https://lensisku.lojban.org/en/collections/18"
 
-[expectations.output]
-brackets = ".g."
-
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "g", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "g",
         span = [0, 1],
+        phonemes = "g",
         kind = "cmevla"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_cmevla = [
-        {Bare = {
-            Bare = {
-                phonemes = "g",
-                span = [0, 1],
-                kind = "cmevla"
-            }
-        }},
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "g", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,1],"phonemes":"g","kind":"cmevla"}}]'
+
+[expectations.output.gentufa]
+brackets = ".g."
+tree = """
+Text {
+  leading_cmevla: [
+    ".g.",
+  ],
+}"""
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,1],"phonemes":"g","kind":"cmevla"}}}]}'

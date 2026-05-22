@@ -8,116 +8,47 @@ entry-id = "1538"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "ponse", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "karce", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "poĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 26, char_start: 23, char_end: 26, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "xekri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 32, char_start: 27, char_end: 32, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "mi",
         span = [0, 2],
+        phonemes = "mi",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ponse",
         span = [3, 8],
+        phonemes = "ponse",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "re",
         span = [9, 11],
+        phonemes = "re",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "karce",
         span = [12, 17],
+        phonemes = "karce",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "ku",
         span = [19, 21],
+        phonemes = "ku",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "poĭ",
         span = [23, 26],
+        phonemes = "poĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "xekri",
         span = [27, 32],
+        phonemes = "xekri",
         kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "failure"
-parse-tree = {
-    paragraphs = [
-        {Paragraph = {
-            statements = [
-                {ParagraphStatement = {
-                    statement = {StatementPredicate = {
-                        predicate = {Predicate = {
-                            leading_terms = [
-                                {ArgumentTerm = {
-                                    argument = {KohaArgument = {
-                                        koha = {Bare = {
-                                            span = [0, 2],
-                                            phonemes = "mi",
-                                            kind = "cmavo"
-                                        }}
-                                    }}
-                                }},
-                            ],
-                            predicate_tail = {PredicateTail = {
-                                first = {PredicateTail1 = {
-                                    first = {PredicateTail2 = {
-                                        first = {RelationPredicateTail3 = {
-                                            relation = {BaseRelation = {
-                                                word = {Bare = {
-                                                    span = [3, 8],
-                                                    phonemes = "ponse",
-                                                    kind = "gismu"
-                                                }}
-                                            }},
-                                            terms = [
-                                                {ArgumentTerm = {
-                                                    argument = {DescriptorArgument = {
-                                                        descriptor = {Descriptor = {
-                                                            ku = {Bare = {
-                                                                span = [19, 21],
-                                                                phonemes = "ku",
-                                                                kind = "cmavo"
-                                                            }},
-                                                            relation = {BaseRelation = {
-                                                                word = {Bare = {
-                                                                    span = [12, 17],
-                                                                    phonemes = "karce",
-                                                                    kind = "gismu"
-                                                                }}
-                                                            }},
-                                                            relative_clauses = [
-                                                                {PoiRelativeClause = {
-                                                                    poi = {Bare = {
-                                                                        span = [23, 26],
-                                                                        phonemes = "poĭ",
-                                                                        kind = "cmavo"
-                                                                    }},
-                                                                    subsentence = {PlainSubsentence = {} }
-                                                                }},
-                                                            ],
-                                                            tail_elements = [
-                                                                {ArgumentTailQuantifier = {} },
-                                                            ]
-                                                        }}
-                                                    }}
-                                                }},
-                                            ]
-                                        }}
-                                    }}
-                                }}
-                            }}
-                        }}
-                    }}
-                }},
-            ]
-        }},
-    ]
-}
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"karce","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[23,26],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"xekri","kind":"gismu"}}]'

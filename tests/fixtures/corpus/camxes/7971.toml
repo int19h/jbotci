@@ -8,62 +8,45 @@ entry-id = "7971"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "so'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "prenu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "coĭ",
         span = [0, 3],
+        phonemes = "coĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "so'i",
         span = [4, 8],
+        phonemes = "so'i",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "prenu",
         span = [9, 14],
+        phonemes = "prenu",
         kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_free_modifiers = [
-        {Vocative = {
-            vocative_markers = [
-                {Bare = {
-                    Bare = {
-                        phonemes = "coĭ",
-                        span = [0, 3],
-                        kind = "cmavo"
-                    }
-                }},
-            ],
-            argument = {Descriptor = {
-                tail_elements = [
-                    {Quantifier = {
-                        Number = {
-                            number = [
-                                {Bare = {
-                                    Bare = {
-                                        phonemes = "so'i",
-                                        span = [4, 8],
-                                        kind = "cmavo"
-                                    }
-                                }},
-                            ]
-                        }
-                    }},
-                ],
-                relation = {Base = {
-                    Bare = {Bare = {
-                        phonemes = "prenu",
-                        span = [9, 14],
-                        kind = "gismu"
-                    }}
-                }}
-            }}
-        }},
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "so'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "prenu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))))), relative_clauses: [], ku: None })), dohu: None }], leading_connective: None, paragraphs: [] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"prenu","kind":"gismu"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_free_modifiers: [
+    Vocative {
+      vocative_markers: "coĭ",
+      argument: Descriptor {
+        tail_elements: [
+          "so'i",
+        ],
+        relation: "prénu",
+      },
+    },
+  ],
+}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}}}],"argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[4,8],"phonemes":"so'i","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"prenu","kind":"gismu"}}}}}}}}]}"""

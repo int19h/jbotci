@@ -8,54 +8,41 @@ entry-id = "19899"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zo'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 6, char_start: 2, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "peĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "i",
         span = [0, 1],
+        phonemes = "i",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "zo'o",
         span = [2, 6],
+        phonemes = "zo'o",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "peĭ",
         span = [6, 9],
+        phonemes = "peĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    i = {WithIndicator = {
-                        base = {WithIndicator = {
-                            base = {Bare = {
-                                Bare = {
-                                    phonemes = "i",
-                                    span = [0, 1],
-                                    kind = "cmavo"
-                                }
-                            }},
-                            indicator = {
-                                phonemes = "zo'o",
-                                span = [2, 6],
-                                kind = "cmavo"
-                            }
-                        }},
-                        indicator = {
-                            phonemes = "peĭ",
-                            span = [6, 9],
-                            kind = "cmavo"
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "zo'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 6, char_start: 2, char_end: 6, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "peĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: None }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"peĭ","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+ParagraphStatement {
+  i: WithIndicator {
+    WithIndicator {
+      ".i",
+      indicator: "zo'o",
+    },
+    indicator: "peĭ",
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[2,6],"phonemes":"zo'o","kind":"cmavo"}}},"indicator":{"span":[6,9],"phonemes":"peĭ","kind":"cmavo"}}}}]}]}"""

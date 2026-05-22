@@ -8,42 +8,31 @@ entry-id = "17684"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "lu",
         span = [2, 4],
+        phonemes = "lu",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "failure"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Quote = {Lu = {
-                                        lu = {Bare = {
-                                            Bare = {
-                                                phonemes = "lu",
-                                                span = [2, 4],
-                                                kind = "cmavo"
-                                            }
-                                        }},
-                                        text = {}
-                                    }}
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Lu { lu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }, lihu: None }))], vau: None })) }] }] }'
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[2,4],"phonemes":"lu","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Term {
+  terms: [
+    Lu {
+      lu: "lu",
+      Text {},
+    },
+  ],
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Lu":{"lu":{"Bare":{"Bare":{"span":[2,4],"phonemes":"lu","kind":"cmavo"}}},"text":{}}}}}]}}}}]}]}'

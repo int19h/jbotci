@@ -8,68 +8,51 @@ entry-id = "17366"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "benbaŭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 13, char_start: 7, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "finti", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 19, char_start: 14, char_end: 19, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "coĭ",
         span = [0, 3],
+        phonemes = "coĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "le",
         span = [4, 6],
+        phonemes = "le",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "benbaŭ",
         span = [7, 13],
+        phonemes = "benbaŭ",
         kind = "lujvo"
     }},
     {Bare = {
-        phonemes = "finti",
         span = [14, 19],
+        phonemes = "finti",
         kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_free_modifiers = [
-        {Vocative = {
-            vocative_markers = [
-                {Bare = {
-                    Bare = {
-                        phonemes = "coĭ",
-                        span = [0, 3],
-                        kind = "cmavo"
-                    }
-                }},
-            ],
-            argument = {Descriptor = {
-                descriptor = {Bare = {
-                    Bare = {
-                        phonemes = "le",
-                        span = [4, 6],
-                        kind = "cmavo"
-                    }
-                }},
-                relation = {Compound = [
-                        {Word = {
-                            Bare = {Bare = {
-                                phonemes = "benbaŭ",
-                                span = [7, 13],
-                                kind = "lujvo"
-                            }}
-                        }},
-                        {Word = {
-                            Bare = {Bare = {
-                                phonemes = "finti",
-                                span = [14, 19],
-                                kind = "gismu"
-                            }}
-                        }},
-                    ] }
-            }}
-        }},
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "benbaŭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 13, char_start: 7, char_end: 13, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "finti", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 19, char_start: 14, char_end: 19, start: None, end: None }) })))), free_modifiers: [] })])), relative_clauses: [], ku: None })), dohu: None }], leading_connective: None, paragraphs: [] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,13],"phonemes":"benbaŭ","kind":"lujvo"}},{"Bare":{"span":[14,19],"phonemes":"finti","kind":"gismu"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_free_modifiers: [
+    Vocative {
+      vocative_markers: "coĭ",
+      argument: Descriptor {
+        descriptor: "le",
+        relation: Compound {
+          "bénbaŭ",
+          "fínti",
+        },
+      },
+    },
+  ],
+}"""
+json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}}}],"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[7,13],"phonemes":"benbaŭ","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[14,19],"phonemes":"finti","kind":"gismu"}}}}]}}}}}]}'

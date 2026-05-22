@@ -8,84 +8,45 @@ entry-id = "15421"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "flalu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tinbe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "palci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "flalu",
         span = [0, 5],
+        phonemes = "flalu",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "tinbe",
         span = [6, 11],
+        phonemes = "tinbe",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "ju",
         span = [12, 14],
+        phonemes = "ju",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "palci",
         span = [15, 20],
+        phonemes = "palci",
         kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Predicate = {
-                        predicate_tail = {
-                            first = {
-                                first = {
-                                    first = {Relation = {
-                                        Compound = [
-                                            {Word = {
-                                                Bare = {Bare = {
-                                                    phonemes = "flalu",
-                                                    span = [0, 5],
-                                                    kind = "gismu"
-                                                }}
-                                            }},
-                                            {Connected = {
-                                                leading_unit = {Word = {
-                                                    Bare = {Bare = {
-                                                        phonemes = "tinbe",
-                                                        span = [6, 11],
-                                                        kind = "gismu"
-                                                    }}
-                                                }},
-                                                connective = {Relation = {
-                                                    cmavo = [
-                                                        {Bare = {
-                                                            Bare = {
-                                                                phonemes = "ju",
-                                                                span = [12, 14],
-                                                                kind = "cmavo"
-                                                            }
-                                                        }},
-                                                    ]
-                                                }},
-                                                trailing_unit = {Word = {
-                                                    Bare = {Bare = {
-                                                        phonemes = "palci",
-                                                        span = [15, 20],
-                                                        kind = "gismu"
-                                                    }}
-                                                }}
-                                            }},
-                                        ]
-                                    }}
-                                }
-                            }
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "flalu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Connected { leading_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tinbe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }), connective: Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "palci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }) }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,5],"phonemes":"flalu","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"tinbe","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"palci","kind":"gismu"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Compound {
+  "flálu",
+  Connected {
+    leading_unit: "tínbe",
+    connective: "ju",
+    trailing_unit: "pálci",
+  },
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"flalu","kind":"gismu"}}}},{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"tinbe","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[12,14],"phonemes":"ju","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"palci","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

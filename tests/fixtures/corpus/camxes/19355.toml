@@ -8,57 +8,38 @@ entry-id = "19355"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ki'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "mo'u",
         span = [0, 4],
+        phonemes = "mo'u",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ki'a",
         span = [5, 9],
+        phonemes = "ki'a",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Tagged = {
-                                    tense_modal = {Composite = {
-                                        parts = [
-                                            {Word = {
-                                                WithIndicator = {
-                                                    base = {Bare = {
-                                                        Bare = {
-                                                            phonemes = "mo'u",
-                                                            span = [0, 4],
-                                                            kind = "cmavo"
-                                                        }
-                                                    }},
-                                                    indicator = {
-                                                        phonemes = "ki'a",
-                                                        span = [5, 9],
-                                                        kind = "cmavo"
-                                                    }
-                                                }
-                                            }},
-                                        ]
-                                    }},
-                                    argument = {Zohe = {} }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ki'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }), nai: None })], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ki'a","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Term {
+  terms: [
+    Tagged {
+      tense_modal: WithIndicator {
+        "mo'u",
+        indicator: "ki'a",
+      },
+      Zohe {},
+    },
+  ],
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,4],"phonemes":"mo'u","kind":"cmavo"}}},"indicator":{"span":[5,9],"phonemes":"ki'a","kind":"cmavo"}}}}]}},"argument":{"Zohe":{}}}}]}}}}]}]}"""

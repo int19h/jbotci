@@ -8,30 +8,31 @@ entry-id = "10302"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "kamjikca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 11, char_start: 3, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "lisri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "poĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 21, char_start: 18, char_end: 21, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "le",
         span = [0, 2],
+        phonemes = "le",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "kamjikca",
         span = [3, 11],
+        phonemes = "kamjikca",
         kind = "lujvo"
     }},
     {Bare = {
-        phonemes = "lisri",
         span = [12, 17],
+        phonemes = "lisri",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "poĭ",
         span = [18, 21],
+        phonemes = "poĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ma",
         span = [22, 24],
+        phonemes = "ma",
         kind = "cmavo"
     }},
 ]
@@ -39,3 +40,6 @@ words = [
 [expectations.syntax]
 status = "failure"
 error = { position = 5, allowed-next = [] }
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,11],"phonemes":"kamjikca","kind":"lujvo"}},{"Bare":{"span":[12,17],"phonemes":"lisri","kind":"gismu"}},{"Bare":{"span":[18,21],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"ma","kind":"cmavo"}}]'

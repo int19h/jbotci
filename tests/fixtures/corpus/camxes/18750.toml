@@ -8,40 +8,37 @@ entry-id = "18750"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "u'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "je'e",
         span = [0, 4],
+        phonemes = "je'e",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "u'i",
         span = [6, 9],
+        phonemes = "u'i",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_free_modifiers = [
-        {Vocative = {
-            vocative_markers = [
-                {WithIndicator = {
-                    base = {Bare = {
-                        Bare = {
-                            phonemes = "je'e",
-                            span = [0, 4],
-                            kind = "cmavo"
-                        }
-                    }},
-                    indicator = {
-                        phonemes = "u'i",
-                        span = [6, 9],
-                        kind = "cmavo"
-                    }
-                }},
-            ]
-        }},
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "u'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }), nai: None }], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"u'i","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_free_modifiers: [
+    Vocative {
+      vocative_markers: WithIndicator {
+        "je'e",
+        indicator: ".u'i",
+      },
+    },
+  ],
+}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}}},"indicator":{"span":[6,9],"phonemes":"u'i","kind":"cmavo"}}}]}}]}"""

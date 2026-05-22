@@ -12,29 +12,30 @@ example-number = "6.76"
 example-id = "c6e12d7"
 source-path = "vendor/cll/chapters/06.xml"
 
-[expectations.output]
-brackets = "lójban"
-
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "lojban", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 7, char_start: 1, char_end: 7, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "lojban",
         span = [1, 7],
+        phonemes = "lojban",
         kind = "cmevla"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_cmevla = [
-        {Bare = {
-            Bare = {
-                phonemes = "lojban",
-                span = [1, 7],
-                kind = "cmevla"
-            }
-        }},
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "lojban", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 7, char_start: 1, char_end: 7, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[1,7],"phonemes":"lojban","kind":"cmevla"}}]'
+
+[expectations.output.gentufa]
+brackets = ".lojban."
+tree = """
+Text {
+  leading_cmevla: [
+    ".lojban.",
+  ],
+}"""
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[1,7],"phonemes":"lojban","kind":"cmevla"}}}]}'

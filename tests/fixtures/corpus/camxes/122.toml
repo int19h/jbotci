@@ -8,56 +8,35 @@ entry-id = "122"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "by", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "di", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "by",
         span = [15, 17],
+        phonemes = "by",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "di",
         span = [18, 20],
+        phonemes = "di",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Letter = {
-                                        letter = [
-                                            {Bare = {
-                                                Bare = {
-                                                    phonemes = "by",
-                                                    span = [15, 17],
-                                                    kind = "cmavo"
-                                                }
-                                            }},
-                                        ]
-                                    }
-                                }},
-                                {Argument = {
-                                    Koha = {Bare = {
-                                        Bare = {
-                                            phonemes = "di",
-                                            span = [18, 20],
-                                            kind = "cmavo"
-                                        }
-                                    }}
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "by", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "di", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }))], vau: None })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[15,17],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"di","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Term {
+  terms: [
+    Letter {
+      letter: "by",
+    },
+    "di",
+  ],
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[15,17],"phonemes":"by","kind":"cmavo"}}}]}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[18,20],"phonemes":"di","kind":"cmavo"}}}}}]}}}}]}]}'

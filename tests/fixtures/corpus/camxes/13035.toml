@@ -8,30 +8,31 @@ entry-id = "13035"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cmima", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "makes", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sense", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "me", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "cmima",
         span = [0, 5],
+        phonemes = "cmima",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "makes",
         span = [6, 11],
+        phonemes = "makes",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "sense",
         span = [12, 17],
+        phonemes = "sense",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "to",
         span = [18, 20],
+        phonemes = "to",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "me",
         span = [21, 23],
+        phonemes = "me",
         kind = "cmavo"
     }},
 ]
@@ -39,3 +40,6 @@ words = [
 [expectations.syntax]
 status = "failure"
 error = { position = 1, allowed-next = [] }
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,5],"phonemes":"cmima","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"makes","kind":"cmevla"}},{"Bare":{"span":[12,17],"phonemes":"sense","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"me","kind":"cmavo"}}]'

@@ -8,56 +8,31 @@ entry-id = "20498"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "jaĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "nalsinma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 12, char_start: 4, char_end: 12, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "jaĭ",
         span = [0, 3],
+        phonemes = "jaĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "nalsinma",
         span = [4, 12],
+        phonemes = "nalsinma",
         kind = "lujvo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Predicate = {
-                        predicate_tail = {
-                            first = {
-                                first = {
-                                    first = {Relation = {
-                                        Compound = [
-                                            {Jai = {
-                                                jai = {Bare = {
-                                                    Bare = {
-                                                        phonemes = "jaĭ",
-                                                        span = [0, 3],
-                                                        kind = "cmavo"
-                                                    }
-                                                }},
-                                                inner_unit = {Word = {
-                                                    Bare = {Bare = {
-                                                        phonemes = "nalsinma",
-                                                        span = [4, 12],
-                                                        kind = "lujvo"
-                                                    }}
-                                                }}
-                                            }},
-                                        ]
-                                    }}
-                                }
-                            }
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Jai { jai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "jaĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, tense_modal: None, inner_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "nalsinma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 12, char_start: 4, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }) }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,3],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[4,12],"phonemes":"nalsinma","kind":"lujvo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Jai {
+  jai: "jaĭ",
+  "nalsínma",
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Jai":{"jai":{"Bare":{"Bare":{"span":[0,3],"phonemes":"jaĭ","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[4,12],"phonemes":"nalsinma","kind":"lujvo"}}}}}}]}}}}}}}}]}]}'

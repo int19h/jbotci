@@ -8,73 +8,46 @@ entry-id = "4760"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "in", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ja", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "va", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "in",
         span = [0, 2],
+        phonemes = "in",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "ja",
         span = [3, 5],
+        phonemes = "ja",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "va",
         span = [5, 7],
+        phonemes = "va",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_cmevla = [
-        {Bare = {
-            Bare = {
-                phonemes = "in",
-                span = [0, 2],
-                kind = "cmevla"
-            }
-        }},
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "in", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ja", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }), paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "va", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,2],"phonemes":"in","kind":"cmevla"}},{"Bare":{"span":[3,5],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"va","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_cmevla: [
+    ".in.",
+  ],
+  leading_connective: "ja",
+  Term {
+    terms: [
+      Tagged {
+        tense_modal: "va",
+        Zohe {},
+      },
     ],
-    leading_connective = {Relation = {
-        cmavo = [
-            {Bare = {
-                Bare = {
-                    phonemes = "ja",
-                    span = [3, 5],
-                    kind = "cmavo"
-                }
-            }},
-        ]
-    }},
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Tagged = {
-                                    tense_modal = {Composite = {
-                                        parts = [
-                                            {Word = {
-                                                Bare = {Bare = {
-                                                    phonemes = "va",
-                                                    span = [5, 7],
-                                                    kind = "cmavo"
-                                                }}
-                                            }},
-                                        ]
-                                    }},
-                                    argument = {Zohe = {} }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+  },
+}"""
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"in","kind":"cmevla"}}}],"leading_connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"ja","kind":"cmavo"}}}]}},"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[5,7],"phonemes":"va","kind":"cmavo"}}}}]}},"argument":{"Zohe":{}}}}]}}}}]}]}'

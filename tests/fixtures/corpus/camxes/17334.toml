@@ -8,36 +8,35 @@ entry-id = "17334"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "or", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cu'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "or",
         span = [0, 2],
+        phonemes = "or",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "cu'i",
         span = [3, 7],
+        phonemes = "cu'i",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_cmevla = [
-        {WithIndicator = {
-            base = {Bare = {
-                Bare = {
-                    phonemes = "or",
-                    span = [0, 2],
-                    kind = "cmevla"
-                }
-            }},
-            indicator = {
-                phonemes = "cu'i",
-                span = [3, 7],
-                kind = "cmavo"
-            }
-        }},
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "or", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "cu'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }), nai: None }], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}},{"Bare":{"span":[3,7],"phonemes":"cu'i","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_cmevla: [
+    WithIndicator {
+      ".or.",
+      indicator: "cu'i",
+    },
+  ],
+}"""
+json = """{"leading_cmevla":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,2],"phonemes":"or","kind":"cmevla"}}},"indicator":{"span":[3,7],"phonemes":"cu'i","kind":"cmavo"}}}]}"""

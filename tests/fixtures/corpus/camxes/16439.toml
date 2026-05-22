@@ -8,41 +8,32 @@ entry-id = "16439"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "de'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "de'i",
         span = [8, 12],
+        phonemes = "de'i",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Tagged = {
-                                    tense_modal = {Simple = {
-                                        bai = {Bare = {
-                                            Bare = {
-                                                phonemes = "de'i",
-                                                span = [8, 12],
-                                                kind = "cmavo"
-                                            }
-                                        }}
-                                    }},
-                                    argument = {Zohe = {} }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "de'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[8,12],"phonemes":"de'i","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Term {
+  terms: [
+    Tagged {
+      tense_modal: Simple {
+        bai: "de'i",
+      },
+      Zohe {},
+    },
+  ],
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[8,12],"phonemes":"de'i","kind":"cmavo"}}}}},"argument":{"Zohe":{}}}}]}}}}]}]}"""

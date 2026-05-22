@@ -8,30 +8,31 @@ entry-id = "18378"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ko", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "troci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "nu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "e'o",
         span = [1, 4],
+        phonemes = "e'o",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ko",
         span = [5, 7],
+        phonemes = "ko",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "troci",
         span = [8, 13],
+        phonemes = "troci",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "le",
         span = [14, 16],
+        phonemes = "le",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "nu",
         span = [16, 18],
+        phonemes = "nu",
         kind = "cmavo"
     }},
 ]
@@ -39,3 +40,6 @@ words = [
 [expectations.syntax]
 status = "failure"
 error = { position = 5, allowed-next = [] }
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[1,4],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"troci","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"nu","kind":"cmavo"}}]"""

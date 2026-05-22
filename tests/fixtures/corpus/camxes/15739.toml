@@ -8,68 +8,39 @@ entry-id = "15739"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "vrude", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cidja", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 16, char_start: 11, char_end: 16, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "na'e",
         span = [0, 4],
+        phonemes = "na'e",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "vrude",
         span = [5, 10],
+        phonemes = "vrude",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "cidja",
         span = [11, 16],
+        phonemes = "cidja",
         kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Predicate = {
-                        predicate_tail = {
-                            first = {
-                                first = {
-                                    first = {Relation = {
-                                        Compound = [
-                                            {Nahe = {
-                                                nahe = {Bare = {
-                                                    Bare = {
-                                                        phonemes = "na'e",
-                                                        span = [0, 4],
-                                                        kind = "cmavo"
-                                                    }
-                                                }},
-                                                inner_unit = {Word = {
-                                                    Bare = {Bare = {
-                                                        phonemes = "vrude",
-                                                        span = [5, 10],
-                                                        kind = "gismu"
-                                                    }}
-                                                }}
-                                            }},
-                                            {Word = {
-                                                Bare = {Bare = {
-                                                    phonemes = "cidja",
-                                                    span = [11, 16],
-                                                    kind = "gismu"
-                                                }}
-                                            }},
-                                        ]
-                                    }}
-                                }
-                            }
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Nahe { nahe: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, inner_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "vrude", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }) }, Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cidja", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 16, char_start: 11, char_end: 16, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"vrude","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"cidja","kind":"gismu"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Compound {
+  Nahe {
+    nahe: "na'e",
+    "vrúde",
+  },
+  "cídja",
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Nahe":{"nahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"vrude","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"cidja","kind":"gismu"}}}}]}}}}}}}}]}]}"""

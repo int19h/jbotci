@@ -9,65 +9,44 @@ item-id = "892"
 form = "front"
 url = "https://lensisku.lojban.org/en/collections/18"
 
-[expectations.output]
-brackets = "mi.a'o-naĭ"
-
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "a'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "mi",
         span = [0, 2],
+        phonemes = "mi",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "a'o",
         span = [4, 7],
+        phonemes = "a'o",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "naĭ",
         span = [8, 11],
+        phonemes = "naĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Koha = {WithIndicator = {
-                                        base = {Bare = {
-                                            Bare = {
-                                                phonemes = "mi",
-                                                span = [0, 2],
-                                                kind = "cmavo"
-                                            }
-                                        }},
-                                        indicator = {
-                                            phonemes = "a'o",
-                                            span = [4, 7],
-                                            kind = "cmavo"
-                                        },
-                                        nai = {
-                                            phonemes = "naĭ",
-                                            span = [8, 11],
-                                            kind = "cmavo"
-                                        }
-                                    }}
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "a'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None }) })) }, free_modifiers: [] }))], vau: None })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"naĭ","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+brackets = "mi.a'o-naĭ"
+tree = """
+Term {
+  terms: [
+    WithIndicator {
+      "mi",
+      indicator: ".a'o",
+      nai: "naĭ",
+    },
+  ],
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}},"indicator":{"span":[4,7],"phonemes":"a'o","kind":"cmavo"},"nai":{"span":[8,11],"phonemes":"naĭ","kind":"cmavo"}}}}}]}}}}]}]}"""

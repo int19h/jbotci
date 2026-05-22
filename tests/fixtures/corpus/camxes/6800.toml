@@ -8,48 +8,31 @@ entry-id = "6800"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ne", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ta", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "ne",
         span = [0, 2],
+        phonemes = "ne",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ta",
         span = [2, 4],
+        phonemes = "ta",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        RelativeClause = [
-                            {Goi = {
-                                goi = {Bare = {
-                                    Bare = {
-                                        phonemes = "ne",
-                                        span = [0, 2],
-                                        kind = "cmavo"
-                                    }
-                                }},
-                                argument = {Koha = {
-                                    Bare = {Bare = {
-                                        phonemes = "ta",
-                                        span = [2, 4],
-                                        kind = "cmavo"
-                                    }}
-                                }}
-                            }},
-                        ]
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(RelativeClause([Goi(GoiRelativeClauseSyntax { goi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ne", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ta", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }), gehu: None })]))) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,2],"phonemes":"ne","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ta","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+GoiRelativeClause {
+  goi: "ne",
+  "ta",
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ne","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[2,4],"phonemes":"ta","kind":"cmavo"}}}}}}]}}}]}]}'

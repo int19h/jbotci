@@ -425,15 +425,15 @@ pub enum StatementSyntax {
     },
     Predicate(PredicateSyntax),
     Connected {
+        leading_statement: Box<StatementSyntax>,
         i: WithIndicators<WordLike>,
         connective: ConnectiveSyntax,
-        leading_statement: Box<StatementSyntax>,
         trailing_statement: Box<StatementSyntax>,
     },
     PreIConnected {
+        leading_statement: Box<StatementSyntax>,
         connective: ConnectiveSyntax,
         i: WithIndicators<WordLike>,
-        leading_statement: Box<StatementSyntax>,
         trailing_statement: Box<StatementSyntax>,
     },
     Iau {
@@ -997,8 +997,8 @@ pub enum MathExpressionSyntax {
         right_expression: Box<MathExpressionSyntax>,
     },
     Binary {
-        operator: MathOperatorSyntax,
         left_expression: Box<MathExpressionSyntax>,
+        operator: MathOperatorSyntax,
         right_expression: Box<MathExpressionSyntax>,
     },
     Bihe {
@@ -1058,8 +1058,8 @@ pub enum MathOperatorSyntax {
 #[invariant(true)]
 pub enum RelationSyntax {
     Connected {
-        connective: ConnectiveSyntax,
         leading_relation: Box<RelationSyntax>,
+        connective: ConnectiveSyntax,
         trailing_relation: Box<RelationSyntax>,
     },
     Co {

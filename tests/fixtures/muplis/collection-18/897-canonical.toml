@@ -9,69 +9,44 @@ item-id = "897"
 form = "canonical"
 url = "https://lensisku.lojban.org/en/collections/18"
 
-[expectations.output]
-brackets = "(la'e do'i lu'u)"
-
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lu'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "la'e",
         span = [0, 4],
+        phonemes = "la'e",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "do'i",
         span = [5, 9],
+        phonemes = "do'i",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "lu'u",
         span = [10, 14],
+        phonemes = "lu'u",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Lahe = {
-                                        lahe = {Bare = {
-                                            Bare = {
-                                                phonemes = "la'e",
-                                                span = [0, 4],
-                                                kind = "cmavo"
-                                            }
-                                        }},
-                                        inner_argument = {Koha = {
-                                            Bare = {Bare = {
-                                                phonemes = "do'i",
-                                                span = [5, 9],
-                                                kind = "cmavo"
-                                            }}
-                                        }},
-                                        luhu = {Bare = {
-                                            Bare = {
-                                                phonemes = "lu'u",
-                                                span = [10, 14],
-                                                kind = "cmavo"
-                                            }
-                                        }}
-                                    }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Lahe { lahe: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, relative_clauses: [], inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), luhu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lu'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }) })], vau: None })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"do'i","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"lu'u","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+brackets = "(la'e do'i lu'u)"
+tree = """
+Term {
+  terms: [
+    Lahe {
+      lahe: "la'e",
+      "do'i",
+      luhu: "lu'u",
+    },
+  ],
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[5,9],"phonemes":"do'i","kind":"cmavo"}}}},"luhu":{"Bare":{"Bare":{"span":[10,14],"phonemes":"lu'u","kind":"cmavo"}}}}}}]}}}}]}]}"""

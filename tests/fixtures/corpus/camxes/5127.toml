@@ -8,22 +8,23 @@ entry-id = "5127"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(ZoiQuote { zoi: Word(WordData { kind: Cmavo, phonemes: "la'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }), opening_delimiter: Word(WordData { kind: Cmavo, phonemes: "gy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }), quoted_text: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 10, char_start: 10, char_end: 10, start: None, end: None }), closing_delimiter: Word(WordData { kind: Cmavo, phonemes: "gy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) }) })]"""
 words = [
     {ZoiQuote = {
         zoi = {
-            phonemes = "la'o",
             span = [0, 4],
+            phonemes = "la'o",
             kind = "cmavo"
         },
         opening_delimiter = {
-            phonemes = "gy",
             span = [5, 7],
+            phonemes = "gy",
             kind = "cmavo"
         },
         quoted_text = [10, 10],
         closing_delimiter = {
-            phonemes = "gy",
             span = [11, 13],
+            phonemes = "gy",
             kind = "cmavo"
         }
     }},
@@ -31,41 +32,16 @@ words = [
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Quote = {Zoi = {
-                                        Bare = {ZoiQuote = {
-                                            zoi = {
-                                                phonemes = "la'o",
-                                                span = [0, 4],
-                                                kind = "cmavo"
-                                            },
-                                            opening_delimiter = {
-                                                phonemes = "gy",
-                                                span = [5, 7],
-                                                kind = "cmavo"
-                                            },
-                                            quoted_text = [10, 10],
-                                            closing_delimiter = {
-                                                phonemes = "gy",
-                                                span = [11, 13],
-                                                kind = "cmavo"
-                                            }
-                                        }}
-                                    }}
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zoi(WithFreeModifiers { value: Bare(WordLike(ZoiQuote { zoi: Word(WordData { kind: Cmavo, phonemes: "la'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }), opening_delimiter: Word(WordData { kind: Cmavo, phonemes: "gy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }), quoted_text: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 10, char_start: 10, char_end: 10, start: None, end: None }), closing_delimiter: Word(WordData { kind: Cmavo, phonemes: "gy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) }) })), free_modifiers: [] })))], vau: None })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[10,10],"closing_delimiter":{"span":[11,13],"phonemes":"gy","kind":"cmavo"}}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Term {
+  terms: [
+    "la'o-gy-«»-gy",
+  ],
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[10,10],"closing_delimiter":{"span":[11,13],"phonemes":"gy","kind":"cmavo"}}}}}}}]}}}}]}]}"""

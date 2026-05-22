@@ -8,66 +8,41 @@ entry-id = "105"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "broda", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ba'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "broda",
         span = [0, 5],
+        phonemes = "broda",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "ba'e",
         span = [6, 10],
+        phonemes = "ba'e",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "da",
         span = [17, 19],
+        phonemes = "da",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Predicate = {
-                        predicate_tail = {
-                            first = {
-                                first = {
-                                    first = {Relation = {
-                                        relation = {Base = {
-                                            Bare = {Bare = {
-                                                phonemes = "broda",
-                                                span = [0, 5],
-                                                kind = "gismu"
-                                            }}
-                                        }},
-                                        terms = [
-                                            {Argument = {
-                                                Koha = {Emphasized = {
-                                                    bahe = {
-                                                        phonemes = "ba'e",
-                                                        span = [6, 10],
-                                                        kind = "cmavo"
-                                                    },
-                                                    word_like = {Bare = {
-                                                        phonemes = "da",
-                                                        span = [17, 19],
-                                                        kind = "cmavo"
-                                                    }}
-                                                }}
-                                            }},
-                                        ]
-                                    }}
-                                }
-                            }
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "broda", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))), terms: [Argument(Koha(WithFreeModifiers { value: Emphasized { bahe: Word(WordData { kind: Cmavo, phonemes: "ba'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None }) }), word_like: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) }))) }, free_modifiers: [] }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"da","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Relation {
+  "bróda",
+  terms: [
+    Emphasized {
+      bahe: "ba'e",
+      "da",
+    },
+  ],
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}}}},"terms":[{"Argument":{"Koha":{"Emphasized":{"bahe":{"span":[6,10],"phonemes":"ba'e","kind":"cmavo"},"word_like":{"Bare":{"span":[17,19],"phonemes":"da","kind":"cmavo"}}}}}}]}}}}}}}}]}]}"""

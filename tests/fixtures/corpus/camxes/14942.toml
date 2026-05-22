@@ -8,78 +8,51 @@ entry-id = "14942"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "perl", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ĭu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "saĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "la",
         span = [0, 2],
+        phonemes = "la",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "perl",
         span = [3, 7],
+        phonemes = "perl",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "ĭu",
         span = [10, 12],
+        phonemes = "ĭu",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "saĭ",
         span = [12, 15],
+        phonemes = "saĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Name = {
-                                        la = {Bare = {
-                                            Bare = {
-                                                phonemes = "la",
-                                                span = [0, 2],
-                                                kind = "cmavo"
-                                            }
-                                        }},
-                                        names = [
-                                            {WithIndicator = {
-                                                base = {WithIndicator = {
-                                                    base = {Bare = {
-                                                        Bare = {
-                                                            phonemes = "perl",
-                                                            span = [3, 7],
-                                                            kind = "cmevla"
-                                                        }
-                                                    }},
-                                                    indicator = {
-                                                        phonemes = "ĭu",
-                                                        span = [10, 12],
-                                                        kind = "cmavo"
-                                                    }
-                                                }},
-                                                indicator = {
-                                                    phonemes = "saĭ",
-                                                    span = [12, 15],
-                                                    kind = "cmavo"
-                                                }
-                                            }},
-                                        ]
-                                    }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "perl", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ĭu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "saĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) }), nai: None }], free_modifiers: [] } })], vau: None })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"perl","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"ĭu","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"saĭ","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Term {
+  terms: [
+    Name {
+      la: "la",
+      names: WithIndicator {
+        WithIndicator {
+          ".perl.",
+          indicator: ".ĭu",
         },
-    ]
-}
+        indicator: "saĭ",
+      },
+    },
+  ],
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}}},"names":[{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[3,7],"phonemes":"perl","kind":"cmevla"}}},"indicator":{"span":[10,12],"phonemes":"ĭu","kind":"cmavo"}}},"indicator":{"span":[12,15],"phonemes":"saĭ","kind":"cmavo"}}}]}}}]}}}}]}]}'

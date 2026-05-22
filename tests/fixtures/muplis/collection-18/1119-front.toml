@@ -9,85 +9,60 @@ item-id = "1119"
 form = "front"
 url = "https://lensisku.lojban.org/en/collections/18"
 
-[expectations.output]
-brackets = "(seĭ [mi do.i'u] rínsa)"
-
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "seĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "rinsa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 19, char_start: 14, char_end: 19, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "seĭ",
         span = [0, 3],
+        phonemes = "seĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "mi",
         span = [4, 6],
+        phonemes = "mi",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "do",
         span = [7, 9],
+        phonemes = "do",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "i'u",
         span = [10, 13],
+        phonemes = "i'u",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "rinsa",
         span = [14, 19],
+        phonemes = "rinsa",
         kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_free_modifiers = [
-        {Sei = {
-            sei = {Bare = {
-                Bare = {
-                    phonemes = "seĭ",
-                    span = [0, 3],
-                    kind = "cmavo"
-                }
-            }},
-            terms = [
-                {Argument = {
-                    Koha = {Bare = {
-                        Bare = {
-                            phonemes = "mi",
-                            span = [4, 6],
-                            kind = "cmavo"
-                        }
-                    }}
-                }},
-                {Argument = {
-                    Koha = {WithIndicator = {
-                        base = {Bare = {
-                            Bare = {
-                                phonemes = "do",
-                                span = [7, 9],
-                                kind = "cmavo"
-                            }
-                        }},
-                        indicator = {
-                            phonemes = "i'u",
-                            span = [10, 13],
-                            kind = "cmavo"
-                        }
-                    }}
-                }},
-            ],
-            relation = {Base = {
-                Bare = {Bare = {
-                    phonemes = "rinsa",
-                    span = [14, 19],
-                    kind = "gismu"
-                }}
-            }}
-        }},
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "seĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) })))), free_modifiers: [] })), Argument(Koha(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "i'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }), nai: None }, free_modifiers: [] }))], cu: None, relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "rinsa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 19, char_start: 14, char_end: 19, start: None, end: None }) }))))), sehu: None }], leading_connective: None, paragraphs: [] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"i'u","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"rinsa","kind":"gismu"}}]"""
+
+[expectations.output.gentufa]
+brackets = "(seĭ [mi do.i'u] rínsa)"
+tree = """
+Text {
+  leading_free_modifiers: [
+    Sei {
+      sei: "seĭ",
+      terms: [
+        "mi",
+        WithIndicator {
+          "do",
+          indicator: ".i'u",
+        },
+      ],
+      relation: "rínsa",
+    },
+  ],
+}"""
+json = """{"leading_free_modifiers":[{"Sei":{"sei":{"Bare":{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}}}}},{"Argument":{"Koha":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}}},"indicator":{"span":[10,13],"phonemes":"i'u","kind":"cmavo"}}}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[14,19],"phonemes":"rinsa","kind":"gismu"}}}}}}]}"""

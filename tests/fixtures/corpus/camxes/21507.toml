@@ -8,53 +8,38 @@ entry-id = "21507"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cpana", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "fi'o",
         span = [0, 4],
+        phonemes = "fi'o",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "cpana",
         span = [5, 10],
+        phonemes = "cpana",
         kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Tagged = {
-                                    tense_modal = {Fiho = {
-                                        fiho = {Bare = {
-                                            Bare = {
-                                                phonemes = "fi'o",
-                                                span = [0, 4],
-                                                kind = "cmavo"
-                                            }
-                                        }},
-                                        relation = {Base = {
-                                            Bare = {Bare = {
-                                                phonemes = "cpana",
-                                                span = [5, 10],
-                                                kind = "gismu"
-                                            }}
-                                        }}
-                                    }},
-                                    argument = {Zohe = {} }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Fiho { fiho: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cpana", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) }))))), fehu: None }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cpana","kind":"gismu"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Term {
+  terms: [
+    Tagged {
+      tense_modal: Fiho {
+        fiho: "fi'o",
+        "cpána",
+      },
+      Zohe {},
+    },
+  ],
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Fiho":{"fiho":{"Bare":{"Bare":{"span":[0,4],"phonemes":"fi'o","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[5,10],"phonemes":"cpana","kind":"gismu"}}}}}},"argument":{"Zohe":{}}}}]}}}}]}]}"""

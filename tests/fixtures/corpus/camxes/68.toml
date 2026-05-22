@@ -8,30 +8,31 @@ entry-id = "68"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 55, byte_end: 59, char_start: 55, char_end: 59, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 61, byte_end: 62, char_start: 61, char_end: 62, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ko'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 63, byte_end: 67, char_start: 63, char_end: 67, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cusku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 68, byte_end: 73, char_start: 68, char_end: 73, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 74, byte_end: 78, char_start: 74, char_end: 78, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "le'u",
         span = [55, 59],
+        phonemes = "le'u",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "i",
         span = [61, 62],
+        phonemes = "i",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ko'e",
         span = [63, 67],
+        phonemes = "ko'e",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "cusku",
         span = [68, 73],
+        phonemes = "cusku",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "li'o",
         span = [74, 78],
+        phonemes = "li'o",
         kind = "cmavo"
     }},
 ]
@@ -39,3 +40,6 @@ words = [
 [expectations.syntax]
 status = "failure"
 error = { position = 0, allowed-next = [] }
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[55,59],"phonemes":"le'u","kind":"cmavo"}},{"Bare":{"span":[61,62],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[63,67],"phonemes":"ko'e","kind":"cmavo"}},{"Bare":{"span":[68,73],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[74,78],"phonemes":"li'o","kind":"cmavo"}}]"""

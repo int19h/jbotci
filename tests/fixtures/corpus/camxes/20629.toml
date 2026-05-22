@@ -8,66 +8,51 @@ entry-id = "20629"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "éĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ĭe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "doĭ",
         span = [0, 3],
+        phonemes = "doĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "éĭ",
         span = [4, 6],
+        phonemes = "éĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "mi",
         span = [6, 8],
+        phonemes = "mi",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ĭe",
         span = [10, 12],
+        phonemes = "ĭe",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_free_modifiers = [
-        {Vocative = {
-            vocative_markers = [
-                {WithIndicator = {
-                    base = {Bare = {
-                        Bare = {
-                            phonemes = "doĭ",
-                            span = [0, 3],
-                            kind = "cmavo"
-                        }
-                    }},
-                    indicator = {
-                        phonemes = "éĭ",
-                        span = [4, 6],
-                        kind = "cmavo"
-                    }
-                }},
-            ],
-            argument = {Koha = {
-                WithIndicator = {
-                    base = {Bare = {
-                        Bare = {
-                            phonemes = "mi",
-                            span = [6, 8],
-                            kind = "cmavo"
-                        }
-                    }},
-                    indicator = {
-                        phonemes = "ĭe",
-                        span = [10, 12],
-                        kind = "cmavo"
-                    }
-                }
-            }}
-        }},
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "éĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }), nai: None }], free_modifiers: [] }, argument: Some(Koha(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ĭe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }), nai: None }, free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"éĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ĭe","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_free_modifiers: [
+    Vocative {
+      vocative_markers: WithIndicator {
+        "doĭ",
+        indicator: ".eĭ",
+      },
+      argument: WithIndicator {
+        "mi",
+        indicator: ".ĭe",
+      },
+    },
+  ],
+}"""
+json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}},"indicator":{"span":[4,6],"phonemes":"éĭ","kind":"cmavo"}}}],"argument":{"Koha":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}}},"indicator":{"span":[10,12],"phonemes":"ĭe","kind":"cmavo"}}}}}}]}'

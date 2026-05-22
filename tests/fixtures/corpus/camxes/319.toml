@@ -8,16 +8,17 @@ entry-id = "319"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(LohuQuote { lohu: Word(WordData { kind: Cmavo, phonemes: "lo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None }) }), quoted_words: [], lehu: Word(WordData { kind: Cmavo, phonemes: "le'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 22, char_start: 18, char_end: 22, start: None, end: None }) }) })]"""
 words = [
     {LohuQuote = {
         lohu = {
-            phonemes = "lo'u",
             span = [13, 17],
+            phonemes = "lo'u",
             kind = "cmavo"
         },
         lehu = {
-            phonemes = "le'u",
             span = [18, 22],
+            phonemes = "le'u",
             kind = "cmavo"
         }
     }},
@@ -25,35 +26,16 @@ words = [
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Quote = {Lohu = {
-                                        Bare = {LohuQuote = {
-                                            lohu = {
-                                                phonemes = "lo'u",
-                                                span = [13, 17],
-                                                kind = "cmavo"
-                                            },
-                                            lehu = {
-                                                phonemes = "le'u",
-                                                span = [18, 22],
-                                                kind = "cmavo"
-                                            }
-                                        }}
-                                    }}
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Lohu(WithFreeModifiers { value: Bare(WordLike(LohuQuote { lohu: Word(WordData { kind: Cmavo, phonemes: "lo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None }) }), quoted_words: [], lehu: Word(WordData { kind: Cmavo, phonemes: "le'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 22, char_start: 18, char_end: 22, start: None, end: None }) }) })), free_modifiers: [] })))], vau: None })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"LohuQuote":{"lohu":{"span":[13,17],"phonemes":"lo'u","kind":"cmavo"},"lehu":{"span":[18,22],"phonemes":"le'u","kind":"cmavo"}}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Term {
+  terms: [
+    "lo'u-«»-le'u",
+  ],
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Lohu":{"Bare":{"LohuQuote":{"lohu":{"span":[13,17],"phonemes":"lo'u","kind":"cmavo"},"lehu":{"span":[18,22],"phonemes":"le'u","kind":"cmavo"}}}}}}}]}}}}]}]}"""

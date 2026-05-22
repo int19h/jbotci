@@ -8,74 +8,47 @@ entry-id = "21386"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "jilks", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "selbri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 16, char_start: 10, char_end: 16, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "jilks",
         span = [0, 5],
+        phonemes = "jilks",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "no",
         span = [7, 9],
+        phonemes = "no",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "selbri",
         span = [10, 16],
+        phonemes = "selbri",
         kind = "lujvo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_cmevla = [
-        {Bare = {
-            Bare = {
-                phonemes = "jilks",
-                span = [0, 5],
-                kind = "cmevla"
-            }
-        }},
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "jilks", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "selbri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 16, char_start: 10, char_end: 16, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,5],"phonemes":"jilks","kind":"cmevla"}},{"Bare":{"span":[7,9],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[10,16],"phonemes":"selbri","kind":"lujvo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_cmevla: [
+    ".jilks.",
+  ],
+  Term {
+    terms: [
+      Descriptor {
+        tail_elements: [
+          "no",
+        ],
+        relation: "sélbri",
+      },
     ],
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Descriptor = {
-                                        tail_elements = [
-                                            {Quantifier = {
-                                                Number = {
-                                                    number = [
-                                                        {Bare = {
-                                                            Bare = {
-                                                                phonemes = "no",
-                                                                span = [7, 9],
-                                                                kind = "cmavo"
-                                                            }
-                                                        }},
-                                                    ]
-                                                }
-                                            }},
-                                        ],
-                                        relation = {Base = {
-                                            Bare = {Bare = {
-                                                phonemes = "selbri",
-                                                span = [10, 16],
-                                                kind = "lujvo"
-                                            }}
-                                        }}
-                                    }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+  },
+}"""
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,5],"phonemes":"jilks","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[7,9],"phonemes":"no","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[10,16],"phonemes":"selbri","kind":"lujvo"}}}}}}}]}}}}]}]}'

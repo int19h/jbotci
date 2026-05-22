@@ -8,43 +8,44 @@ entry-id = "58"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cusku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))), WordLike(LohuQuote { lohu: Word(WordData { kind: Cmavo, phonemes: "lo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 35, char_start: 31, char_end: 35, start: None, end: None }) }), quoted_words: [Word(WordData { kind: Cmavo, phonemes: "bo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 38, char_start: 36, char_end: 38, start: None, end: None }) }), Word(WordData { kind: Cmavo, phonemes: "bo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 39, byte_end: 41, char_start: 39, char_end: 41, start: None, end: None }) }), Word(WordData { kind: Cmavo, phonemes: "bo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 42, byte_end: 44, char_start: 42, char_end: 44, start: None, end: None }) })], lehu: Word(WordData { kind: Cmavo, phonemes: "le'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 45, byte_end: 49, char_start: 45, char_end: 49, start: None, end: None }) }) })]"""
 words = [
     {Bare = {
-        phonemes = "mi",
         span = [0, 2],
+        phonemes = "mi",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "cusku",
         span = [3, 8],
+        phonemes = "cusku",
         kind = "gismu"
     }},
     {LohuQuote = {
         lohu = {
-            phonemes = "lo'u",
             span = [31, 35],
+            phonemes = "lo'u",
             kind = "cmavo"
         },
         quoted_words = [
             {
-                phonemes = "bo",
                 span = [36, 38],
+                phonemes = "bo",
                 kind = "cmavo"
             },
             {
-                phonemes = "bo",
                 span = [39, 41],
+                phonemes = "bo",
                 kind = "cmavo"
             },
             {
-                phonemes = "bo",
                 span = [42, 44],
+                phonemes = "bo",
                 kind = "cmavo"
             },
         ],
         lehu = {
-            phonemes = "le'u",
             span = [45, 49],
+            phonemes = "le'u",
             kind = "cmavo"
         }
     }},
@@ -52,76 +53,22 @@ words = [
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Predicate = {
-                        leading_terms = [
-                            {Argument = {
-                                Koha = {Bare = {
-                                    Bare = {
-                                        phonemes = "mi",
-                                        span = [0, 2],
-                                        kind = "cmavo"
-                                    }
-                                }}
-                            }},
-                        ],
-                        predicate_tail = {
-                            first = {
-                                first = {
-                                    first = {Relation = {
-                                        relation = {Base = {
-                                            Bare = {Bare = {
-                                                phonemes = "cusku",
-                                                span = [3, 8],
-                                                kind = "gismu"
-                                            }}
-                                        }},
-                                        terms = [
-                                            {Argument = {
-                                                Quote = {Lohu = {
-                                                    Bare = {LohuQuote = {
-                                                        lohu = {
-                                                            phonemes = "lo'u",
-                                                            span = [31, 35],
-                                                            kind = "cmavo"
-                                                        },
-                                                        quoted_words = [
-                                                            {
-                                                                phonemes = "bo",
-                                                                span = [36, 38],
-                                                                kind = "cmavo"
-                                                            },
-                                                            {
-                                                                phonemes = "bo",
-                                                                span = [39, 41],
-                                                                kind = "cmavo"
-                                                            },
-                                                            {
-                                                                phonemes = "bo",
-                                                                span = [42, 44],
-                                                                kind = "cmavo"
-                                                            },
-                                                        ],
-                                                        lehu = {
-                                                            phonemes = "le'u",
-                                                            span = [45, 49],
-                                                            kind = "cmavo"
-                                                        }
-                                                    }}
-                                                }}
-                                            }},
-                                        ]
-                                    }}
-                                }
-                            }
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cusku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))))), terms: [Argument(Quote(Lohu(WithFreeModifiers { value: Bare(WordLike(LohuQuote { lohu: Word(WordData { kind: Cmavo, phonemes: "lo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 35, char_start: 31, char_end: 35, start: None, end: None }) }), quoted_words: [Word(WordData { kind: Cmavo, phonemes: "bo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 38, char_start: 36, char_end: 38, start: None, end: None }) }), Word(WordData { kind: Cmavo, phonemes: "bo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 39, byte_end: 41, char_start: 39, char_end: 41, start: None, end: None }) }), Word(WordData { kind: Cmavo, phonemes: "bo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 42, byte_end: 44, char_start: 42, char_end: 44, start: None, end: None }) })], lehu: Word(WordData { kind: Cmavo, phonemes: "le'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 45, byte_end: 49, char_start: 45, char_end: 49, start: None, end: None }) }) })), free_modifiers: [] })))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cusku","kind":"gismu"}},{"LohuQuote":{"lohu":{"span":[31,35],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[36,38],"phonemes":"bo","kind":"cmavo"},{"span":[39,41],"phonemes":"bo","kind":"cmavo"},{"span":[42,44],"phonemes":"bo","kind":"cmavo"}],"lehu":{"span":[45,49],"phonemes":"le'u","kind":"cmavo"}}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Predicate {
+  leading_terms: [
+    "mi",
+  ],
+  Relation {
+    "cúsku",
+    terms: [
+      "lo'u-«bo bo bo»-le'u",
+    ],
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"cusku","kind":"gismu"}}}},"terms":[{"Argument":{"Quote":{"Lohu":{"Bare":{"LohuQuote":{"lohu":{"span":[31,35],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[36,38],"phonemes":"bo","kind":"cmavo"},{"span":[39,41],"phonemes":"bo","kind":"cmavo"},{"span":[42,44],"phonemes":"bo","kind":"cmavo"}],"lehu":{"span":[45,49],"phonemes":"le'u","kind":"cmavo"}}}}}}}]}}}}}}}}]}]}"""

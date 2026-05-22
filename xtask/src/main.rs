@@ -10,14 +10,16 @@ use clap::{Args, Parser, Subcommand};
 use jbotci_morphology::{
     MorphologyOptions, WordLike, segment_words_with_modifiers_with_options_and_source_id,
 };
-use jbotci_output::{compact_json_value, pretty_brackets, pretty_tree};
+use jbotci_output::{
+    JsonRenderOptions, compact_json_string_with_options, compact_json_value, pretty_brackets,
+    pretty_tree,
+};
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, SyntaxError, parse_syntax_tree_with_source_and_options};
 use rayon::prelude::*;
 
 #[path = "../../tests/support/fixtures/mod.rs"]
 mod fixtures;
-mod syntax_compare;
 
 use fixtures::{
     ExpectationStatus, Facet, FacetResult, FixtureBackend, FixtureProfile, FixtureSelector,
@@ -25,7 +27,6 @@ use fixtures::{
     import_export_file, load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree,
     write_fixture_file,
 };
-use syntax_compare::format_syntax_mismatch;
 
 #[derive(Debug, Parser)]
 #[command(name = "xtask")]
@@ -286,7 +287,14 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
     if let Some(morphology) = &mut fixture.test_case.expectations.morphology
         && morphology.status == ExpectationStatus::Success
     {
-        morphology.words = words.clone()?;
+        let morphology_words = words.clone()?;
+        morphology.raw = Some(text_expectation(format_debug_value(&morphology_words)));
+        morphology.words = morphology_words.clone();
+        let vlasei = ensure_vlasei_output(&mut fixture.test_case.expectations);
+        vlasei.json = Some(text_expectation(compact_json_string_with_options(
+            &morphology_words,
+            JsonRenderOptions { indent: 0 },
+        )?));
     }
     let refresh_syntax = fixture
         .test_case
@@ -305,16 +313,35 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
         .expectations
         .output
         .as_ref()
+        .and_then(|output| output.gentufa.as_ref())
         .is_some_and(|output| output.tree.is_some());
-    if refresh_syntax || refresh_warnings || refresh_tree {
+    let refresh_brackets = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.gentufa.as_ref())
+        .is_some_and(|output| output.brackets.is_some());
+    if refresh_syntax || refresh_warnings || refresh_tree || refresh_brackets {
         let syntax_words = words?;
         if let Ok(parsed) = parse_syntax_tree_with_source_and_options(
             &syntax_words,
             &fixture.test_case.lojban,
             &syntax_options,
         ) {
-            if refresh_syntax && let Some(syntax) = &mut fixture.test_case.expectations.syntax {
-                syntax.parse_tree = Some(compact_json_value(&parsed.parse_tree)?);
+            if refresh_syntax {
+                if let Some(syntax) = &mut fixture.test_case.expectations.syntax {
+                    syntax.raw = Some(text_expectation(format_debug_value(&parsed.parse_tree)));
+                }
+                let gentufa = ensure_gentufa_output(&mut fixture.test_case.expectations);
+                gentufa.json = Some(text_expectation(compact_json_string_with_options(
+                    &parsed.parse_tree,
+                    JsonRenderOptions { indent: 0 },
+                )?));
+                gentufa.tree = Some(text_expectation(pretty_tree(
+                    &parsed.parse_tree,
+                    &fixture.test_case.lojban,
+                )?));
             }
             if refresh_warnings && let Some(warnings) = &mut fixture.test_case.expectations.warnings
             {
@@ -322,13 +349,57 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
             }
             if refresh_tree
                 && let Some(output) = &mut fixture.test_case.expectations.output
-                && let Some(tree) = &mut output.tree
+                && let Some(gentufa) = &mut output.gentufa
+                && let Some(tree) = &mut gentufa.tree
             {
                 tree.text = pretty_tree(&parsed.parse_tree, &fixture.test_case.lojban)?;
+            }
+            if refresh_brackets
+                && let Some(output) = &mut fixture.test_case.expectations.output
+                && let Some(gentufa) = &mut output.gentufa
+                && let Some(brackets) = &mut gentufa.brackets
+            {
+                brackets.text = pretty_brackets(&parsed.parse_tree, &fixture.test_case.lojban)?;
             }
         }
     }
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn ensure_vlasei_output(
+    expectations: &mut fixtures::Expectations,
+) -> &mut fixtures::CommandOutputExpectation {
+    expectations
+        .output
+        .get_or_insert_with(Default::default)
+        .vlasei
+        .get_or_insert_with(Default::default)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn ensure_gentufa_output(
+    expectations: &mut fixtures::Expectations,
+) -> &mut fixtures::CommandOutputExpectation {
+    expectations
+        .output
+        .get_or_insert_with(Default::default)
+        .gentufa
+        .get_or_insert_with(Default::default)
+}
+
+#[requires(true)]
+#[ensures(!ret.text.is_empty())]
+fn text_expectation(text: String) -> fixtures::TextExpectation {
+    fixtures::TextExpectation { text }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn format_debug_value<T: std::fmt::Debug>(value: &T) -> String {
+    format!("{value:?}")
 }
 
 #[requires(true)]
@@ -624,6 +695,9 @@ fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
     paths
         .par_iter()
         .map(|path| {
+            if !path_matches_prefix_selector(root, path, &profile.selector) {
+                return Ok(RunSummary::default());
+            }
             let fixture = load_fixture_path(path)?;
             let mut summary = RunSummary::default();
             if fixture_matches_selector(root, &fixture, &profile.selector) {
@@ -645,12 +719,42 @@ fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
                     summary.record_result(&result);
                 }
             }
+            trim_fixture_worker_heap();
             Ok(summary)
         })
         .try_reduce(RunSummary::default, |mut left, right| {
             left.merge(right);
             Ok(left)
         })
+}
+
+#[requires(selector.is_valid())]
+#[ensures(true)]
+fn path_matches_prefix_selector(root: &Path, path: &Path, selector: &FixtureSelector) -> bool {
+    if selector.path_prefixes.is_empty() {
+        return true;
+    }
+    let relative = path.strip_prefix(root).unwrap_or(path);
+    let relative_text = relative.to_string_lossy();
+    selector
+        .path_prefixes
+        .iter()
+        .any(|prefix| relative_text.starts_with(prefix))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn trim_fixture_worker_heap() {
+    // Raw/tree fixture facets create very large transient strings. glibc often
+    // keeps those freed arenas mapped, so long corpus sweeps can hit the
+    // process memory limit even when no Rust values are retained.
+    #[cfg(target_os = "linux")]
+    unsafe {
+        unsafe extern "C" {
+            fn malloc_trim(pad: usize) -> std::ffi::c_int;
+        }
+        let _ = malloc_trim(0);
+    }
 }
 
 #[ensures(ret > 0)]
@@ -796,23 +900,67 @@ impl FixtureBackend for NotImplementedBackend {
             Facet::Morphology => run_morphology_fixture(fixture),
             Facet::Syntax => run_syntax_fixture(fixture),
             Facet::Warnings => run_warnings_fixture(fixture),
-            Facet::Brackets => run_brackets_fixture(fixture),
-            Facet::Tree => run_tree_fixture(fixture),
+            Facet::VlaseiBrackets => {
+                FacetResult::skipped("vlasei brackets output is not implemented yet")
+            }
+            Facet::VlaseiTree => FacetResult::skipped("vlasei tree output is not implemented yet"),
+            Facet::VlaseiJson => run_vlasei_json_fixture(fixture),
+            Facet::GentufaBrackets => run_gentufa_brackets_fixture(fixture),
+            Facet::GentufaTree => run_gentufa_tree_fixture(fixture),
+            Facet::GentufaJson => run_gentufa_json_fixture(fixture),
         }
     }
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
 #[ensures(ret.is_valid())]
-fn run_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
+fn run_vlasei_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let Some(expectation) = fixture
         .test_case
         .expectations
         .output
         .as_ref()
+        .and_then(|output| output.vlasei.as_ref())
+        .and_then(|output| output.json.as_ref())
+    else {
+        return FacetResult::skipped("fixture has no vlasei JSON expectation");
+    };
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) {
+        Ok(words) => words,
+        Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
+    };
+    match compact_json_string_with_options(&words, JsonRenderOptions { indent: 0 }) {
+        Ok(actual) if actual == expectation.text => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_mismatch(
+            "vlasei JSON",
+            &expectation.text,
+            &actual,
+        )),
+        Err(error) => FacetResult::failed(format!("vlasei JSON render error: {error}")),
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_gentufa_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.gentufa.as_ref())
         .and_then(|output| output.brackets.as_ref())
     else {
-        return FacetResult::skipped("fixture has no brackets expectation");
+        return FacetResult::skipped("fixture has no gentufa brackets expectation");
     };
     let dialect = match fixture.test_case.dialect_definition() {
         Ok(dialect) => dialect,
@@ -850,15 +998,16 @@ fn run_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
 #[ensures(ret.is_valid())]
-fn run_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
+fn run_gentufa_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let Some(expectation) = fixture
         .test_case
         .expectations
         .output
         .as_ref()
+        .and_then(|output| output.gentufa.as_ref())
         .and_then(|output| output.tree.as_ref())
     else {
-        return FacetResult::skipped("fixture has no tree expectation");
+        return FacetResult::skipped("fixture has no gentufa tree expectation");
     };
     let dialect = match fixture.test_case.dialect_definition() {
         Ok(dialect) => dialect,
@@ -884,12 +1033,80 @@ fn run_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
     };
     match pretty_tree(&parsed.parse_tree, &fixture.test_case.lojban) {
         Ok(actual) if actual == expectation.text => FacetResult::passed(),
-        Ok(actual) => FacetResult::failed(format!(
-            "tree mismatch: expected `{}`, got `{actual}`",
-            expectation.text
+        Ok(actual) => FacetResult::failed(format_text_mismatch(
+            "gentufa tree",
+            &expectation.text,
+            &actual,
         )),
         Err(error) => FacetResult::failed(format!("tree render error: {error}")),
     }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_gentufa_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.gentufa.as_ref())
+        .and_then(|output| output.json.as_ref())
+    else {
+        return FacetResult::skipped("fixture has no gentufa JSON expectation");
+    };
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) {
+        Ok(words) => words,
+        Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
+    };
+    let parsed = match parse_syntax_tree_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => parsed,
+        Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
+    };
+    match compact_json_string_with_options(&parsed.parse_tree, JsonRenderOptions { indent: 0 }) {
+        Ok(actual) if actual == expectation.text => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_mismatch(
+            "gentufa JSON",
+            &expectation.text,
+            &actual,
+        )),
+        Err(error) => FacetResult::failed(format!("gentufa JSON render error: {error}")),
+    }
+}
+
+#[requires(!label.is_empty())]
+#[ensures(!ret.is_empty())]
+fn format_text_mismatch(label: &str, expected: &str, actual: &str) -> String {
+    format!(
+        "{label} mismatch: expected `{}`, got `{}`",
+        truncate_for_mismatch(expected),
+        truncate_for_mismatch(actual)
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= text.len() + 3)]
+fn truncate_for_mismatch(text: &str) -> String {
+    const LIMIT: usize = 512;
+    let mut output = text.chars().take(LIMIT).collect::<String>();
+    if output.len() < text.len() {
+        output.push_str("...");
+    }
+    output
 }
 
 #[requires(true)]
@@ -985,16 +1202,11 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
     ) {
         Ok(parsed) => match expectation.status {
             ExpectationStatus::Success => {
-                let Some(expected_tree) = &expectation.parse_tree else {
-                    return FacetResult::failed("syntax success expectation has no parse-tree");
+                let Some(expected_raw) = &expectation.raw else {
+                    return FacetResult::failed("syntax success expectation has no raw tree");
                 };
-                let actual_tree = match compact_json_value(&parsed.parse_tree) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        return FacetResult::failed(format!("syntax JSON encode error: {error}"));
-                    }
-                };
-                if expected_tree == &actual_tree {
+                let actual_raw = format_debug_value(&parsed.parse_tree);
+                if expected_raw.text == actual_raw {
                     syntax_xfail_result(expectation, ExpectationStatus::Success, true)
                         .unwrap_or_else(FacetResult::passed)
                 } else if expectation.xfail.is_some()
@@ -1003,11 +1215,13 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                         .as_ref()
                         .is_some_and(|xfail| xfail.accepted_status == ExpectationStatus::Success)
                 {
-                    FacetResult::failed(
-                        "syntax xfail accepted success, but parse-tree did not match",
-                    )
+                    FacetResult::failed("syntax xfail accepted success, but raw tree did not match")
                 } else {
-                    FacetResult::failed(format_syntax_mismatch(expected_tree, &actual_tree))
+                    FacetResult::failed(format_text_mismatch(
+                        "syntax raw",
+                        &expected_raw.text,
+                        &actual_raw,
+                    ))
                 }
             }
             ExpectationStatus::Failure => {
@@ -1016,18 +1230,11 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     .as_ref()
                     .is_some_and(|xfail| xfail.accepted_status == ExpectationStatus::Success)
                 {
-                    let Some(expected_tree) = &expectation.parse_tree else {
-                        return FacetResult::failed("syntax success xfail has no parse-tree");
+                    let Some(expected_raw) = &expectation.raw else {
+                        return FacetResult::failed("syntax success xfail has no raw tree");
                     };
-                    let actual_tree = match compact_json_value(&parsed.parse_tree) {
-                        Ok(value) => value,
-                        Err(error) => {
-                            return FacetResult::failed(format!(
-                                "syntax JSON encode error: {error}"
-                            ));
-                        }
-                    };
-                    if expected_tree == &actual_tree {
+                    let actual_raw = format_debug_value(&parsed.parse_tree);
+                    if expected_raw.text == actual_raw {
                         syntax_xfail_result(expectation, ExpectationStatus::Success, true)
                             .unwrap_or_else(|| {
                                 FacetResult::failed(
@@ -1037,7 +1244,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     } else {
                         FacetResult::failed(format!(
                             "syntax xfail accepted success, but {}",
-                            format_syntax_mismatch(expected_tree, &actual_tree)
+                            format_text_mismatch("syntax raw", &expected_raw.text, &actual_raw)
                         ))
                     }
                 } else {
@@ -1196,9 +1403,29 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
                 &options,
                 Some(SourceId("<fixture>".to_owned())),
             ) {
-                Ok(actual) if actual == expectation.words => FacetResult::passed(),
+                Ok(actual)
+                    if actual == expectation.words
+                        && expectation
+                            .raw
+                            .as_ref()
+                            .is_none_or(|raw| raw.text == format_debug_value(&actual)) =>
+                {
+                    FacetResult::passed()
+                }
                 Ok(actual) => {
-                    FacetResult::failed(format_morphology_mismatch(&expectation.words, &actual))
+                    if expectation.words != actual {
+                        FacetResult::failed(format_morphology_mismatch(&expectation.words, &actual))
+                    } else {
+                        FacetResult::failed(format_text_mismatch(
+                            "morphology raw",
+                            &expectation
+                                .raw
+                                .as_ref()
+                                .map(|raw| raw.text.as_str())
+                                .unwrap_or_default(),
+                            &format_debug_value(&actual),
+                        ))
+                    }
                 }
                 Err(error) => FacetResult::failed(format!("morphology error: {error}")),
             }
@@ -1269,15 +1496,41 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
         Facet::Morphology => expectations.morphology.as_ref().map(|value| value.status),
         Facet::Syntax => expectations.syntax.as_ref().map(|value| value.status),
         Facet::Warnings => expectations.warnings.as_ref().map(|value| value.status),
-        Facet::Brackets => expectations
+        Facet::VlaseiBrackets => expectations
             .output
             .as_ref()
+            .and_then(|output| output.vlasei.as_ref())
             .and_then(|output| output.brackets.as_ref())
             .map(|_| ExpectationStatus::Success),
-        Facet::Tree => expectations
+        Facet::VlaseiTree => expectations
             .output
             .as_ref()
+            .and_then(|output| output.vlasei.as_ref())
             .and_then(|output| output.tree.as_ref())
+            .map(|_| ExpectationStatus::Success),
+        Facet::VlaseiJson => expectations
+            .output
+            .as_ref()
+            .and_then(|output| output.vlasei.as_ref())
+            .and_then(|output| output.json.as_ref())
+            .map(|_| ExpectationStatus::Success),
+        Facet::GentufaBrackets => expectations
+            .output
+            .as_ref()
+            .and_then(|output| output.gentufa.as_ref())
+            .and_then(|output| output.brackets.as_ref())
+            .map(|_| ExpectationStatus::Success),
+        Facet::GentufaTree => expectations
+            .output
+            .as_ref()
+            .and_then(|output| output.gentufa.as_ref())
+            .and_then(|output| output.tree.as_ref())
+            .map(|_| ExpectationStatus::Success),
+        Facet::GentufaJson => expectations
+            .output
+            .as_ref()
+            .and_then(|output| output.gentufa.as_ref())
+            .and_then(|output| output.json.as_ref())
             .map(|_| ExpectationStatus::Success),
     }
 }

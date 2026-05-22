@@ -8,30 +8,31 @@ entry-id = "13223"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ke", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "te", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "li",
         span = [0, 2],
+        phonemes = "li",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ke",
         span = [2, 4],
+        phonemes = "ke",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "se",
         span = [5, 7],
-        kind = "cmavo"
-    }},
-    {Bare = {
-        phonemes = "te",
-        span = [7, 9],
-        kind = "cmavo"
-    }},
-    {Bare = {
         phonemes = "se",
+        kind = "cmavo"
+    }},
+    {Bare = {
+        span = [7, 9],
+        phonemes = "te",
+        kind = "cmavo"
+    }},
+    {Bare = {
         span = [9, 11],
+        phonemes = "se",
         kind = "cmavo"
     }},
 ]
@@ -39,3 +40,6 @@ words = [
 [expectations.syntax]
 status = "failure"
 error = { position = 5, allowed-next = [] }
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"se","kind":"cmavo"}}]'

@@ -8,7 +8,24 @@ tags = ["smoke"]
 kind = "adhoc"
 description = "Small fixture used to validate the v1 test-case file format."
 
-[expectations.output]
+[expectations.morphology]
+status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))]'
+words = [
+    {Bare = {
+        span = [0, 3],
+        phonemes = "coĭ",
+        kind = "cmavo"
+    }},
+]
+
+[expectations.syntax]
+status = "not-applicable"
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
 tree = """
 Text {
   leading_free_modifiers: [
@@ -17,16 +34,3 @@ Text {
     },
   ],
 }"""
-
-[expectations.morphology]
-status = "success"
-words = [
-    {Bare = {
-        phonemes = "coĭ",
-        span = [0, 3],
-        kind = "cmavo"
-    }},
-]
-
-[expectations.syntax]
-status = "not-applicable"

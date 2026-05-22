@@ -8,8 +8,16 @@ entry-id = "112"
 
 [expectations.morphology]
 status = "success"
+raw = "[]"
 
 [expectations.syntax]
 status = "failure"
-parse-tree = {}
+raw = "TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
+
+[expectations.output.vlasei]
+json = "[]"
+
+[expectations.output.gentufa]
+tree = "Text {}"
+json = "{}"

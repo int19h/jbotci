@@ -8,24 +8,27 @@ entry-id = "352"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "ármstron", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 9, char_start: 1, char_end: 9, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "ármstron",
         span = [1, 9],
+        phonemes = "ármstron",
         kind = "cmevla"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_cmevla = [
-        {Bare = {
-            Bare = {
-                phonemes = "ármstron",
-                span = [1, 9],
-                kind = "cmevla"
-            }
-        }},
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "ármstron", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 9, char_start: 1, char_end: 9, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[1,9],"phonemes":"ármstron","kind":"cmevla"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_cmevla: [
+    ".armstron.",
+  ],
+}"""
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[1,9],"phonemes":"ármstron","kind":"cmevla"}}}]}'

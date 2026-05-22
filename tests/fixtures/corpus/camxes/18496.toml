@@ -8,30 +8,31 @@ entry-id = "18496"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 5, char_start: 4, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "d", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 10, char_start: 9, char_end: 10, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "no",
         span = [0, 2],
+        phonemes = "no",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "a",
         span = [4, 5],
+        phonemes = "a",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "d",
         span = [6, 7],
+        phonemes = "d",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "pa",
         span = [8, 9],
+        phonemes = "pa",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "no",
         span = [9, 10],
+        phonemes = "no",
         kind = "cmavo"
     }},
 ]
@@ -39,3 +40,6 @@ words = [
 [expectations.syntax]
 status = "failure"
 error = { position = 1, allowed-next = [] }
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[4,5],"phonemes":"a","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"d","kind":"cmevla"}},{"Bare":{"span":[8,9],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"no","kind":"cmavo"}}]'

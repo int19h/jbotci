@@ -8,95 +8,54 @@ entry-id = "464"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ke", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zekri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nenri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 16, char_start: 11, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ke'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 22, char_start: 18, char_end: 22, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "klama", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "ke",
         span = [1, 3],
+        phonemes = "ke",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "zekri",
         span = [5, 10],
+        phonemes = "zekri",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "nenri",
         span = [11, 16],
+        phonemes = "nenri",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "ke'e",
         span = [18, 22],
+        phonemes = "ke'e",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "klama",
         span = [24, 29],
+        phonemes = "klama",
         kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "failure"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Predicate = {
-                        predicate_tail = {
-                            first = {
-                                first = {
-                                    first = {Relation = {
-                                        Compound = [
-                                            {Ke = {
-                                                ke = {Bare = {
-                                                    Bare = {
-                                                        phonemes = "ke",
-                                                        span = [1, 3],
-                                                        kind = "cmavo"
-                                                    }
-                                                }},
-                                                relation = {Compound = [
-                                                        {Word = {
-                                                            Bare = {Bare = {
-                                                                phonemes = "zekri",
-                                                                span = [5, 10],
-                                                                kind = "gismu"
-                                                            }}
-                                                        }},
-                                                        {Word = {
-                                                            Bare = {Bare = {
-                                                                phonemes = "nenri",
-                                                                span = [11, 16],
-                                                                kind = "gismu"
-                                                            }}
-                                                        }},
-                                                    ] },
-                                                kehe = {Bare = {
-                                                    Bare = {
-                                                        phonemes = "ke'e",
-                                                        span = [18, 22],
-                                                        kind = "cmavo"
-                                                    }
-                                                }}
-                                            }},
-                                            {Word = {
-                                                Bare = {Bare = {
-                                                    phonemes = "klama",
-                                                    span = [24, 29],
-                                                    kind = "gismu"
-                                                }}
-                                            }},
-                                        ]
-                                    }}
-                                }
-                            }
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Ke { ke_tense_modal: None, ke: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ke", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zekri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nenri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 16, char_start: 11, char_end: 16, start: None, end: None }) })))), free_modifiers: [] })]), kehe: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ke'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 22, char_start: 18, char_end: 22, start: None, end: None }) })))), free_modifiers: [] }) }, Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "klama", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[1,3],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"zekri","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"nenri","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"klama","kind":"gismu"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Compound {
+  Ke {
+    ke: "ke",
+    Compound {
+      "zékri",
+      "nénri",
+    },
+    kehe: "ke'e",
+  },
+  "kláma",
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Ke":{"ke":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"zekri","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"nenri","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[18,22],"phonemes":"ke'e","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"klama","kind":"gismu"}}}}]}}}}}}}}]}]}"""

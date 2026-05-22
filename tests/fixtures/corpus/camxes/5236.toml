@@ -8,68 +8,45 @@ entry-id = "5236"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "goĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "ra",
         span = [0, 2],
+        phonemes = "ra",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "goĭ",
         span = [3, 6],
+        phonemes = "goĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ma",
         span = [7, 9],
+        phonemes = "ma",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    RelativeClause = {
-                                        base_argument = {Koha = {
-                                            Bare = {Bare = {
-                                                phonemes = "ra",
-                                                span = [0, 2],
-                                                kind = "cmavo"
-                                            }}
-                                        }},
-                                        relative_clauses = [
-                                            {Goi = {
-                                                goi = {Bare = {
-                                                    Bare = {
-                                                        phonemes = "goĭ",
-                                                        span = [3, 6],
-                                                        kind = "cmavo"
-                                                    }
-                                                }},
-                                                argument = {Koha = {
-                                                    Bare = {Bare = {
-                                                        phonemes = "ma",
-                                                        span = [7, 9],
-                                                        kind = "cmavo"
-                                                    }}
-                                                }}
-                                            }},
-                                        ]
-                                    }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(RelativeClause { base_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), vuho: None, relative_clauses: [Goi(GoiRelativeClauseSyntax { goi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "goĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }, argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), gehu: None })] })], vau: None })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,2],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ma","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Term {
+  terms: [
+    RelativeClause {
+      base_argument: "ra",
+      relative_clauses: [
+        GoiRelativeClause {
+          goi: "goĭ",
+          "ma",
         },
-    ]
-}
+      ],
+    },
+  ],
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"RelativeClause":{"base_argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ra","kind":"cmavo"}}}},"relative_clauses":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[3,6],"phonemes":"goĭ","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[7,9],"phonemes":"ma","kind":"cmavo"}}}}}}]}}}]}}}}]}]}'

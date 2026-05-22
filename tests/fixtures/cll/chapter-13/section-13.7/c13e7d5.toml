@@ -12,43 +12,38 @@ example-number = "13.52"
 example-id = "c13e7d5"
 source-path = "vendor/cll/chapters/13.xml"
 
-[expectations.output]
-brackets = "aŭ-sé'i"
-
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "aŭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "aŭ",
         span = [1, 3],
+        phonemes = "aŭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "se'i",
         span = [3, 7],
+        phonemes = "se'i",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_indicators = [
-        {
-            indicator = {WithIndicator = {
-                base = {Bare = {
-                    Bare = {
-                        phonemes = "aŭ",
-                        span = [1, 3],
-                        kind = "cmavo"
-                    }
-                }},
-                indicator = {
-                    phonemes = "se'i",
-                    span = [3, 7],
-                    kind = "cmavo"
-                }
-            }}
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "aŭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "se'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[1,3],"phonemes":"aŭ","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"se'i","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+brackets = ".aŭ-se'i"
+tree = """
+Text {
+  leading_indicators: [
+    WithIndicator {
+      ".aŭ",
+      indicator: "se'i",
+    },
+  ],
+}"""
+json = """{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,3],"phonemes":"aŭ","kind":"cmavo"}}},"indicator":{"span":[3,7],"phonemes":"se'i","kind":"cmavo"}}}}]}"""

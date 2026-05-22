@@ -8,77 +8,48 @@ entry-id = "4430"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "brife", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ru'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "u'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 20, char_start: 17, char_end: 20, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "brife",
         span = [3, 8],
+        phonemes = "brife",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "oĭ",
         span = [10, 12],
+        phonemes = "oĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ru'e",
         span = [12, 16],
+        phonemes = "ru'e",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "u'i",
         span = [17, 20],
+        phonemes = "u'i",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "failure"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Predicate = {
-                        predicate_tail = {
-                            first = {
-                                first = {
-                                    first = {Relation = {
-                                        Base = {WithIndicator = {
-                                            base = {WithIndicator = {
-                                                base = {WithIndicator = {
-                                                    base = {Bare = {
-                                                        Bare = {
-                                                            phonemes = "brife",
-                                                            span = [3, 8],
-                                                            kind = "gismu"
-                                                        }
-                                                    }},
-                                                    indicator = {
-                                                        phonemes = "oĭ",
-                                                        span = [10, 12],
-                                                        kind = "cmavo"
-                                                    }
-                                                }},
-                                                indicator = {
-                                                    phonemes = "ru'e",
-                                                    span = [12, 16],
-                                                    kind = "cmavo"
-                                                }
-                                            }},
-                                            indicator = {
-                                                phonemes = "u'i",
-                                                span = [17, 20],
-                                                kind = "cmavo"
-                                            }
-                                        }}
-                                    }}
-                                }
-                            }
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(WithIndicator { base: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "brife", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "ru'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "u'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 20, char_start: 17, char_end: 20, start: None, end: None }) }), nai: None }), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[3,8],"phonemes":"brife","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"u'i","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+WithIndicator {
+  WithIndicator {
+    WithIndicator {
+      "brífe",
+      indicator: ".oĭ",
+    },
+    indicator: "ru'e",
+  },
+  indicator: ".u'i",
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"brife","kind":"gismu"}}},"indicator":{"span":[10,12],"phonemes":"oĭ","kind":"cmavo"}}},"indicator":{"span":[12,16],"phonemes":"ru'e","kind":"cmavo"}}},"indicator":{"span":[17,20],"phonemes":"u'i","kind":"cmavo"}}}}}}}}}}}]}]}"""

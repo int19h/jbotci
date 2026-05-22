@@ -8,108 +8,69 @@ entry-id = "19085"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cu'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "tu'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 19, char_start: 15, char_end: 19, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 22, char_start: 20, char_end: 22, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "re'i",
         span = [0, 4],
+        phonemes = "re'i",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ma",
         span = [5, 7],
-        kind = "cmavo"
-    }},
-    {Bare = {
-        phonemes = "se",
-        span = [8, 10],
-        kind = "cmavo"
-    }},
-    {Bare = {
-        phonemes = "cu'u",
-        span = [10, 14],
-        kind = "cmavo"
-    }},
-    {Bare = {
-        phonemes = "tu'a",
-        span = [15, 19],
-        kind = "cmavo"
-    }},
-    {Bare = {
         phonemes = "ma",
+        kind = "cmavo"
+    }},
+    {Bare = {
+        span = [8, 10],
+        phonemes = "se",
+        kind = "cmavo"
+    }},
+    {Bare = {
+        span = [10, 14],
+        phonemes = "cu'u",
+        kind = "cmavo"
+    }},
+    {Bare = {
+        span = [15, 19],
+        phonemes = "tu'a",
+        kind = "cmavo"
+    }},
+    {Bare = {
         span = [20, 22],
+        phonemes = "ma",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_free_modifiers = [
-        {Vocative = {
-            vocative_markers = [
-                {Bare = {
-                    Bare = {
-                        phonemes = "re'i",
-                        span = [0, 4],
-                        kind = "cmavo"
-                    }
-                }},
-            ],
-            argument = {Koha = {
-                Bare = {Bare = {
-                    phonemes = "ma",
-                    span = [5, 7],
-                    kind = "cmavo"
-                }}
-            }}
-        }},
-    ],
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Tagged = {
-                                    tense_modal = {Simple = {
-                                        se = {Bare = {
-                                            Bare = {
-                                                phonemes = "se",
-                                                span = [8, 10],
-                                                kind = "cmavo"
-                                            }
-                                        }},
-                                        bai = {Bare = {
-                                            Bare = {
-                                                phonemes = "cu'u",
-                                                span = [10, 14],
-                                                kind = "cmavo"
-                                            }
-                                        }}
-                                    }},
-                                    argument = {Lahe = {
-                                        lahe = {Bare = {
-                                            Bare = {
-                                                phonemes = "tu'a",
-                                                span = [15, 19],
-                                                kind = "cmavo"
-                                            }
-                                        }},
-                                        inner_argument = {Koha = {
-                                            Bare = {Bare = {
-                                                phonemes = "ma",
-                                                span = [20, 22],
-                                                kind = "cmavo"
-                                            }}
-                                        }}
-                                    }}
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }), bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cu'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), argument: Lahe { lahe: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "tu'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 19, char_start: 15, char_end: 19, start: None, end: None }) })))), free_modifiers: [] }, relative_clauses: [], inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 22, char_start: 20, char_end: 22, start: None, end: None }) })))), free_modifiers: [] }), luhu: None } }], vau: None })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"re'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"cu'u","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_free_modifiers: [
+    Vocative {
+      vocative_markers: "re'i",
+      argument: "ma",
+    },
+  ],
+  Term {
+    terms: [
+      Tagged {
+        tense_modal: Simple {
+          se: "se",
+          bai: "cu'u",
         },
-    ]
-}
+        Lahe {
+          lahe: "tu'a",
+          "ma",
+        },
+      },
+    ],
+  },
+}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"re'i","kind":"cmavo"}}}],"argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}}}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Simple":{"se":{"Bare":{"Bare":{"span":[8,10],"phonemes":"se","kind":"cmavo"}}},"bai":{"Bare":{"Bare":{"span":[10,14],"phonemes":"cu'u","kind":"cmavo"}}}}},"argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"span":[15,19],"phonemes":"tu'a","kind":"cmavo"}}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}}}}}}}}]}}}}]}]}"""

@@ -8,36 +8,35 @@ entry-id = "20485"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "saĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "naĭ",
         span = [0, 3],
+        phonemes = "naĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "saĭ",
         span = [3, 6],
+        phonemes = "saĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_nai = [
-        {WithIndicator = {
-            base = {Bare = {
-                Bare = {
-                    phonemes = "naĭ",
-                    span = [0, 3],
-                    kind = "cmavo"
-                }
-            }},
-            indicator = {
-                phonemes = "saĭ",
-                span = [3, 6],
-                kind = "cmavo"
-            }
-        }},
-    ]
-}
+raw = 'TextSyntax { leading_nai: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "saĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }), nai: None }], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,3],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_nai: [
+    WithIndicator {
+      "naĭ",
+      indicator: "saĭ",
+    },
+  ],
+}"""
+json = '{"leading_nai":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,3],"phonemes":"naĭ","kind":"cmavo"}}},"indicator":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}}}]}'

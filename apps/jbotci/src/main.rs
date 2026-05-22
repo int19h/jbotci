@@ -949,6 +949,52 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn gentufa_tree_preserves_source_order_for_connected_relation() {
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from([
+                "jbotci", "gentufa", "--format", "tree", "gleki", "je", "klama",
+            ])
+            .expect("gentufa tree");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa tree run");
+            assert!(error.is_empty());
+            let output = String::from_utf8(output).expect("utf8");
+
+            let leading = output.find("leading_relation").expect("leading relation");
+            let connective = output.find("connective").expect("connective");
+            let trailing = output.find("trailing_relation").expect("trailing relation");
+            assert!(leading < connective);
+            assert!(connective < trailing);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_tree_preserves_source_order_for_binary_math() {
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from([
+                "jbotci", "gentufa", "--format", "tree", "li", "pa", "su'i", "re",
+            ])
+            .expect("gentufa tree");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa tree run");
+            assert!(error.is_empty());
+            let output = String::from_utf8(output).expect("utf8");
+
+            let left = output.find("left_expression").expect("left expression");
+            let operator = output.find("operator").expect("operator");
+            let right = output.find("right_expression").expect("right expression");
+            assert!(left < operator);
+            assert!(operator < right);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn gentufa_indent_zero_makes_tree_single_line() {
         run_on_large_stack(|| {
             let cli = Cli::try_parse_from([

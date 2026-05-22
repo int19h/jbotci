@@ -8,20 +8,21 @@ entry-id = "16518"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ga'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ga'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ki'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 13, char_start: 9, char_end: 13, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "ga'o",
         span = [0, 4],
+        phonemes = "ga'o",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ga'i",
         span = [4, 8],
+        phonemes = "ga'i",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ki'a",
         span = [9, 13],
+        phonemes = "ki'a",
         kind = "cmavo"
     }},
 ]
@@ -29,3 +30,6 @@ words = [
 [expectations.syntax]
 status = "failure"
 error = { position = 1, allowed-next = [] }
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"ga'o","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ga'i","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ki'a","kind":"cmavo"}}]"""

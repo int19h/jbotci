@@ -8,82 +8,53 @@ entry-id = "15316"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ĭi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "ritcard", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 14, char_start: 7, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "stolman", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 22, char_start: 15, char_end: 22, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "ĭi",
         span = [1, 3],
+        phonemes = "ĭi",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "la",
         span = [4, 6],
+        phonemes = "la",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ritcard",
         span = [7, 14],
+        phonemes = "ritcard",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "stolman",
         span = [15, 22],
+        phonemes = "stolman",
         kind = "cmevla"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Name = {
-                                        la = {Bare = {
-                                            Bare = {
-                                                phonemes = "la",
-                                                span = [4, 6],
-                                                kind = "cmavo"
-                                            }
-                                        }},
-                                        names = [
-                                            {Bare = {
-                                                Bare = {
-                                                    phonemes = "ritcard",
-                                                    span = [7, 14],
-                                                    kind = "cmevla"
-                                                }
-                                            }},
-                                            {Bare = {
-                                                Bare = {
-                                                    phonemes = "stolman",
-                                                    span = [15, 22],
-                                                    kind = "cmevla"
-                                                }
-                                            }},
-                                        ]
-                                    }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ĭi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "ritcard", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 14, char_start: 7, char_end: 14, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "stolman", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 22, char_start: 15, char_end: 22, start: None, end: None }) }))))], free_modifiers: [] } })], vau: None })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[1,3],"phonemes":"ĭi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[7,14],"phonemes":"ritcard","kind":"cmevla"}},{"Bare":{"span":[15,22],"phonemes":"stolman","kind":"cmevla"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_indicators: [
+    ".ĭi",
+  ],
+  Term {
+    terms: [
+      Name {
+        la: "la",
+        names: WithFreeModifiers {
+          ".ritcard.",
+          ".stolman.",
         },
+      },
     ],
-    leading_indicators = [
-        {
-            indicator = {Bare = {
-                Bare = {
-                    phonemes = "ĭi",
-                    span = [1, 3],
-                    kind = "cmavo"
-                }
-            }}
-        },
-    ]
-}
+  },
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[4,6],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[7,14],"phonemes":"ritcard","kind":"cmevla"}}},{"Bare":{"Bare":{"span":[15,22],"phonemes":"stolman","kind":"cmevla"}}}]}}}]}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ĭi","kind":"cmavo"}}}}]}'

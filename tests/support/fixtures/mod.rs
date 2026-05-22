@@ -78,22 +78,6 @@ impl TestCase {
     #[requires(true)]
     pub fn available_facets(&self) -> BTreeSet<Facet> {
         let mut facets = BTreeSet::new();
-        if self
-            .expectations
-            .output
-            .as_ref()
-            .is_some_and(|output| output.brackets.is_some())
-        {
-            facets.insert(Facet::Brackets);
-        }
-        if self
-            .expectations
-            .output
-            .as_ref()
-            .is_some_and(|output| output.tree.is_some())
-        {
-            facets.insert(Facet::Tree);
-        }
         if self.expectations.morphology.is_some() {
             facets.insert(Facet::Morphology);
         }
@@ -102,6 +86,50 @@ impl TestCase {
         }
         if self.expectations.warnings.is_some() {
             facets.insert(Facet::Warnings);
+        }
+        if let Some(output) = &self.expectations.output {
+            if output
+                .vlasei
+                .as_ref()
+                .is_some_and(|vlasei| vlasei.brackets.is_some())
+            {
+                facets.insert(Facet::VlaseiBrackets);
+            }
+            if output
+                .vlasei
+                .as_ref()
+                .is_some_and(|vlasei| vlasei.tree.is_some())
+            {
+                facets.insert(Facet::VlaseiTree);
+            }
+            if output
+                .vlasei
+                .as_ref()
+                .is_some_and(|vlasei| vlasei.json.is_some())
+            {
+                facets.insert(Facet::VlaseiJson);
+            }
+            if output
+                .gentufa
+                .as_ref()
+                .is_some_and(|gentufa| gentufa.brackets.is_some())
+            {
+                facets.insert(Facet::GentufaBrackets);
+            }
+            if output
+                .gentufa
+                .as_ref()
+                .is_some_and(|gentufa| gentufa.tree.is_some())
+            {
+                facets.insert(Facet::GentufaTree);
+            }
+            if output
+                .gentufa
+                .as_ref()
+                .is_some_and(|gentufa| gentufa.json.is_some())
+            {
+                facets.insert(Facet::GentufaJson);
+            }
         }
         facets
     }
@@ -139,17 +167,47 @@ impl TestCase {
                 .warnings
                 .as_ref()
                 .map(|_| ExpectationStatus::Success),
-            Facet::Brackets => self
+            Facet::VlaseiBrackets => self
                 .expectations
                 .output
                 .as_ref()
+                .and_then(|output| output.vlasei.as_ref())
                 .and_then(|output| output.brackets.as_ref())
                 .map(|_| ExpectationStatus::Success),
-            Facet::Tree => self
+            Facet::VlaseiTree => self
                 .expectations
                 .output
                 .as_ref()
+                .and_then(|output| output.vlasei.as_ref())
                 .and_then(|output| output.tree.as_ref())
+                .map(|_| ExpectationStatus::Success),
+            Facet::VlaseiJson => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.vlasei.as_ref())
+                .and_then(|output| output.json.as_ref())
+                .map(|_| ExpectationStatus::Success),
+            Facet::GentufaBrackets => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.gentufa.as_ref())
+                .and_then(|output| output.brackets.as_ref())
+                .map(|_| ExpectationStatus::Success),
+            Facet::GentufaTree => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.gentufa.as_ref())
+                .and_then(|output| output.tree.as_ref())
+                .map(|_| ExpectationStatus::Success),
+            Facet::GentufaJson => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.gentufa.as_ref())
+                .and_then(|output| output.json.as_ref())
                 .map(|_| ExpectationStatus::Success),
         }
     }
@@ -254,7 +312,7 @@ impl std::str::FromStr for MuplisForm {
 #[invariant(true)]
 pub struct Expectations {
     #[serde(default)]
-    pub output: Option<OutputExpectation>,
+    pub output: Option<OutputExpectations>,
     #[serde(default)]
     pub morphology: Option<MorphologyExpectation>,
     #[serde(default)]
@@ -266,11 +324,23 @@ pub struct Expectations {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[invariant(true)]
-pub struct OutputExpectation {
+pub struct OutputExpectations {
+    #[serde(default)]
+    pub vlasei: Option<CommandOutputExpectation>,
+    #[serde(default)]
+    pub gentufa: Option<CommandOutputExpectation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
+pub struct CommandOutputExpectation {
     #[serde(default)]
     pub brackets: Option<TextExpectation>,
     #[serde(default)]
     pub tree: Option<TextExpectation>,
+    #[serde(default)]
+    pub json: Option<TextExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -278,6 +348,8 @@ pub struct OutputExpectation {
 #[invariant(true)]
 pub struct MorphologyExpectation {
     pub status: ExpectationStatus,
+    #[serde(default)]
+    pub raw: Option<TextExpectation>,
     #[serde(default)]
     pub words: Vec<WordLike>,
     #[serde(default)]
@@ -289,8 +361,8 @@ pub struct MorphologyExpectation {
 #[invariant(true)]
 pub struct SyntaxExpectation {
     pub status: ExpectationStatus,
-    #[serde(default, rename = "parse-tree")]
-    pub parse_tree: Option<serde_json::Value>,
+    #[serde(default)]
+    pub raw: Option<TextExpectation>,
     #[serde(default)]
     pub error: Option<ParseErrorExpectation>,
     #[serde(default)]
@@ -422,8 +494,12 @@ pub enum Facet {
     Morphology,
     Syntax,
     Warnings,
-    Brackets,
-    Tree,
+    VlaseiBrackets,
+    VlaseiTree,
+    VlaseiJson,
+    GentufaBrackets,
+    GentufaTree,
+    GentufaJson,
 }
 
 impl Facet {
@@ -434,8 +510,12 @@ impl Facet {
             Self::Morphology,
             Self::Syntax,
             Self::Warnings,
-            Self::Brackets,
-            Self::Tree,
+            Self::VlaseiBrackets,
+            Self::VlaseiTree,
+            Self::VlaseiJson,
+            Self::GentufaBrackets,
+            Self::GentufaTree,
+            Self::GentufaJson,
         ]
     }
 }
@@ -448,8 +528,12 @@ impl fmt::Display for Facet {
             Self::Morphology => "morphology",
             Self::Syntax => "syntax",
             Self::Warnings => "warnings",
-            Self::Brackets => "brackets",
-            Self::Tree => "tree",
+            Self::VlaseiBrackets => "vlasei-brackets",
+            Self::VlaseiTree => "vlasei-tree",
+            Self::VlaseiJson => "vlasei-json",
+            Self::GentufaBrackets => "gentufa-brackets",
+            Self::GentufaTree => "gentufa-tree",
+            Self::GentufaJson => "gentufa-json",
         };
         f.write_str(text)
     }
@@ -465,8 +549,12 @@ impl std::str::FromStr for Facet {
             "morphology" => Ok(Self::Morphology),
             "syntax" => Ok(Self::Syntax),
             "warnings" => Ok(Self::Warnings),
-            "brackets" => Ok(Self::Brackets),
-            "tree" | "vipcihe" => Ok(Self::Tree),
+            "vlasei-brackets" => Ok(Self::VlaseiBrackets),
+            "vlasei-tree" => Ok(Self::VlaseiTree),
+            "vlasei-json" => Ok(Self::VlaseiJson),
+            "gentufa-brackets" => Ok(Self::GentufaBrackets),
+            "gentufa-tree" => Ok(Self::GentufaTree),
+            "gentufa-json" => Ok(Self::GentufaJson),
             other => Err(format!("unknown fixture facet `{other}`")),
         }
     }
@@ -647,6 +735,7 @@ pub fn load_fixture_file(path: impl AsRef<Path>) -> Result<TestCase, FixtureErro
 fn reject_legacy_expectation_format(path: &Path, text: &str) -> Result<(), FixtureError> {
     let legacy_patterns = [
         "[expectations.syntax.parse-tree]",
+        "parse-tree",
         "BaseWord =",
         "StandaloneIndicator =",
         "NotEof =",
@@ -665,11 +754,6 @@ fn reject_legacy_expectation_format(path: &Path, text: &str) -> Result<(), Fixtu
         "kind = \"single-word-quote\"",
         "kind = \"letter\"",
         "kind = \"zei-lujvo\"",
-        "source_id",
-        "byte_start",
-        "byte_end",
-        "char_start",
-        "char_end",
     ];
     for pattern in legacy_patterns {
         if text.contains(pattern) {

@@ -8,27 +8,28 @@ entry-id = "269"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) }), word: Word(WordData { kind: Gismu, phonemes: "broda", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }) }), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "valsi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) })))]'
 words = [
     {ZoQuote = {
         zo = {
-            phonemes = "zo",
             span = [1, 3],
+            phonemes = "zo",
             kind = "cmavo"
         },
         word = {
-            phonemes = "broda",
             span = [8, 13],
+            phonemes = "broda",
             kind = "gismu"
         }
     }},
     {Bare = {
-        phonemes = "co",
         span = [14, 16],
+        phonemes = "co",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "valsi",
         span = [18, 23],
+        phonemes = "valsi",
         kind = "gismu"
     }},
 ]
@@ -36,3 +37,6 @@ words = [
 [expectations.syntax]
 status = "failure"
 error = { position = 1, allowed-next = [] }
+
+[expectations.output.vlasei]
+json = '[{"ZoQuote":{"zo":{"span":[1,3],"phonemes":"zo","kind":"cmavo"},"word":{"span":[8,13],"phonemes":"broda","kind":"gismu"}}},{"Bare":{"span":[14,16],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"valsi","kind":"gismu"}}]'

@@ -8,28 +8,27 @@ entry-id = "18805"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "no'i",
         span = [0, 4],
+        phonemes = "no'i",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            niho = [
-                {Bare = {
-                    Bare = {
-                        phonemes = "no'i",
-                        span = [0, 4],
-                        kind = "cmavo"
-                    }
-                }},
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [], statements: [] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"no'i","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Paragraph {
+  niho: [
+    "no'i",
+  ],
+}"""
+json = """{"paragraphs":[{"niho":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"no'i","kind":"cmavo"}}}]}]}"""

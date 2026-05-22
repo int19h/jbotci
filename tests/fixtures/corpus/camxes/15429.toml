@@ -8,116 +8,71 @@ entry-id = "15429"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "de", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "da",
         span = [0, 2],
+        phonemes = "da",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "na",
         span = [3, 5],
+        phonemes = "na",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "xu",
         span = [5, 7],
-        kind = "cmavo"
-    }},
-    {Bare = {
-        phonemes = "e",
-        span = [8, 9],
-        kind = "cmavo"
-    }},
-    {Bare = {
-        phonemes = "naĭ",
-        span = [9, 12],
-        kind = "cmavo"
-    }},
-    {Bare = {
         phonemes = "xu",
-        span = [12, 14],
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "de",
+        span = [8, 9],
+        phonemes = "e",
+        kind = "cmavo"
+    }},
+    {Bare = {
+        span = [9, 12],
+        phonemes = "naĭ",
+        kind = "cmavo"
+    }},
+    {Bare = {
+        span = [12, 14],
+        phonemes = "xu",
+        kind = "cmavo"
+    }},
+    {Bare = {
         span = [15, 17],
+        phonemes = "de",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Connected = {
-                                        leading_argument = {Koha = {
-                                            Bare = {Bare = {
-                                                phonemes = "da",
-                                                span = [0, 2],
-                                                kind = "cmavo"
-                                            }}
-                                        }},
-                                        connective = {Afterthought = {
-                                            na = {WithIndicator = {
-                                                base = {Bare = {
-                                                    Bare = {
-                                                        phonemes = "na",
-                                                        span = [3, 5],
-                                                        kind = "cmavo"
-                                                    }
-                                                }},
-                                                indicator = {
-                                                    phonemes = "xu",
-                                                    span = [5, 7],
-                                                    kind = "cmavo"
-                                                }
-                                            }},
-                                            cmavo = [
-                                                {Bare = {
-                                                    Bare = {
-                                                        phonemes = "e",
-                                                        span = [8, 9],
-                                                        kind = "cmavo"
-                                                    }
-                                                }},
-                                            ],
-                                            nai = {WithIndicator = {
-                                                base = {Bare = {
-                                                    Bare = {
-                                                        phonemes = "naĭ",
-                                                        span = [9, 12],
-                                                        kind = "cmavo"
-                                                    }
-                                                }},
-                                                indicator = {
-                                                    phonemes = "xu",
-                                                    span = [12, 14],
-                                                    kind = "cmavo"
-                                                }
-                                            }}
-                                        }},
-                                        trailing_argument = {Koha = {
-                                            Bare = {Bare = {
-                                                phonemes = "de",
-                                                span = [15, 17],
-                                                kind = "cmavo"
-                                            }}
-                                        }}
-                                    }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Connected { leading_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), connective: Afterthought { se: None, nahe: None, na: Some(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }), nai: None }), cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None }) }))))], free_modifiers: [] }, nai: Some(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }), nai: None }, free_modifiers: [] }) }, trailing_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "de", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }) })], vau: None })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[8,9],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"de","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Term {
+  terms: [
+    Connected {
+      leading_argument: "da",
+      connective: Afterthought {
+        na: WithIndicator {
+          "na",
+          indicator: "xu",
         },
-    ]
-}
+        ".e",
+        nai: WithIndicator {
+          "naĭ",
+          indicator: "xu",
+        },
+      },
+      trailing_argument: "de",
+    },
+  ],
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Connected":{"leading_argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}}}},"connective":{"Afterthought":{"na":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}}},"indicator":{"span":[5,7],"phonemes":"xu","kind":"cmavo"}}},"cmavo":[{"Bare":{"Bare":{"span":[8,9],"phonemes":"e","kind":"cmavo"}}}],"nai":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[9,12],"phonemes":"naĭ","kind":"cmavo"}}},"indicator":{"span":[12,14],"phonemes":"xu","kind":"cmavo"}}}}},"trailing_argument":{"Koha":{"Bare":{"Bare":{"span":[15,17],"phonemes":"de","kind":"cmavo"}}}}}}}]}}}}]}]}'

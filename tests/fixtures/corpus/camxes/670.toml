@@ -8,26 +8,25 @@ entry-id = "670"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "joĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "joĭ",
         span = [0, 3],
+        phonemes = "joĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_connective = {NonLogical = {
-        cmavo = [
-            {Bare = {
-                Bare = {
-                    phonemes = "joĭ",
-                    span = [0, 3],
-                    kind = "cmavo"
-                }
-            }},
-        ]
-    }}
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(NonLogical { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "joĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }), paragraphs: [] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,3],"phonemes":"joĭ","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_connective: "joĭ",
+}"""
+json = '{"leading_connective":{"NonLogical":{"cmavo":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"joĭ","kind":"cmavo"}}}]}}}'

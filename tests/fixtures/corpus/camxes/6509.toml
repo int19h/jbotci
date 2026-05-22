@@ -8,56 +8,45 @@ entry-id = "6509"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "takes", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sutra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "takes",
         span = [0, 5],
+        phonemes = "takes",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "coĭ",
         span = [6, 9],
+        phonemes = "coĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "sutra",
         span = [10, 15],
+        phonemes = "sutra",
         kind = "gismu"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_cmevla = [
-        {Bare = {
-            Bare = {
-                phonemes = "takes",
-                span = [0, 5],
-                kind = "cmevla"
-            }
-        }},
-    ],
-    leading_free_modifiers = [
-        {Vocative = {
-            vocative_markers = [
-                {Bare = {
-                    Bare = {
-                        phonemes = "coĭ",
-                        span = [6, 9],
-                        kind = "cmavo"
-                    }
-                }},
-            ],
-            argument = {RelationVocative = {
-                relation = {Base = {
-                    Bare = {Bare = {
-                        phonemes = "sutra",
-                        span = [10, 15],
-                        kind = "gismu"
-                    }}
-                }}
-            }}
-        }},
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "takes", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sutra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) }))))), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,5],"phonemes":"takes","kind":"cmevla"}},{"Bare":{"span":[6,9],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"sutra","kind":"gismu"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_cmevla: [
+    ".takes.",
+  ],
+  leading_free_modifiers: [
+    Vocative {
+      vocative_markers: "coĭ",
+      argument: RelationVocative {
+        relation: "sútra",
+      },
+    },
+  ],
+}"""
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,5],"phonemes":"takes","kind":"cmevla"}}}],"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[6,9],"phonemes":"coĭ","kind":"cmavo"}}}],"argument":{"RelationVocative":{"relation":{"Base":{"Bare":{"Bare":{"span":[10,15],"phonemes":"sutra","kind":"gismu"}}}}}}}}]}'

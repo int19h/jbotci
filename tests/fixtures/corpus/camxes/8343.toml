@@ -8,86 +8,50 @@ entry-id = "8343"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }), word: Word(WordData { kind: Lujvo, phonemes: "kasta'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 12, char_start: 5, char_end: 12, start: None, end: None }) }) }), WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "brivla", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 19, char_start: 13, char_end: 19, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 22, char_start: 20, char_end: 22, start: None, end: None }) })))]"""
 words = [
     {ZoQuote = {
         zo = {
-            phonemes = "zo",
             span = [2, 4],
+            phonemes = "zo",
             kind = "cmavo"
         },
         word = {
-            phonemes = "kasta'a",
             span = [5, 12],
+            phonemes = "kasta'a",
             kind = "lujvo"
         }
     }},
     {Bare = {
-        phonemes = "brivla",
         span = [13, 19],
+        phonemes = "brivla",
         kind = "lujvo"
     }},
     {Bare = {
-        phonemes = "ma",
         span = [20, 22],
+        phonemes = "ma",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Predicate = {
-                        leading_terms = [
-                            {Argument = {
-                                Quote = {Zo = {
-                                    Bare = {ZoQuote = {
-                                        zo = {
-                                            phonemes = "zo",
-                                            span = [2, 4],
-                                            kind = "cmavo"
-                                        },
-                                        word = {
-                                            phonemes = "kasta'a",
-                                            span = [5, 12],
-                                            kind = "lujvo"
-                                        }
-                                    }}
-                                }}
-                            }},
-                        ],
-                        predicate_tail = {
-                            first = {
-                                first = {
-                                    first = {Relation = {
-                                        relation = {Base = {
-                                            Bare = {Bare = {
-                                                phonemes = "brivla",
-                                                span = [13, 19],
-                                                kind = "lujvo"
-                                            }}
-                                        }},
-                                        terms = [
-                                            {Argument = {
-                                                Koha = {Bare = {
-                                                    Bare = {
-                                                        phonemes = "ma",
-                                                        span = [20, 22],
-                                                        kind = "cmavo"
-                                                    }
-                                                }}
-                                            }},
-                                        ]
-                                    }}
-                                }
-                            }
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }), word: Word(WordData { kind: Lujvo, phonemes: "kasta'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 12, char_start: 5, char_end: 12, start: None, end: None }) }) })), free_modifiers: [] })))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "brivla", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 19, char_start: 13, char_end: 19, start: None, end: None }) }))))), terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 22, char_start: 20, char_end: 22, start: None, end: None }) })))), free_modifiers: [] }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"ZoQuote":{"zo":{"span":[2,4],"phonemes":"zo","kind":"cmavo"},"word":{"span":[5,12],"phonemes":"kasta'a","kind":"lujvo"}}},{"Bare":{"span":[13,19],"phonemes":"brivla","kind":"lujvo"}},{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Predicate {
+  leading_terms: [
+    "zo-«kastá'a»",
+  ],
+  Relation {
+    "brívla",
+    terms: [
+      "ma",
+    ],
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[2,4],"phonemes":"zo","kind":"cmavo"},"word":{"span":[5,12],"phonemes":"kasta'a","kind":"lujvo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[13,19],"phonemes":"brivla","kind":"lujvo"}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[20,22],"phonemes":"ma","kind":"cmavo"}}}}}]}}}}}}}}]}]}"""

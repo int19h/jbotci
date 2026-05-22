@@ -8,60 +8,45 @@ entry-id = "567"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "djan", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "meris", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "djeĭn", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "alis", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 25, char_start: 21, char_end: 25, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "djan",
         span = [0, 4],
+        phonemes = "djan",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "meris",
         span = [6, 11],
+        phonemes = "meris",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "djeĭn",
         span = [13, 18],
+        phonemes = "djeĭn",
         kind = "cmevla"
     }},
     {Bare = {
-        phonemes = "alis",
         span = [21, 25],
+        phonemes = "alis",
         kind = "cmevla"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_cmevla = [
-        {Bare = {
-            Bare = {
-                phonemes = "djan",
-                span = [0, 4],
-                kind = "cmevla"
-            }
-        }},
-        {Bare = {
-            Bare = {
-                phonemes = "meris",
-                span = [6, 11],
-                kind = "cmevla"
-            }
-        }},
-        {Bare = {
-            Bare = {
-                phonemes = "djeĭn",
-                span = [13, 18],
-                kind = "cmevla"
-            }
-        }},
-        {Bare = {
-            Bare = {
-                phonemes = "alis",
-                span = [21, 25],
-                kind = "cmevla"
-            }
-        }},
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "djan", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "meris", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "djeĭn", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "alis", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 25, char_start: 21, char_end: 25, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,4],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[6,11],"phonemes":"meris","kind":"cmevla"}},{"Bare":{"span":[13,18],"phonemes":"djeĭn","kind":"cmevla"}},{"Bare":{"span":[21,25],"phonemes":"alis","kind":"cmevla"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_cmevla: [
+    ".djan.",
+    ".meris.",
+    ".djeĭn.",
+    ".alis.",
+  ],
+}"""
+json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"djan","kind":"cmevla"}}},{"Bare":{"Bare":{"span":[6,11],"phonemes":"meris","kind":"cmevla"}}},{"Bare":{"Bare":{"span":[13,18],"phonemes":"djeĭn","kind":"cmevla"}}},{"Bare":{"Bare":{"span":[21,25],"phonemes":"alis","kind":"cmevla"}}}]}'

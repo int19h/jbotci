@@ -8,23 +8,24 @@ entry-id = "106"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Letter { base: WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }), word: Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }) }), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }) })]'
 words = [
     {Letter = {
         base = {ZoQuote = {
             zo = {
-                phonemes = "zo",
                 span = [0, 2],
+                phonemes = "zo",
                 kind = "cmavo"
             },
             word = {
-                phonemes = "da",
                 span = [3, 5],
+                phonemes = "da",
                 kind = "cmavo"
             }
         }},
         bu = {
-            phonemes = "bu",
             span = [6, 8],
+            phonemes = "bu",
             kind = "cmavo"
         }
     }},
@@ -32,46 +33,18 @@ words = [
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        Term = {
-                            terms = [
-                                {Argument = {
-                                    Letter = {
-                                        letter = [
-                                            {Bare = {
-                                                Letter = {
-                                                    base = {ZoQuote = {
-                                                        zo = {
-                                                            phonemes = "zo",
-                                                            span = [0, 2],
-                                                            kind = "cmavo"
-                                                        },
-                                                        word = {
-                                                            phonemes = "da",
-                                                            span = [3, 5],
-                                                            kind = "cmavo"
-                                                        }
-                                                    }},
-                                                    bu = {
-                                                        phonemes = "bu",
-                                                        span = [6, 8],
-                                                        kind = "cmavo"
-                                                    }
-                                                }
-                                            }},
-                                        ]
-                                    }
-                                }},
-                            ]
-                        }
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Letter { base: WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }), word: Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }) }), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }) }))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }'
+
+[expectations.output.vlasei]
+json = '[{"Letter":{"base":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"da","kind":"cmavo"}}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}}]'
+
+[expectations.output.gentufa]
+tree = """
+Term {
+  terms: [
+    Letter {
+      letter: "zo-«da»-bu",
+    },
+  ],
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"da","kind":"cmavo"}}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}}}]}}}]}}}}]}]}'

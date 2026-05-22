@@ -8,74 +8,55 @@ entry-id = "21800"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "soĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ro", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "coĭ",
         span = [0, 3],
+        phonemes = "coĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "soĭ",
         span = [3, 6],
+        phonemes = "soĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ro",
         span = [7, 9],
+        phonemes = "ro",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "do",
         span = [9, 11],
+        phonemes = "do",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_free_modifiers = [
-        {Vocative = {
-            vocative_markers = [
-                [
-                    {Bare = {
-                        Bare = {
-                            phonemes = "coĭ",
-                            span = [0, 3],
-                            kind = "cmavo"
-                        }
-                    }},
-                ],
-                {Soi = {
-                    soi = {Bare = {
-                        Bare = {
-                            phonemes = "soĭ",
-                            span = [3, 6],
-                            kind = "cmavo"
-                        }
-                    }},
-                    leading_argument = {Quantified = {
-                        quantifier = {Number = {
-                            number = [
-                                {Bare = {
-                                    Bare = {
-                                        phonemes = "ro",
-                                        span = [7, 9],
-                                        kind = "cmavo"
-                                    }
-                                }},
-                            ]
-                        }},
-                        inner_argument = {Koha = {
-                            Bare = {Bare = {
-                                phonemes = "do",
-                                span = [9, 11],
-                                kind = "cmavo"
-                            }}
-                        }}
-                    }}
-                }},
-            ]
-        }},
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [Soi { soi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "soĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }, leading_argument: Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ro", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }) }, trailing_argument: None, sehu: None }] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"soĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_free_modifiers: [
+    Vocative {
+      vocative_markers: WithFreeModifiers {
+        "coĭ",
+        free_modifiers: [
+          Soi {
+            soi: "soĭ",
+            leading_argument: Quantified {
+              quantifier: "ro",
+              "do",
+            },
+          },
+        ],
+      },
+    },
+  ],
+}"""
+json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[[{"Bare":{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}}}],{"Soi":{"soi":{"Bare":{"Bare":{"span":[3,6],"phonemes":"soĭ","kind":"cmavo"}}},"leading_argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[7,9],"phonemes":"ro","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}}}}}}}}]}}]}'

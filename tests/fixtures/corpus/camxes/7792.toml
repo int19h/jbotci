@@ -8,80 +8,49 @@ entry-id = "7792"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "za'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xoĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tavla", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ŭi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "za'u",
         span = [0, 4],
+        phonemes = "za'u",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "xoĭ",
         span = [4, 7],
+        phonemes = "xoĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "tavla",
         span = [8, 13],
+        phonemes = "tavla",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "ŭi",
         span = [15, 17],
+        phonemes = "ŭi",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        MathExpression = {Number = {
-                            Number = {
-                                number = [
-                                    [
-                                        {Bare = {
-                                            Bare = {
-                                                phonemes = "za'u",
-                                                span = [0, 4],
-                                                kind = "cmavo"
-                                            }
-                                        }},
-                                    ],
-                                    {Sei = {
-                                        sei = {Bare = {
-                                            Bare = {
-                                                phonemes = "xoĭ",
-                                                span = [4, 7],
-                                                kind = "cmavo"
-                                            }
-                                        }},
-                                        relation = {Base = {
-                                            WithIndicator = {
-                                                base = {Bare = {
-                                                    Bare = {
-                                                        phonemes = "tavla",
-                                                        span = [8, 13],
-                                                        kind = "gismu"
-                                                    }
-                                                }},
-                                                indicator = {
-                                                    phonemes = "ŭi",
-                                                    span = [15, 17],
-                                                    kind = "cmavo"
-                                                }
-                                            }
-                                        }}
-                                    }},
-                                ]
-                            }
-                        }}
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "za'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xoĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, terms: [], cu: None, relation: Base(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tavla", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ŭi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) }), nai: None }), sehu: None }] }, boi: None })))) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"xoĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ŭi","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+WithFreeModifiers {
+  "za'u",
+  free_modifiers: [
+    Sei {
+      sei: "xoĭ",
+      relation: WithIndicator {
+        "távla",
+        indicator: ".ŭi",
+      },
+    },
+  ],
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[[{"Bare":{"Bare":{"span":[0,4],"phonemes":"za'u","kind":"cmavo"}}}],{"Sei":{"sei":{"Bare":{"Bare":{"span":[4,7],"phonemes":"xoĭ","kind":"cmavo"}}},"relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"tavla","kind":"gismu"}}},"indicator":{"span":[15,17],"phonemes":"ŭi","kind":"cmavo"}}}}}}]}}}}}}]}]}"""

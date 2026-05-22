@@ -90,20 +90,10 @@ fn push_expectations_toml(
     output: &mut String,
     expectations: &Expectations,
 ) -> Result<(), toml::ser::Error> {
-    if let Some(output_expectation) = &expectations.output
-        && (output_expectation.brackets.is_some() || output_expectation.tree.is_some())
-    {
-        output.push_str("\n[expectations.output]\n");
-        if let Some(brackets) = &output_expectation.brackets {
-            push_field(output, "brackets", brackets)?;
-        }
-        if let Some(tree) = &output_expectation.tree {
-            push_field(output, "tree", tree)?;
-        }
-    }
     if let Some(morphology) = &expectations.morphology {
         output.push_str("\n[expectations.morphology]\n");
         push_field(output, "status", &morphology.status)?;
+        push_optional_field(output, "raw", &morphology.raw)?;
         if !morphology.words.is_empty() {
             output.push_str("words = [\n");
             for word in &morphology.words {
@@ -121,16 +111,39 @@ fn push_expectations_toml(
     if let Some(syntax) = &expectations.syntax {
         output.push_str("\n[expectations.syntax]\n");
         push_field(output, "status", &syntax.status)?;
-        if let Some(parse_tree) = &syntax.parse_tree {
-            output.push_str("parse-tree = ");
-            let compact = compact_json_value(parse_tree).map_err(|error| {
-                <toml::ser::Error as serde::ser::Error>::custom(error.to_string())
-            })?;
-            output.push_str(&format_compact_toml_value(&compact, 0)?);
-            output.push('\n');
-        }
+        push_optional_field(output, "raw", &syntax.raw)?;
         push_optional_field(output, "error", &syntax.error)?;
         push_optional_field(output, "xfail", &syntax.xfail)?;
+    }
+    if let Some(output_expectation) = &expectations.output {
+        if let Some(vlasei) = &output_expectation.vlasei
+            && (vlasei.brackets.is_some() || vlasei.tree.is_some() || vlasei.json.is_some())
+        {
+            output.push_str("\n[expectations.output.vlasei]\n");
+            if let Some(brackets) = &vlasei.brackets {
+                push_field(output, "brackets", brackets)?;
+            }
+            if let Some(tree) = &vlasei.tree {
+                push_field(output, "tree", tree)?;
+            }
+            if let Some(json) = &vlasei.json {
+                push_field(output, "json", json)?;
+            }
+        }
+        if let Some(gentufa) = &output_expectation.gentufa
+            && (gentufa.brackets.is_some() || gentufa.tree.is_some() || gentufa.json.is_some())
+        {
+            output.push_str("\n[expectations.output.gentufa]\n");
+            if let Some(brackets) = &gentufa.brackets {
+                push_field(output, "brackets", brackets)?;
+            }
+            if let Some(tree) = &gentufa.tree {
+                push_field(output, "tree", tree)?;
+            }
+            if let Some(json) = &gentufa.json {
+                push_field(output, "json", json)?;
+            }
+        }
     }
     if let Some(warnings) = &expectations.warnings {
         output.push_str("\n[expectations.warnings]\n");

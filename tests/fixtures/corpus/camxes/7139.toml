@@ -8,57 +8,48 @@ entry-id = "7139"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "toĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "to",
         span = [0, 2],
+        phonemes = "to",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "coĭ",
         span = [3, 6],
+        phonemes = "coĭ",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "toĭ",
         span = [7, 10],
+        phonemes = "toĭ",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    leading_free_modifiers = [
-        {To = {
-            to = [
-                {Bare = {
-                    Bare = {
-                        phonemes = "to",
-                        span = [0, 2],
-                        kind = "cmavo"
-                    }
-                }},
-                {Vocative = {
-                    vocative_markers = [
-                        {Bare = {
-                            Bare = {
-                                phonemes = "coĭ",
-                                span = [3, 6],
-                                kind = "cmavo"
-                            }
-                        }},
-                    ]
-                }},
-            ],
-            text = {},
-            toi = {Bare = {
-                Bare = {
-                    phonemes = "toĭ",
-                    span = [7, 10],
-                    kind = "cmavo"
-                }
-            }}
-        }},
-    ]
-}
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }, toi: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "toĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }) }], leading_connective: None, paragraphs: [] }'
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"toĭ","kind":"cmavo"}}]'
+
+[expectations.output.gentufa]
+tree = """
+Text {
+  leading_free_modifiers: [
+    To {
+      to: WithFreeModifiers {
+        "to",
+        free_modifiers: [
+          Vocative {
+            vocative_markers: "coĭ",
+          },
+        ],
+      },
+      Text {},
+      toi: "toĭ",
+    },
+  ],
+}"""
+json = '{"leading_free_modifiers":[{"To":{"to":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}}},{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[3,6],"phonemes":"coĭ","kind":"cmavo"}}}]}}],"text":{},"toi":{"Bare":{"Bare":{"span":[7,10],"phonemes":"toĭ","kind":"cmavo"}}}}}]}'

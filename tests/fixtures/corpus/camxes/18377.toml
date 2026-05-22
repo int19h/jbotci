@@ -8,30 +8,31 @@ entry-id = "18377"
 
 [expectations.morphology]
 status = "success"
+raw = '[WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "klatu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ve", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ta", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nicto", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))]'
 words = [
     {Bare = {
-        phonemes = "klatu",
         span = [0, 5],
+        phonemes = "klatu",
         kind = "gismu"
     }},
     {Bare = {
-        phonemes = "ve",
         span = [6, 8],
+        phonemes = "ve",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ra",
         span = [8, 10],
+        phonemes = "ra",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ta",
         span = [10, 12],
+        phonemes = "ta",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "nicto",
         span = [13, 18],
+        phonemes = "nicto",
         kind = "gismu"
     }},
 ]
@@ -39,3 +40,6 @@ words = [
 [expectations.syntax]
 status = "failure"
 error = { position = 2, allowed-next = [] }
+
+[expectations.output.vlasei]
+json = '[{"Bare":{"span":[0,5],"phonemes":"klatu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ve","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"nicto","kind":"gismu"}}]'

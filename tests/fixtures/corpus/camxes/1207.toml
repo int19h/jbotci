@@ -8,50 +8,31 @@ entry-id = "1207"
 
 [expectations.morphology]
 status = "success"
+raw = """[WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))), WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ci'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))]"""
 words = [
     {Bare = {
-        phonemes = "ma'u",
         span = [0, 4],
+        phonemes = "ma'u",
         kind = "cmavo"
     }},
     {Bare = {
-        phonemes = "ci'i",
         span = [5, 9],
+        phonemes = "ci'i",
         kind = "cmavo"
     }},
 ]
 
 [expectations.syntax]
 status = "success"
-parse-tree = {
-    paragraphs = [
-        {
-            statements = [
-                {
-                    statement = {Fragment = {
-                        MathExpression = {Number = {
-                            Number = {
-                                number = [
-                                    {Bare = {
-                                        Bare = {
-                                            phonemes = "ma'u",
-                                            span = [0, 4],
-                                            kind = "cmavo"
-                                        }
-                                    }},
-                                    {Bare = {
-                                        Bare = {
-                                            phonemes = "ci'i",
-                                            span = [5, 9],
-                                            kind = "cmavo"
-                                        }
-                                    }},
-                                ]
-                            }
-                        }}
-                    }}
-                },
-            ]
-        },
-    ]
-}
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ci'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })))) }] }] }"""
+
+[expectations.output.vlasei]
+json = """[{"Bare":{"span":[0,4],"phonemes":"ma'u","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ci'i","kind":"cmavo"}}]"""
+
+[expectations.output.gentufa]
+tree = """
+WithFreeModifiers {
+  "ma'u",
+  "ci'i",
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"ma'u","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[5,9],"phonemes":"ci'i","kind":"cmavo"}}}]}}}}}}]}]}"""
