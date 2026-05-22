@@ -743,7 +743,7 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
             assert_eq!(
                 output.trim_end(),
-                r#"Predicate { leading_terms: ["mi"], "kláma" }"#
+                r#"Predicate{leading_terms:["mi"],"kláma"}"#
             );
         });
     }

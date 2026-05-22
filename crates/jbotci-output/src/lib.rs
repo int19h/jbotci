@@ -264,11 +264,12 @@ fn format_compact_json_array(items: &[Value], indent: usize, options: JsonRender
         return "[]".to_owned();
     }
     if options.indent == 0 || items.iter().all(is_compact_json_scalar) {
+        let separator = if options.indent == 0 { "," } else { ", " };
         let items = items
             .iter()
             .map(|item| format_compact_json_value(item, indent, options))
             .collect::<Vec<_>>()
-            .join(", ");
+            .join(separator);
         return format!("[{items}]");
     }
 
@@ -304,13 +305,13 @@ fn format_compact_json_object(
             .iter()
             .map(|(key, value)| {
                 format!(
-                    "{}: {}",
+                    "{}:{}",
                     json_string(key),
                     format_compact_json_field_value(value, indent, options)
                 )
             })
             .collect::<Vec<_>>()
-            .join(", ");
+            .join(",");
         return format!("{{{fields}}}");
     }
 
@@ -347,20 +348,23 @@ fn format_compact_json_constructor(
     let (constructor, payload) = object.iter().next().expect("constructor object has item");
     let constructor = json_string(constructor);
     match payload {
+        Value::Object(fields) if fields.is_empty() && options.indent == 0 => {
+            format!("{{{constructor}:{{}}}}")
+        }
         Value::Object(fields) if fields.is_empty() => format!("{{{constructor}: {{}}}}"),
         Value::Object(fields) if options.indent == 0 => {
             let fields = fields
                 .iter()
                 .map(|(key, value)| {
                     format!(
-                        "{}: {}",
+                        "{}:{}",
                         json_string(key),
                         format_compact_json_field_value(value, constructor_indent, options)
                     )
                 })
                 .collect::<Vec<_>>()
-                .join(", ");
-            format!("{{{constructor}: {{{fields}}}}}")
+                .join(",");
+            format!("{{{constructor}:{{{fields}}}}}")
         }
         Value::Object(fields) => {
             let field_indent = constructor_indent + options.indent;
@@ -385,6 +389,10 @@ fn format_compact_json_constructor(
             output.push_str("}}");
             output
         }
+        other if options.indent == 0 => format!(
+            "{{{constructor}:{}}}",
+            format_compact_json_value(other, constructor_indent, options)
+        ),
         other => format!(
             "{{{constructor}: {}}}",
             format_compact_json_value(other, constructor_indent + options.indent, options)

@@ -97,7 +97,9 @@ impl TreeRenderer<'_> {
     fn render_node(&mut self, node: &SyntaxTreeNode, indent: usize) {
         self.output
             .push_str(&self.constructor_token(node.constructor));
-        self.output.push(' ');
+        if self.indent_step != 0 {
+            self.output.push(' ');
+        }
         self.output.push_str(&self.punctuation_token("{"));
         if node.entries.is_empty() {
             self.output.push_str(&self.punctuation_token("}"));
@@ -106,7 +108,6 @@ impl TreeRenderer<'_> {
         let entries = node.entries.iter().map(render_entry).collect::<Vec<_>>();
         if self.indent_step == 0 {
             self.render_inline_entries(&entries);
-            self.output.push(' ');
         } else {
             self.render_entries(&entries, indent);
             self.output.push('\n');
@@ -138,18 +139,15 @@ impl TreeRenderer<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn render_inline_entries(&mut self, entries: &[RenderEntry]) {
-        self.output.push(' ');
         for (index, entry) in entries.iter().enumerate() {
             if index > 0 {
                 self.output.push_str(&self.punctuation_token(","));
-                self.output.push(' ');
             }
             match entry {
                 RenderEntry::Primary(value) => self.render_value(value, 0),
                 RenderEntry::Labelled(label, value) => {
                     self.output.push_str(&self.field_token(label));
                     self.output.push_str(&self.punctuation_token(":"));
-                    self.output.push(' ');
                     self.render_value(value, 0);
                 }
             }
@@ -168,7 +166,6 @@ impl TreeRenderer<'_> {
             for (index, item) in items.iter().enumerate() {
                 if index > 0 {
                     self.output.push_str(&self.punctuation_token(","));
-                    self.output.push(' ');
                 }
                 self.render_value(item, 0);
             }
@@ -343,7 +340,7 @@ mod tests {
             },
         )
         .expect("tree render");
-        assert_eq!(output, r#"Predicate { leading_terms: ["mi"], "kláma" }"#);
+        assert_eq!(output, r#"Predicate{leading_terms:["mi"],"kláma"}"#);
     }
 
     #[requires(true)]
