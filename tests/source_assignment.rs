@@ -3,7 +3,7 @@ use bityzba::{ensures, requires};
 use jbotci_dialect::parse_dialect_definition;
 use jbotci_morphology::{MorphologyOptions, WordLike, segment_words_with_modifiers_with_options};
 use jbotci_source::SourceSpan;
-use jbotci_syntax::{ParseOptions, WithIndicators, parse_syntax_tree_with_source_and_options};
+use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_source_and_options};
 
 #[test]
 #[requires(true)]
@@ -123,14 +123,8 @@ fn morphology_source_ranges(words: &[WordLike]) -> Vec<(usize, usize)> {
 #[ensures(true)]
 fn syntax_source_ranges(tree: &jbotci_syntax::ast::TextSyntax) -> Vec<(usize, usize)> {
     let mut ranges = Vec::new();
-    tree.visit_words(&mut |word| append_word_ranges(word, &mut ranges));
+    tree.visit_source_spans(&mut |span| ranges.push(span_range(span)));
     ranges
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn append_word_ranges(word: &WithIndicators<WordLike>, ranges: &mut Vec<(usize, usize)>) {
-    ranges.extend(word.source_spans().into_iter().map(span_range));
 }
 
 #[requires(true)]

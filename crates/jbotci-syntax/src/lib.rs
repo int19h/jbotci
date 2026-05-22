@@ -1,8 +1,6 @@
 //! Lojban syntax model and parser facade.
 
 mod grammar;
-pub mod source_tree;
-pub mod tree;
 
 extern crate self as jbotci_syntax;
 
@@ -12,15 +10,17 @@ use std::fmt;
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_dialect::DialectDefinition;
 use jbotci_morphology::{Word, WordLike};
+use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub mod ast {
     pub use crate::grammar::ast::*;
 }
-use ast::TextSyntax;
+use ast::{
+    AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax, TreeNode as SyntaxAstTreeNode,
+};
 pub use ast::{Indicator, IndicatorData};
-pub use jbotci_syntax_macros::{SourceTree, SyntaxTree};
 
 impl Indicator {
     #[requires(true)]
@@ -161,6 +161,48 @@ impl WithIndicators<WordLike> {
                     out.push(&nai.span);
                 }
             }
+        }
+    }
+}
+
+impl TextSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_source_spans(&self, visitor: &mut impl FnMut(&jbotci_source::SourceSpan)) {
+        let mut visitor = SourceSpanVisitor { visitor };
+        self.visit_in_order(&mut visitor);
+    }
+}
+
+#[invariant(true)]
+struct SourceSpanVisitor<'callback> {
+    visitor: &'callback mut dyn FnMut(&jbotci_source::SourceSpan),
+}
+
+impl fmt::Debug for SourceSpanVisitor<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SourceSpanVisitor")
+            .finish_non_exhaustive()
+    }
+}
+
+impl<'tree> TreeVisitor<'tree> for SourceSpanVisitor<'_> {
+    type Node = SyntaxNodeRef<'tree>;
+    type Atom = SyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        match atom {
+            SyntaxAtomRef::WithIndicatorsWordLike(word) => {
+                for span in word.source_spans() {
+                    (self.visitor)(span);
+                }
+            }
+            SyntaxAtomRef::Word(word) => (self.visitor)(&word.span),
         }
     }
 }
@@ -729,17 +771,15 @@ fn syntax_parse_source_spans_are_ordered(data: &SyntaxParseData) -> bool {
     let data!(SyntaxParse { parse_tree, .. }) = data;
     let mut last_end = None;
     let mut ordered = true;
-    parse_tree.visit_words(&mut |word| {
+    parse_tree.visit_source_spans(&mut |span| {
         if !ordered {
             return;
         }
-        for span in word.source_spans() {
-            if last_end.is_some_and(|end| end > span.byte_start) {
-                ordered = false;
-                return;
-            }
-            last_end = Some(span.byte_end);
+        if last_end.is_some_and(|end| end > span.byte_start) {
+            ordered = false;
+            return;
         }
+        last_end = Some(span.byte_end);
     });
     ordered
 }

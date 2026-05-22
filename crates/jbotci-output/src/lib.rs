@@ -70,8 +70,6 @@ impl Default for OutputFormat {
 pub enum OutputError {
     #[error("output rendering is not implemented yet")]
     NotImplemented,
-    #[error("invalid syntax tree for bracket rendering: {0}")]
-    InvalidSyntaxTree(String),
     #[error("failed to encode compact JSON: {0}")]
     Json(String),
 }
