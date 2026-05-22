@@ -752,8 +752,8 @@ fn syntax_parse_source_spans_are_ordered(data: &SyntaxParseData) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn syntax_warning_data_is_valid(data: &SyntaxWarningData) -> bool {
-    let data!(SyntaxWarning { .. }) = data;
-    true
+    let data!(SyntaxWarning { anchor, .. }) = data;
+    !anchor.source_spans().is_empty()
 }
 
 #[requires(true)]
