@@ -86,6 +86,14 @@ impl TestCase {
         {
             facets.insert(Facet::Brackets);
         }
+        if self
+            .expectations
+            .output
+            .as_ref()
+            .is_some_and(|output| output.tree.is_some())
+        {
+            facets.insert(Facet::Tree);
+        }
         if self.expectations.morphology.is_some() {
             facets.insert(Facet::Morphology);
         }
@@ -136,6 +144,12 @@ impl TestCase {
                 .output
                 .as_ref()
                 .and_then(|output| output.brackets.as_ref())
+                .map(|_| ExpectationStatus::Success),
+            Facet::Tree => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.tree.as_ref())
                 .map(|_| ExpectationStatus::Success),
         }
     }
@@ -255,6 +269,8 @@ pub struct Expectations {
 pub struct OutputExpectation {
     #[serde(default)]
     pub brackets: Option<TextExpectation>,
+    #[serde(default)]
+    pub tree: Option<TextExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -407,6 +423,7 @@ pub enum Facet {
     Syntax,
     Warnings,
     Brackets,
+    Tree,
 }
 
 impl Facet {
@@ -418,6 +435,7 @@ impl Facet {
             Self::Syntax,
             Self::Warnings,
             Self::Brackets,
+            Self::Tree,
         ]
     }
 }
@@ -431,6 +449,7 @@ impl fmt::Display for Facet {
             Self::Syntax => "syntax",
             Self::Warnings => "warnings",
             Self::Brackets => "brackets",
+            Self::Tree => "tree",
         };
         f.write_str(text)
     }
@@ -447,6 +466,7 @@ impl std::str::FromStr for Facet {
             "syntax" => Ok(Self::Syntax),
             "warnings" => Ok(Self::Warnings),
             "brackets" => Ok(Self::Brackets),
+            "tree" | "vipcihe" => Ok(Self::Tree),
             other => Err(format!("unknown fixture facet `{other}`")),
         }
     }

@@ -10,7 +10,7 @@ use clap::{Args, Parser, Subcommand};
 use jbotci_morphology::{
     MorphologyOptions, WordLike, segment_words_with_modifiers_with_options_and_source_id,
 };
-use jbotci_output::{compact_json_value, pretty_brackets};
+use jbotci_output::{compact_json_value, pretty_brackets, pretty_tree};
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, SyntaxError, parse_syntax_tree_with_source_and_options};
 use rayon::prelude::*;
@@ -300,7 +300,13 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
         .warnings
         .as_ref()
         .is_some_and(|warnings| warnings.status == ExpectationStatus::Success);
-    if refresh_syntax || refresh_warnings {
+    let refresh_tree = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .is_some_and(|output| output.tree.is_some());
+    if refresh_syntax || refresh_warnings || refresh_tree {
         let syntax_words = words?;
         if let Ok(parsed) = parse_syntax_tree_with_source_and_options(
             &syntax_words,
@@ -313,6 +319,12 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
             if refresh_warnings && let Some(warnings) = &mut fixture.test_case.expectations.warnings
             {
                 warnings.value = Some(compact_json_value(&parsed.warnings)?);
+            }
+            if refresh_tree
+                && let Some(output) = &mut fixture.test_case.expectations.output
+                && let Some(tree) = &mut output.tree
+            {
+                tree.text = pretty_tree(&parsed.parse_tree, &fixture.test_case.lojban)?;
             }
         }
     }
@@ -785,6 +797,7 @@ impl FixtureBackend for NotImplementedBackend {
             Facet::Syntax => run_syntax_fixture(fixture),
             Facet::Warnings => run_warnings_fixture(fixture),
             Facet::Brackets => run_brackets_fixture(fixture),
+            Facet::Tree => run_tree_fixture(fixture),
         }
     }
 }
@@ -832,6 +845,50 @@ fn run_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
             expectation.text
         )),
         Err(error) => FacetResult::failed(format!("brackets render error: {error}")),
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.tree.as_ref())
+    else {
+        return FacetResult::skipped("fixture has no tree expectation");
+    };
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) {
+        Ok(words) => words,
+        Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
+    };
+    let parsed = match parse_syntax_tree_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => parsed,
+        Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
+    };
+    match pretty_tree(&parsed.parse_tree, &fixture.test_case.lojban) {
+        Ok(actual) if actual == expectation.text => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format!(
+            "tree mismatch: expected `{}`, got `{actual}`",
+            expectation.text
+        )),
+        Err(error) => FacetResult::failed(format!("tree render error: {error}")),
     }
 }
 
@@ -1216,6 +1273,11 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
             .output
             .as_ref()
             .and_then(|output| output.brackets.as_ref())
+            .map(|_| ExpectationStatus::Success),
+        Facet::Tree => expectations
+            .output
+            .as_ref()
+            .and_then(|output| output.tree.as_ref())
             .map(|_| ExpectationStatus::Success),
     }
 }

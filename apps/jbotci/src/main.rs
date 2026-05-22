@@ -8,7 +8,10 @@ use anyhow::{Result, anyhow};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options};
-use jbotci_output::{BracketRenderOptions, compact_json_string, pretty_brackets_with_options};
+use jbotci_output::{
+    BracketRenderOptions, TreeRenderOptions, compact_json_string, pretty_brackets_with_options,
+    pretty_tree_with_options,
+};
 use jbotci_syntax::{
     ParseOptions, SyntaxParse, parse_syntax_tree_with_source_and_options, syntax_warning_displays,
 };
@@ -50,6 +53,8 @@ enum Command {
 #[invariant(true)]
 enum GentufaFormat {
     Brackets,
+    #[value(alias = "vipcihe", help = "alias: vipcihe")]
+    Tree,
     Raw,
     #[value(alias = "djeisone")]
     Json,
@@ -249,6 +254,16 @@ fn run_gentufa<WOut: Write, WErr: Write>(
         GentufaFormat::Raw => {
             writeln!(stdout, "{:#?}", parsed.parse_tree)?;
         }
+        GentufaFormat::Tree => {
+            let rendered = pretty_tree_with_options(
+                &parsed.parse_tree,
+                &text,
+                TreeRenderOptions {
+                    color: color_enabled,
+                },
+            )?;
+            writeln!(stdout, "{rendered}")?;
+        }
         GentufaFormat::Json => {
             let rendered = compact_json_string(&parsed.parse_tree)?;
             writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
@@ -307,7 +322,7 @@ fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
             GentufaFormat::Brackets => Err(anyhow!(
                 "`--skicu`/`--defs` is accepted for brackets output, but dictionary definition rendering has not been ported yet"
             )),
-            GentufaFormat::Raw | GentufaFormat::Json => Err(anyhow!(
+            GentufaFormat::Raw | GentufaFormat::Tree | GentufaFormat::Json => Err(anyhow!(
                 "`--skicu`/`--defs` is only meaningful with `--turtau brackets`; dictionary definition rendering has not been ported yet"
             )),
         }
@@ -520,6 +535,24 @@ mod tests {
         assert_eq!(raw_input.format, GentufaFormat::Raw);
         assert!(raw_input.definitions);
 
+        let Command::Gentufa(tree_input) =
+            Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "tree", "coi"])
+                .expect("tree parses")
+                .command
+        else {
+            panic!("expected gentufa command")
+        };
+        assert_eq!(tree_input.format, GentufaFormat::Tree);
+
+        let Command::Gentufa(vipcihe_input) =
+            Cli::try_parse_from(["jbotci", "gentufa", "--turtau", "vipcihe", "coi"])
+                .expect("vipcihe parses")
+                .command
+        else {
+            panic!("expected gentufa command")
+        };
+        assert_eq!(vipcihe_input.format, GentufaFormat::Tree);
+
         let Command::Gentufa(defs_input) =
             Cli::try_parse_from(["jbotci", "gentufa", "--defs", "coi"])
                 .expect("defs alias")
@@ -573,6 +606,8 @@ mod tests {
         assert!(help.contains("--turtau"));
         assert!(help.contains("--format"));
         assert!(help.contains("brackets"));
+        assert!(help.contains("tree"));
+        assert!(help.contains("vipcihe"));
         assert!(!help.contains("compact"));
         assert!(help.contains("raw"));
         assert!(help.contains("--skicu"));
@@ -657,6 +692,27 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn gentufa_tree_outputs_collapsed_syntax_tree() {
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from(["jbotci", "gentufa", "--format", "tree", "mi", "klama"])
+                .expect("gentufa tree");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa tree run");
+            assert!(error.is_empty());
+            let output = String::from_utf8(output).expect("utf8");
+
+            assert!(output.starts_with("Predicate {\n"));
+            assert!(output.contains("leading_terms: ["));
+            assert!(output.contains("\"mi\""));
+            assert!(output.contains("\"kláma\""));
+            assert!(!output.contains("Text {"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn gentufa_warnings_go_to_stderr() {
         std::thread::Builder::new()
             .stack_size(32 * 1024 * 1024)
@@ -718,6 +774,14 @@ mod tests {
         let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
             .expect_err("raw defs not implemented");
         assert!(error.to_string().contains("only meaningful"));
+
+        let cli = Cli::try_parse_from([
+            "jbotci", "gentufa", "--turtau", "tree", "--skicu", "mi", "klama",
+        ])
+        .expect("gentufa tree defs");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("tree defs not implemented");
+        assert!(error.to_string().contains("only meaningful"));
     }
 
     #[test]
@@ -734,6 +798,25 @@ mod tests {
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
             assert!(output.contains("\x1b["));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_color_flag_forces_ansi_tree_output() {
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from([
+                "jbotci", "gentufa", "--color", "--format", "vipcihe", "mi", "klama",
+            ])
+            .expect("gentufa tree color");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa tree color run");
+            assert!(error.is_empty());
+            let output = String::from_utf8(output).expect("utf8");
+            assert!(output.contains("\x1b[94mPredicate\x1b[39m"));
+            assert!(output.contains("\x1b[33m\"mi\"\x1b[39m"));
         });
     }
 

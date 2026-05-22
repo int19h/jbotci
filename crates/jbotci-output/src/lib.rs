@@ -3,6 +3,7 @@
 mod brackets;
 mod sexpr;
 mod surface;
+mod tree;
 
 use bityzba::{invariant, requires};
 use jbotci_morphology::{Word, WordLike};
@@ -81,6 +82,12 @@ pub struct BracketRenderOptions {
     pub color: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[invariant(true)]
+pub struct TreeRenderOptions {
+    pub color: bool,
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
 pub fn compact_json_value<T: Serialize>(value: &T) -> Result<Value, OutputError> {
@@ -105,6 +112,22 @@ pub fn compact_json_string<T: Serialize>(value: &T) -> Result<String, OutputErro
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
 pub fn pretty_brackets(tree: &TextSyntax, source: &str) -> Result<String, OutputError> {
     pretty_brackets_with_options(tree, source, BracketRenderOptions::default())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+pub fn pretty_tree(tree: &TextSyntax, source: &str) -> Result<String, OutputError> {
+    pretty_tree_with_options(tree, source, TreeRenderOptions::default())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+pub fn pretty_tree_with_options(
+    tree: &TextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<String, OutputError> {
+    tree::pretty_tree_with_options(tree, source, options)
 }
 
 #[requires(true)]

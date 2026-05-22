@@ -91,11 +91,14 @@ fn push_expectations_toml(
     expectations: &Expectations,
 ) -> Result<(), toml::ser::Error> {
     if let Some(output_expectation) = &expectations.output
-        && output_expectation.brackets.is_some()
+        && (output_expectation.brackets.is_some() || output_expectation.tree.is_some())
     {
         output.push_str("\n[expectations.output]\n");
         if let Some(brackets) = &output_expectation.brackets {
             push_field(output, "brackets", brackets)?;
+        }
+        if let Some(tree) = &output_expectation.tree {
+            push_field(output, "tree", tree)?;
         }
     }
     if let Some(morphology) = &expectations.morphology {

@@ -346,6 +346,9 @@ fn writer_keeps_tree_and_words_as_values() {
                 brackets: Some(TextExpectation {
                     text: "[coi]".into(),
                 }),
+                tree: Some(TextExpectation {
+                    text: "\"coi\"".into(),
+                }),
             }),
             morphology: Some(MorphologyExpectation {
                 status: ExpectationStatus::Success,
@@ -369,6 +372,7 @@ fn writer_keeps_tree_and_words_as_values() {
     let text = fs::read_to_string(&fixture_path).expect("read fixture");
     assert!(text.starts_with("id = \"adhoc.syntax\"\nlojban = \"coi\"\ndialect = \"(allow-cgv)\""));
     assert!(text.contains("[expectations.output]\nbrackets = \"[coi]\""));
+    assert!(text.contains("tree = '\"coi\"'"));
     assert!(text.contains("[expectations.morphology]\nstatus = \"success\"\nwords = ["));
     assert!(!text.contains("options = "));
     assert!(text.contains("[expectations.syntax]\nstatus = \"success\"\nparse-tree = {"));
@@ -384,6 +388,38 @@ fn writer_keeps_tree_and_words_as_values() {
         test_case
     );
     let _ = fs::remove_dir_all(temp_root);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn available_facets_include_tree_expectations() {
+    let case = TestCase {
+        id: "adhoc.tree".into(),
+        lojban: "coi".into(),
+        dialect: None,
+        translation_en: None,
+        gloss_en: None,
+        tags: vec![],
+        provenance: vec![],
+        expectations: Expectations {
+            output: Some(OutputExpectation {
+                brackets: None,
+                tree: Some(TextExpectation {
+                    text: "\"coi\"".into(),
+                }),
+            }),
+            ..Expectations::default()
+        },
+    };
+    let facets = case.available_facets();
+    assert!(facets.contains(&Facet::Tree));
+    assert!(!facets.contains(&Facet::Brackets));
+    assert_eq!("tree".parse::<Facet>().expect("tree facet"), Facet::Tree);
+    assert_eq!(
+        "vipcihe".parse::<Facet>().expect("vipcihe facet"),
+        Facet::Tree
+    );
 }
 
 #[test]

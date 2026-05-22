@@ -2,6 +2,7 @@
 
 mod grammar;
 pub mod source_tree;
+pub mod tree;
 
 extern crate self as jbotci_syntax;
 
@@ -18,7 +19,7 @@ pub mod ast {
     pub use crate::grammar::ast::*;
 }
 use ast::TextSyntax;
-pub use jbotci_syntax_macros::SourceTree;
+pub use jbotci_syntax_macros::{SourceTree, SyntaxTree};
 
 #[invariant(indicator_data_is_valid(self.as_data()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
