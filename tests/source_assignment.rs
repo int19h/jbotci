@@ -1,5 +1,6 @@
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
+use jbotci_dialect::parse_dialect_definition;
 use jbotci_morphology::{MorphologyOptions, WordLike, segment_words_with_modifiers_with_options};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::{ParseOptions, WithIndicators, parse_syntax_tree_with_source_and_options};
@@ -32,6 +33,19 @@ fn syntax_assignment_handles_non_ascii_spans() {
     run_on_large_stack(|| assert_source_assignment("zoi gy café gy"));
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn syntax_assignment_includes_muhoi_raw_quoted_text_once() {
+    run_on_large_stack(|| {
+        let dialect =
+            parse_dialect_definition("(+ZANTUFA-QUOTES)").expect("valid dialect definition");
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+
+        assert_source_assignment_with_options("mi cu mu'oi gy foo gy", &options);
+    });
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {
@@ -46,8 +60,14 @@ fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {
 #[requires(!source.is_empty())]
 #[ensures(true)]
 fn assert_source_assignment(source: &str) {
+    assert_source_assignment_with_options(source, &ParseOptions::default());
+}
+
+#[requires(!source.is_empty())]
+#[ensures(true)]
+fn assert_source_assignment_with_options(source: &str, options: &ParseOptions) {
     let words = segment_words_with_options(source);
-    let parse = parse_syntax_tree_with_source_and_options(&words, source, &ParseOptions::default())
+    let parse = parse_syntax_tree_with_source_and_options(&words, source, options)
         .expect("source should parse");
 
     let morphology = morphology_source_ranges(&words);

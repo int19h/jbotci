@@ -432,6 +432,17 @@ mod tests {
             assert!(parsed.warnings.iter().any(|warning| {
                 warning.kind == ExperimentalConstruct::ExperimentalZantufaLuheiRelationUnit
             }));
+
+            let words =
+                segment_words_with_modifiers("mi cu mu'oi gy foo gy").expect("valid morphology");
+
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let parsed = parse_syntax_tree(&words, &options).expect("valid zantufa MUhOI syntax");
+
+            assert!(parsed.warnings.iter().any(|warning| {
+                warning.kind == ExperimentalConstruct::ExperimentalZantufaMuhoiRelationUnit
+            }));
         });
     }
 

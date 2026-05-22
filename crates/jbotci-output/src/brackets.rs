@@ -1651,18 +1651,9 @@ fn relation_unit(value: &RelationUnitSyntax, source: &str) -> sexpr::SExpr {
             }
             sexpr::node(children)
         }
-        RelationUnitSyntax::Mehoi { mehoi, .. } => with_free_word(mehoi, source),
-        RelationUnitSyntax::Gohoi { gohoi, .. } => with_free_word(gohoi, source),
-        RelationUnitSyntax::Muhoi {
-            muhoi,
-            opening_delimiter,
-            closing_delimiter,
-            ..
-        } => sexpr::node(vec![
-            word(muhoi, source),
-            word(opening_delimiter, source),
-            with_free_word(closing_delimiter, source),
-        ]),
+        RelationUnitSyntax::Mehoi(mehoi) => with_free_word(mehoi, source),
+        RelationUnitSyntax::Gohoi(gohoi) => with_free_word(gohoi, source),
+        RelationUnitSyntax::Muhoi(muhoi) => with_free_word(muhoi, source),
         RelationUnitSyntax::Luhei { luhei, text, liau } => {
             let mut children = vec![with_free_word(luhei, source), self::text(text, source)];
             if let Some(liau) = liau {

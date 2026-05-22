@@ -4694,9 +4694,8 @@ where
 #[ensures(true)]
 fn single_word_quoted_relation_unit<'tokens, F>(
     marker_text: &'static str,
-    source: Option<&'tokens str>,
     free_modifier: F,
-    build: fn(WithIndicators<WordLike>, String, Vec<FreeModifierSyntax>) -> RelationUnitSyntax,
+    build: fn(WithFreeModifiers<WithIndicators<WordLike>>) -> RelationUnitSyntax,
 ) -> BoxedParser<'tokens, RelationUnitSyntax>
 where
     F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
@@ -4710,19 +4709,19 @@ where
             };
             let data!(WordLike::SingleWordQuote {
                 marker,
-                quoted_text,
+                ..
             }) = word_like.as_data()
             else {
                 return Err(Rich::custom(span, format!("expected {marker_text} quote")));
             };
             if word_record_text_matches(marker, marker_text) {
-                Ok((word.clone(), source_text(source, quoted_text)))
+                Ok(word.clone())
             } else {
                 Err(Rich::custom(span, format!("expected {marker_text} quote")))
             }
         })
         .map_with(
-            move |(word, quoted_text),
+            move |word,
                   extra: &mut MapExtra<
                 'tokens,
                 '_,
@@ -4732,11 +4731,11 @@ where
                 if let Some(construct) = quoted_relation_unit_warning(marker_text) {
                     extra.state().warn(construct, &word);
                 }
-                (word, quoted_text)
+                word
             },
         )
         .then(free_modifier.repeated().collect::<Vec<_>>())
-        .map(move |((word, quoted_text), free_modifiers)| build(word, quoted_text, free_modifiers))
+        .map(move |(word, free_modifiers)| build(wrapped_word(word, free_modifiers)))
         .boxed()
 }
 
@@ -4744,73 +4743,48 @@ where
 #[ensures(true)]
 fn delimited_quoted_relation_unit<'tokens, F>(
     marker_text: &'static str,
-    source: Option<&'tokens str>,
+    required_feature: Option<DialectFeature>,
     free_modifier: F,
-    build: fn(
-        WithIndicators<WordLike>,
-        WithIndicators<WordLike>,
-        WithIndicators<WordLike>,
-        String,
-        Vec<FreeModifierSyntax>,
-    ) -> RelationUnitSyntax,
+    build: fn(WithFreeModifiers<WithIndicators<WordLike>>) -> RelationUnitSyntax,
 ) -> BoxedParser<'tokens, RelationUnitSyntax>
 where
     F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
         + Clone
         + 'tokens,
 {
-    any()
-        .try_map(move |word: WithIndicators<WordLike>, span| {
-            let Some(word_like) = quote_word_like(&word) else {
-                return Err(Rich::custom(span, format!("expected {marker_text} quote")));
-            };
-            let data!(WordLike::ZoiQuote {
-                zoi,
-                opening_delimiter,
-                quoted_text,
-                closing_delimiter,
-            }) = word_like.as_data()
-            else {
-                return Err(Rich::custom(span, format!("expected {marker_text} quote")));
-            };
-            if word_record_text_matches(zoi, marker_text) {
-                Ok((
-                    word.clone(),
-                    base_word_from_record((**opening_delimiter).clone()),
-                    base_word_from_record((**closing_delimiter).clone()),
-                    source_text(source, quoted_text),
-                ))
-            } else {
-                Err(Rich::custom(span, format!("expected {marker_text} quote")))
-            }
-        })
-        .map_with(
-            move |(word, opening_delimiter, closing_delimiter, quoted_text),
-                  extra: &mut MapExtra<
-                'tokens,
-                '_,
-                ParserInput<'tokens>,
-                ParseExtra<'tokens>,
-            >| {
-                if let Some(construct) = quoted_relation_unit_warning(marker_text) {
-                    extra.state().warn(construct, &word);
-                }
-                (word, opening_delimiter, closing_delimiter, quoted_text)
-            },
-        )
-        .then(free_modifier.repeated().collect::<Vec<_>>())
-        .map(
-            move |((word, opening_delimiter, closing_delimiter, quoted_text), free_modifiers)| {
-                build(
-                    word,
-                    opening_delimiter,
-                    closing_delimiter,
-                    quoted_text,
-                    free_modifiers,
-                )
-            },
-        )
-        .boxed()
+    custom(move |input| {
+        let checkpoint = input.save();
+        let cursor = input.cursor();
+        let Some(word) = input.next() else {
+            let span = input.span_since(&cursor);
+            return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+        };
+        let span = input.span_since(&cursor);
+        let Some(word_like) = quote_word_like(&word) else {
+            input.rewind(checkpoint);
+            return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+        };
+        let data!(WordLike::ZoiQuote { zoi, .. }) = word_like.as_data() else {
+            input.rewind(checkpoint);
+            return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+        };
+        if !word_record_text_matches(zoi, marker_text) {
+            input.rewind(checkpoint);
+            return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+        }
+        let state: &mut ParserState = input.state();
+        if required_feature.is_some_and(|feature| !state.feature_enabled(feature)) {
+            input.rewind(checkpoint);
+            return Err(Rich::custom(span, format!("expected {marker_text} quote")));
+        }
+        if let Some(construct) = quoted_relation_unit_warning(marker_text) {
+            state.warn(construct, &word);
+        }
+        Ok(word)
+    })
+    .then(free_modifier.repeated().collect::<Vec<_>>())
+    .map(move |(word, free_modifiers)| build(wrapped_word(word, free_modifiers)))
+    .boxed()
 }
 
 #[requires(!marker_text.is_empty())]
@@ -4879,36 +4853,15 @@ where
                     .map(|(moi_marker, free_modifiers)| wrapped_word(moi_marker, free_modifiers)),
             },
         );
-    let mehoi_unit = single_word_quoted_relation_unit(
-        "me'oi",
-        source,
-        free_modifier.clone(),
-        |mehoi, quoted_text, free_modifiers| RelationUnitSyntax::Mehoi {
-            mehoi: wrapped_word(mehoi, free_modifiers),
-            quoted_text,
-        },
-    );
-    let gohoi_unit = single_word_quoted_relation_unit(
-        "go'oi",
-        source,
-        free_modifier.clone(),
-        |gohoi, quoted_text, free_modifiers| RelationUnitSyntax::Gohoi {
-            gohoi: wrapped_word(gohoi, free_modifiers),
-            quoted_text,
-        },
-    );
+    let mehoi_unit =
+        single_word_quoted_relation_unit("me'oi", free_modifier.clone(), RelationUnitSyntax::Mehoi);
+    let gohoi_unit =
+        single_word_quoted_relation_unit("go'oi", free_modifier.clone(), RelationUnitSyntax::Gohoi);
     let muhoi_unit = delimited_quoted_relation_unit(
         "mu'oi",
-        source,
+        Some(DialectFeature::ZantufaQuotes),
         free_modifier.clone(),
-        |muhoi, opening_delimiter, closing_delimiter, quoted_text, free_modifiers| {
-            RelationUnitSyntax::Muhoi {
-                muhoi,
-                opening_delimiter,
-                closing_delimiter: wrapped_word(closing_delimiter, free_modifiers),
-                quoted_text,
-            }
-        },
+        RelationUnitSyntax::Muhoi,
     );
     let luhei_unit = feature_cmavo("LUhEI", "lu'ei", DialectFeature::ZantufaQuotes)
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -5501,7 +5454,7 @@ fn relation_units_inner<'tokens, P, S, T, F>(
     subsentence: S,
     text: T,
     free_modifier: F,
-    source: Option<&'tokens str>,
+    _source: Option<&'tokens str>,
 ) -> BoxedParser<'tokens, RelationSyntax>
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
@@ -5548,34 +5501,19 @@ where
             );
         let mehoi_unit = single_word_quoted_relation_unit(
             "me'oi",
-            source,
             free_modifier.clone(),
-            |mehoi, quoted_text, free_modifiers| RelationUnitSyntax::Mehoi {
-                mehoi: wrapped_word(mehoi, free_modifiers),
-                quoted_text,
-            },
+            RelationUnitSyntax::Mehoi,
         );
         let gohoi_unit = single_word_quoted_relation_unit(
             "go'oi",
-            source,
             free_modifier.clone(),
-            |gohoi, quoted_text, free_modifiers| RelationUnitSyntax::Gohoi {
-                gohoi: wrapped_word(gohoi, free_modifiers),
-                quoted_text,
-            },
+            RelationUnitSyntax::Gohoi,
         );
         let muhoi_unit = delimited_quoted_relation_unit(
             "mu'oi",
-            source,
+            Some(DialectFeature::ZantufaQuotes),
             free_modifier.clone(),
-            |muhoi, opening_delimiter, closing_delimiter, quoted_text, free_modifiers| {
-                RelationUnitSyntax::Muhoi {
-                    muhoi,
-                    opening_delimiter,
-                    closing_delimiter: wrapped_word(closing_delimiter, free_modifiers),
-                    quoted_text,
-                }
-            },
+            RelationUnitSyntax::Muhoi,
         );
         let luhei_unit = feature_cmavo("LUhEI", "lu'ei", DialectFeature::ZantufaQuotes)
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())

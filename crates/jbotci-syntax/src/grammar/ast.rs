@@ -1222,20 +1222,9 @@ pub enum RelationUnitSyntax {
         mehu: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
         moi_marker: Option<WithFreeModifiers<WithIndicators<WordLike>>>,
     },
-    Mehoi {
-        mehoi: WithFreeModifiers<WithIndicators<WordLike>>,
-        quoted_text: String,
-    },
-    Gohoi {
-        gohoi: WithFreeModifiers<WithIndicators<WordLike>>,
-        quoted_text: String,
-    },
-    Muhoi {
-        muhoi: WithIndicators<WordLike>,
-        opening_delimiter: WithIndicators<WordLike>,
-        closing_delimiter: WithFreeModifiers<WithIndicators<WordLike>>,
-        quoted_text: String,
-    },
+    Mehoi(WithFreeModifiers<WithIndicators<WordLike>>),
+    Gohoi(WithFreeModifiers<WithIndicators<WordLike>>),
+    Muhoi(WithFreeModifiers<WithIndicators<WordLike>>),
     Luhei {
         luhei: WithFreeModifiers<WithIndicators<WordLike>>,
         text: TextSyntax,
@@ -3094,18 +3083,9 @@ impl RelationUnitSyntax {
                     moi_marker.visit_words(visitor);
                 }
             }
-            RelationUnitSyntax::Mehoi { mehoi, .. } => mehoi.visit_words(visitor),
-            RelationUnitSyntax::Gohoi { gohoi, .. } => gohoi.visit_words(visitor),
-            RelationUnitSyntax::Muhoi {
-                muhoi,
-                opening_delimiter,
-                closing_delimiter,
-                ..
-            } => {
-                visitor(muhoi);
-                visitor(opening_delimiter);
-                closing_delimiter.visit_words(visitor);
-            }
+            RelationUnitSyntax::Mehoi(mehoi) => mehoi.visit_words(visitor),
+            RelationUnitSyntax::Gohoi(gohoi) => gohoi.visit_words(visitor),
+            RelationUnitSyntax::Muhoi(muhoi) => muhoi.visit_words(visitor),
             RelationUnitSyntax::Luhei { luhei, text, liau } => {
                 luhei.visit_words(visitor);
                 text.visit_words(visitor);
@@ -4594,18 +4574,9 @@ impl RelationUnitSyntax {
                 }
                 words
             }
-            RelationUnitSyntax::Mehoi { mehoi, .. } => mehoi.words(),
-            RelationUnitSyntax::Gohoi { gohoi, .. } => gohoi.words(),
-            RelationUnitSyntax::Muhoi {
-                muhoi,
-                opening_delimiter,
-                closing_delimiter,
-                ..
-            } => {
-                let mut words = vec![muhoi, opening_delimiter];
-                words.extend(closing_delimiter.words());
-                words
-            }
+            RelationUnitSyntax::Mehoi(mehoi) => mehoi.words(),
+            RelationUnitSyntax::Gohoi(gohoi) => gohoi.words(),
+            RelationUnitSyntax::Muhoi(muhoi) => muhoi.words(),
             RelationUnitSyntax::Luhei { luhei, text, liau } => {
                 let mut words = luhei.words();
                 words.extend(text.words());
