@@ -378,7 +378,22 @@ fn statement_parser<'tokens>(
         .then(
             cmavo("fe'u")
                 .map(Ok)
-                .or(cmavo("ku").map(Err))
+                .or(
+                    feature_cmavo("KU", "ku", DialectFeature::ZantufaAdverbials).map_with(
+                        |ku,
+                         extra: &mut MapExtra<
+                            'tokens,
+                            '_,
+                            ParserInput<'tokens>,
+                            ParseExtra<'tokens>,
+                        >| {
+                            extra
+                                .state()
+                                .warn(ExperimentalConstruct::ExperimentalZantufaPoihaBrigahi, &ku);
+                            Err(ku)
+                        },
+                    ),
+                )
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                 .or_not(),
         )

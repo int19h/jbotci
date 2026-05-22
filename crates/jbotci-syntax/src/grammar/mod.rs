@@ -467,6 +467,27 @@ mod tests {
         });
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gates_zantufa_poiha_brigahi_ku() {
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("noi'a klama ku mi cu broda")
+                .expect("valid morphology");
+
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let dialect = parse_dialect_definition("(+ZANTUFA-ADVERBIALS)")
+                .expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let parsed = parse_syntax_tree(&words, &options).expect("valid Zantufa POIhA briga'i");
+
+            assert!(parsed.warnings.iter().any(|warning| {
+                warning.kind == ExperimentalConstruct::ExperimentalZantufaPoihaBrigahi
+            }));
+        });
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {

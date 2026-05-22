@@ -59,6 +59,19 @@ fn syntax_assignment_handles_zantufa_jai_tag_term() {
     });
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn syntax_assignment_handles_zantufa_poiha_brigahi() {
+    run_on_large_stack(|| {
+        let dialect =
+            parse_dialect_definition("(+ZANTUFA-ADVERBIALS)").expect("valid dialect definition");
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+
+        assert_source_assignment_with_options("noi'a klama ku mi cu broda", &options);
+    });
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {
