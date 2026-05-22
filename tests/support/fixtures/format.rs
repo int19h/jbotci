@@ -1,5 +1,5 @@
 use bityzba::requires;
-use jbotci_output::compact_json_value;
+use jbotci_output::compact_morphology_json_value;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -98,9 +98,18 @@ fn push_expectations_toml(
             output.push_str("words = [\n");
             for word in &morphology.words {
                 output.push_str("    ");
-                let compact = compact_json_value(word).map_err(|error| {
-                    <toml::ser::Error as serde::ser::Error>::custom(error.to_string())
-                })?;
+                let compact_words = compact_morphology_json_value(std::slice::from_ref(word))
+                    .map_err(|error| {
+                        <toml::ser::Error as serde::ser::Error>::custom(error.to_string())
+                    })?;
+                let compact = compact_words
+                    .as_array()
+                    .and_then(|items| items.first())
+                    .ok_or_else(|| {
+                        <toml::ser::Error as serde::ser::Error>::custom(
+                            "morphology JSON renderer returned no word",
+                        )
+                    })?;
                 output.push_str(&format_compact_toml_value(&compact, 4)?);
                 output.push_str(",\n");
             }

@@ -11,9 +11,10 @@ use jbotci_morphology::{
     MorphologyOptions, WordLike, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_output::{
-    BracketRenderOptions, JsonRenderOptions, TreeRenderOptions, compact_json_string_with_options,
-    compact_json_value, pretty_brackets, pretty_morphology_brackets_with_options,
-    pretty_morphology_tree_with_options, pretty_tree,
+    BracketRenderOptions, JsonRenderOptions, TreeRenderOptions, compact_json_value,
+    compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
+    pretty_brackets, pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
+    pretty_tree,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, SyntaxError, parse_syntax_tree_with_source_and_options};
@@ -292,10 +293,12 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
         morphology.raw = Some(text_expectation(format_debug_value(&morphology_words)));
         morphology.words = morphology_words.clone();
         let vlasei = ensure_vlasei_output(&mut fixture.test_case.expectations);
-        vlasei.json = Some(text_expectation(compact_json_string_with_options(
-            &morphology_words,
-            JsonRenderOptions { indent: 0 },
-        )?));
+        vlasei.json = Some(text_expectation(
+            compact_morphology_json_string_with_options(
+                &morphology_words,
+                JsonRenderOptions { indent: 0 },
+            )?,
+        ));
         vlasei.brackets = Some(text_expectation(pretty_morphology_brackets_with_options(
             &morphology_words,
             &fixture.test_case.lojban,
@@ -348,7 +351,7 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
                     syntax.raw = Some(text_expectation(format_debug_value(&parsed.parse_tree)));
                 }
                 let gentufa = ensure_gentufa_output(&mut fixture.test_case.expectations);
-                gentufa.json = Some(text_expectation(compact_json_string_with_options(
+                gentufa.json = Some(text_expectation(compact_syntax_json_string_with_options(
                     &parsed.parse_tree,
                     JsonRenderOptions { indent: 0 },
                 )?));
@@ -1035,7 +1038,7 @@ fn run_vlasei_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(words) => words,
         Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
     };
-    match compact_json_string_with_options(&words, JsonRenderOptions { indent: 0 }) {
+    match compact_morphology_json_string_with_options(&words, JsonRenderOptions { indent: 0 }) {
         Ok(actual) if actual == expectation.text => FacetResult::passed(),
         Ok(actual) => FacetResult::failed(format_text_mismatch(
             "vlasei JSON",
@@ -1174,7 +1177,10 @@ fn run_gentufa_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
     };
-    match compact_json_string_with_options(&parsed.parse_tree, JsonRenderOptions { indent: 0 }) {
+    match compact_syntax_json_string_with_options(
+        &parsed.parse_tree,
+        JsonRenderOptions { indent: 0 },
+    ) {
         Ok(actual) if actual == expectation.text => FacetResult::passed(),
         Ok(actual) => FacetResult::failed(format_text_mismatch(
             "gentufa JSON",

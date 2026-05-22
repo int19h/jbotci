@@ -289,6 +289,11 @@ fn node_ref_enum(items: &[Item]) -> syn::Result<proc_macro2::TokenStream> {
         Item::Enum(item) => node_ref_enum_constructor_arms(item),
         _ => Vec::new(),
     });
+    let is_variant_arms = items.iter().flat_map(|item| match item {
+        Item::Struct(item) => vec![node_ref_struct_is_variant_arm(item)],
+        Item::Enum(item) => node_ref_enum_is_variant_arms(item),
+        _ => Vec::new(),
+    });
     Ok(quote! {
         #[derive(Clone, Copy, Debug)]
         pub enum NodeRef<'tree> {
@@ -299,6 +304,12 @@ fn node_ref_enum(items: &[Item]) -> syn::Result<proc_macro2::TokenStream> {
             pub fn constructor_name(self) -> &'static str {
                 match self {
                     #(#constructor_arms,)*
+                }
+            }
+
+            pub fn is_variant(self) -> bool {
+                match self {
+                    #(#is_variant_arms,)*
                 }
             }
         }
@@ -335,6 +346,22 @@ fn node_ref_enum_constructor_arms(item: &ItemEnum) -> Vec<proc_macro2::TokenStre
             let variant_ident = node_ref_variant_ident(enum_ident, &variant.ident);
             let constructor = variant.ident.to_string();
             quote!(NodeRef::#variant_ident(..) => #constructor)
+        })
+        .collect()
+}
+
+fn node_ref_struct_is_variant_arm(item: &ItemStruct) -> proc_macro2::TokenStream {
+    let ident = &item.ident;
+    quote!(NodeRef::#ident(..) => false)
+}
+
+fn node_ref_enum_is_variant_arms(item: &ItemEnum) -> Vec<proc_macro2::TokenStream> {
+    let enum_ident = &item.ident;
+    item.variants
+        .iter()
+        .map(|variant| {
+            let variant_ident = node_ref_variant_ident(enum_ident, &variant.ident);
+            quote!(NodeRef::#variant_ident(..) => true)
         })
         .collect()
 }

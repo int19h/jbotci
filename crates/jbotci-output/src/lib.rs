@@ -1,6 +1,7 @@
 //! Output format selection and render facade.
 
 mod brackets;
+mod json;
 mod sexpr;
 mod surface;
 mod tree;
@@ -141,6 +142,44 @@ pub fn compact_json_string_with_options<T: Serialize>(
 ) -> Result<String, OutputError> {
     Ok(format_compact_json_value(
         &compact_json_value(value)?,
+        0,
+        options,
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
+pub fn compact_morphology_json_value(words: &[WordLike]) -> Result<Value, OutputError> {
+    Ok(json::morphology_json_value(words))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn compact_morphology_json_string_with_options(
+    words: &[WordLike],
+    options: JsonRenderOptions,
+) -> Result<String, OutputError> {
+    Ok(format_compact_json_value(
+        &compact_morphology_json_value(words)?,
+        0,
+        options,
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
+pub fn compact_syntax_json_value(tree: &TextSyntax) -> Result<Value, OutputError> {
+    Ok(json::syntax_json_value(tree))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn compact_syntax_json_string_with_options(
+    tree: &TextSyntax,
+    options: JsonRenderOptions,
+) -> Result<String, OutputError> {
+    Ok(format_compact_json_value(
+        &compact_syntax_json_value(tree)?,
         0,
         options,
     ))

@@ -9,7 +9,8 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options};
 use jbotci_output::{
-    BracketRenderOptions, JsonRenderOptions, TreeRenderOptions, compact_json_string_with_options,
+    BracketRenderOptions, JsonRenderOptions, TreeRenderOptions,
+    compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
     pretty_brackets_with_options, pretty_morphology_brackets_with_options,
     pretty_morphology_tree_with_options, pretty_tree_with_options,
 };
@@ -256,7 +257,7 @@ fn run_cli<WOut: Write, WErr: Write>(
                     }
                 }
                 VlaseiFormat::Json => {
-                    let rendered = compact_json_string_with_options(
+                    let rendered = compact_morphology_json_string_with_options(
                         &words,
                         JsonRenderOptions {
                             indent: input.indent.unwrap_or(2),
@@ -351,7 +352,7 @@ fn run_gentufa<WOut: Write, WErr: Write>(
             writeln!(stdout, "{rendered}")?;
         }
         GentufaFormat::Json => {
-            let rendered = compact_json_string_with_options(
+            let rendered = compact_syntax_json_string_with_options(
                 &parsed.parse_tree,
                 JsonRenderOptions {
                     indent: input.indent.unwrap_or(2),

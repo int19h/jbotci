@@ -145,6 +145,24 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Default)]
+    #[invariant(true)]
+    struct NodeKindVisitor {
+        nodes: Vec<(&'static str, bool)>,
+    }
+
+    impl<'tree> TreeVisitor<'tree> for NodeKindVisitor {
+        type Node = NodeRef<'tree>;
+        type Atom = AtomRef<'tree>;
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn enter_node(&mut self, node: Self::Node) {
+            self.nodes
+                .push((node.constructor_name(), node.is_variant()));
+        }
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -254,5 +272,32 @@ mod tests {
             tuple_visitor.events.first().map(String::as_str),
             Some("enter:Tuple")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn marks_struct_nodes_and_enum_variant_nodes() {
+        let mut visitor = NodeKindVisitor::default();
+        PairNode {
+            first: LeafNode {
+                text: "first".to_owned(),
+            },
+            ignored: "ignored".to_owned(),
+            rest: None,
+            many: Vec::new(),
+            aliases: Vec::new(),
+            alias: None,
+            vec1: Vec1::new(LeafNode {
+                text: "vec1".to_owned(),
+            }),
+            small: SmallVec::new(),
+        }
+        .visit_in_order(&mut visitor);
+        assert_eq!(visitor.nodes.first(), Some(&("PairNode", false)));
+
+        let mut visitor = NodeKindVisitor::default();
+        WrappedNode::Unit.visit_in_order(&mut visitor);
+        assert_eq!(visitor.nodes, vec![("Unit", true)]);
     }
 }
