@@ -785,9 +785,6 @@ impl FixtureBackend for NotImplementedBackend {
             Facet::Syntax => run_syntax_fixture(fixture),
             Facet::Warnings => run_warnings_fixture(fixture),
             Facet::Brackets => run_brackets_fixture(fixture),
-            Facet::SyntaxRefs => {
-                FacetResult::skipped(format!("{facet} runner is not implemented yet"))
-            }
         }
     }
 }
@@ -1214,7 +1211,6 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
     match facet {
         Facet::Morphology => expectations.morphology.as_ref().map(|value| value.status),
         Facet::Syntax => expectations.syntax.as_ref().map(|value| value.status),
-        Facet::SyntaxRefs => expectations.syntax_refs.as_ref().map(|value| value.status),
         Facet::Warnings => expectations.warnings.as_ref().map(|value| value.status),
         Facet::Brackets => expectations
             .output

@@ -92,9 +92,6 @@ impl TestCase {
         if self.expectations.syntax.is_some() {
             facets.insert(Facet::Syntax);
         }
-        if self.expectations.syntax_refs.is_some() {
-            facets.insert(Facet::SyntaxRefs);
-        }
         if self.expectations.warnings.is_some() {
             facets.insert(Facet::Warnings);
         }
@@ -129,11 +126,6 @@ impl TestCase {
                 .as_ref()
                 .map(|value| value.status),
             Facet::Syntax => self.expectations.syntax.as_ref().map(|value| value.status),
-            Facet::SyntaxRefs => self
-                .expectations
-                .syntax_refs
-                .as_ref()
-                .map(|_| ExpectationStatus::Success),
             Facet::Warnings => self
                 .expectations
                 .warnings
@@ -253,8 +245,6 @@ pub struct Expectations {
     pub morphology: Option<MorphologyExpectation>,
     #[serde(default)]
     pub syntax: Option<SyntaxExpectation>,
-    #[serde(default, rename = "syntax-refs")]
-    pub syntax_refs: Option<StructuredExpectation>,
     #[serde(default)]
     pub warnings: Option<StructuredExpectation>,
 }
@@ -415,7 +405,6 @@ pub enum ExpectationStatus {
 pub enum Facet {
     Morphology,
     Syntax,
-    SyntaxRefs,
     Warnings,
     Brackets,
 }
@@ -427,7 +416,6 @@ impl Facet {
         &[
             Self::Morphology,
             Self::Syntax,
-            Self::SyntaxRefs,
             Self::Warnings,
             Self::Brackets,
         ]
@@ -441,7 +429,6 @@ impl fmt::Display for Facet {
         let text = match self {
             Self::Morphology => "morphology",
             Self::Syntax => "syntax",
-            Self::SyntaxRefs => "syntax-refs",
             Self::Warnings => "warnings",
             Self::Brackets => "brackets",
         };
@@ -458,7 +445,6 @@ impl std::str::FromStr for Facet {
         match text {
             "morphology" => Ok(Self::Morphology),
             "syntax" => Ok(Self::Syntax),
-            "syntax-refs" | "syntaxrefs" => Ok(Self::SyntaxRefs),
             "warnings" => Ok(Self::Warnings),
             "brackets" => Ok(Self::Brackets),
             other => Err(format!("unknown fixture facet `{other}`")),

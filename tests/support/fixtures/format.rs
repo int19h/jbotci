@@ -129,11 +129,6 @@ fn push_expectations_toml(
         push_optional_field(output, "error", &syntax.error)?;
         push_optional_field(output, "xfail", &syntax.xfail)?;
     }
-    if let Some(syntax_refs) = &expectations.syntax_refs {
-        output.push_str("\n[expectations.syntax-refs]\n");
-        push_field(output, "status", &syntax_refs.status)?;
-        push_optional_field(output, "value", &syntax_refs.value)?;
-    }
     if let Some(warnings) = &expectations.warnings {
         output.push_str("\n[expectations.warnings]\n");
         push_field(output, "status", &warnings.status)?;
