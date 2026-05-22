@@ -261,7 +261,11 @@ fn run_gentufa<WOut: Write, WErr: Write>(
             writeln!(stdout, "{rendered}")?;
         }
         GentufaFormat::Raw => {
-            writeln!(stdout, "{:#?}", parsed.parse_tree)?;
+            if input.indent == Some(0) {
+                writeln!(stdout, "{:?}", parsed.parse_tree)?;
+            } else {
+                writeln!(stdout, "{:#?}", parsed.parse_tree)?;
+            }
         }
         GentufaFormat::Tree => {
             let rendered = pretty_tree_with_options(
@@ -333,17 +337,24 @@ fn render_syntax_warnings<W: Write>(
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn validate_gentufa_options(input: &GentufaInput) -> Result<()> {
     if input.definitions {
-        match input.format {
+        return match input.format {
             GentufaFormat::Brackets => Err(anyhow!(
                 "`--skicu`/`--defs` is accepted for brackets output, but dictionary definition rendering has not been ported yet"
             )),
             GentufaFormat::Raw | GentufaFormat::Tree | GentufaFormat::Json => Err(anyhow!(
                 "`--skicu`/`--defs` is only meaningful with `--turtau brackets`; dictionary definition rendering has not been ported yet"
             )),
-        }
-    } else {
-        Ok(())
+        };
     }
+    if input.format == GentufaFormat::Raw
+        && let Some(indent) = input.indent
+        && indent != 0
+    {
+        return Err(anyhow!(
+            "`--indent` for raw output only supports `0`, because Rust Debug formatting only supports pretty or compact output"
+        ));
+    }
+    Ok(())
 }
 
 #[requires(true)]
@@ -812,6 +823,39 @@ mod tests {
             assert!(output.contains("PredicateSyntax"));
             assert!(!output.contains("SyntaxValue"));
         });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_raw_indent_zero_uses_compact_debug() {
+        run_on_large_stack(|| {
+            let cli = Cli::try_parse_from([
+                "jbotci", "gentufa", "--turtau", "raw", "--indent", "0", "mi", "klama",
+            ])
+            .expect("gentufa raw indent zero");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa raw run");
+            assert!(error.is_empty());
+            let output = String::from_utf8(output).expect("utf8");
+            assert!(!output.trim_end().contains('\n'));
+            assert!(output.starts_with("TextSyntax { "));
+            assert!(output.contains("PredicateSyntax"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_raw_rejects_nonzero_indent() {
+        let cli = Cli::try_parse_from([
+            "jbotci", "gentufa", "--turtau", "raw", "--indent", "2", "mi", "klama",
+        ])
+        .expect("gentufa raw indent parses");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("raw nonzero indent rejected");
+        assert!(error.to_string().contains("only supports `0`"));
     }
 
     #[test]
