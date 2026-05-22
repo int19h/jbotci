@@ -45,23 +45,72 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ru'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "milxe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 16, char_start: 11, char_end: 16, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "bilma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 22, char_start: 17, char_end: 22, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.i ru'a mi mílxe bílma)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ru'a",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [8,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "milxe",
+    span: [11,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bilma",
+    span: [17,22],
+  },
+]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"bilma","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
-brackets = "(.i-ru'a [mi {mílxe bílma}])"
+brackets = "([.i ru'a] [mi {mílxe bílma}])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    ".i",
-    indicator: "ru'a",
+    Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [1,2],
+    },
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "ru'a",
+      span: [3,7],
+    },
   },
   Predicate {
     leading_terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [8,10],
+      },
     ],
     Compound {
-      "mílxe",
-      "bílma",
+      Word {
+        kind: "gismu",
+        phonemes: "milxe",
+        span: [11,16],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "bilma",
+        span: [17,22],
+      },
     },
   },
 }"""

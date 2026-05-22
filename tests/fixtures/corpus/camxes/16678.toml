@@ -37,19 +37,59 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ba", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zgana", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(.i mi ba zgána)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [2,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ba",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zgana",
+    span: [8,13],
+  },
+]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"zgana","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: ".i",
+  i: Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
   Predicate {
     leading_terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [2,4],
+      },
     ],
     TenseModal {
-      tense_modal: "ba",
-      "zgána",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ba",
+        span: [5,7],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "zgana",
+        span: [8,13],
+      },
     },
   },
 }"""

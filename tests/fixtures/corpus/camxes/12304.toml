@@ -27,6 +27,20 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "false", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }, toi: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(to fálse)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "false",
+    span: [3,8],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"false","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -34,8 +48,16 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: "to",
-      "fálse",
+      to: Word {
+        kind: "cmavo",
+        phonemes: "to",
+        span: [0,2],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "false",
+        span: [3,8],
+      },
     },
   ],
 }"""

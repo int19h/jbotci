@@ -47,26 +47,84 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Na { na: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tcidu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))))) }, terms: [Argument(RelativeClause { base_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }), vuho: None, relative_clauses: [Poi { poi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "poĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) })))), free_modifiers: [] }, subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "skicu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None }) }))))), terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "py", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kuho: None }] })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(na tcídu da poĭ skícu py)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tcidu",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "poĭ",
+    span: [12,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "skicu",
+    span: [16,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "py",
+    span: [22,24],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"skicu","kind":"gismu"}},{"Bare":{"span":[22,24],"phonemes":"py","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
   Na {
-    na: "na",
-    "tcídu",
+    na: Word {
+      kind: "cmavo",
+      phonemes: "na",
+      span: [0,2],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "tcidu",
+      span: [3,8],
+    },
   },
   terms: [
     RelativeClause {
-      base_argument: "da",
+      base_argument: Word {
+        kind: "cmavo",
+        phonemes: "da",
+        span: [9,11],
+      },
       relative_clauses: [
         Poi {
-          poi: "poĭ",
+          poi: Word {
+            kind: "cmavo",
+            phonemes: "poĭ",
+            span: [12,15],
+          },
           Relation {
-            "skícu",
+            Word {
+              kind: "gismu",
+              phonemes: "skicu",
+              span: [16,21],
+            },
             terms: [
               Letter {
-                letter: "py",
+                letter: Word {
+                  kind: "cmavo",
+                  phonemes: "py",
+                  span: [22,24],
+                },
               },
             ],
           },

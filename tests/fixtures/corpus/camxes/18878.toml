@@ -83,6 +83,75 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.i .ŭo mi ba'o cátlu le tríxe .i na za'o pónse lo'e spitáki)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [4,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭo",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ba'o",
+    span: [12,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "catlu",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "trixe",
+    span: [26,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [32,33],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [34,36],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "za'o",
+    span: [37,41],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ponse",
+    span: [42,47],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo'e",
+    span: [48,52],
+  },
+  Word {
+    kind: "fu'ivla",
+    phonemes: "spitaki",
+    span: [53,60],
+  },
+]"""
 json = """[{"Bare":{"span":[4,5],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ŭo","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ba'o","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"catlu","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"trixe","kind":"gismu"}},{"Bare":{"span":[32,33],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[37,41],"phonemes":"za'o","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[48,52],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[53,60],"phonemes":"spitaki","kind":"fu'ivla"}}]"""
 
 [expectations.output.gentufa]
@@ -90,41 +159,93 @@ tree = """
 Paragraph {
   ParagraphStatement {
     i: WithIndicator {
-      ".i",
-      indicator: ".ŭo",
+      Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [4,5],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ŭo",
+        span: [6,8],
+      },
     },
     Predicate {
       leading_terms: [
-        "mi",
+        Word {
+          kind: "cmavo",
+          phonemes: "mi",
+          span: [9,11],
+        },
       ],
       Relation {
         TenseModal {
-          tense_modal: "ba'o",
-          "cátlu",
+          tense_modal: Word {
+            kind: "cmavo",
+            phonemes: "ba'o",
+            span: [12,16],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "catlu",
+            span: [17,22],
+          },
         },
         terms: [
           Descriptor {
-            descriptor: "le",
-            relation: "tríxe",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [23,25],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "trixe",
+              span: [26,31],
+            },
           },
         ],
       },
     },
   },
   ParagraphStatement {
-    i: ".i",
+    i: Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [32,33],
+    },
     Relation {
       Na {
-        na: "na",
+        na: Word {
+          kind: "cmavo",
+          phonemes: "na",
+          span: [34,36],
+        },
         TenseModal {
-          tense_modal: "za'o",
-          "pónse",
+          tense_modal: Word {
+            kind: "cmavo",
+            phonemes: "za'o",
+            span: [37,41],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "ponse",
+            span: [42,47],
+          },
         },
       },
       terms: [
         Descriptor {
-          descriptor: "lo'e",
-          relation: "spitáki",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "lo'e",
+            span: [48,52],
+          },
+          relation: Word {
+            kind: "fu'ivla",
+            phonemes: "spitaki",
+            span: [53,60],
+          },
         },
       ],
     },

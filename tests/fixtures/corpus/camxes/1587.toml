@@ -53,28 +53,95 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi se ke blánu zdáni ke'e ti)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "blanu",
+    span: [9,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zdani",
+    span: [15,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke'e",
+    span: [22,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ti",
+    span: [28,30],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"blanu","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[22,26],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"ti","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
   Relation {
     Se {
-      se: "se",
+      se: Word {
+        kind: "cmavo",
+        phonemes: "se",
+        span: [3,5],
+      },
       Ke {
-        ke: "ke",
-        Compound {
-          "blánu",
-          "zdáni",
+        ke: Word {
+          kind: "cmavo",
+          phonemes: "ke",
+          span: [6,8],
         },
-        kehe: "ke'e",
+        Compound {
+          Word {
+            kind: "gismu",
+            phonemes: "blanu",
+            span: [9,14],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "zdani",
+            span: [15,20],
+          },
+        },
+        kehe: Word {
+          kind: "cmavo",
+          phonemes: "ke'e",
+          span: [22,26],
+        },
       },
     },
     terms: [
-      "ti",
+      Word {
+        kind: "cmavo",
+        phonemes: "ti",
+        span: [28,30],
+      },
     ],
   },
 }"""

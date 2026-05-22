@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(RelativeClause { base_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ko'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }), vuho: None, relative_clauses: [Goi(GoiRelativeClauseSyntax { goi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "goĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }), gehu: None })] })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ko'a goĭ ma)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ko'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "goĭ",
+    span: [5,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [9,11],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ma","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -39,11 +58,23 @@ tree = """
 Term {
   terms: [
     RelativeClause {
-      base_argument: "ko'a",
+      base_argument: Word {
+        kind: "cmavo",
+        phonemes: "ko'a",
+        span: [0,4],
+      },
       relative_clauses: [
         GoiRelativeClause {
-          goi: "goĭ",
-          "ma",
+          goi: Word {
+            kind: "cmavo",
+            phonemes: "goĭ",
+            span: [5,8],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "ma",
+            span: [9,11],
+          },
         },
       ],
     },

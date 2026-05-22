@@ -40,6 +40,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "du", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))))), terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "laĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "borg", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) }))))], free_modifiers: [] } })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(mi'a du laĭ .borg.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "laĭ",
+    span: [8,11],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "borg",
+    span: [12,16],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"laĭ","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"borg","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -47,14 +71,30 @@ brackets = "(mi'a [du {laĭ .borg.}])"
 tree = """
 Predicate {
   leading_terms: [
-    "mi'a",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi'a",
+      span: [0,4],
+    },
   ],
   Relation {
-    "du",
+    Word {
+      kind: "cmavo",
+      phonemes: "du",
+      span: [5,7],
+    },
     terms: [
       Name {
-        la: "laĭ",
-        names: ".borg.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "laĭ",
+          span: [8,11],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "borg",
+          span: [12,16],
+        },
       },
     ],
   },

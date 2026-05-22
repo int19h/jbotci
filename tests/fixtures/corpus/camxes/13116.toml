@@ -47,24 +47,82 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tcidu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))))) }, terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "mrilu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) })))))), relative_clauses: [Goi(GoiRelativeClauseSyntax { goi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }, argument: Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ny", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, gehu: None })], ku: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(ca tcídu le mrílu pe ny)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tcidu",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mrilu",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pe",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ny",
+    span: [21,23],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"mrilu","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ny","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
   TenseModal {
-    tense_modal: "ca",
-    "tcídu",
+    tense_modal: Word {
+      kind: "cmavo",
+      phonemes: "ca",
+      span: [0,2],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "tcidu",
+      span: [3,8],
+    },
   },
   terms: [
     Descriptor {
-      descriptor: "le",
-      relation: "mrílu",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [9,11],
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "mrilu",
+        span: [12,17],
+      },
       relative_clauses: [
         GoiRelativeClause {
-          goi: "pe",
+          goi: Word {
+            kind: "cmavo",
+            phonemes: "pe",
+            span: [18,20],
+          },
           Letter {
-            letter: "ny",
+            letter: Word {
+              kind: "cmavo",
+              phonemes: "ny",
+              span: [21,23],
+            },
           },
         },
       ],

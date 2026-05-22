@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ki'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }), nai: None }, free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "jalge", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(le ki'a jálge)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'a",
+    span: [3,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jalge",
+    span: [8,13],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"jalge","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -40,10 +59,22 @@ Term {
   terms: [
     Descriptor {
       descriptor: WithIndicator {
-        "le",
-        indicator: "ki'a",
+        Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [0,2],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ki'a",
+          span: [3,7],
+        },
       },
-      relation: "jálge",
+      relation: Word {
+        kind: "gismu",
+        phonemes: "jalge",
+        span: [8,13],
+      },
     },
   ],
 }"""

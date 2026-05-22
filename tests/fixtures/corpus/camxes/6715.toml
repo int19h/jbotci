@@ -88,47 +88,177 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi na tcídu le págbu be le bánli cúkta beĭ poĭ srána le válsi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tcidu",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [12,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pagbu",
+    span: [15,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [21,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [24,26],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "banli",
+    span: [27,32],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cukta",
+    span: [33,38],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "beĭ",
+    span: [39,42],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "poĭ",
+    span: [43,46],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "srana",
+    span: [47,52],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [53,55],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "valsi",
+    span: [56,61],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"pagbu","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"banli","kind":"gismu"}},{"Bare":{"span":[33,38],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[39,42],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[43,46],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[47,52],"phonemes":"srana","kind":"gismu"}},{"Bare":{"span":[53,55],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[56,61],"phonemes":"valsi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
   Relation {
     Na {
-      na: "na",
-      "tcídu",
+      na: Word {
+        kind: "cmavo",
+        phonemes: "na",
+        span: [3,5],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "tcidu",
+        span: [6,11],
+      },
     },
     terms: [
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [12,14],
+        },
         relation: Be {
-          "págbu",
-          be: "be",
+          Word {
+            kind: "gismu",
+            phonemes: "pagbu",
+            span: [15,20],
+          },
+          be: Word {
+            kind: "cmavo",
+            phonemes: "be",
+            span: [21,23],
+          },
           first_argument: Descriptor {
-            descriptor: "le",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [24,26],
+            },
             relation: Compound {
-              "bánli",
-              "cúkta",
+              Word {
+                kind: "gismu",
+                phonemes: "banli",
+                span: [27,32],
+              },
+              Word {
+                kind: "gismu",
+                phonemes: "cukta",
+                span: [33,38],
+              },
             },
           },
           bei_links: [
             BeiLink {
-              bei: "beĭ",
+              bei: Word {
+                kind: "cmavo",
+                phonemes: "beĭ",
+                span: [39,42],
+              },
             },
           ],
         },
         relative_clauses: [
           Poi {
-            poi: "poĭ",
+            poi: Word {
+              kind: "cmavo",
+              phonemes: "poĭ",
+              span: [43,46],
+            },
             Relation {
-              "srána",
+              Word {
+                kind: "gismu",
+                phonemes: "srana",
+                span: [47,52],
+              },
               terms: [
                 Descriptor {
-                  descriptor: "le",
-                  relation: "válsi",
+                  descriptor: Word {
+                    kind: "cmavo",
+                    phonemes: "le",
+                    span: [53,55],
+                  },
+                  relation: Word {
+                    kind: "gismu",
+                    phonemes: "valsi",
+                    span: [56,61],
+                  },
                 },
               ],
             },

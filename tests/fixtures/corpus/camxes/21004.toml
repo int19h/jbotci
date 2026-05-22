@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ka'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cpare", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }))))) }, terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ze'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 19, char_start: 15, char_end: 19, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(na'e ka'e cpáre ze'i)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "na'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka'e",
+    span: [4,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cpare",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ze'i",
+    span: [15,19],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cpare","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"ze'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -44,14 +68,30 @@ tree = """
 Relation {
   TenseModal {
     tense_modal: WithFreeModifiers {
-      "na'e",
-      "ka'e",
+      Word {
+        kind: "cmavo",
+        phonemes: "na'e",
+        span: [0,4],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "ka'e",
+        span: [4,8],
+      },
     },
-    "cpáre",
+    Word {
+      kind: "gismu",
+      phonemes: "cpare",
+      span: [9,14],
+    },
   },
   terms: [
     Tagged {
-      tense_modal: "ze'i",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ze'i",
+        span: [15,19],
+      },
       Zohe {},
     },
   ],

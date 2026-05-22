@@ -59,6 +59,52 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "jufra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) })))))), relative_clauses: [Goi(GoiRelativeClauseSyntax { goi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }, argument: RelativeClause { base_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }), vuho: None, relative_clauses: [Poi { poi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "poĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 18, char_start: 15, char_end: 18, start: None, end: None }) })))), free_modifiers: [] }, subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "vasru", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 24, char_start: 19, char_end: 24, start: None, end: None }) }))))), terms: [Argument(Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 27, char_start: 25, char_end: 27, start: None, end: None }) }), word: Word(WordData { kind: Gismu, phonemes: "smuni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 33, char_start: 28, char_end: 33, start: None, end: None }) }) })), free_modifiers: [] })))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kuho: None }] }, gehu: None })], ku: None }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(le júfra pe mi poĭ vásru [zo smúni])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jufra",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pe",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "poĭ",
+    span: [15,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "vasru",
+    span: [19,24],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [25,27],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "smuni",
+      span: [28,33],
+    },
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"jufra","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"vasru","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[25,27],"phonemes":"zo","kind":"cmavo"},"word":{"span":[28,33],"phonemes":"smuni","kind":"gismu"}}}]'
 
 [expectations.output.gentufa]
@@ -66,20 +112,55 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
-      relation: "júfra",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "jufra",
+        span: [3,8],
+      },
       relative_clauses: [
         GoiRelativeClause {
-          goi: "pe",
+          goi: Word {
+            kind: "cmavo",
+            phonemes: "pe",
+            span: [9,11],
+          },
           RelativeClause {
-            base_argument: "mi",
+            base_argument: Word {
+              kind: "cmavo",
+              phonemes: "mi",
+              span: [12,14],
+            },
             relative_clauses: [
               Poi {
-                poi: "poĭ",
+                poi: Word {
+                  kind: "cmavo",
+                  phonemes: "poĭ",
+                  span: [15,18],
+                },
                 Relation {
-                  "vásru",
+                  Word {
+                    kind: "gismu",
+                    phonemes: "vasru",
+                    span: [19,24],
+                  },
                   terms: [
-                    "zo-«smúni»",
+                    ZoQuote {
+                      zo: Word {
+                        kind: "cmavo",
+                        phonemes: "zo",
+                        span: [25,27],
+                      },
+                      Word {
+                        kind: "gismu",
+                        phonemes: "smuni",
+                        span: [28,33],
+                      },
+                    },
                   ],
                 },
               },

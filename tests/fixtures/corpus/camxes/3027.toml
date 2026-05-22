@@ -59,4 +59,50 @@ status = "failure"
 error = { position = 6, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(.ŭi mi pu cílre [zo kaŭ] ca cábdeĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cilre",
+    span: [9,14],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [15,17],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "kaŭ",
+      span: [18,21],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [22,24],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "cabdeĭ",
+    span: [25,31],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cilre","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[15,17],"phonemes":"zo","kind":"cmavo"},"word":{"span":[18,21],"phonemes":"kaŭ","kind":"cmavo"}}},{"Bare":{"span":[22,24],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[25,31],"phonemes":"cabdeĭ","kind":"lujvo"}}]'

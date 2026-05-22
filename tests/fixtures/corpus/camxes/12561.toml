@@ -48,23 +48,81 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(cu bácru ne'i le do kúmfa)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bacru",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ne'i",
+    span: [9,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [14,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kumfa",
+    span: [20,25],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"bacru","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"ne'i","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"kumfa","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [0,2],
+  },
   Relation {
-    "bácru",
+    Word {
+      kind: "gismu",
+      phonemes: "bacru",
+      span: [3,8],
+    },
     terms: [
       Tagged {
-        tense_modal: "ne'i",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "ne'i",
+          span: [9,13],
+        },
         Descriptor {
-          descriptor: "le",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [14,16],
+          },
           tail_elements: [
-            "do",
+            Word {
+              kind: "cmavo",
+              phonemes: "do",
+              span: [17,19],
+            },
           ],
-          relation: "kúmfa",
+          relation: Word {
+            kind: "gismu",
+            phonemes: "kumfa",
+            span: [20,25],
+          },
         },
       },
     ],

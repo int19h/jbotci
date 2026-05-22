@@ -43,22 +43,71 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ru'a kélci la dícra fónxa)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ru'a",
+    span: [3,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kelci",
+    span: [8,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [14,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "dicra",
+    span: [17,22],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fonxa",
+    span: [23,28],
+  },
+]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"kelci","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"dicra","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"fonxa","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "ru'a",
+    Word {
+      kind: "cmavo",
+      phonemes: "ru'a",
+      span: [3,7],
+    },
   ],
   Relation {
-    "kélci",
+    Word {
+      kind: "gismu",
+      phonemes: "kelci",
+      span: [8,13],
+    },
     terms: [
       Descriptor {
-        descriptor: "la",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [14,16],
+        },
         relation: Compound {
-          "dícra",
-          "fónxa",
+          Word {
+            kind: "gismu",
+            phonemes: "dicra",
+            span: [17,22],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "fonxa",
+            span: [23,28],
+          },
         },
       },
     ],

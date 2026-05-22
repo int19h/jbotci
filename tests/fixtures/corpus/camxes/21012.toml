@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(MathExpression { li: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ji'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), loho: None })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(li ji'i re no)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ji'i",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [10,12],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ji'i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"no","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -44,11 +68,27 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: "li",
+      li: Word {
+        kind: "cmavo",
+        phonemes: "li",
+        span: [0,2],
+      },
       WithFreeModifiers {
-        "ji'i",
-        "re",
-        "no",
+        Word {
+          kind: "cmavo",
+          phonemes: "ji'i",
+          span: [3,7],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "re",
+          span: [8,10],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "no",
+          span: [10,12],
+        },
       },
     },
   ],

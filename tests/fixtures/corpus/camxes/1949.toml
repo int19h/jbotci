@@ -53,6 +53,45 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(xy boĭ ro boĭ prénu cu prámi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "xy",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "boĭ",
+    span: [4,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "boĭ",
+    span: [12,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "prenu",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "prami",
+    span: [26,31],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"prami","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -60,20 +99,48 @@ tree = """
 Predicate {
   leading_terms: [
     Letter {
-      letter: "xy",
-      boi: "boĭ",
+      letter: Word {
+        kind: "cmavo",
+        phonemes: "xy",
+        span: [0,2],
+      },
+      boi: Word {
+        kind: "cmavo",
+        phonemes: "boĭ",
+        span: [4,7],
+      },
     },
     Descriptor {
       tail_elements: [
         Number {
-          "ro",
-          boi: "boĭ",
+          Word {
+            kind: "cmavo",
+            phonemes: "ro",
+            span: [8,10],
+          },
+          boi: Word {
+            kind: "cmavo",
+            phonemes: "boĭ",
+            span: [12,15],
+          },
         },
       ],
-      relation: "prénu",
+      relation: Word {
+        kind: "gismu",
+        phonemes: "prenu",
+        span: [17,22],
+      },
     },
   ],
-  cu: "cu",
-  "prámi",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "prami",
+    span: [26,31],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"xy","kind":"cmavo"}}}],"boi":{"Bare":{"Bare":{"span":[4,7],"phonemes":"boĭ","kind":"cmavo"}}}}}},{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[8,10],"phonemes":"ro","kind":"cmavo"}}}],"boi":{"Bare":{"Bare":{"span":[12,15],"phonemes":"boĭ","kind":"cmavo"}}}}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"prenu","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[26,31],"phonemes":"prami","kind":"gismu"}}}}}}}}}}}]}]}'

@@ -32,17 +32,48 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "vu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "cermurse", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 14, char_start: 6, char_end: 14, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(xu vu cermúrse)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vu",
+    span: [3,5],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "cermurse",
+    span: [6,14],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"vu","kind":"cmavo"}},{"Bare":{"span":[6,14],"phonemes":"cermurse","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "xu",
+    Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [0,2],
+    },
   ],
   TenseModal {
-    tense_modal: "vu",
-    "cermúrse",
+    tense_modal: Word {
+      kind: "cmavo",
+      phonemes: "vu",
+      span: [3,5],
+    },
+    Word {
+      kind: "lujvo",
+      phonemes: "cermurse",
+      span: [6,14],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"vu","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[6,14],"phonemes":"cermurse","kind":"lujvo"}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}}}}]}'

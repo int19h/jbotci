@@ -28,12 +28,34 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(fractúre .ĭe)"
+tree = """
+[
+  Word {
+    kind: "lujvo",
+    phonemes: "fracture",
+    span: [0,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ĭe",
+    span: [12,14],
+  },
+]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"fracture","kind":"lujvo"}},{"Bare":{"span":[12,14],"phonemes":"ĭe","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 WithIndicator {
-  "fractúre",
-  indicator: ".ĭe",
+  Word {
+    kind: "lujvo",
+    phonemes: "fracture",
+    span: [0,8],
+  },
+  indicator: Word {
+    kind: "cmavo",
+    phonemes: "ĭe",
+    span: [12,14],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,8],"phonemes":"fracture","kind":"lujvo"}}},"indicator":{"span":[12,14],"phonemes":"ĭe","kind":"cmavo"}}}}}}}}}}}]}]}'

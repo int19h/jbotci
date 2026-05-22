@@ -39,17 +39,62 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }), word: Word(WordData { kind: Lujvo, phonemes: "nalslabu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 11, char_start: 3, char_end: 11, start: None, end: None }) }) })), free_modifiers: [] })))], vau: Some(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "vaŭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) }), nai: None }, free_modifiers: [] }) })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "([zo nalslábu] vaŭ xu)"
+tree = """
+[
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [0,2],
+    },
+    Word {
+      kind: "lujvo",
+      phonemes: "nalslabu",
+      span: [3,11],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vaŭ",
+    span: [12,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [15,17],
+  },
+]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,11],"phonemes":"nalslabu","kind":"lujvo"}}},{"Bare":{"span":[12,15],"phonemes":"vaŭ","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"xu","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Term {
   terms: [
-    "zo-«nalslábu»",
+    ZoQuote {
+      zo: Word {
+        kind: "cmavo",
+        phonemes: "zo",
+        span: [0,2],
+      },
+      Word {
+        kind: "lujvo",
+        phonemes: "nalslabu",
+        span: [3,11],
+      },
+    },
   ],
   vau: WithIndicator {
-    "vaŭ",
-    indicator: "xu",
+    Word {
+      kind: "cmavo",
+      phonemes: "vaŭ",
+      span: [12,15],
+    },
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [15,17],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,11],"phonemes":"nalslabu","kind":"lujvo"}}}}}}}],"vau":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[12,15],"phonemes":"vaŭ","kind":"cmavo"}}},"indicator":{"span":[15,17],"phonemes":"xu","kind":"cmavo"}}}}}}}]}]}'

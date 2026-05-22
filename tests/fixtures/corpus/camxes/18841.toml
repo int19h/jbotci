@@ -43,6 +43,35 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(la .lojyfest. se détri ma)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "lojyfest",
+    span: [6,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [15,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "detri",
+    span: [18,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [24,26],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,14],"phonemes":"lojyfest","kind":"cmevla"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"detri","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -50,17 +79,37 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: "la",
-      names: ".lojyfest.",
+      la: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [3,5],
+      },
+      names: Word {
+        kind: "cmevla",
+        phonemes: "lojyfest",
+        span: [6,14],
+      },
     },
   ],
   Relation {
     Se {
-      se: "se",
-      "détri",
+      se: Word {
+        kind: "cmavo",
+        phonemes: "se",
+        span: [15,17],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "detri",
+        span: [18,23],
+      },
     },
     terms: [
-      "ma",
+      Word {
+        kind: "cmavo",
+        phonemes: "ma",
+        span: [24,26],
+      },
     ],
   },
 }"""

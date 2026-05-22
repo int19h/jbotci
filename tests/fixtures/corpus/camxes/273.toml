@@ -39,6 +39,32 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "y", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }) }))], free_modifiers: [] }, boi: None })], cu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) })))), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "valsi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 25, char_start: 20, char_end: 25, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "([y bu] cu válsi)"
+tree = """
+[
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "y",
+      span: [3,4],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [6,8],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [13,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "valsi",
+    span: [20,25],
+  },
+]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[3,4],"phonemes":"y","kind":"cmavo"}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"valsi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -46,10 +72,29 @@ tree = """
 Predicate {
   leading_terms: [
     Letter {
-      letter: "y-bu",
+      letter: Letter {
+        Word {
+          kind: "cmavo",
+          phonemes: "y",
+          span: [3,4],
+        },
+        bu: Word {
+          kind: "cmavo",
+          phonemes: "bu",
+          span: [6,8],
+        },
+      },
     },
   ],
-  cu: "cu",
-  "válsi",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [13,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "valsi",
+    span: [20,25],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"Bare":{"span":[3,4],"phonemes":"y","kind":"cmavo"}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}}}]}}}],"cu":{"Bare":{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"valsi","kind":"gismu"}}}}}}}}}}}]}]}'

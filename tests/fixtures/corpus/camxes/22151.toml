@@ -40,6 +40,32 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "([zo nanbrpítsa] la'a dráni)"
+tree = """
+[
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [3,5],
+    },
+    Word {
+      kind: "fu'ivla",
+      phonemes: "nanbrpitsa",
+      span: [6,16],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la'a",
+    span: [17,21],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "drani",
+    span: [22,27],
+  },
+]"""
 json = """[{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,16],"phonemes":"nanbrpitsa","kind":"fu'ivla"}}},{"Bare":{"span":[17,21],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"drani","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -47,10 +73,29 @@ tree = """
 Predicate {
   leading_terms: [
     WithIndicator {
-      "zo-«nanbrpítsa»",
-      indicator: "la'a",
+      ZoQuote {
+        zo: Word {
+          kind: "cmavo",
+          phonemes: "zo",
+          span: [3,5],
+        },
+        Word {
+          kind: "fu'ivla",
+          phonemes: "nanbrpitsa",
+          span: [6,16],
+        },
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "la'a",
+        span: [17,21],
+      },
     },
   ],
-  "dráni",
+  Word {
+    kind: "gismu",
+    phonemes: "drani",
+    span: [22,27],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"WithIndicator":{"base":{"Bare":{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,16],"phonemes":"nanbrpitsa","kind":"fu'ivla"}}}},"indicator":{"span":[17,21],"phonemes":"la'a","kind":"cmavo"}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[22,27],"phonemes":"drani","kind":"gismu"}}}}}}}}}}}]}]}"""

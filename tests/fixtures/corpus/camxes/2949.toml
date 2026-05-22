@@ -47,27 +47,85 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ku'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "aĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "caĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }), nai: None }, free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ba", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "jimpe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 22, char_start: 17, char_end: 22, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ku'i mi .aĭ caĭ ba jímpe)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ku'i",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "aĭ",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "caĭ",
+    span: [10,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ba",
+    span: [14,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jimpe",
+    span: [17,22],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"caĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"jimpe","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "ku'i",
+    Word {
+      kind: "cmavo",
+      phonemes: "ku'i",
+      span: [0,4],
+    },
   ],
   Predicate {
     leading_terms: [
       WithIndicator {
         WithIndicator {
-          "mi",
-          indicator: ".aĭ",
+          Word {
+            kind: "cmavo",
+            phonemes: "mi",
+            span: [5,7],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "aĭ",
+            span: [8,10],
+          },
         },
-        indicator: "caĭ",
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "caĭ",
+          span: [10,13],
+        },
       },
     ],
     TenseModal {
-      tense_modal: "ba",
-      "jímpe",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ba",
+        span: [14,16],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "jimpe",
+        span: [17,22],
+      },
     },
   },
 }"""

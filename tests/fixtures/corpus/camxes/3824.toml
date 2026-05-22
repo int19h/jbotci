@@ -68,6 +68,60 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le cidjrpítsa ca se djíca mi le nu cítka vo'a)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [1,3],
+  },
+  Word {
+    kind: "fu'ivla",
+    phonemes: "cidjrpitsa",
+    span: [4,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [18,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "djica",
+    span: [21,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [27,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [30,32],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [33,35],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "citka",
+    span: [36,41],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vo'a",
+    span: [42,46],
+  },
+]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[4,14],"phonemes":"cidjrpitsa","kind":"fu'ivla"}},{"Bare":{"span":[15,17],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[42,46],"phonemes":"vo'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -75,28 +129,68 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "le",
-      relation: "cidjrpítsa",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [1,3],
+      },
+      relation: Word {
+        kind: "fu'ivla",
+        phonemes: "cidjrpitsa",
+        span: [4,14],
+      },
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: "ca",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ca",
+        span: [15,17],
+      },
       Se {
-        se: "se",
-        "djíca",
+        se: Word {
+          kind: "cmavo",
+          phonemes: "se",
+          span: [18,20],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "djica",
+          span: [21,26],
+        },
       },
     },
     terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [27,29],
+      },
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [30,32],
+        },
         relation: Abstraction {
-          nu: "nu",
+          nu: Word {
+            kind: "cmavo",
+            phonemes: "nu",
+            span: [33,35],
+          },
           Relation {
-            "cítka",
+            Word {
+              kind: "gismu",
+              phonemes: "citka",
+              span: [36,41],
+            },
             terms: [
-              "vo'a",
+              Word {
+                kind: "cmavo",
+                phonemes: "vo'a",
+                span: [42,46],
+              },
             ],
           },
         },

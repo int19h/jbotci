@@ -42,6 +42,35 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "aĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: None }, ParagraphStatementSyntax { i: Some(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "aĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: Some(Fragment(Ek(Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 16, char_start: 15, char_end: 16, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }))) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(.i .aĭ .i .aĭ .o)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "aĭ",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [8,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "aĭ",
+    span: [11,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "o",
+    span: [15,16],
+  },
+]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[8,9],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"aĭ","kind":"cmavo"}},{"Bare":{"span":[15,16],"phonemes":"o","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -49,16 +78,36 @@ tree = """
 Paragraph {
   ParagraphStatement {
     i: WithIndicator {
-      ".i",
-      indicator: ".aĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [1,2],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "aĭ",
+        span: [4,6],
+      },
     },
   },
   ParagraphStatement {
     i: WithIndicator {
-      ".i",
-      indicator: ".aĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [8,9],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "aĭ",
+        span: [11,13],
+      },
     },
-    ".o",
+    Word {
+      kind: "cmavo",
+      phonemes: "o",
+      span: [15,16],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[4,6],"phonemes":"aĭ","kind":"cmavo"}}}},{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[8,9],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[11,13],"phonemes":"aĭ","kind":"cmavo"}}},"statement":{"Fragment":{"Ek":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[15,16],"phonemes":"o","kind":"cmavo"}}}]}}}}}]}]}'

@@ -36,13 +36,52 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(zoĭ .bar. baz .bar.)"
+tree = """
+[
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [24,27],
+    },
+    opening_delimiter: Word {
+      kind: "cmevla",
+      phonemes: "bar",
+      span: [28,31],
+    },
+    quoted_text: [31,35],
+    closing_delimiter: Word {
+      kind: "cmevla",
+      phonemes: "bar",
+      span: [36,39],
+    },
+  },
+]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[24,27],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[28,31],"phonemes":"bar","kind":"cmevla"},"quoted_text":[31,35],"closing_delimiter":{"span":[36,39],"phonemes":"bar","kind":"cmevla"}}}]'
 
 [expectations.output.gentufa]
 tree = """
 Term {
   terms: [
-    "zoĭ-bar-«baz»-bar",
+    ZoiQuote {
+      zoi: Word {
+        kind: "cmavo",
+        phonemes: "zoĭ",
+        span: [24,27],
+      },
+      opening_delimiter: Word {
+        kind: "cmevla",
+        phonemes: "bar",
+        span: [28,31],
+      },
+      quoted_text: [31,35],
+      closing_delimiter: Word {
+        kind: "cmevla",
+        phonemes: "bar",
+        span: [36,39],
+      },
+    },
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[24,27],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[28,31],"phonemes":"bar","kind":"cmevla"},"quoted_text":[31,35],"closing_delimiter":{"span":[36,39],"phonemes":"bar","kind":"cmevla"}}}}}}}]}}}}]}]}'

@@ -32,17 +32,48 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "z", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "kukte", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 7, char_start: 2, char_end: 7, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "aŭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }), nai: None }), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(.z. kúkte .aŭ)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "z",
+    span: [0,1],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kukte",
+    span: [2,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "aŭ",
+    span: [9,11],
+  },
+]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"z","kind":"cmevla"}},{"Bare":{"span":[2,7],"phonemes":"kukte","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"aŭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".z.",
+    Word {
+      kind: "cmevla",
+      phonemes: "z",
+      span: [0,1],
+    },
   ],
   WithIndicator {
-    "kúkte",
-    indicator: ".aŭ",
+    Word {
+      kind: "gismu",
+      phonemes: "kukte",
+      span: [2,7],
+    },
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "aŭ",
+      span: [9,11],
+    },
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,1],"phonemes":"z","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[2,7],"phonemes":"kukte","kind":"gismu"}}},"indicator":{"span":[9,11],"phonemes":"aŭ","kind":"cmavo"}}}}}}}}}}}]}]}'

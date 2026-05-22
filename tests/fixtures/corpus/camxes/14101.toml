@@ -33,21 +33,52 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.xod. re tsísku)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "xod",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [5,7],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "tsisku",
+    span: [8,14],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[5,7],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[8,14],"phonemes":"tsisku","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".xod.",
+    Word {
+      kind: "cmevla",
+      phonemes: "xod",
+      span: [0,3],
+    },
   ],
   Term {
     terms: [
       Descriptor {
         tail_elements: [
-          "re",
+          Word {
+            kind: "cmavo",
+            phonemes: "re",
+            span: [5,7],
+          },
         ],
-        relation: "tsísku",
+        relation: Word {
+          kind: "lujvo",
+          phonemes: "tsisku",
+          span: [8,14],
+        },
       },
     ],
   },

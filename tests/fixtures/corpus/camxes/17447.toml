@@ -47,23 +47,81 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "mu'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 6, char_start: 2, char_end: 6, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "fenki", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cmene", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "ciska", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.i mu'a ma fénki cméne císka)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu'a",
+    span: [2,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [7,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fenki",
+    span: [10,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cmene",
+    span: [16,21],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ciska",
+    span: [22,27],
+  },
+]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"mu'a","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"fenki","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"ciska","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    ".i",
-    indicator: "mu'a",
+    Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [0,1],
+    },
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "mu'a",
+      span: [2,6],
+    },
   },
   Predicate {
     leading_terms: [
-      "ma",
+      Word {
+        kind: "cmavo",
+        phonemes: "ma",
+        span: [7,9],
+      },
     ],
     Compound {
-      "fénki",
-      "cméne",
-      "císka",
+      Word {
+        kind: "gismu",
+        phonemes: "fenki",
+        span: [10,15],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "cmene",
+        span: [16,21],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "ciska",
+        span: [22,27],
+      },
     },
   },
 }"""

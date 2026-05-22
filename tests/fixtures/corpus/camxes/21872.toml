@@ -84,4 +84,75 @@ status = "failure"
 error = { position = 8, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(ro da zo'u da glétu tolcí'o gi'a naĭ da se bángu [zo .e'a])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'u",
+    span: [6,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [11,13],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gletu",
+    span: [14,19],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "tolci'o",
+    span: [20,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi'a",
+    span: [28,32],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [32,35],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [36,38],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [39,41],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bangu",
+    span: [42,47],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [48,50],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "e'a",
+      span: [52,55],
+    },
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"gletu","kind":"gismu"}},{"Bare":{"span":[20,27],"phonemes":"tolci'o","kind":"lujvo"}},{"Bare":{"span":[28,32],"phonemes":"gi'a","kind":"cmavo"}},{"Bare":{"span":[32,35],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"bangu","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[48,50],"phonemes":"zo","kind":"cmavo"},"word":{"span":[52,55],"phonemes":"e'a","kind":"cmavo"}}}]"""

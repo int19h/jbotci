@@ -47,23 +47,81 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ĭe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "du'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "roĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Connected { leading_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cliva", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))))), connective: Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "xruti", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None }) }))))) } }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.ĭe du'e roĭ clíva je xrúti)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ĭe",
+    span: [1,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du'e",
+    span: [4,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "roĭ",
+    span: [8,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cliva",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [18,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xruti",
+    span: [21,26],
+  },
+]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ĭe","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"du'e","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cliva","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"xruti","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    ".ĭe",
+    Word {
+      kind: "cmavo",
+      phonemes: "ĭe",
+      span: [1,3],
+    },
   ],
   TenseModal {
     tense_modal: WithFreeModifiers {
-      "du'e",
-      "roĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "du'e",
+        span: [4,8],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "roĭ",
+        span: [8,11],
+      },
     },
     Connected {
-      leading_relation: "clíva",
-      connective: "je",
-      trailing_relation: "xrúti",
+      leading_relation: Word {
+        kind: "gismu",
+        phonemes: "cliva",
+        span: [12,17],
+      },
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "je",
+        span: [18,20],
+      },
+      trailing_relation: Word {
+        kind: "gismu",
+        phonemes: "xruti",
+        span: [21,26],
+      },
     },
   },
 }"""

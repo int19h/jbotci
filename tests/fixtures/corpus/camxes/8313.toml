@@ -47,28 +47,86 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "xrani", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))))) }, terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "di'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), argument: Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "jy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) }))))], free_modifiers: [] }, boi: None } }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(mi se xráni di'o zy jy)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xrani",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "di'o",
+    span: [12,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zy",
+    span: [17,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "jy",
+    span: [19,21],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"xrani","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"di'o","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"zy","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"jy","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
   Relation {
     Se {
-      se: "se",
-      "xráni",
+      se: Word {
+        kind: "cmavo",
+        phonemes: "se",
+        span: [3,5],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "xrani",
+        span: [6,11],
+      },
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: "di'o",
+          bai: Word {
+            kind: "cmavo",
+            phonemes: "di'o",
+            span: [12,16],
+          },
         },
         Letter {
           letter: WithFreeModifiers {
-            "zy",
-            "jy",
+            Word {
+              kind: "cmavo",
+              phonemes: "zy",
+              span: [17,19],
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "jy",
+              span: [19,21],
+            },
           },
         },
       },

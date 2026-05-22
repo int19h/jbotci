@@ -27,15 +27,37 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }), paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(ju do)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ju",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [2,4],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"do","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
-  leading_connective: "ju",
+  leading_connective: Word {
+    kind: "cmavo",
+    phonemes: "ju",
+    span: [0,2],
+  },
   Term {
     terms: [
-      "do",
+      Word {
+        kind: "cmavo",
+        phonemes: "do",
+        span: [2,4],
+      },
     ],
   },
 }"""

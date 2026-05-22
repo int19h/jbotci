@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "djan", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(je'e co'o doĭ .djan.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "je'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "co'o",
+    span: [5,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [10,13],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "djan",
+    span: [14,18],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"djan","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -45,11 +69,27 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: WithFreeModifiers {
-        "je'e",
-        "co'o",
-        "doĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "je'e",
+          span: [0,4],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "co'o",
+          span: [5,9],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "doĭ",
+          span: [10,13],
+        },
       },
-      argument: ".djan.",
+      argument: Word {
+        kind: "cmevla",
+        phonemes: "djan",
+        span: [14,18],
+      },
     },
   ],
 }"""

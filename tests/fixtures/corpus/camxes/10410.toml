@@ -72,6 +72,65 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "rlp", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "bilga", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))))), terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Abstraction(AbstractionSyntax { nu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "nu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 22, char_start: 20, char_end: 22, start: None, end: None }) })))), free_modifiers: [] }, nai: None, additional_nu: [], subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "finti", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 28, char_start: 23, char_end: 28, start: None, end: None }) }))))), terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 29, byte_end: 31, char_start: 29, char_end: 31, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cnino", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 32, byte_end: 37, char_start: 32, char_end: 37, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "lisri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 38, byte_end: 43, char_start: 38, char_end: 43, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "pagbu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 49, char_start: 44, char_end: 49, start: None, end: None }) })))), free_modifiers: [] })])), relative_clauses: [], ku: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kei: None })), relative_clauses: [], ku: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(doĭ .rlp. do bílga le nu fínti lo cníno lísri págbu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "rlp",
+    span: [4,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bilga",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [20,22],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "finti",
+    span: [23,28],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [29,31],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cnino",
+    span: [32,37],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lisri",
+    span: [38,43],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pagbu",
+    span: [44,49],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"rlp","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"bilga","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"finti","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[38,43],"phonemes":"lisri","kind":"gismu"}},{"Bare":{"span":[44,49],"phonemes":"pagbu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -79,30 +138,74 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "doĭ",
-      argument: ".rlp.",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "doĭ",
+        span: [0,3],
+      },
+      argument: Word {
+        kind: "cmevla",
+        phonemes: "rlp",
+        span: [4,7],
+      },
     },
   ],
   Predicate {
     leading_terms: [
-      "do",
+      Word {
+        kind: "cmavo",
+        phonemes: "do",
+        span: [9,11],
+      },
     ],
     Relation {
-      "bílga",
+      Word {
+        kind: "gismu",
+        phonemes: "bilga",
+        span: [12,17],
+      },
       terms: [
         Descriptor {
-          descriptor: "le",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [18,20],
+          },
           relation: Abstraction {
-            nu: "nu",
+            nu: Word {
+              kind: "cmavo",
+              phonemes: "nu",
+              span: [20,22],
+            },
             Relation {
-              "fínti",
+              Word {
+                kind: "gismu",
+                phonemes: "finti",
+                span: [23,28],
+              },
               terms: [
                 Descriptor {
-                  descriptor: "lo",
+                  descriptor: Word {
+                    kind: "cmavo",
+                    phonemes: "lo",
+                    span: [29,31],
+                  },
                   relation: Compound {
-                    "cníno",
-                    "lísri",
-                    "págbu",
+                    Word {
+                      kind: "gismu",
+                      phonemes: "cnino",
+                      span: [32,37],
+                    },
+                    Word {
+                      kind: "gismu",
+                      phonemes: "lisri",
+                      span: [38,43],
+                    },
+                    Word {
+                      kind: "gismu",
+                      phonemes: "pagbu",
+                      span: [44,49],
+                    },
                   },
                 },
               ],

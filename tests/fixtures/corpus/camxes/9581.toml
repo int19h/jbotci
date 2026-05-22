@@ -37,18 +37,58 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cpedu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))), terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "rlp", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) }), nai: None }], free_modifiers: [] } })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(cpédu la .rlp. xu)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "cpedu",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "rlp",
+    span: [9,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [14,16],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cpedu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"rlp","kind":"cmevla"}},{"Bare":{"span":[14,16],"phonemes":"xu","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  "cpédu",
+  Word {
+    kind: "gismu",
+    phonemes: "cpedu",
+    span: [0,5],
+  },
   terms: [
     Name {
-      la: "la",
+      la: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [6,8],
+      },
       names: WithIndicator {
-        ".rlp.",
-        indicator: "xu",
+        Word {
+          kind: "cmevla",
+          phonemes: "rlp",
+          span: [9,12],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "xu",
+          span: [14,16],
+        },
       },
     },
   ],

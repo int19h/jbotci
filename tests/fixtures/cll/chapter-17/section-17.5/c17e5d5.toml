@@ -40,17 +40,53 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ce'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "komik", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) }) }))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ce'a [.komik. bu])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ce'a",
+    span: [0,4],
+  },
+  Letter {
+    Word {
+      kind: "cmevla",
+      phonemes: "komik",
+      span: [6,11],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [13,15],
+    },
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ce'a","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[6,11],"phonemes":"komik","kind":"cmevla"}},"bu":{"span":[13,15],"phonemes":"bu","kind":"cmavo"}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(ce'a .komik.bu)"
+brackets = "(ce'a [.komik. bu])"
 tree = """
 Term {
   terms: [
     Letter {
       letter: WithFreeModifiers {
-        "ce'a",
-        ".komik.bu",
+        Word {
+          kind: "cmavo",
+          phonemes: "ce'a",
+          span: [0,4],
+        },
+        Letter {
+          Word {
+            kind: "cmevla",
+            phonemes: "komik",
+            span: [6,11],
+          },
+          bu: Word {
+            kind: "cmavo",
+            phonemes: "bu",
+            span: [13,15],
+          },
+        },
       },
     },
   ],

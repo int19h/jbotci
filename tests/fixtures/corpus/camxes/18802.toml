@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "rab", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Gihek(PredicateTail { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) }))))], free_modifiers: [] }, nai: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) })))), free_modifiers: [] }) }))) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(doĭ .rab. gi'e naĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "rab",
+    span: [4,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi'e",
+    span: [8,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [12,15],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"rab","kind":"cmevla"}},{"Bare":{"span":[8,12],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -44,13 +68,29 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "doĭ",
-      argument: ".rab.",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "doĭ",
+        span: [0,3],
+      },
+      argument: Word {
+        kind: "cmevla",
+        phonemes: "rab",
+        span: [4,7],
+      },
     },
   ],
   PredicateTail {
-    "gi'e",
-    nai: "naĭ",
+    Word {
+      kind: "cmavo",
+      phonemes: "gi'e",
+      span: [8,12],
+    },
+    nai: Word {
+      kind: "cmavo",
+      phonemes: "naĭ",
+      span: [12,15],
+    },
   },
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[4,7],"phonemes":"rab","kind":"cmevla"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Gihek":{"PredicateTail":{"cmavo":[{"Bare":{"Bare":{"span":[8,12],"phonemes":"gi'e","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[12,15],"phonemes":"naĭ","kind":"cmavo"}}}}}}}}]}]}"""

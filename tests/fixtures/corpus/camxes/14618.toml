@@ -27,12 +27,34 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(RelativeClause([Poi { poi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "poĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "cabdeĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 10, char_start: 4, char_end: 10, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kuho: None }]))) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(poĭ cábdeĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "poĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "cabdeĭ",
+    span: [4,10],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"cabdeĭ","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Poi {
-  poi: "poĭ",
-  "cábdeĭ",
+  poi: Word {
+    kind: "cmavo",
+    phonemes: "poĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "cabdeĭ",
+    span: [4,10],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Poi":{"poi":{"Bare":{"Bare":{"span":[0,3],"phonemes":"poĭ","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[4,10],"phonemes":"cabdeĭ","kind":"lujvo"}}}}}}}}}}}}]}}}]}]}'

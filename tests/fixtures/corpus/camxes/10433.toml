@@ -43,6 +43,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(so'i da klési le respycrída)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "so'i",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [7,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klesi",
+    span: [10,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [16,18],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "respycrida",
+    span: [19,29],
+  },
+]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"klesi","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,29],"phonemes":"respycrida","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
@@ -50,16 +79,36 @@ tree = """
 Predicate {
   leading_terms: [
     Quantified {
-      quantifier: "so'i",
-      "da",
+      quantifier: Word {
+        kind: "cmavo",
+        phonemes: "so'i",
+        span: [3,7],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "da",
+        span: [7,9],
+      },
     },
   ],
   Relation {
-    "klési",
+    Word {
+      kind: "gismu",
+      phonemes: "klesi",
+      span: [10,15],
+    },
     terms: [
       Descriptor {
-        descriptor: "le",
-        relation: "respycrída",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [16,18],
+        },
+        relation: Word {
+          kind: "lujvo",
+          phonemes: "respycrida",
+          span: [19,29],
+        },
       },
     ],
   },

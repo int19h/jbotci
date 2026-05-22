@@ -34,6 +34,27 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }), word: Word(WordData { kind: Gismu, phonemes: "nanca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }) })), free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 13, char_start: 9, char_end: 13, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }] })))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "([zo nánca] je'e)"
+tree = """
+[
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [0,2],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "nanca",
+      span: [3,8],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je'e",
+    span: [9,13],
+  },
+]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,8],"phonemes":"nanca","kind":"gismu"}}},{"Bare":{"span":[9,13],"phonemes":"je'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -41,10 +62,25 @@ tree = """
 Term {
   terms: [
     WithFreeModifiers {
-      "zo-«nánca»",
+      ZoQuote {
+        zo: Word {
+          kind: "cmavo",
+          phonemes: "zo",
+          span: [0,2],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "nanca",
+          span: [3,8],
+        },
+      },
       free_modifiers: [
         Vocative {
-          vocative_markers: "je'e",
+          vocative_markers: Word {
+            kind: "cmavo",
+            phonemes: "je'e",
+            span: [9,13],
+          },
         },
       ],
     },

@@ -34,6 +34,27 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zo(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }), word: Word(WordData { kind: Lujvo, phonemes: "vajnyraĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 11, char_start: 3, char_end: 11, start: None, end: None }) }) })), indicator: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }), nai: None }, free_modifiers: [] })))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "([zo vájnyraĭ] xu)"
+tree = """
+[
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [0,2],
+    },
+    Word {
+      kind: "lujvo",
+      phonemes: "vajnyraĭ",
+      span: [3,11],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [12,14],
+  },
+]"""
 json = '[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,11],"phonemes":"vajnyraĭ","kind":"lujvo"}}},{"Bare":{"span":[12,14],"phonemes":"xu","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -41,8 +62,23 @@ tree = """
 Term {
   terms: [
     WithIndicator {
-      "zo-«vájnyraĭ»",
-      indicator: "xu",
+      ZoQuote {
+        zo: Word {
+          kind: "cmavo",
+          phonemes: "zo",
+          span: [0,2],
+        },
+        Word {
+          kind: "lujvo",
+          phonemes: "vajnyraĭ",
+          span: [3,11],
+        },
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "xu",
+        span: [12,14],
+      },
     },
   ],
 }"""

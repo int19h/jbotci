@@ -32,6 +32,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "vy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zasti", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(no vy zásti)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vy",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zasti",
+    span: [7,12],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"vy","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"zasti","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -41,11 +60,23 @@ Term {
     Descriptor {
       tail_elements: [
         WithFreeModifiers {
-          "no",
-          "vy",
+          Word {
+            kind: "cmavo",
+            phonemes: "no",
+            span: [0,2],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "vy",
+            span: [3,5],
+          },
         },
       ],
-      relation: "zásti",
+      relation: Word {
+        kind: "gismu",
+        phonemes: "zasti",
+        span: [7,12],
+      },
     },
   ],
 }"""

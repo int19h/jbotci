@@ -43,19 +43,68 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ke mínde xánce ke'e pílno)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ke",
+    span: [1,3],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "minde",
+    span: [5,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xance",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke'e",
+    span: [18,22],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pilno",
+    span: [24,29],
+  },
+]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"minde","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"xance","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"pilno","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
   Ke {
-    ke: "ke",
-    Compound {
-      "mínde",
-      "xánce",
+    ke: Word {
+      kind: "cmavo",
+      phonemes: "ke",
+      span: [1,3],
     },
-    kehe: "ke'e",
+    Compound {
+      Word {
+        kind: "gismu",
+        phonemes: "minde",
+        span: [5,10],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "xance",
+        span: [11,16],
+      },
+    },
+    kehe: Word {
+      kind: "cmavo",
+      phonemes: "ke'e",
+      span: [18,22],
+    },
   },
-  "pílno",
+  Word {
+    kind: "gismu",
+    phonemes: "pilno",
+    span: [24,29],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Ke":{"ke":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[5,10],"phonemes":"minde","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"xance","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[18,22],"phonemes":"ke'e","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"pilno","kind":"gismu"}}}}]}}}}}}}}]}]}"""

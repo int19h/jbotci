@@ -32,18 +32,49 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ŭi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "ekted", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(.ŭi coĭ .ekted.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [3,6],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "ekted",
+    span: [7,12],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"ekted","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    ".ŭi",
+    Word {
+      kind: "cmavo",
+      phonemes: "ŭi",
+      span: [0,2],
+    },
   ],
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "coĭ",
-      argument: ".ekted.",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "coĭ",
+        span: [3,6],
+      },
+      argument: Word {
+        kind: "cmevla",
+        phonemes: "ekted",
+        span: [7,12],
+      },
     },
   ],
 }"""

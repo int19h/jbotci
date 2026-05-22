@@ -54,6 +54,47 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }), nai: None }, free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "djisku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 15, char_start: 9, char_end: 15, start: None, end: None }) }))))), terms: [Argument(Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None }) }), word: Word(WordData { kind: Cmavo, phonemes: "jeĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 22, char_start: 19, char_end: 22, start: None, end: None }) }) })), free_modifiers: [] })))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }, toi: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "toĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 26, char_start: 23, char_end: 26, start: None, end: None }) })))), free_modifiers: [] }) }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(to xu mi djísku [zo jeĭ] toĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [6,8],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "djisku",
+    span: [9,15],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [16,18],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "jeĭ",
+      span: [19,22],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "toĭ",
+    span: [23,26],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,15],"phonemes":"djisku","kind":"lujvo"}},{"ZoQuote":{"zo":{"span":[16,18],"phonemes":"zo","kind":"cmavo"},"word":{"span":[19,22],"phonemes":"jeĭ","kind":"cmavo"}}},{"Bare":{"span":[23,26],"phonemes":"toĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -62,21 +103,52 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        "to",
-        indicator: "xu",
+        Word {
+          kind: "cmavo",
+          phonemes: "to",
+          span: [0,2],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "xu",
+          span: [3,5],
+        },
       },
       Predicate {
         leading_terms: [
-          "mi",
+          Word {
+            kind: "cmavo",
+            phonemes: "mi",
+            span: [6,8],
+          },
         ],
         Relation {
-          "djísku",
+          Word {
+            kind: "lujvo",
+            phonemes: "djisku",
+            span: [9,15],
+          },
           terms: [
-            "zo-«jeĭ»",
+            ZoQuote {
+              zo: Word {
+                kind: "cmavo",
+                phonemes: "zo",
+                span: [16,18],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "jeĭ",
+                span: [19,22],
+              },
+            },
           ],
         },
       },
-      toi: "toĭ",
+      toi: Word {
+        kind: "cmavo",
+        phonemes: "toĭ",
+        span: [23,26],
+      },
     },
   ],
 }"""

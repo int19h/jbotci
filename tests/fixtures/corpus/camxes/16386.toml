@@ -27,6 +27,20 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "vi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), free_modifiers: [] } }], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(vi ku)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "vi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [3,5],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -34,9 +48,17 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: "vi",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "vi",
+        span: [0,2],
+      },
       Zohe {
-        maybe_ku: "ku",
+        maybe_ku: Word {
+          kind: "cmavo",
+          phonemes: "ku",
+          span: [3,5],
+        },
       },
     },
   ],

@@ -32,6 +32,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "jbocasnu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 12, char_start: 4, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "munje", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))), free_modifiers: [] })]), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(coĭ jbocásnu múnje)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "jbocasnu",
+    span: [4,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "munje",
+    span: [13,18],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,12],"phonemes":"jbocasnu","kind":"lujvo"}},{"Bare":{"span":[13,18],"phonemes":"munje","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -39,11 +58,23 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "coĭ",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "coĭ",
+        span: [0,3],
+      },
       argument: RelationVocative {
         relation: Compound {
-          "jbocásnu",
-          "múnje",
+          Word {
+            kind: "lujvo",
+            phonemes: "jbocasnu",
+            span: [4,12],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "munje",
+            span: [13,18],
+          },
         },
       },
     },

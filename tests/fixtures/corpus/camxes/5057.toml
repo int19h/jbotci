@@ -52,6 +52,45 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "seĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }))], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "skami", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], cu: None, relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "de'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 20, char_start: 16, char_end: 20, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 24, char_start: 20, char_end: 24, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nirna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 30, char_start: 25, char_end: 30, start: None, end: None }) }))))) }, sehu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(seĭ le mi skámi de'a co'u nírna)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "seĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [7,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "skami",
+    span: [10,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "de'a",
+    span: [16,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "co'u",
+    span: [20,24],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nirna",
+    span: [25,30],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[16,20],"phonemes":"de'a","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"co'u","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"nirna","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -59,22 +98,50 @@ tree = """
 Text {
   leading_free_modifiers: [
     Sei {
-      sei: "seĭ",
+      sei: Word {
+        kind: "cmavo",
+        phonemes: "seĭ",
+        span: [0,3],
+      },
       terms: [
         Descriptor {
-          descriptor: "le",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [4,6],
+          },
           tail_elements: [
-            "mi",
+            Word {
+              kind: "cmavo",
+              phonemes: "mi",
+              span: [7,9],
+            },
           ],
-          relation: "skámi",
+          relation: Word {
+            kind: "gismu",
+            phonemes: "skami",
+            span: [10,15],
+          },
         },
       ],
       relation: TenseModal {
         tense_modal: WithFreeModifiers {
-          "de'a",
-          "co'u",
+          Word {
+            kind: "cmavo",
+            phonemes: "de'a",
+            span: [16,20],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "co'u",
+            span: [20,24],
+          },
         },
-        "nírna",
+        Word {
+          kind: "gismu",
+          phonemes: "nirna",
+          span: [25,30],
+        },
       },
     },
   ],

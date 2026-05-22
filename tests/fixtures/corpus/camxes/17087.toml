@@ -48,26 +48,84 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.bancus. mi djíca tu'a le nínmu)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "bancus",
+    span: [1,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "djica",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "tu'a",
+    span: [18,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ninmu",
+    span: [26,31],
+  },
+]"""
 json = """[{"Bare":{"span":[1,7],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[18,22],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"ninmu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".bancus.",
+    Word {
+      kind: "cmevla",
+      phonemes: "bancus",
+      span: [1,7],
+    },
   ],
   Predicate {
     leading_terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [9,11],
+      },
     ],
     Relation {
-      "djíca",
+      Word {
+        kind: "gismu",
+        phonemes: "djica",
+        span: [12,17],
+      },
       terms: [
         Lahe {
-          lahe: "tu'a",
+          lahe: Word {
+            kind: "cmavo",
+            phonemes: "tu'a",
+            span: [18,22],
+          },
           Descriptor {
-            descriptor: "le",
-            relation: "nínmu",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [23,25],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "ninmu",
+              span: [26,31],
+            },
           },
         },
       ],

@@ -99,4 +99,90 @@ status = "failure"
 error = { position = 2, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(li [.a bu] bo pi'i xy bo te'a re su'i by bo pi'i xy su'i cy)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [0,2],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "a",
+      span: [4,5],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [5,7],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "bo",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pi'i",
+    span: [10,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xy",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "bo",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "te'a",
+    span: [21,25],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [26,28],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "su'i",
+    span: [29,33],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "by",
+    span: [34,36],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "bo",
+    span: [38,40],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pi'i",
+    span: [40,44],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xy",
+    span: [45,47],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "su'i",
+    span: [49,53],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cy",
+    span: [54,56],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[4,5],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[5,7],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[8,10],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"pi'i","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"te'a","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[40,44],"phonemes":"pi'i","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[49,53],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[54,56],"phonemes":"cy","kind":"cmavo"}}]"""

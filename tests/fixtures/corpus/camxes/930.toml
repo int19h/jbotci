@@ -58,6 +58,50 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le ka do xúnre keĭ cu cníno mi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xunre",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "keĭ",
+    span: [16,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [21,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cnino",
+    span: [24,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [30,32],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[16,19],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"mi","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -65,24 +109,56 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
       relation: Abstraction {
-        nu: "ka",
+        nu: Word {
+          kind: "cmavo",
+          phonemes: "ka",
+          span: [3,5],
+        },
         Predicate {
           leading_terms: [
-            "do",
+            Word {
+              kind: "cmavo",
+              phonemes: "do",
+              span: [6,8],
+            },
           ],
-          "xúnre",
+          Word {
+            kind: "gismu",
+            phonemes: "xunre",
+            span: [9,14],
+          },
         },
-        kei: "keĭ",
+        kei: Word {
+          kind: "cmavo",
+          phonemes: "keĭ",
+          span: [16,19],
+        },
       },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [21,23],
+  },
   Relation {
-    "cníno",
+    Word {
+      kind: "gismu",
+      phonemes: "cnino",
+      span: [24,29],
+    },
     terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [30,32],
+      },
     ],
   },
 }"""

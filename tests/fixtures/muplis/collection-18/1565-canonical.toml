@@ -45,6 +45,35 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Prenex { prenex_terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ba", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), free_modifiers: [] } }], zohu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }, inner_statement: Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "denpa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }) }) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ba ku zo'u mi'a dénpa)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ba",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'u",
+    span: [6,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi'a",
+    span: [11,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "denpa",
+    span: [16,21],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"mi'a","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"denpa","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -53,18 +82,38 @@ tree = """
 Prenex {
   prenex_terms: [
     Tagged {
-      tense_modal: "ba",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ba",
+        span: [0,2],
+      },
       Zohe {
-        maybe_ku: "ku",
+        maybe_ku: Word {
+          kind: "cmavo",
+          phonemes: "ku",
+          span: [3,5],
+        },
       },
     },
   ],
-  zohu: "zo'u",
+  zohu: Word {
+    kind: "cmavo",
+    phonemes: "zo'u",
+    span: [6,10],
+  },
   Predicate {
     leading_terms: [
-      "mi'a",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi'a",
+        span: [11,15],
+      },
     ],
-    "dénpa",
+    Word {
+      kind: "gismu",
+      phonemes: "denpa",
+      span: [16,21],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ba","kind":"cmavo"}}}}]}},"argument":{"Zohe":{"maybe_ku":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ku","kind":"cmavo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[6,10],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[11,15],"phonemes":"mi'a","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[16,21],"phonemes":"denpa","kind":"gismu"}}}}}}}}}}}}}]}]}"""

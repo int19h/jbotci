@@ -48,24 +48,82 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(do du le lójbo se mánci)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lojbo",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [18,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "manci",
+    span: [21,26],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"manci","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "do",
+    Word {
+      kind: "cmavo",
+      phonemes: "do",
+      span: [3,5],
+    },
   ],
   Relation {
-    "du",
+    Word {
+      kind: "cmavo",
+      phonemes: "du",
+      span: [6,8],
+    },
     terms: [
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [9,11],
+        },
         relation: Compound {
-          "lójbo",
+          Word {
+            kind: "gismu",
+            phonemes: "lojbo",
+            span: [12,17],
+          },
           Se {
-            se: "se",
-            "mánci",
+            se: Word {
+              kind: "cmavo",
+              phonemes: "se",
+              span: [18,20],
+            },
+            Word {
+              kind: "gismu",
+              phonemes: "manci",
+              span: [21,26],
+            },
           },
         },
       },

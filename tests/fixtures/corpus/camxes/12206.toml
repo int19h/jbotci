@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(RelativeClause { base_argument: Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }) }, vuho: None, relative_clauses: [Goi(GoiRelativeClauseSyntax { goi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "goĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ko'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 13, char_start: 9, char_end: 13, start: None, end: None }) })))), free_modifiers: [] }), gehu: None })] })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(no da goĭ ko'a)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [2,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "goĭ",
+    span: [5,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ko'a",
+    span: [9,13],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ko'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -45,13 +69,29 @@ Term {
   terms: [
     RelativeClause {
       base_argument: Quantified {
-        quantifier: "no",
-        "da",
+        quantifier: Word {
+          kind: "cmavo",
+          phonemes: "no",
+          span: [0,2],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "da",
+          span: [2,4],
+        },
       },
       relative_clauses: [
         GoiRelativeClause {
-          goi: "goĭ",
-          "ko'a",
+          goi: Word {
+            kind: "cmavo",
+            phonemes: "goĭ",
+            span: [5,8],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "ko'a",
+            span: [9,13],
+          },
         },
       ],
     },

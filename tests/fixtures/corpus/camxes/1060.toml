@@ -48,6 +48,40 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le vi bájra ku cu távla)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vi",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bajra",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [13,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tavla",
+    span: [20,25],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"bajra","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"tavla","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -55,15 +89,39 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "le",
-      relation: TenseModal {
-        tense_modal: "vi",
-        "bájra",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
       },
-      ku: "ku",
+      relation: TenseModal {
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "vi",
+          span: [3,5],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "bajra",
+          span: [6,11],
+        },
+      },
+      ku: Word {
+        kind: "cmavo",
+        phonemes: "ku",
+        span: [13,15],
+      },
     },
   ],
-  cu: "cu",
-  "távla",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tavla",
+    span: [20,25],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}}},"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,5],"phonemes":"vi","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"bajra","kind":"gismu"}}}}}},"ku":{"Bare":{"Bare":{"span":[13,15],"phonemes":"ku","kind":"cmavo"}}}}}}],"cu":{"Bare":{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"tavla","kind":"gismu"}}}}}}}}}}}]}]}'

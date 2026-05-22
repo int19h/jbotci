@@ -27,6 +27,20 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(ju'i naĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ju'i",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [4,7],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -35,8 +49,16 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: WithFreeModifiers {
-        "ju'i",
-        "naĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "ju'i",
+          span: [0,4],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "naĭ",
+          span: [4,7],
+        },
       },
     },
   ],

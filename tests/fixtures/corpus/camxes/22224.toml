@@ -54,4 +54,45 @@ status = "failure"
 error = { position = 0, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(le'u .i mi stídi [zo .sidjuban.] bángu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le'u",
+    span: [1,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [7,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "stidi",
+    span: [12,17],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [18,20],
+    },
+    Word {
+      kind: "cmevla",
+      phonemes: "sidjuban",
+      span: [21,29],
+    },
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bangu",
+    span: [30,35],
+  },
+]"""
 json = """[{"Bare":{"span":[1,5],"phonemes":"le'u","kind":"cmavo"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"stidi","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[18,20],"phonemes":"zo","kind":"cmavo"},"word":{"span":[21,29],"phonemes":"sidjuban","kind":"cmevla"}}},{"Bare":{"span":[30,35],"phonemes":"bangu","kind":"gismu"}}]"""

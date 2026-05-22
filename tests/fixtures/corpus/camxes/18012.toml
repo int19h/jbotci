@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "di'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "xiks", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 13, char_start: 9, char_end: 13, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }] }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(di'u doĭ .xiks.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "di'u",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [5,8],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "xiks",
+    span: [9,13],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"xiks","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -39,11 +58,23 @@ tree = """
 Term {
   terms: [
     WithFreeModifiers {
-      "di'u",
+      Word {
+        kind: "cmavo",
+        phonemes: "di'u",
+        span: [0,4],
+      },
       free_modifiers: [
         Vocative {
-          vocative_markers: "doĭ",
-          argument: ".xiks.",
+          vocative_markers: Word {
+            kind: "cmavo",
+            phonemes: "doĭ",
+            span: [5,8],
+          },
+          argument: Word {
+            kind: "cmevla",
+            phonemes: "xiks",
+            span: [9,13],
+          },
         },
       ],
     },

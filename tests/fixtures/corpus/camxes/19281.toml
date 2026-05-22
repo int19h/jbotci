@@ -37,20 +37,60 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ji'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], statement: None }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.i ji'a je'e naĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ji'a",
+    span: [1,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je'e",
+    span: [5,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [9,12],
+  },
+]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[1,5],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    ".i",
-    indicator: "ji'a",
+    Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [0,1],
+    },
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "ji'a",
+      span: [1,5],
+    },
   },
   free_modifiers: [
     Vocative {
       vocative_markers: WithFreeModifiers {
-        "je'e",
-        "naĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "je'e",
+          span: [5,9],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "naĭ",
+          span: [9,12],
+        },
       },
     },
   ],

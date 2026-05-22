@@ -42,23 +42,72 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "bavlam", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "catni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "nunpenmi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 21, char_start: 13, char_end: 21, start: None, end: None }) })))), free_modifiers: [] })]), terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 27, char_start: 25, char_end: 27, start: None, end: None }) })))), free_modifiers: [] }) }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(.bavlam. cátni nunpénmi zi ma)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "bavlam",
+    span: [0,6],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "catni",
+    span: [7,12],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "nunpenmi",
+    span: [13,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zi",
+    span: [22,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [25,27],
+  },
+]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"bavlam","kind":"cmevla"}},{"Bare":{"span":[7,12],"phonemes":"catni","kind":"gismu"}},{"Bare":{"span":[13,21],"phonemes":"nunpenmi","kind":"lujvo"}},{"Bare":{"span":[22,24],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".bavlam.",
+    Word {
+      kind: "cmevla",
+      phonemes: "bavlam",
+      span: [0,6],
+    },
   ],
   Relation {
     Compound {
-      "cátni",
-      "nunpénmi",
+      Word {
+        kind: "gismu",
+        phonemes: "catni",
+        span: [7,12],
+      },
+      Word {
+        kind: "lujvo",
+        phonemes: "nunpenmi",
+        span: [13,21],
+      },
     },
     terms: [
       Tagged {
-        tense_modal: "zi",
-        "ma",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "zi",
+          span: [22,24],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "ma",
+          span: [25,27],
+        },
       },
     ],
   },

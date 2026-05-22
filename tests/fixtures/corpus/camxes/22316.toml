@@ -38,6 +38,30 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(coĭ .i mi clíva)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [5,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [7,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cliva",
+    span: [10,15],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[5,6],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"cliva","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -45,16 +69,32 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "coĭ",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "coĭ",
+        span: [0,3],
+      },
     },
   ],
   ParagraphStatement {
-    i: ".i",
+    i: Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [5,6],
+    },
     Predicate {
       leading_terms: [
-        "mi",
+        Word {
+          kind: "cmavo",
+          phonemes: "mi",
+          span: [7,9],
+        },
       ],
-      "clíva",
+      Word {
+        kind: "gismu",
+        phonemes: "cliva",
+        span: [10,15],
+      },
     },
   },
 }"""

@@ -33,17 +33,48 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.rlp. ka sévzi)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "rlp",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sevzi",
+    span: [8,13],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"rlp","kind":"cmevla"}},{"Bare":{"span":[5,7],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"sevzi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".rlp.",
+    Word {
+      kind: "cmevla",
+      phonemes: "rlp",
+      span: [0,3],
+    },
   ],
   Abstraction {
-    nu: "ka",
-    "sévzi",
+    nu: Word {
+      kind: "cmavo",
+      phonemes: "ka",
+      span: [5,7],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "sevzi",
+      span: [8,13],
+    },
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"rlp","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ka","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"sevzi","kind":"gismu"}}}}}}}}}}}}}}}}}}}]}]}'

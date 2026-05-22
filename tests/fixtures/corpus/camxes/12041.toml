@@ -37,19 +37,59 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Na { na: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "nerkla", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 15, char_start: 9, char_end: 15, start: None, end: None }) }))))) } }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(ri na se nérkla)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ri",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [6,8],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "nerkla",
+    span: [9,15],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,15],"phonemes":"nerkla","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "ri",
+    Word {
+      kind: "cmavo",
+      phonemes: "ri",
+      span: [0,2],
+    },
   ],
   Na {
-    na: "na",
+    na: Word {
+      kind: "cmavo",
+      phonemes: "na",
+      span: [3,5],
+    },
     Se {
-      se: "se",
-      "nérkla",
+      se: Word {
+        kind: "cmavo",
+        phonemes: "se",
+        span: [6,8],
+      },
+      Word {
+        kind: "lujvo",
+        phonemes: "nerkla",
+        span: [9,15],
+      },
     },
   },
 }"""

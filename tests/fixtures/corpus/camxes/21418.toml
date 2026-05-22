@@ -86,6 +86,79 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "milxe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "xebni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) })))), free_modifiers: [] })]), terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Abstraction(AbstractionSyntax { nu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "nu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) })))), free_modifiers: [] }, nai: None, additional_nu: [], subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "pilno", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) }))))), terms: [Argument(Connected { leading_argument: Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 32, char_start: 30, char_end: 32, start: None, end: None }) }), word: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 33, byte_end: 35, char_start: 33, char_end: 35, start: None, end: None }) }) })), free_modifiers: [] })), connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 37, byte_end: 38, char_start: 37, char_end: 38, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_argument: Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 39, byte_end: 41, char_start: 39, char_end: 41, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 41, byte_end: 43, char_start: 41, char_end: 43, start: None, end: None }) }) }))], free_modifiers: [] }, boi: None } })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kei: None })), relative_clauses: [], ku: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }, toi: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "toĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 47, char_start: 44, char_end: 47, start: None, end: None }) })))), free_modifiers: [] }) }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(to mi mílxe xébni le nu pílno [zo xu] .e [xu bu] toĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "milxe",
+    span: [6,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xebni",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [21,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pilno",
+    span: [24,29],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [30,32],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [33,35],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [37,38],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [39,41],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [41,43],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "toĭ",
+    span: [44,47],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"milxe","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"xebni","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[30,32],"phonemes":"zo","kind":"cmavo"},"word":{"span":[33,35],"phonemes":"xu","kind":"cmavo"}}},{"Bare":{"span":[37,38],"phonemes":"e","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[39,41],"phonemes":"xu","kind":"cmavo"}},"bu":{"span":[41,43],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[44,47],"phonemes":"toĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -93,29 +166,83 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: "to",
+      to: Word {
+        kind: "cmavo",
+        phonemes: "to",
+        span: [0,2],
+      },
       Predicate {
         leading_terms: [
-          "mi",
+          Word {
+            kind: "cmavo",
+            phonemes: "mi",
+            span: [3,5],
+          },
         ],
         Relation {
           Compound {
-            "mílxe",
-            "xébni",
+            Word {
+              kind: "gismu",
+              phonemes: "milxe",
+              span: [6,11],
+            },
+            Word {
+              kind: "gismu",
+              phonemes: "xebni",
+              span: [12,17],
+            },
           },
           terms: [
             Descriptor {
-              descriptor: "le",
+              descriptor: Word {
+                kind: "cmavo",
+                phonemes: "le",
+                span: [18,20],
+              },
               relation: Abstraction {
-                nu: "nu",
+                nu: Word {
+                  kind: "cmavo",
+                  phonemes: "nu",
+                  span: [21,23],
+                },
                 Relation {
-                  "pílno",
+                  Word {
+                    kind: "gismu",
+                    phonemes: "pilno",
+                    span: [24,29],
+                  },
                   terms: [
                     Connected {
-                      leading_argument: "zo-«xu»",
-                      connective: ".e",
+                      leading_argument: ZoQuote {
+                        zo: Word {
+                          kind: "cmavo",
+                          phonemes: "zo",
+                          span: [30,32],
+                        },
+                        Word {
+                          kind: "cmavo",
+                          phonemes: "xu",
+                          span: [33,35],
+                        },
+                      },
+                      connective: Word {
+                        kind: "cmavo",
+                        phonemes: "e",
+                        span: [37,38],
+                      },
                       trailing_argument: Letter {
-                        letter: "xu-bu",
+                        letter: Letter {
+                          Word {
+                            kind: "cmavo",
+                            phonemes: "xu",
+                            span: [39,41],
+                          },
+                          bu: Word {
+                            kind: "cmavo",
+                            phonemes: "bu",
+                            span: [41,43],
+                          },
+                        },
                       },
                     },
                   ],
@@ -125,7 +252,11 @@ Text {
           ],
         },
       },
-      toi: "toĭ",
+      toi: Word {
+        kind: "cmavo",
+        phonemes: "toĭ",
+        span: [44,47],
+      },
     },
   ],
 }"""

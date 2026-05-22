@@ -45,21 +45,75 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(xu [zo xótli] ja'a gísmu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [3,5],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [6,8],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "xotli",
+      span: [9,14],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ja'a",
+    span: [15,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gismu",
+    span: [20,25],
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[6,8],"phonemes":"zo","kind":"cmavo"},"word":{"span":[9,14],"phonemes":"xotli","kind":"gismu"}}},{"Bare":{"span":[15,19],"phonemes":"ja'a","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"gismu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "xu",
+    Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [3,5],
+    },
   ],
   Predicate {
     leading_terms: [
-      "zo-«xótli»",
+      ZoQuote {
+        zo: Word {
+          kind: "cmavo",
+          phonemes: "zo",
+          span: [6,8],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "xotli",
+          span: [9,14],
+        },
+      },
     ],
     Na {
-      na: "ja'a",
-      "gísmu",
+      na: Word {
+        kind: "cmavo",
+        phonemes: "ja'a",
+        span: [15,19],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "gismu",
+        span: [20,25],
+      },
     },
   },
 }"""

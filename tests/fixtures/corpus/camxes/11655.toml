@@ -32,17 +32,48 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "xance", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "darxi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), free_modifiers: [] })]), terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zi'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) })))), free_modifiers: [] }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(xánce dárxi zi'o)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "xance",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "darxi",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zi'o",
+    span: [12,16],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"xance","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"darxi","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"zi'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
   Compound {
-    "xánce",
-    "dárxi",
+    Word {
+      kind: "gismu",
+      phonemes: "xance",
+      span: [0,5],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "darxi",
+      span: [6,11],
+    },
   },
   terms: [
-    "zi'o",
+    Word {
+      kind: "cmavo",
+      phonemes: "zi'o",
+      span: [12,16],
+    },
   ],
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"xance","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"darxi","kind":"gismu"}}}}]},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[12,16],"phonemes":"zi'o","kind":"cmavo"}}}}}]}}}}}}}}]}]}"""

@@ -47,6 +47,40 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ku'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }), nai: None }, free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "baŭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), argument: Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "gliban", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 21, char_start: 15, char_end: 21, start: None, end: None }) }))))], free_modifiers: [] } } }], vau: None })) }] }] }, toi: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "toĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 25, char_start: 22, char_end: 25, start: None, end: None }) })))), free_modifiers: [] }) }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(to ku'i baŭ la .gliban. toĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku'i",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "baŭ",
+    span: [8,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "gliban",
+    span: [15,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "toĭ",
+    span: [22,25],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,21],"phonemes":"gliban","kind":"cmevla"}},{"Bare":{"span":[22,25],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -55,23 +89,47 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        "to",
-        indicator: "ku'i",
+        Word {
+          kind: "cmavo",
+          phonemes: "to",
+          span: [0,2],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ku'i",
+          span: [3,7],
+        },
       },
       Term {
         terms: [
           Tagged {
             tense_modal: Simple {
-              bai: "baŭ",
+              bai: Word {
+                kind: "cmavo",
+                phonemes: "baŭ",
+                span: [8,11],
+              },
             },
             Name {
-              la: "la",
-              names: ".gliban.",
+              la: Word {
+                kind: "cmavo",
+                phonemes: "la",
+                span: [12,14],
+              },
+              names: Word {
+                kind: "cmevla",
+                phonemes: "gliban",
+                span: [15,21],
+              },
             },
           },
         ],
       },
-      toi: "toĭ",
+      toi: Word {
+        kind: "cmavo",
+        phonemes: "toĭ",
+        span: [22,25],
+      },
     },
   ],
 }"""

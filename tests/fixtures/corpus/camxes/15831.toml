@@ -47,6 +47,40 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "so'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }) })], vau: None })) }, ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "gunka", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(so'u da .i mi ca gúnka)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "so'u",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [8,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [13,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gunka",
+    span: [16,21],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[8,9],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"gunka","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -55,20 +89,44 @@ Paragraph {
   Term {
     terms: [
       Quantified {
-        quantifier: "so'u",
-        "da",
+        quantifier: Word {
+          kind: "cmavo",
+          phonemes: "so'u",
+          span: [0,4],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "da",
+          span: [4,6],
+        },
       },
     ],
   },
   ParagraphStatement {
-    i: ".i",
+    i: Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [8,9],
+    },
     Predicate {
       leading_terms: [
-        "mi",
+        Word {
+          kind: "cmavo",
+          phonemes: "mi",
+          span: [10,12],
+        },
       ],
       TenseModal {
-        tense_modal: "ca",
-        "gúnka",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "ca",
+          span: [13,15],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "gunka",
+          span: [16,21],
+        },
       },
     },
   },

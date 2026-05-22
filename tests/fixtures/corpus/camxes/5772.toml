@@ -62,21 +62,106 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "girzu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, inner_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "mifra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }) }, Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "benji", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "gerna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "datni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 32, char_start: 27, char_end: 32, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "girzu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 33, byte_end: 38, char_start: 33, char_end: 38, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "skami", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 39, byte_end: 44, char_start: 39, char_end: 44, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "ciste", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 45, byte_end: 50, char_start: 45, char_end: 50, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(gírzu se mífra bénji gérna dátni gírzu skámi císte)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "girzu",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mifra",
+    span: [9,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "benji",
+    span: [15,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gerna",
+    span: [21,26],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "datni",
+    span: [27,32],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "girzu",
+    span: [33,38],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "skami",
+    span: [39,44],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ciste",
+    span: [45,50],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"mifra","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[27,32],"phonemes":"datni","kind":"gismu"}},{"Bare":{"span":[33,38],"phonemes":"girzu","kind":"gismu"}},{"Bare":{"span":[39,44],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[45,50],"phonemes":"ciste","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "gírzu",
-  Se {
-    se: "se",
-    "mífra",
+  Word {
+    kind: "gismu",
+    phonemes: "girzu",
+    span: [0,5],
   },
-  "bénji",
-  "gérna",
-  "dátni",
-  "gírzu",
-  "skámi",
-  "císte",
+  Se {
+    se: Word {
+      kind: "cmavo",
+      phonemes: "se",
+      span: [6,8],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "mifra",
+      span: [9,14],
+    },
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "benji",
+    span: [15,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gerna",
+    span: [21,26],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "datni",
+    span: [27,32],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "girzu",
+    span: [33,38],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "skami",
+    span: [39,44],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ciste",
+    span: [45,50],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"girzu","kind":"gismu"}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"mifra","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"benji","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"gerna","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[27,32],"phonemes":"datni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[33,38],"phonemes":"girzu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[39,44],"phonemes":"skami","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[45,50],"phonemes":"ciste","kind":"gismu"}}}}]}}}}}}}}]}]}'

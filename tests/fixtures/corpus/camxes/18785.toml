@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "loĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nanba", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))))), relative_clauses: [], ku: None }) }], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(do'e loĭ nánba)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "do'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "loĭ",
+    span: [5,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nanba",
+    span: [9,14],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"do'e","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"nanba","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -40,11 +59,23 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: "do'e",
+        bai: Word {
+          kind: "cmavo",
+          phonemes: "do'e",
+          span: [0,4],
+        },
       },
       Descriptor {
-        descriptor: "loĭ",
-        relation: "nánba",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "loĭ",
+          span: [5,8],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "nanba",
+          span: [9,14],
+        },
       },
     },
   ],

@@ -52,4 +52,43 @@ status = "failure"
 error = { position = 2, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(ti me .zones. .a re la me)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ti",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "me",
+    span: [2,4],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "zones",
+    span: [5,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "a",
+    span: [11,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "me",
+    span: [17,19],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"zones","kind":"cmevla"}},{"Bare":{"span":[11,12],"phonemes":"a","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"me","kind":"cmavo"}}]'

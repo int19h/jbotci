@@ -28,6 +28,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(la .oŭebe'osting.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "oŭebe'osting",
+    span: [6,18],
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,18],"phonemes":"oŭebe'osting","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -35,8 +49,16 @@ tree = """
 Term {
   terms: [
     Name {
-      la: "la",
-      names: ".oŭebe'osting.",
+      la: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [3,5],
+      },
+      names: Word {
+        kind: "cmevla",
+        phonemes: "oŭebe'osting",
+        span: [6,18],
+      },
     },
   ],
 }"""

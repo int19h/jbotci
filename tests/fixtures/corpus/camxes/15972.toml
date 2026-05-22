@@ -33,6 +33,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ry xi re)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ry",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xi",
+    span: [7,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [10,12],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"ry","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"re","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -41,11 +60,23 @@ Term {
   terms: [
     Letter {
       letter: WithFreeModifiers {
-        "ry",
+        Word {
+          kind: "cmavo",
+          phonemes: "ry",
+          span: [3,5],
+        },
         free_modifiers: [
           Xi {
-            xi: "xi",
-            "re",
+            xi: Word {
+              kind: "cmavo",
+              phonemes: "xi",
+              span: [7,9],
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "re",
+              span: [10,12],
+            },
           },
         ],
       },

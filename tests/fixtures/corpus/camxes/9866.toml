@@ -32,6 +32,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "by", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tirno", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(ci by tírno)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "by",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tirno",
+    span: [6,11],
+  },
+]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tirno","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -41,11 +60,23 @@ Term {
     Descriptor {
       tail_elements: [
         WithFreeModifiers {
-          "ci",
-          "by",
+          Word {
+            kind: "cmavo",
+            phonemes: "ci",
+            span: [0,1],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "by",
+            span: [3,5],
+          },
         },
       ],
-      relation: "tírno",
+      relation: Word {
+        kind: "gismu",
+        phonemes: "tirno",
+        span: [6,11],
+      },
     },
   ],
 }"""

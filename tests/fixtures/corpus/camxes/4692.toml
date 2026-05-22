@@ -48,25 +48,83 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi co'u cítka le plúja sákta)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "co'u",
+    span: [6,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "citka",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pluja",
+    span: [20,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sakta",
+    span: [26,31],
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"co'u","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"pluja","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"sakta","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [3,5],
+    },
   ],
   Relation {
     TenseModal {
-      tense_modal: "co'u",
-      "cítka",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "co'u",
+        span: [6,10],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "citka",
+        span: [11,16],
+      },
     },
     terms: [
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [17,19],
+        },
         relation: Compound {
-          "plúja",
-          "sákta",
+          Word {
+            kind: "gismu",
+            phonemes: "pluja",
+            span: [20,25],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "sakta",
+            span: [26,31],
+          },
         },
       },
     ],

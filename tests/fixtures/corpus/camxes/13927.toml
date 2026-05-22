@@ -53,6 +53,45 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le rémna be se taĭ lo dánlu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "remna",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [11,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "taĭ",
+    span: [13,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "danlu",
+    span: [24,29],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"danlu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -60,18 +99,46 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
       relation: Be {
-        "rémna",
-        be: "be",
+        Word {
+          kind: "gismu",
+          phonemes: "remna",
+          span: [3,8],
+        },
+        be: Word {
+          kind: "cmavo",
+          phonemes: "be",
+          span: [9,11],
+        },
         first_argument: Tagged {
           tag: Simple {
-            se: "se",
-            bai: "taĭ",
+            se: Word {
+              kind: "cmavo",
+              phonemes: "se",
+              span: [11,13],
+            },
+            bai: Word {
+              kind: "cmavo",
+              phonemes: "taĭ",
+              span: [13,16],
+            },
           },
           Descriptor {
-            descriptor: "lo",
-            relation: "dánlu",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "lo",
+              span: [17,19],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "danlu",
+              span: [24,29],
+            },
           },
         },
       },

@@ -84,4 +84,75 @@ status = "failure"
 error = { position = 7, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "([zo saĭ] bínxo [zo caĭ] gi'e se bínxo [zoĭ ly caicai ly] zoĭ)"
+tree = """
+[
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [0,2],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "saĭ",
+      span: [3,6],
+    },
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "binxo",
+    span: [7,12],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [13,15],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "caĭ",
+      span: [16,19],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi'e",
+    span: [20,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [24,26],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "binxo",
+    span: [27,32],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [33,36],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "ly",
+      span: [36,38],
+    },
+    quoted_text: [40,46],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "ly",
+      span: [47,49],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zoĭ",
+    span: [51,54],
+  },
+]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}}},{"Bare":{"span":[7,12],"phonemes":"binxo","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[13,15],"phonemes":"zo","kind":"cmavo"},"word":{"span":[16,19],"phonemes":"caĭ","kind":"cmavo"}}},{"Bare":{"span":[20,24],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"binxo","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[33,36],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[36,38],"phonemes":"ly","kind":"cmavo"},"quoted_text":[40,46],"closing_delimiter":{"span":[47,49],"phonemes":"ly","kind":"cmavo"}}},{"Bare":{"span":[51,54],"phonemes":"zoĭ","kind":"cmavo"}}]"""

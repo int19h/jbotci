@@ -58,6 +58,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(xy boĭ xi veĭ ny su'i pa ve'o)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "xy",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "boĭ",
+    span: [3,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xi",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "veĭ",
+    span: [9,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ny",
+    span: [13,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "su'i",
+    span: [17,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [22,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ve'o",
+    span: [26,30],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"veĭ","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"ve'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -65,20 +109,52 @@ tree = """
 Term {
   terms: [
     Letter {
-      letter: "xy",
+      letter: Word {
+        kind: "cmavo",
+        phonemes: "xy",
+        span: [0,2],
+      },
       boi: WithFreeModifiers {
-        "boĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "boĭ",
+          span: [3,6],
+        },
         free_modifiers: [
           Xi {
-            xi: "xi",
+            xi: Word {
+              kind: "cmavo",
+              phonemes: "xi",
+              span: [6,8],
+            },
             Vei {
-              vei: "veĭ",
-              Binary {
-                left_expression: "ny",
-                operator: "su'i",
-                right_expression: "pa",
+              vei: Word {
+                kind: "cmavo",
+                phonemes: "veĭ",
+                span: [9,12],
               },
-              veho: "ve'o",
+              Binary {
+                left_expression: Word {
+                  kind: "cmavo",
+                  phonemes: "ny",
+                  span: [13,15],
+                },
+                operator: Word {
+                  kind: "cmavo",
+                  phonemes: "su'i",
+                  span: [17,21],
+                },
+                right_expression: Word {
+                  kind: "cmavo",
+                  phonemes: "pa",
+                  span: [22,24],
+                },
+              },
+              veho: Word {
+                kind: "cmavo",
+                phonemes: "ve'o",
+                span: [26,30],
+              },
             },
           },
         ],

@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cacra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) })))))), relative_clauses: [], ku: None }) }], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ca'o pa cácra)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ca'o",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cacra",
+    span: [8,13],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cacra","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -39,12 +58,24 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: "ca'o",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ca'o",
+        span: [0,4],
+      },
       Descriptor {
         tail_elements: [
-          "pa",
+          Word {
+            kind: "cmavo",
+            phonemes: "pa",
+            span: [5,7],
+          },
         ],
-        relation: "cácra",
+        relation: Word {
+          kind: "gismu",
+          phonemes: "cacra",
+          span: [8,13],
+        },
       },
     },
   ],

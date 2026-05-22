@@ -47,4 +47,38 @@ status = "failure"
 error = { position = 2, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(prítu xánce .makes. mo re sénse)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "pritu",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xance",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "makes",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mo",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [20,22],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sense",
+    span: [23,28],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"pritu","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"xance","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"makes","kind":"cmevla"}},{"Bare":{"span":[18,20],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"sense","kind":"gismu"}}]'

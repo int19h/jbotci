@@ -27,6 +27,20 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "daf", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ki'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }), nai: None }], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(.daf. ki'a)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "daf",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'a",
+    span: [4,8],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"daf","kind":"cmevla"}},{"Bare":{"span":[4,8],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -34,8 +48,16 @@ tree = """
 Text {
   leading_cmevla: [
     WithIndicator {
-      ".daf.",
-      indicator: "ki'a",
+      Word {
+        kind: "cmevla",
+        phonemes: "daf",
+        span: [0,3],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ki'a",
+        span: [4,8],
+      },
     },
   ],
 }"""

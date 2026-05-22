@@ -48,21 +48,70 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Connected { leading_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 5, char_start: 4, char_end: 5, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ŭi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) })) }], free_modifiers: [] }, nai: None }, trailing_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) })))), free_modifiers: [] }) })], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(mi .e .ŭi naĭ do)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [4,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭi",
+    span: [7,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [10,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [14,16],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,5],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"do","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
-brackets = "(mi .e.ŭi-naĭ do)"
+brackets = "(mi [.e .ŭi naĭ] do)"
 tree = """
 Term {
   terms: [
     Connected {
-      leading_argument: "mi",
-      connective: WithIndicator {
-        ".e",
-        indicator: ".ŭi",
-        nai: "naĭ",
+      leading_argument: Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [0,2],
       },
-      trailing_argument: "do",
+      connective: WithIndicator {
+        Word {
+          kind: "cmavo",
+          phonemes: "e",
+          span: [4,5],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ŭi",
+          span: [7,9],
+        },
+        nai: Word {
+          kind: "cmavo",
+          phonemes: "naĭ",
+          span: [10,13],
+        },
+      },
+      trailing_argument: Word {
+        kind: "cmavo",
+        phonemes: "do",
+        span: [14,16],
+      },
     },
   ],
 }"""

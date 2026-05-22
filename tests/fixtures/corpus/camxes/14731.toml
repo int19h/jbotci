@@ -34,6 +34,27 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zo(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }), word: Word(WordData { kind: Cmavo, phonemes: "pi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }) })), indicator: Word(WordData { kind: Cmavo, phonemes: "ki'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None }) }), nai: None }, free_modifiers: [] })))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "([zo pi] ki'a)"
+tree = """
+[
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [0,2],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "pi",
+      span: [3,5],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'a",
+    span: [6,10],
+  },
+]"""
 json = """[{"ZoQuote":{"zo":{"span":[0,2],"phonemes":"zo","kind":"cmavo"},"word":{"span":[3,5],"phonemes":"pi","kind":"cmavo"}}},{"Bare":{"span":[6,10],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -41,8 +62,23 @@ tree = """
 Term {
   terms: [
     WithIndicator {
-      "zo-«pi»",
-      indicator: "ki'a",
+      ZoQuote {
+        zo: Word {
+          kind: "cmavo",
+          phonemes: "zo",
+          span: [0,2],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "pi",
+          span: [3,5],
+        },
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ki'a",
+        span: [6,10],
+      },
     },
   ],
 }"""

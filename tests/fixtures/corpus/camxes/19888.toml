@@ -37,24 +37,64 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ti'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nanca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ti'e mu no nánca)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ti'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [7,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nanca",
+    span: [10,15],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ti'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"nanca","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "ti'e",
+    Word {
+      kind: "cmavo",
+      phonemes: "ti'e",
+      span: [0,4],
+    },
   ],
   Term {
     terms: [
       Descriptor {
         tail_elements: [
           WithFreeModifiers {
-            "mu",
-            "no",
+            Word {
+              kind: "cmavo",
+              phonemes: "mu",
+              span: [5,7],
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "no",
+              span: [7,9],
+            },
           },
         ],
-        relation: "nánca",
+        relation: Word {
+          kind: "gismu",
+          phonemes: "nanca",
+          span: [10,15],
+        },
       },
     ],
   },

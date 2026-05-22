@@ -42,23 +42,72 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nirna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "vlipa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 17, char_start: 16, char_end: 17, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ĭe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: None }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(xu nírna vlípa .i .ĭe)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nirna",
+    span: [3,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "vlipa",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [16,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ĭe",
+    span: [19,21],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nirna","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"vlipa","kind":"gismu"}},{"Bare":{"span":[16,17],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ĭe","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "xu",
+    Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [0,2],
+    },
   ],
   Paragraph {
     Compound {
-      "nírna",
-      "vlípa",
+      Word {
+        kind: "gismu",
+        phonemes: "nirna",
+        span: [3,8],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "vlipa",
+        span: [9,14],
+      },
     },
     ParagraphStatement {
       i: WithIndicator {
-        ".i",
-        indicator: ".ĭe",
+        Word {
+          kind: "cmavo",
+          phonemes: "i",
+          span: [16,17],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ĭe",
+          span: [19,21],
+        },
       },
     },
   },

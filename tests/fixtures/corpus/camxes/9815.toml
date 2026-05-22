@@ -45,4 +45,36 @@ status = "failure"
 error = { position = 2, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(.i .a [zoĭ zoĭ fracturer zoĭ])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "a",
+    span: [4,5],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [6,9],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [10,13],
+    },
+    quoted_text: [13,23],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [24,27],
+    },
+  },
+]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[4,5],"phonemes":"a","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[6,9],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[10,13],"phonemes":"zoĭ","kind":"cmavo"},"quoted_text":[13,23],"closing_delimiter":{"span":[24,27],"phonemes":"zoĭ","kind":"cmavo"}}}]'

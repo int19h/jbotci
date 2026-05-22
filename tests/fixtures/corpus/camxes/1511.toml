@@ -82,46 +82,167 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nelci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))))), terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "djan", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) }))))], free_modifiers: [] } })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [PredicateTailContinuationSyntax { connective: PredicateTail { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 23, char_start: 19, char_end: 23, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, tense_modal: None, cu: None, predicate_tail: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nelci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) }))))), terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 32, char_start: 30, char_end: 32, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "martas", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 33, byte_end: 39, char_start: 33, char_end: 39, start: None, end: None }) }))))], free_modifiers: [] } })], vau: None, free_modifiers: [] }, bo_continuation: Some(BoPredicateTailSyntax { connective: PredicateTail { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gi'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 41, byte_end: 45, char_start: 41, char_end: 45, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, tense_modal: None, bo: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "bo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 45, byte_end: 47, char_start: 45, char_end: 47, start: None, end: None }) })))), free_modifiers: [] }, cu: None, predicate_tail: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nelci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 48, byte_end: 53, char_start: 48, char_end: 53, start: None, end: None }) }))))), terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 54, byte_end: 56, char_start: 54, char_end: 56, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "meris", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 57, byte_end: 62, char_start: 57, char_end: 62, start: None, end: None }) }))))], free_modifiers: [] } })], vau: None, free_modifiers: [] }, bo_continuation: None }, tail_terms: [], vau: None, free_modifiers: [] }) }, tail_terms: [], vau: None, free_modifiers: [] }] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(mi nélci la .djan. gi'e nélci la .martas. gi'a bo nélci la .meris.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nelci",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "djan",
+    span: [12,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi'e",
+    span: [19,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nelci",
+    span: [24,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [30,32],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "martas",
+    span: [33,39],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi'a",
+    span: [41,45],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "bo",
+    span: [45,47],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nelci",
+    span: [48,53],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [54,56],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "meris",
+    span: [57,62],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[19,23],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[33,39],"phonemes":"martas","kind":"cmevla"}},{"Bare":{"span":[41,45],"phonemes":"gi'a","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[48,53],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[54,56],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[57,62],"phonemes":"meris","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
   PredicateTail1 {
     Relation {
-      "nélci",
+      Word {
+        kind: "gismu",
+        phonemes: "nelci",
+        span: [3,8],
+      },
       terms: [
         Name {
-          la: "la",
-          names: ".djan.",
+          la: Word {
+            kind: "cmavo",
+            phonemes: "la",
+            span: [9,11],
+          },
+          names: Word {
+            kind: "cmevla",
+            phonemes: "djan",
+            span: [12,16],
+          },
         },
       ],
     },
     continuations: [
       PredicateTailContinuation {
-        connective: "gi'e",
+        connective: Word {
+          kind: "cmavo",
+          phonemes: "gi'e",
+          span: [19,23],
+        },
         PredicateTail2 {
           Relation {
-            "nélci",
+            Word {
+              kind: "gismu",
+              phonemes: "nelci",
+              span: [24,29],
+            },
             terms: [
               Name {
-                la: "la",
-                names: ".martas.",
+                la: Word {
+                  kind: "cmavo",
+                  phonemes: "la",
+                  span: [30,32],
+                },
+                names: Word {
+                  kind: "cmevla",
+                  phonemes: "martas",
+                  span: [33,39],
+                },
               },
             ],
           },
           bo_continuation: BoPredicateTail {
-            connective: "gi'a",
-            bo: "bo",
+            connective: Word {
+              kind: "cmavo",
+              phonemes: "gi'a",
+              span: [41,45],
+            },
+            bo: Word {
+              kind: "cmavo",
+              phonemes: "bo",
+              span: [45,47],
+            },
             Relation {
-              "nélci",
+              Word {
+                kind: "gismu",
+                phonemes: "nelci",
+                span: [48,53],
+              },
               terms: [
                 Name {
-                  la: "la",
-                  names: ".meris.",
+                  la: Word {
+                    kind: "cmavo",
+                    phonemes: "la",
+                    span: [54,56],
+                  },
+                  names: Word {
+                    kind: "cmevla",
+                    phonemes: "meris",
+                    span: [57,62],
+                  },
                 },
               ],
             },

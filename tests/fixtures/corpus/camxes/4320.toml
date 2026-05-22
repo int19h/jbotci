@@ -47,26 +47,84 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "pensi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))))) }, terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 18, char_start: 15, char_end: 18, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "ceĭn", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 23, char_start: 19, char_end: 23, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }] }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(ma se pénsi do doĭ .ceĭn.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pensi",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [15,18],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "ceĭn",
+    span: [19,23],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pensi","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"ceĭn","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "ma",
+    Word {
+      kind: "cmavo",
+      phonemes: "ma",
+      span: [0,2],
+    },
   ],
   Relation {
     Se {
-      se: "se",
-      "pénsi",
+      se: Word {
+        kind: "cmavo",
+        phonemes: "se",
+        span: [3,5],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "pensi",
+        span: [6,11],
+      },
     },
     terms: [
       WithFreeModifiers {
-        "do",
+        Word {
+          kind: "cmavo",
+          phonemes: "do",
+          span: [12,14],
+        },
         free_modifiers: [
           Vocative {
-            vocative_markers: "doĭ",
-            argument: ".ceĭn.",
+            vocative_markers: Word {
+              kind: "cmavo",
+              phonemes: "doĭ",
+              span: [15,18],
+            },
+            argument: Word {
+              kind: "cmevla",
+              phonemes: "ceĭn",
+              span: [19,23],
+            },
           },
         ],
       },

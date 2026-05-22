@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Connected { leading_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 5, char_start: 4, char_end: 5, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_argument: Koha(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ki'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 13, char_start: 9, char_end: 13, start: None, end: None }) }), nai: None }, free_modifiers: [] }) })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ma .e ma ki'a)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [4,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'a",
+    span: [9,13],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[4,5],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -44,11 +68,27 @@ tree = """
 Term {
   terms: [
     Connected {
-      leading_argument: "ma",
-      connective: ".e",
+      leading_argument: Word {
+        kind: "cmavo",
+        phonemes: "ma",
+        span: [0,2],
+      },
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "e",
+        span: [4,5],
+      },
       trailing_argument: WithIndicator {
-        "ma",
-        indicator: "ki'a",
+        Word {
+          kind: "cmavo",
+          phonemes: "ma",
+          span: [6,8],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ki'a",
+          span: [9,13],
+        },
       },
     },
   ],

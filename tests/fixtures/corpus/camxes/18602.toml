@@ -22,6 +22,15 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "ju'i"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ju'i",
+    span: [0,4],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -29,7 +38,11 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "ju'i",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "ju'i",
+        span: [0,4],
+      },
     },
   ],
 }"""

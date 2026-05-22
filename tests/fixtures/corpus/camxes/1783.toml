@@ -27,6 +27,20 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Mai { number: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ro", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], mai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "maĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 5, char_start: 2, char_end: 5, start: None, end: None }) })))), free_modifiers: [] } }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(ro maĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "maĭ",
+    span: [2,5],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"maĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -35,9 +49,17 @@ Text {
   leading_free_modifiers: [
     Mai {
       number: [
-        "ro",
+        Word {
+          kind: "cmavo",
+          phonemes: "ro",
+          span: [0,2],
+        },
       ],
-      mai: "maĭ",
+      mai: Word {
+        kind: "cmavo",
+        phonemes: "maĭ",
+        span: [2,5],
+      },
     },
   ],
 }"""

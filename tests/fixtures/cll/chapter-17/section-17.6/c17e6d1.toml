@@ -96,24 +96,165 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "teĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }) })), Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "akut", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) }) })), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "foĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 21, char_start: 18, char_end: 21, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ty", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "teĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 29, char_start: 26, char_end: 29, start: None, end: None }) })))), Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "akut", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 35, char_start: 31, char_end: 35, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 38, char_start: 36, char_end: 38, start: None, end: None }) }) })), Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 41, char_start: 40, char_end: 41, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 41, byte_end: 43, char_start: 41, char_end: 43, start: None, end: None }) }) })), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "foĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 47, char_start: 44, char_end: 47, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(teĭ [.e bu] [.akut. bu] foĭ ty teĭ [.akut. bu] [.e bu] foĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "teĭ",
+    span: [0,3],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "e",
+      span: [5,6],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [6,8],
+    },
+  },
+  Letter {
+    Word {
+      kind: "cmevla",
+      phonemes: "akut",
+      span: [10,14],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [15,17],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "foĭ",
+    span: [18,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ty",
+    span: [22,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "teĭ",
+    span: [26,29],
+  },
+  Letter {
+    Word {
+      kind: "cmevla",
+      phonemes: "akut",
+      span: [31,35],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [36,38],
+    },
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "e",
+      span: [40,41],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [41,43],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "foĭ",
+    span: [44,47],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"teĭ","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[5,6],"phonemes":"e","kind":"cmavo"}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}},{"Letter":{"base":{"Bare":{"span":[10,14],"phonemes":"akut","kind":"cmevla"}},"bu":{"span":[15,17],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[18,21],"phonemes":"foĭ","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"ty","kind":"cmavo"}},{"Bare":{"span":[26,29],"phonemes":"teĭ","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[31,35],"phonemes":"akut","kind":"cmevla"}},"bu":{"span":[36,38],"phonemes":"bu","kind":"cmavo"}}},{"Letter":{"base":{"Bare":{"span":[40,41],"phonemes":"e","kind":"cmavo"}},"bu":{"span":[41,43],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[44,47],"phonemes":"foĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
-brackets = "(teĭ .e-bu .akut.bu foĭ ty teĭ .akut.bu .e-bu foĭ)"
+brackets = "(teĭ [.e bu] [.akut. bu] foĭ ty teĭ [.akut. bu] [.e bu] foĭ)"
 tree = """
 Term {
   terms: [
     Letter {
       letter: WithFreeModifiers {
-        "teĭ",
-        ".e-bu",
-        ".akut.bu",
-        "foĭ",
-        "ty",
-        "teĭ",
-        ".akut.bu",
-        ".e-bu",
-        "foĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "teĭ",
+          span: [0,3],
+        },
+        Letter {
+          Word {
+            kind: "cmavo",
+            phonemes: "e",
+            span: [5,6],
+          },
+          bu: Word {
+            kind: "cmavo",
+            phonemes: "bu",
+            span: [6,8],
+          },
+        },
+        Letter {
+          Word {
+            kind: "cmevla",
+            phonemes: "akut",
+            span: [10,14],
+          },
+          bu: Word {
+            kind: "cmavo",
+            phonemes: "bu",
+            span: [15,17],
+          },
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "foĭ",
+          span: [18,21],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "ty",
+          span: [22,24],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "teĭ",
+          span: [26,29],
+        },
+        Letter {
+          Word {
+            kind: "cmevla",
+            phonemes: "akut",
+            span: [31,35],
+          },
+          bu: Word {
+            kind: "cmavo",
+            phonemes: "bu",
+            span: [36,38],
+          },
+        },
+        Letter {
+          Word {
+            kind: "cmavo",
+            phonemes: "e",
+            span: [40,41],
+          },
+          bu: Word {
+            kind: "cmavo",
+            phonemes: "bu",
+            span: [41,43],
+          },
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "foĭ",
+          span: [44,47],
+        },
       },
     },
   ],

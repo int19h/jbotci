@@ -53,6 +53,40 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "mon", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "repós", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) }))))], free_modifiers: [] } })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zdani", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 22, char_start: 17, char_end: 22, start: None, end: None }) }))))), terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "spat", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 30, char_start: 26, char_end: 30, start: None, end: None }) }))))], free_modifiers: [] } })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(la .mon. .repos. zdáni la .spat.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "mon",
+    span: [4,7],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "repós",
+    span: [10,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zdani",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [23,25],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "spat",
+    span: [26,30],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"mon","kind":"cmevla"}},{"Bare":{"span":[10,15],"phonemes":"repós","kind":"cmevla"}},{"Bare":{"span":[17,22],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"spat","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
@@ -61,19 +95,43 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: "la",
+      la: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [0,2],
+      },
       names: WithFreeModifiers {
-        ".mon.",
-        ".repos.",
+        Word {
+          kind: "cmevla",
+          phonemes: "mon",
+          span: [4,7],
+        },
+        Word {
+          kind: "cmevla",
+          phonemes: "repós",
+          span: [10,15],
+        },
       },
     },
   ],
   Relation {
-    "zdáni",
+    Word {
+      kind: "gismu",
+      phonemes: "zdani",
+      span: [17,22],
+    },
     terms: [
       Name {
-        la: "la",
-        names: ".spat.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [23,25],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "spat",
+          span: [26,30],
+        },
       },
     ],
   },

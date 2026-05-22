@@ -27,6 +27,20 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "mursyti'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 14, char_start: 5, char_end: 14, start: None, end: None }) }))))), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(mi'e mursytí'u)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "mursyti'u",
+    span: [5,14],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'e","kind":"cmavo"}},{"Bare":{"span":[5,14],"phonemes":"mursyti'u","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
@@ -34,9 +48,17 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "mi'e",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "mi'e",
+        span: [0,4],
+      },
       argument: RelationVocative {
-        relation: "mursytí'u",
+        relation: Word {
+          kind: "lujvo",
+          phonemes: "mursyti'u",
+          span: [5,14],
+        },
       },
     },
   ],

@@ -32,16 +32,47 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "simsa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))), terms: [Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zi'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 13, char_start: 9, char_end: 13, start: None, end: None }) })))), free_modifiers: [] }), ku: None }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(símsa fi zi'o)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "simsa",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zi'o",
+    span: [9,13],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"simsa","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"zi'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  "símsa",
+  Word {
+    kind: "gismu",
+    phonemes: "simsa",
+    span: [0,5],
+  },
   terms: [
     Fa {
-      fa: "fi",
-      "zi'o",
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fi",
+        span: [6,8],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "zi'o",
+        span: [9,13],
+      },
     },
   ],
 }"""

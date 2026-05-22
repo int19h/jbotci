@@ -47,6 +47,40 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(MathExpression { li: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, expression: Connected { left_expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), connective: Interval { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ga'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "bi'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ke'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 20, char_start: 16, char_end: 20, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, right_expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }) }, loho: None })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(li no ga'o bi'o ke'i pa)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ga'o",
+    span: [6,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "bi'o",
+    span: [11,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke'i",
+    span: [16,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [21,23],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ga'o","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"bi'o","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"ke'i","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"pa","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -54,15 +88,39 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: "li",
+      li: Word {
+        kind: "cmavo",
+        phonemes: "li",
+        span: [0,2],
+      },
       Connected {
-        left_expression: "no",
-        connective: WithFreeModifiers {
-          "ga'o",
-          "bi'o",
-          "ke'i",
+        left_expression: Word {
+          kind: "cmavo",
+          phonemes: "no",
+          span: [3,5],
         },
-        right_expression: "pa",
+        connective: WithFreeModifiers {
+          Word {
+            kind: "cmavo",
+            phonemes: "ga'o",
+            span: [6,10],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "bi'o",
+            span: [11,15],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "ke'i",
+            span: [16,20],
+          },
+        },
+        right_expression: Word {
+          kind: "cmavo",
+          phonemes: "pa",
+          span: [21,23],
+        },
       },
     },
   ],

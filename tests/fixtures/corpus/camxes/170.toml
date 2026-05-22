@@ -52,4 +52,43 @@ status = "failure"
 error = { position = 5, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(le bróda ku bróde co le bródi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "broda",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brode",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "co",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [33,35],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brodi",
+    span: [36,41],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"brode","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"brodi","kind":"gismu"}}]'

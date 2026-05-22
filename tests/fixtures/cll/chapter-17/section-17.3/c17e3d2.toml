@@ -67,21 +67,107 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }) })), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ga'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "vy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 16, char_start: 15, char_end: 16, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None }) }) })), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ny", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 27, char_start: 23, char_end: 27, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "([.i bu] ga'e vy [.a bu] ny to'a)"
+tree = """
+[
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [1,2],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [2,4],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ga'e",
+    span: [5,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vy",
+    span: [10,12],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "a",
+      span: [15,16],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [16,18],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ny",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "to'a",
+    span: [23,27],
+  },
+]"""
 json = """[{"Letter":{"base":{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},"bu":{"span":[2,4],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[5,9],"phonemes":"ga'e","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"vy","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[15,16],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[16,18],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[19,21],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"to'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
-brackets = "(.i-bu ga'e vy .a-bu ny to'a)"
+brackets = "([.i bu] ga'e vy [.a bu] ny to'a)"
 tree = """
 Term {
   terms: [
     Letter {
       letter: WithFreeModifiers {
-        ".i-bu",
-        "ga'e",
-        "vy",
-        ".a-bu",
-        "ny",
-        "to'a",
+        Letter {
+          Word {
+            kind: "cmavo",
+            phonemes: "i",
+            span: [1,2],
+          },
+          bu: Word {
+            kind: "cmavo",
+            phonemes: "bu",
+            span: [2,4],
+          },
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "ga'e",
+          span: [5,9],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "vy",
+          span: [10,12],
+        },
+        Letter {
+          Word {
+            kind: "cmavo",
+            phonemes: "a",
+            span: [15,16],
+          },
+          bu: Word {
+            kind: "cmavo",
+            phonemes: "bu",
+            span: [16,18],
+          },
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "ny",
+          span: [19,21],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "to'a",
+          span: [23,27],
+        },
       },
     },
   ],

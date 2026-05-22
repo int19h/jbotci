@@ -47,6 +47,40 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zo'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ju'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "cu'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 13, char_start: 9, char_end: 13, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Na { na: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cinmo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 25, char_start: 20, char_end: 25, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(zo'o ju'o cu'i mi na cínmo)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'o",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ju'o",
+    span: [5,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu'i",
+    span: [9,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [14,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cinmo",
+    span: [20,25],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"cu'i","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"cinmo","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -55,19 +89,43 @@ Text {
   leading_indicators: [
     WithIndicator {
       WithIndicator {
-        "zo'o",
-        indicator: "ju'o",
+        Word {
+          kind: "cmavo",
+          phonemes: "zo'o",
+          span: [0,4],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ju'o",
+          span: [5,9],
+        },
       },
-      indicator: "cu'i",
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "cu'i",
+        span: [9,13],
+      },
     },
   ],
   Predicate {
     leading_terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [14,16],
+      },
     ],
     Na {
-      na: "na",
-      "cínmo",
+      na: Word {
+        kind: "cmavo",
+        phonemes: "na",
+        span: [17,19],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "cinmo",
+        span: [20,25],
+      },
     },
   },
 }"""

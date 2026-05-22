@@ -37,20 +37,60 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "ciska", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))), terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }), bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ra'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), argument: Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "by", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) }))))], free_modifiers: [] }, boi: None } }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(císka se ra'a by)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "ciska",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ra'a",
+    span: [8,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "by",
+    span: [13,15],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"ciska","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ra'a","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"by","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  "císka",
+  Word {
+    kind: "gismu",
+    phonemes: "ciska",
+    span: [0,5],
+  },
   terms: [
     Tagged {
       tense_modal: Simple {
-        se: "se",
-        bai: "ra'a",
+        se: Word {
+          kind: "cmavo",
+          phonemes: "se",
+          span: [6,8],
+        },
+        bai: Word {
+          kind: "cmavo",
+          phonemes: "ra'a",
+          span: [8,12],
+        },
       },
       Letter {
-        letter: "by",
+        letter: Word {
+          kind: "cmavo",
+          phonemes: "by",
+          span: [13,15],
+        },
       },
     },
   ],

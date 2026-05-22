@@ -43,6 +43,35 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(la bróda be le bródo)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "broda",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [12,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brodo",
+    span: [33,38],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"brodo","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -50,13 +79,33 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "la",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [0,2],
+      },
       relation: Be {
-        "bróda",
-        be: "be",
+        Word {
+          kind: "gismu",
+          phonemes: "broda",
+          span: [3,8],
+        },
+        be: Word {
+          kind: "cmavo",
+          phonemes: "be",
+          span: [9,11],
+        },
         first_argument: Descriptor {
-          descriptor: "le",
-          relation: "bródo",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [12,14],
+          },
+          relation: Word {
+            kind: "gismu",
+            phonemes: "brodo",
+            span: [33,38],
+          },
         },
       },
     },

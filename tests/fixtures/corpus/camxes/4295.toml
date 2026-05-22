@@ -47,4 +47,38 @@ status = "failure"
 error = { position = 5, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(rísna súrla .e rísna na súrla)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "risna",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "surla",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [13,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "risna",
+    span: [15,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [21,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "surla",
+    span: [24,29],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"risna","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"surla","kind":"gismu"}},{"Bare":{"span":[13,14],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"risna","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"surla","kind":"gismu"}}]'

@@ -62,6 +62,55 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "vi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }) }, Argument(MathExpression { li: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "so", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 22, char_start: 20, char_end: 22, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), loho: None })], cu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None }) })))), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tcika", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 31, char_start: 26, char_end: 31, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(vi mi li pa pi'e re so cu tcíka)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "vi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pi'e",
+    span: [12,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [17,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "so",
+    span: [20,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tcika",
+    span: [26,31],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"pi'e","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"so","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"tcika","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -69,20 +118,56 @@ tree = """
 Predicate {
   leading_terms: [
     Tagged {
-      tense_modal: "vi",
-      "mi",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "vi",
+        span: [0,2],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [3,5],
+      },
     },
     MathExpression {
-      li: "li",
+      li: Word {
+        kind: "cmavo",
+        phonemes: "li",
+        span: [6,8],
+      },
       WithFreeModifiers {
-        "pa",
-        "pi'e",
-        "re",
-        "so",
+        Word {
+          kind: "cmavo",
+          phonemes: "pa",
+          span: [9,11],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "pi'e",
+          span: [12,16],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "re",
+          span: [17,19],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "so",
+          span: [20,22],
+        },
       },
     },
   ],
-  cu: "cu",
-  "tcíka",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tcika",
+    span: [26,31],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}}}}]}},"argument":{"Koha":{"Bare":{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}}}}}},{"Argument":{"MathExpression":{"li":{"Bare":{"Bare":{"span":[6,8],"phonemes":"li","kind":"cmavo"}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"pa","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[12,16],"phonemes":"pi'e","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[17,19],"phonemes":"re","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[20,22],"phonemes":"so","kind":"cmavo"}}}]}}}}}}],"cu":{"Bare":{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[26,31],"phonemes":"tcika","kind":"gismu"}}}}}}}}}}}]}]}"""

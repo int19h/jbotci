@@ -58,6 +58,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le mlátu na mu'o pínxe le ri ládru)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mlatu",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu'o",
+    span: [12,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pinxe",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [23,25],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ri",
+    span: [26,28],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ladru",
+    span: [29,34],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"mlatu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"mu'o","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"pinxe","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"ladru","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -65,26 +109,58 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
-      relation: "mlátu",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "mlatu",
+        span: [3,8],
+      },
     },
     WithFreeModifiers {
-      "na",
+      Word {
+        kind: "cmavo",
+        phonemes: "na",
+        span: [9,11],
+      },
       free_modifiers: [
         Vocative {
-          vocative_markers: "mu'o",
+          vocative_markers: Word {
+            kind: "cmavo",
+            phonemes: "mu'o",
+            span: [12,16],
+          },
           argument: RelationVocative {
-            relation: "pínxe",
+            relation: Word {
+              kind: "gismu",
+              phonemes: "pinxe",
+              span: [17,22],
+            },
           },
         },
       ],
     },
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [23,25],
+      },
       tail_elements: [
-        "ri",
+        Word {
+          kind: "cmavo",
+          phonemes: "ri",
+          span: [26,28],
+        },
       ],
-      relation: "ládru",
+      relation: Word {
+        kind: "gismu",
+        phonemes: "ladru",
+        span: [29,34],
+      },
     },
   ],
 }"""

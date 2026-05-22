@@ -42,20 +42,69 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "norkalri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }), Ke { ke_tense_modal: None, ke: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ke", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }, relation: Compound([Word(WithFreeModifiers { value: Emphasized { bahe: Word(WordData { kind: Cmavo, phonemes: "za'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) }), word_like: WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "kerzbigalxe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 28, char_start: 17, char_end: 28, start: None, end: None }) }))) }, free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tubnu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 29, byte_end: 34, char_start: 29, char_end: 34, start: None, end: None }) })))), free_modifiers: [] })]), kehe: None }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(norkálri ke za'e kerzbigálxe túbnu)"
+tree = """
+[
+  Word {
+    kind: "lujvo",
+    phonemes: "norkalri",
+    span: [0,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "za'e",
+    span: [12,16],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "kerzbigalxe",
+    span: [17,28],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tubnu",
+    span: [29,34],
+  },
+]"""
 json = """[{"Bare":{"span":[0,8],"phonemes":"norkalri","kind":"lujvo"}},{"Bare":{"span":[9,11],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"za'e","kind":"cmavo"}},{"Bare":{"span":[17,28],"phonemes":"kerzbigalxe","kind":"lujvo"}},{"Bare":{"span":[29,34],"phonemes":"tubnu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "norkálri",
+  Word {
+    kind: "lujvo",
+    phonemes: "norkalri",
+    span: [0,8],
+  },
   Ke {
-    ke: "ke",
+    ke: Word {
+      kind: "cmavo",
+      phonemes: "ke",
+      span: [9,11],
+    },
     Compound {
       Emphasized {
-        bahe: "za'e",
-        "kerzbigálxe",
+        bahe: Word {
+          kind: "cmavo",
+          phonemes: "za'e",
+          span: [12,16],
+        },
+        Word {
+          kind: "lujvo",
+          phonemes: "kerzbigalxe",
+          span: [17,28],
+        },
       },
-      "túbnu",
+      Word {
+        kind: "gismu",
+        phonemes: "tubnu",
+        span: [29,34],
+      },
     },
   },
 }"""

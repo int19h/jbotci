@@ -32,16 +32,47 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "xamgu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ki'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "rabn", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(xámgu ki'e .rabn.)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "xamgu",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'e",
+    span: [6,10],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "rabn",
+    span: [11,15],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"ki'e","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"rabn","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 WithFreeModifiers {
-  "xámgu",
+  Word {
+    kind: "gismu",
+    phonemes: "xamgu",
+    span: [0,5],
+  },
   free_modifiers: [
     Vocative {
-      vocative_markers: "ki'e",
-      argument: ".rabn.",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "ki'e",
+        span: [6,10],
+      },
+      argument: Word {
+        kind: "cmevla",
+        phonemes: "rabn",
+        span: [11,15],
+      },
     },
   ],
 }"""

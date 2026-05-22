@@ -62,6 +62,55 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nanmu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "batci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))), free_modifiers: [] })])), relative_clauses: [], ku: None })), Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "gerku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) })))))), relative_clauses: [], ku: None })), Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 28, char_start: 24, char_end: 28, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ne'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 29, byte_end: 33, char_start: 29, char_end: 33, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 34, byte_end: 36, char_start: 34, char_end: 36, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "kumfa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 37, byte_end: 42, char_start: 37, char_end: 42, start: None, end: None }) })))))), relative_clauses: [], ku: None }) }], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(le nánmu bátci le gérku to'e ne'i le kúmfa)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nanmu",
+    span: [3,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "batci",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [15,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gerku",
+    span: [18,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "to'e",
+    span: [24,28],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ne'i",
+    span: [29,33],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [34,36],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kumfa",
+    span: [37,42],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"batci","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[24,28],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"ne'i","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"kumfa","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -69,24 +118,60 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
       relation: Compound {
-        "nánmu",
-        "bátci",
+        Word {
+          kind: "gismu",
+          phonemes: "nanmu",
+          span: [3,8],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "batci",
+          span: [9,14],
+        },
       },
     },
     Descriptor {
-      descriptor: "le",
-      relation: "gérku",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [15,17],
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "gerku",
+        span: [18,23],
+      },
     },
     Tagged {
       tense_modal: WithFreeModifiers {
-        "to'e",
-        "ne'i",
+        Word {
+          kind: "cmavo",
+          phonemes: "to'e",
+          span: [24,28],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "ne'i",
+          span: [29,33],
+        },
       },
       Descriptor {
-        descriptor: "le",
-        relation: "kúmfa",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [34,36],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "kumfa",
+          span: [37,42],
+        },
       },
     },
   ],

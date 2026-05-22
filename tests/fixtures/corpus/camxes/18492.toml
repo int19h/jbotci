@@ -37,20 +37,60 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Nahe { nahe: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, inner_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "jundi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }) }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 13, char_start: 12, char_end: 13, start: None, end: None }) }))))), connective: None, free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], statement: None }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(to'e júndi .i co'o)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "to'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jundi",
+    span: [5,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [12,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "co'o",
+    span: [14,18],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"jundi","kind":"gismu"}},{"Bare":{"span":[12,13],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"co'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
   Nahe {
-    nahe: "to'e",
-    "júndi",
+    nahe: Word {
+      kind: "cmavo",
+      phonemes: "to'e",
+      span: [0,4],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "jundi",
+      span: [5,10],
+    },
   },
   ParagraphStatement {
-    i: ".i",
+    i: Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [12,13],
+    },
     free_modifiers: [
       Vocative {
-        vocative_markers: "co'o",
+        vocative_markers: Word {
+          kind: "cmavo",
+          phonemes: "co'o",
+          span: [14,18],
+        },
       },
     ],
   },

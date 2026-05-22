@@ -32,6 +32,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Mai { number: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], mai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "maĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 5, char_start: 2, char_end: 5, start: None, end: None }) })))), free_modifiers: [] } }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cpacu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(pa maĭ cpácu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "maĭ",
+    span: [2,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cpacu",
+    span: [6,11],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"maĭ","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cpacu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -40,11 +59,23 @@ Text {
   leading_free_modifiers: [
     Mai {
       number: [
-        "pa",
+        Word {
+          kind: "cmavo",
+          phonemes: "pa",
+          span: [0,2],
+        },
       ],
-      mai: "maĭ",
+      mai: Word {
+        kind: "cmavo",
+        phonemes: "maĭ",
+        span: [2,5],
+      },
     },
   ],
-  "cpácu",
+  Word {
+    kind: "gismu",
+    phonemes: "cpacu",
+    span: [6,11],
+  },
 }"""
 json = '{"leading_free_modifiers":[{"Mai":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}}}],"mai":{"Bare":{"Bare":{"span":[2,5],"phonemes":"maĭ","kind":"cmavo"}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"cpacu","kind":"gismu"}}}}}}}}}}}]}]}'

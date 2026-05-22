@@ -43,6 +43,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None }) })))), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) })) }), Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 11, char_start: 7, char_end: 11, start: None, end: None }) })))), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 14, char_start: 11, char_end: 14, start: None, end: None }) })) })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(.e'e naĭ se'a naĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "e'e",
+    span: [1,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [4,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se'a",
+    span: [7,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [11,14],
+  },
+]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"e'e","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"se'a","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -51,12 +75,28 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      ".e'e",
-      nai: "naĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "e'e",
+        span: [1,4],
+      },
+      nai: Word {
+        kind: "cmavo",
+        phonemes: "naĭ",
+        span: [4,7],
+      },
     },
     Indicator {
-      "se'a",
-      nai: "naĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "se'a",
+        span: [7,11],
+      },
+      nai: Word {
+        kind: "cmavo",
+        phonemes: "naĭ",
+        span: [11,14],
+      },
     },
   ],
 }"""

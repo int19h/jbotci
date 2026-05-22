@@ -43,6 +43,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(veĭ ny ve'o lo prénu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "veĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ny",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ve'o",
+    span: [9,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [15,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "prenu",
+    span: [18,23],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"veĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ve'o","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"prenu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -50,13 +79,33 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "lo",
-      outer_quantifier: Vei {
-        vei: "veĭ",
-        "ny",
-        veho: "ve'o",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "lo",
+        span: [15,17],
       },
-      relation: "prénu",
+      outer_quantifier: Vei {
+        vei: Word {
+          kind: "cmavo",
+          phonemes: "veĭ",
+          span: [0,3],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "ny",
+          span: [4,6],
+        },
+        veho: Word {
+          kind: "cmavo",
+          phonemes: "ve'o",
+          span: [9,13],
+        },
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "prenu",
+        span: [18,23],
+      },
     },
   ],
 }"""

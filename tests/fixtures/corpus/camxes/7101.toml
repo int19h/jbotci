@@ -37,20 +37,60 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "vlipa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "lidvru", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 12, char_start: 6, char_end: 12, start: None, end: None }) })))), free_modifiers: [] })]), terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }), free_modifiers: [] } }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(vlípa lídvru ca ku)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "vlipa",
+    span: [0,5],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "lidvru",
+    span: [6,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [13,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [15,17],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"vlipa","kind":"gismu"}},{"Bare":{"span":[6,12],"phonemes":"lidvru","kind":"lujvo"}},{"Bare":{"span":[13,15],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"ku","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
   Compound {
-    "vlípa",
-    "lídvru",
+    Word {
+      kind: "gismu",
+      phonemes: "vlipa",
+      span: [0,5],
+    },
+    Word {
+      kind: "lujvo",
+      phonemes: "lidvru",
+      span: [6,12],
+    },
   },
   terms: [
     Tagged {
-      tense_modal: "ca",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ca",
+        span: [13,15],
+      },
       Zohe {
-        maybe_ku: "ku",
+        maybe_ku: Word {
+          kind: "cmavo",
+          phonemes: "ku",
+          span: [15,17],
+        },
       },
     },
   ],

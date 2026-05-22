@@ -37,22 +37,62 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ĭe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "partitas", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 15, char_start: 7, char_end: 15, start: None, end: None }) }))))], free_modifiers: [] } })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "kukte", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(.ĭe la .partitas. kúkte)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ĭe",
+    span: [1,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "partitas",
+    span: [7,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kukte",
+    span: [16,21],
+  },
+]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"ĭe","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[7,15],"phonemes":"partitas","kind":"cmevla"}},{"Bare":{"span":[16,21],"phonemes":"kukte","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    ".ĭe",
+    Word {
+      kind: "cmavo",
+      phonemes: "ĭe",
+      span: [1,3],
+    },
   ],
   Predicate {
     leading_terms: [
       Name {
-        la: "la",
-        names: ".partitas.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [4,6],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "partitas",
+          span: [7,15],
+        },
       },
     ],
-    "kúkte",
+    Word {
+      kind: "gismu",
+      phonemes: "kukte",
+      span: [16,21],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[4,6],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[7,15],"phonemes":"partitas","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[16,21],"phonemes":"kukte","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ĭe","kind":"cmavo"}}}}]}'

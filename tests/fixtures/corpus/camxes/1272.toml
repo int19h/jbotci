@@ -53,27 +53,94 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi cu na ca kláma le zárci)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [11,13],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [14,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [20,22],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zarci",
+    span: [23,28],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"zarci","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [4,6],
+  },
   Relation {
     Na {
-      na: "na",
+      na: Word {
+        kind: "cmavo",
+        phonemes: "na",
+        span: [8,10],
+      },
       TenseModal {
-        tense_modal: "ca",
-        "kláma",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "ca",
+          span: [11,13],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "klama",
+          span: [14,19],
+        },
       },
     },
     terms: [
       Descriptor {
-        descriptor: "le",
-        relation: "zárci",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [20,22],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "zarci",
+          span: [23,28],
+        },
       },
     ],
   },

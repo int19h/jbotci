@@ -58,27 +58,103 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi víska do fi'o kánla fe'u le zúnle)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "viska",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi'o",
+    span: [12,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kanla",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fe'u",
+    span: [24,28],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [30,32],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zunle",
+    span: [33,38],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"fi'o","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"kanla","kind":"gismu"}},{"Bare":{"span":[24,28],"phonemes":"fe'u","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"zunle","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
   Relation {
-    "víska",
+    Word {
+      kind: "gismu",
+      phonemes: "viska",
+      span: [3,8],
+    },
     terms: [
-      "do",
+      Word {
+        kind: "cmavo",
+        phonemes: "do",
+        span: [9,11],
+      },
       Tagged {
         tense_modal: Fiho {
-          fiho: "fi'o",
-          "kánla",
-          fehu: "fe'u",
+          fiho: Word {
+            kind: "cmavo",
+            phonemes: "fi'o",
+            span: [12,16],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "kanla",
+            span: [17,22],
+          },
+          fehu: Word {
+            kind: "cmavo",
+            phonemes: "fe'u",
+            span: [24,28],
+          },
         },
         Descriptor {
-          descriptor: "le",
-          relation: "zúnle",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [30,32],
+          },
+          relation: Word {
+            kind: "gismu",
+            phonemes: "zunle",
+            span: [33,38],
+          },
         },
       },
     ],

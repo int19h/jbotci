@@ -97,6 +97,85 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None }) })) })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nakni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 23, char_start: 22, char_end: 23, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Prenex { prenex_terms: [NaKu { na: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None }) })))), na_ku: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 29, char_start: 27, char_end: 29, start: None, end: None }) })))), free_modifiers: [] } }, Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ka'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 34, char_start: 30, char_end: 34, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 35, byte_end: 37, char_start: 35, char_end: 37, start: None, end: None }) })))), free_modifiers: [] }), free_modifiers: [] } }], zohu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 38, byte_end: 42, char_start: 38, char_end: 42, start: None, end: None }) })))), free_modifiers: [] }, inner_statement: Predicate(PredicateSyntax { leading_terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 43, byte_end: 45, char_start: 43, char_end: 45, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 46, byte_end: 48, char_start: 46, char_end: 48, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sidju", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 49, byte_end: 54, char_start: 49, char_end: 54, start: None, end: None }) }))))), terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 55, byte_end: 57, char_start: 55, char_end: 57, start: None, end: None }) })))), free_modifiers: [] }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }) }) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ju'a naĭ cy no nákni .i na ku ka'e ku zo'u cy no sídju do)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ju'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [5,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cy",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [12,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nakni",
+    span: [15,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [22,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [24,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [27,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka'e",
+    span: [30,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [35,37],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'u",
+    span: [38,42],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cy",
+    span: [43,45],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [46,48],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sidju",
+    span: [49,54],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [55,57],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'a","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"nakni","kind":"gismu"}},{"Bare":{"span":[22,23],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[30,34],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[38,42],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"sidju","kind":"gismu"}},{"Bare":{"span":[55,57],"phonemes":"do","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -105,8 +184,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      "ju'a",
-      nai: "naĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "ju'a",
+        span: [0,4],
+      },
+      nai: Word {
+        kind: "cmavo",
+        phonemes: "naĭ",
+        span: [5,8],
+      },
     },
   ],
   Paragraph {
@@ -114,42 +201,94 @@ Text {
       leading_terms: [
         Letter {
           letter: WithFreeModifiers {
-            "cy",
-            "no",
+            Word {
+              kind: "cmavo",
+              phonemes: "cy",
+              span: [9,11],
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "no",
+              span: [12,14],
+            },
           },
         },
       ],
-      "nákni",
+      Word {
+        kind: "gismu",
+        phonemes: "nakni",
+        span: [15,20],
+      },
     },
     ParagraphStatement {
-      i: ".i",
+      i: Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [22,23],
+      },
       Prenex {
         prenex_terms: [
           NaKu {
-            na: "na",
-            na_ku: "ku",
+            na: Word {
+              kind: "cmavo",
+              phonemes: "na",
+              span: [24,26],
+            },
+            na_ku: Word {
+              kind: "cmavo",
+              phonemes: "ku",
+              span: [27,29],
+            },
           },
           Tagged {
-            tense_modal: "ka'e",
+            tense_modal: Word {
+              kind: "cmavo",
+              phonemes: "ka'e",
+              span: [30,34],
+            },
             Zohe {
-              maybe_ku: "ku",
+              maybe_ku: Word {
+                kind: "cmavo",
+                phonemes: "ku",
+                span: [35,37],
+              },
             },
           },
         ],
-        zohu: "zo'u",
+        zohu: Word {
+          kind: "cmavo",
+          phonemes: "zo'u",
+          span: [38,42],
+        },
         Predicate {
           leading_terms: [
             Letter {
               letter: WithFreeModifiers {
-                "cy",
-                "no",
+                Word {
+                  kind: "cmavo",
+                  phonemes: "cy",
+                  span: [43,45],
+                },
+                Word {
+                  kind: "cmavo",
+                  phonemes: "no",
+                  span: [46,48],
+                },
               },
             },
           ],
           Relation {
-            "sídju",
+            Word {
+              kind: "gismu",
+              phonemes: "sidju",
+              span: [49,54],
+            },
             terms: [
-              "do",
+              Word {
+                kind: "cmavo",
+                phonemes: "do",
+                span: [55,57],
+              },
             ],
           },
         },

@@ -62,33 +62,118 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "a'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zasti", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }), nai: None }, free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "mifra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))), free_modifiers: [] })]), terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "lojbo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sarji", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 33, char_start: 28, char_end: 33, start: None, end: None }) })))), free_modifiers: [] })])), relative_clauses: [], ku: None })), Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 34, byte_end: 36, char_start: 34, char_end: 36, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "emaks", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 37, byte_end: 42, char_start: 37, char_end: 42, start: None, end: None }) }))))], free_modifiers: [] } })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.a'u zásti xu mífra le lójbo sárji la .emaks.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "a'u",
+    span: [0,3],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zasti",
+    span: [4,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [10,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mifra",
+    span: [13,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [19,21],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lojbo",
+    span: [22,27],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sarji",
+    span: [28,33],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [34,36],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "emaks",
+    span: [37,42],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"a'u","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"zasti","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"mifra","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[28,33],"phonemes":"sarji","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"emaks","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    ".a'u",
+    Word {
+      kind: "cmavo",
+      phonemes: "a'u",
+      span: [0,3],
+    },
   ],
   Relation {
     Compound {
       WithIndicator {
-        "zásti",
-        indicator: "xu",
+        Word {
+          kind: "gismu",
+          phonemes: "zasti",
+          span: [4,9],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "xu",
+          span: [10,12],
+        },
       },
-      "mífra",
+      Word {
+        kind: "gismu",
+        phonemes: "mifra",
+        span: [13,18],
+      },
     },
     terms: [
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [19,21],
+        },
         relation: Compound {
-          "lójbo",
-          "sárji",
+          Word {
+            kind: "gismu",
+            phonemes: "lojbo",
+            span: [22,27],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "sarji",
+            span: [28,33],
+          },
         },
       },
       Name {
-        la: "la",
-        names: ".emaks.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [34,36],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "emaks",
+          span: [37,42],
+        },
       },
     ],
   },

@@ -42,6 +42,35 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "o'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "cu'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "djan", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) }))))], free_modifiers: [] } })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "klama", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.o'e cu'i la .djan. kláma)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "o'e",
+    span: [1,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu'i",
+    span: [4,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "djan",
+    span: [12,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [18,23],
+  },
+]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"o'e","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"cu'i","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[18,23],"phonemes":"klama","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -49,18 +78,38 @@ tree = """
 Text {
   leading_indicators: [
     WithIndicator {
-      ".o'e",
-      indicator: "cu'i",
+      Word {
+        kind: "cmavo",
+        phonemes: "o'e",
+        span: [1,4],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "cu'i",
+        span: [4,8],
+      },
     },
   ],
   Predicate {
     leading_terms: [
       Name {
-        la: "la",
-        names: ".djan.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [9,11],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "djan",
+          span: [12,16],
+        },
       },
     ],
-    "kláma",
+    Word {
+      kind: "gismu",
+      phonemes: "klama",
+      span: [18,23],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[12,16],"phonemes":"djan","kind":"cmevla"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[18,23],"phonemes":"klama","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,4],"phonemes":"o'e","kind":"cmavo"}}},"indicator":{"span":[4,8],"phonemes":"cu'i","kind":"cmavo"}}}}]}"""

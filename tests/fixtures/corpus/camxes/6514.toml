@@ -43,21 +43,70 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.i ku'i fáncu le ckúle)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [4,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku'i",
+    span: [6,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fancu",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ckule",
+    span: [20,25],
+  },
+]"""
 json = """[{"Bare":{"span":[4,5],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"fancu","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"ckule","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    ".i",
-    indicator: "ku'i",
+    Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [4,5],
+    },
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "ku'i",
+      span: [6,10],
+    },
   },
   Relation {
-    "fáncu",
+    Word {
+      kind: "gismu",
+      phonemes: "fancu",
+      span: [11,16],
+    },
     terms: [
       Descriptor {
-        descriptor: "le",
-        relation: "ckúle",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [17,19],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "ckule",
+          span: [20,25],
+        },
       },
     ],
   },

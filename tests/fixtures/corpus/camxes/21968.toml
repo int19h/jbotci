@@ -42,23 +42,72 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "u'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Lu { lu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ve", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "vikmi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }, lihu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 20, char_start: 16, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }) }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.u'i lu ve víkmi li'u)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "u'i",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lu",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ve",
+    span: [7,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "vikmi",
+    span: [10,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li'u",
+    span: [16,20],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ve","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"vikmi","kind":"gismu"}},{"Bare":{"span":[16,20],"phonemes":"li'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    ".u'i",
+    Word {
+      kind: "cmavo",
+      phonemes: "u'i",
+      span: [0,3],
+    },
   ],
   Term {
     terms: [
       Lu {
-        lu: "lu",
-        Se {
-          se: "ve",
-          "víkmi",
+        lu: Word {
+          kind: "cmavo",
+          phonemes: "lu",
+          span: [4,6],
         },
-        lihu: "li'u",
+        Se {
+          se: Word {
+            kind: "cmavo",
+            phonemes: "ve",
+            span: [7,9],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "vikmi",
+            span: [10,15],
+          },
+        },
+        lihu: Word {
+          kind: "cmavo",
+          phonemes: "li'u",
+          span: [16,20],
+        },
       },
     ],
   },

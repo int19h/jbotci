@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: Some(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "so'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "velctuca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 16, char_start: 8, char_end: 16, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(so'i le velctúca)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "so'i",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [5,7],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "velctuca",
+    span: [8,16],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,16],"phonemes":"velctuca","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
@@ -39,9 +58,21 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
-      outer_quantifier: "so'i",
-      relation: "velctúca",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [5,7],
+      },
+      outer_quantifier: Word {
+        kind: "cmavo",
+        phonemes: "so'i",
+        span: [0,4],
+      },
+      relation: Word {
+        kind: "lujvo",
+        phonemes: "velctuca",
+        span: [8,16],
+      },
     },
   ],
 }"""

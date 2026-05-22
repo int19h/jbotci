@@ -47,25 +47,83 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "roĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zvati", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ŭu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "caĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 21, char_start: 18, char_end: 21, start: None, end: None }) }), nai: None }) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(mi no roĭ zváti .ŭu caĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "roĭ",
+    span: [5,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zvati",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭu",
+    span: [16,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "caĭ",
+    span: [18,21],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"ŭu","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"caĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
   TenseModal {
     tense_modal: WithFreeModifiers {
-      "no",
-      "roĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "no",
+        span: [3,5],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "roĭ",
+        span: [5,8],
+      },
     },
     WithIndicator {
       WithIndicator {
-        "zváti",
-        indicator: ".ŭu",
+        Word {
+          kind: "gismu",
+          phonemes: "zvati",
+          span: [9,14],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ŭu",
+          span: [16,18],
+        },
       },
-      indicator: "caĭ",
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "caĭ",
+        span: [18,21],
+      },
     },
   },
 }"""

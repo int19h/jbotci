@@ -32,19 +32,50 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ru'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "skami", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ru'a le skámi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ru'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "skami",
+    span: [8,13],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ru'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"skami","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "ru'a",
+    Word {
+      kind: "cmavo",
+      phonemes: "ru'a",
+      span: [0,4],
+    },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: "le",
-        relation: "skámi",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [5,7],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "skami",
+          span: [8,13],
+        },
       },
     ],
   },

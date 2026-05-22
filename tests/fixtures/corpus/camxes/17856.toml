@@ -48,22 +48,80 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(zo'e na cu du ro da)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du",
+    span: [11,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [14,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [16,18],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"da","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "zo'e",
-    "na",
+    Word {
+      kind: "cmavo",
+      phonemes: "zo'e",
+      span: [0,4],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "na",
+      span: [5,7],
+    },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [8,10],
+  },
   Relation {
-    "du",
+    Word {
+      kind: "cmavo",
+      phonemes: "du",
+      span: [11,13],
+    },
     terms: [
       Quantified {
-        quantifier: "ro",
-        "da",
+        quantifier: Word {
+          kind: "cmavo",
+          phonemes: "ro",
+          span: [14,16],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "da",
+          span: [16,18],
+        },
       },
     ],
   },

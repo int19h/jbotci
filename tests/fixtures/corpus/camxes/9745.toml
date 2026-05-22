@@ -48,26 +48,84 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(pe'i le skámi cméne cu cánci)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pe'i",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [8,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "skami",
+    span: [11,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cmene",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "canci",
+    span: [26,31],
+  },
+]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"canci","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "pe'i",
+    Word {
+      kind: "cmavo",
+      phonemes: "pe'i",
+      span: [3,7],
+    },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [8,10],
+        },
         relation: Compound {
-          "skámi",
-          "cméne",
+          Word {
+            kind: "gismu",
+            phonemes: "skami",
+            span: [11,16],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "cmene",
+            span: [17,22],
+          },
         },
       },
     ],
-    cu: "cu",
-    "cánci",
+    cu: Word {
+      kind: "cmavo",
+      phonemes: "cu",
+      span: [23,25],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "canci",
+      span: [26,31],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"skami","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[17,22],"phonemes":"cmene","kind":"gismu"}}}}]}}}}],"cu":{"Bare":{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[26,31],"phonemes":"canci","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[3,7],"phonemes":"pe'i","kind":"cmavo"}}}}]}"""

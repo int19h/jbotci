@@ -62,6 +62,55 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ve", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "kruca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))))) }), relative_clauses: [], ku: None })), Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "redriver", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 23, char_start: 15, char_end: 23, start: None, end: None }) }))))], free_modifiers: [] } }), Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Moi { number: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 29, char_start: 27, char_end: 29, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ze", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 29, byte_end: 31, char_start: 29, char_end: 31, start: None, end: None }) }))))], moi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "moĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 34, char_start: 31, char_end: 34, start: None, end: None }) })))), free_modifiers: [] } }])), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(le ve krúca la .redriver. la ci ze moĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ve",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kruca",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "redriver",
+    span: [15,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [24,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [27,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ze",
+    span: [29,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "moĭ",
+    span: [31,34],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ve","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"kruca","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[15,23],"phonemes":"redriver","kind":"cmevla"}},{"Bare":{"span":[24,26],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"ze","kind":"cmavo"}},{"Bare":{"span":[31,34],"phonemes":"moĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -69,24 +118,60 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
       relation: Se {
-        se: "ve",
-        "krúca",
+        se: Word {
+          kind: "cmavo",
+          phonemes: "ve",
+          span: [3,5],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "kruca",
+          span: [6,11],
+        },
       },
     },
     Name {
-      la: "la",
-      names: ".redriver.",
+      la: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [12,14],
+      },
+      names: Word {
+        kind: "cmevla",
+        phonemes: "redriver",
+        span: [15,23],
+      },
     },
     Descriptor {
-      descriptor: "la",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [24,26],
+      },
       relation: Moi {
         number: [
-          "ci",
-          "ze",
+          Word {
+            kind: "cmavo",
+            phonemes: "ci",
+            span: [27,29],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "ze",
+            span: [29,31],
+          },
         ],
-        moi: "moĭ",
+        moi: Word {
+          kind: "cmavo",
+          phonemes: "moĭ",
+          span: [31,34],
+        },
       },
     },
   ],

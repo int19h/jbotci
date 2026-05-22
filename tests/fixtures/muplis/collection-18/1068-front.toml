@@ -50,6 +50,40 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Jai { jai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "jaĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zu'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), inner_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "bebna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }) }, Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "bebna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))), free_modifiers: [] })]), terms: [Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) })))), free_modifiers: [] }, argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None }) })))), free_modifiers: [] }), ku: None }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(jaĭ zu'e bébna bébna fa mi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "jaĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zu'e",
+    span: [4,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bebna",
+    span: [9,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bebna",
+    span: [15,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fa",
+    span: [21,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [24,26],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"jaĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"zu'e","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"bebna","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"bebna","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"mi","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -58,18 +92,42 @@ tree = """
 Relation {
   Compound {
     Jai {
-      jai: "jaĭ",
-      tense_modal: Simple {
-        bai: "zu'e",
+      jai: Word {
+        kind: "cmavo",
+        phonemes: "jaĭ",
+        span: [0,3],
       },
-      "bébna",
+      tense_modal: Simple {
+        bai: Word {
+          kind: "cmavo",
+          phonemes: "zu'e",
+          span: [4,8],
+        },
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "bebna",
+        span: [9,14],
+      },
     },
-    "bébna",
+    Word {
+      kind: "gismu",
+      phonemes: "bebna",
+      span: [15,20],
+    },
   },
   terms: [
     Fa {
-      fa: "fa",
-      "mi",
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fa",
+        span: [21,23],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [24,26],
+      },
     },
   ],
 }"""

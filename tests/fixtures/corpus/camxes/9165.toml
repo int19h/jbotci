@@ -23,13 +23,26 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = ".agaĭn."
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "agaĭn",
+    span: [3,8],
+  },
+]"""
 json = '[{"Bare":{"span":[3,8],"phonemes":"agaĭn","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".agaĭn.",
+    Word {
+      kind: "cmevla",
+      phonemes: "agaĭn",
+      span: [3,8],
+    },
   ],
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[3,8],"phonemes":"agaĭn","kind":"cmevla"}}}]}'

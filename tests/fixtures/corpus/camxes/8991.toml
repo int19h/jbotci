@@ -42,6 +42,35 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ba", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "za", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "xruti", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(co'o .i ba za xrúti)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "co'o",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [6,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ba",
+    span: [7,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "za",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xruti",
+    span: [12,17],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"za","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"xruti","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -49,17 +78,37 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "co'o",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "co'o",
+        span: [0,4],
+      },
     },
   ],
   ParagraphStatement {
-    i: ".i",
+    i: Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [6,7],
+    },
     TenseModal {
       tense_modal: WithFreeModifiers {
-        "ba",
-        "za",
+        Word {
+          kind: "cmavo",
+          phonemes: "ba",
+          span: [7,9],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "za",
+          span: [9,11],
+        },
       },
-      "xrúti",
+      Word {
+        kind: "gismu",
+        phonemes: "xruti",
+        span: [12,17],
+      },
     },
   },
 }"""

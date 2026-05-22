@@ -28,12 +28,34 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(malglíco mútce)"
+tree = """
+[
+  Word {
+    kind: "lujvo",
+    phonemes: "malglico",
+    span: [3,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mutce",
+    span: [12,17],
+  },
+]"""
 json = '[{"Bare":{"span":[3,11],"phonemes":"malglico","kind":"lujvo"}},{"Bare":{"span":[12,17],"phonemes":"mutce","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "malglíco",
-  "mútce",
+  Word {
+    kind: "lujvo",
+    phonemes: "malglico",
+    span: [3,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mutce",
+    span: [12,17],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,11],"phonemes":"malglico","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"mutce","kind":"gismu"}}}}]}}}}}}}}]}]}'

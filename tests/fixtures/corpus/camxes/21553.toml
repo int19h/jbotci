@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "saĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }), nai: None }], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "jilks", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(ju'i saĭ .jilks.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ju'i",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "saĭ",
+    span: [4,7],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "jilks",
+    span: [8,13],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"jilks","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -40,10 +59,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: WithIndicator {
-        "ju'i",
-        indicator: "saĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "ju'i",
+          span: [0,4],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "saĭ",
+          span: [4,7],
+        },
       },
-      argument: ".jilks.",
+      argument: Word {
+        kind: "cmevla",
+        phonemes: "jilks",
+        span: [8,13],
+      },
     },
   ],
 }"""

@@ -78,45 +78,157 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi baĭ ke ge kláma le zárci gi cádzu le bísli ke'e)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "baĭ",
+    span: [3,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke",
+    span: [7,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ge",
+    span: [10,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [13,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [19,21],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zarci",
+    span: [22,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi",
+    span: [28,30],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cadzu",
+    span: [31,36],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [37,39],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bisli",
+    span: [40,45],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke'e",
+    span: [47,51],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"baĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"cadzu","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"bisli","kind":"gismu"}},{"Bare":{"span":[47,51],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
     Tagged {
       tense_modal: Simple {
-        bai: "baĭ",
+        bai: Word {
+          kind: "cmavo",
+          phonemes: "baĭ",
+          span: [3,6],
+        },
       },
       Zohe {},
     },
   ],
   Ke {
-    ke: "ke",
+    ke: Word {
+      kind: "cmavo",
+      phonemes: "ke",
+      span: [7,9],
+    },
     Pair {
-      gek: "ge",
+      gek: Word {
+        kind: "cmavo",
+        phonemes: "ge",
+        span: [10,12],
+      },
       first: Relation {
-        "kláma",
+        Word {
+          kind: "gismu",
+          phonemes: "klama",
+          span: [13,18],
+        },
         terms: [
           Descriptor {
-            descriptor: "le",
-            relation: "zárci",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [19,21],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "zarci",
+              span: [22,27],
+            },
           },
         ],
       },
-      gik: "gi",
+      gik: Word {
+        kind: "cmavo",
+        phonemes: "gi",
+        span: [28,30],
+      },
       second: Relation {
-        "cádzu",
+        Word {
+          kind: "gismu",
+          phonemes: "cadzu",
+          span: [31,36],
+        },
         terms: [
           Descriptor {
-            descriptor: "le",
-            relation: "bísli",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [37,39],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "bisli",
+              span: [40,45],
+            },
           },
         ],
       },
     },
-    kehe: "ke'e",
+    kehe: Word {
+      kind: "cmavo",
+      phonemes: "ke'e",
+      span: [47,51],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}},{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[3,6],"phonemes":"baĭ","kind":"cmavo"}}}}},"argument":{"Zohe":{}}}}],"predicate_tail":{"first":{"first":{"first":{"GekSentence":{"Ke":{"ke":{"Bare":{"Bare":{"span":[7,9],"phonemes":"ke","kind":"cmavo"}}},"inner":{"Pair":{"gek":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[10,12],"phonemes":"ge","kind":"cmavo"}}}]}},"first":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"klama","kind":"gismu"}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[22,27],"phonemes":"zarci","kind":"gismu"}}}}}}}]}}}}}}},"gik":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[28,30],"phonemes":"gi","kind":"cmavo"}}}]}},"second":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[31,36],"phonemes":"cadzu","kind":"gismu"}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[37,39],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[40,45],"phonemes":"bisli","kind":"gismu"}}}}}}}]}}}}}}}}},"kehe":{"Bare":{"Bare":{"span":[47,51],"phonemes":"ke'e","kind":"cmavo"}}}}}}}}}}}}]}]}"""

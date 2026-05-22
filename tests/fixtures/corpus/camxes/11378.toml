@@ -88,6 +88,80 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le ka lu zúkte fi zi'o cu fríca lu zúkte fi no da ce'u)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lu",
+    span: [8,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zukte",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi",
+    span: [17,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zi'o",
+    span: [20,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [25,27],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "frica",
+    span: [28,33],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lu",
+    span: [34,36],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zukte",
+    span: [37,42],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi",
+    span: [43,45],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [46,48],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [48,50],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ce'u",
+    span: [51,55],
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"zukte","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"zi'o","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"frica","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"zukte","kind":"gismu"}},{"Bare":{"span":[43,45],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[48,50],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[51,55],"phonemes":"ce'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -95,41 +169,97 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [3,5],
+      },
       relation: Abstraction {
-        nu: "ka",
+        nu: Word {
+          kind: "cmavo",
+          phonemes: "ka",
+          span: [5,7],
+        },
         Predicate {
           leading_terms: [
             Lu {
-              lu: "lu",
+              lu: Word {
+                kind: "cmavo",
+                phonemes: "lu",
+                span: [8,10],
+              },
               Relation {
-                "zúkte",
+                Word {
+                  kind: "gismu",
+                  phonemes: "zukte",
+                  span: [11,16],
+                },
                 terms: [
                   Fa {
-                    fa: "fi",
-                    "zi'o",
+                    fa: Word {
+                      kind: "cmavo",
+                      phonemes: "fi",
+                      span: [17,19],
+                    },
+                    Word {
+                      kind: "cmavo",
+                      phonemes: "zi'o",
+                      span: [20,24],
+                    },
                   },
                 ],
               },
             },
           ],
-          cu: "cu",
+          cu: Word {
+            kind: "cmavo",
+            phonemes: "cu",
+            span: [25,27],
+          },
           Relation {
-            "fríca",
+            Word {
+              kind: "gismu",
+              phonemes: "frica",
+              span: [28,33],
+            },
             terms: [
               Lu {
-                lu: "lu",
+                lu: Word {
+                  kind: "cmavo",
+                  phonemes: "lu",
+                  span: [34,36],
+                },
                 Relation {
-                  "zúkte",
+                  Word {
+                    kind: "gismu",
+                    phonemes: "zukte",
+                    span: [37,42],
+                  },
                   terms: [
                     Fa {
-                      fa: "fi",
+                      fa: Word {
+                        kind: "cmavo",
+                        phonemes: "fi",
+                        span: [43,45],
+                      },
                       Quantified {
-                        quantifier: "no",
-                        "da",
+                        quantifier: Word {
+                          kind: "cmavo",
+                          phonemes: "no",
+                          span: [46,48],
+                        },
+                        Word {
+                          kind: "cmavo",
+                          phonemes: "da",
+                          span: [48,50],
+                        },
                       },
                     },
-                    "ce'u",
+                    Word {
+                      kind: "cmavo",
+                      phonemes: "ce'u",
+                      span: [51,55],
+                    },
                   ],
                 },
               },

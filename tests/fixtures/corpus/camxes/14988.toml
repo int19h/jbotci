@@ -47,6 +47,40 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Mai { number: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], mai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mo'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 6, char_start: 2, char_end: 6, start: None, end: None }) })))), free_modifiers: [] } }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "jmali", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None }) }))))), terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "loĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 16, char_start: 13, char_end: 16, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "plibu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 22, char_start: 17, char_end: 22, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "taxfu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 28, char_start: 23, char_end: 28, start: None, end: None }) })))), free_modifiers: [] })])), relative_clauses: [], ku: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(pa mo'o jmáli loĭ plíbu táxfu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mo'o",
+    span: [2,6],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jmali",
+    span: [7,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "loĭ",
+    span: [13,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "plibu",
+    span: [17,22],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "taxfu",
+    span: [23,28],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"mo'o","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"jmali","kind":"gismu"}},{"Bare":{"span":[13,16],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"plibu","kind":"gismu"}},{"Bare":{"span":[23,28],"phonemes":"taxfu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -55,19 +89,43 @@ Text {
   leading_free_modifiers: [
     Mai {
       number: [
-        "pa",
+        Word {
+          kind: "cmavo",
+          phonemes: "pa",
+          span: [0,2],
+        },
       ],
-      mai: "mo'o",
+      mai: Word {
+        kind: "cmavo",
+        phonemes: "mo'o",
+        span: [2,6],
+      },
     },
   ],
   Relation {
-    "jmáli",
+    Word {
+      kind: "gismu",
+      phonemes: "jmali",
+      span: [7,12],
+    },
     terms: [
       Descriptor {
-        descriptor: "loĭ",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "loĭ",
+          span: [13,16],
+        },
         relation: Compound {
-          "plíbu",
-          "táxfu",
+          Word {
+            kind: "gismu",
+            phonemes: "plibu",
+            span: [17,22],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "taxfu",
+            span: [23,28],
+          },
         },
       },
     ],

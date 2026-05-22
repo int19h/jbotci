@@ -42,6 +42,35 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nuzba", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) })))))), relative_clauses: [], ku: None })), Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "gerna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cartu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) })))), free_modifiers: [] })])), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(mu núzba le gérna cártu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mu",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nuzba",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gerna",
+    span: [12,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cartu",
+    span: [18,23],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nuzba","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"gerna","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"cartu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -50,15 +79,35 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        "mu",
+        Word {
+          kind: "cmavo",
+          phonemes: "mu",
+          span: [0,2],
+        },
       ],
-      relation: "núzba",
+      relation: Word {
+        kind: "gismu",
+        phonemes: "nuzba",
+        span: [3,8],
+      },
     },
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [9,11],
+      },
       relation: Compound {
-        "gérna",
-        "cártu",
+        Word {
+          kind: "gismu",
+          phonemes: "gerna",
+          span: [12,17],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "cartu",
+          span: [18,23],
+        },
       },
     },
   ],

@@ -70,35 +70,129 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ba", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }), free_modifiers: [] } }, Argument(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) })))), free_modifiers: [] }) })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zvati", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "a'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 31, char_start: 28, char_end: 31, start: None, end: None }) }), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 32, byte_end: 35, char_start: 32, char_end: 35, start: None, end: None }) })) }) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.i ba zi ku no da ca'o zváti .a'o naĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ba",
+    span: [2,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zi",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [11,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [14,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca'o",
+    span: [17,21],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zvati",
+    span: [22,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "a'o",
+    span: [28,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [32,35],
+  },
+]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[28,31],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[32,35],"phonemes":"naĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
-brackets = "(.i [{([ba zi] ku) (no da)} {ca'o zváti.a'o-naĭ}])"
+brackets = "(.i [{([ba zi] ku) (no da)} {ca'o (zváti .a'o naĭ)}])"
 tree = """
 ParagraphStatement {
-  i: ".i",
+  i: Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
   Predicate {
     leading_terms: [
       Tagged {
         tense_modal: WithFreeModifiers {
-          "ba",
-          "zi",
+          Word {
+            kind: "cmavo",
+            phonemes: "ba",
+            span: [2,4],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "zi",
+            span: [5,7],
+          },
         },
         Zohe {
-          maybe_ku: "ku",
+          maybe_ku: Word {
+            kind: "cmavo",
+            phonemes: "ku",
+            span: [8,10],
+          },
         },
       },
       Quantified {
-        quantifier: "no",
-        "da",
+        quantifier: Word {
+          kind: "cmavo",
+          phonemes: "no",
+          span: [11,13],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "da",
+          span: [14,16],
+        },
       },
     ],
     TenseModal {
-      tense_modal: "ca'o",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ca'o",
+        span: [17,21],
+      },
       WithIndicator {
-        "zváti",
-        indicator: ".a'o",
-        nai: "naĭ",
+        Word {
+          kind: "gismu",
+          phonemes: "zvati",
+          span: [22,27],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "a'o",
+          span: [28,31],
+        },
+        nai: Word {
+          kind: "cmavo",
+          phonemes: "naĭ",
+          span: [32,35],
+        },
       },
     },
   },

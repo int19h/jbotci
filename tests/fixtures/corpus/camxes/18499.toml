@@ -42,19 +42,68 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "bliku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))), terms: [Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, argument: NaheBo { nahe: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 13, char_start: 9, char_end: 13, start: None, end: None }) })))), bo: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "bo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) })))), free_modifiers: [] }, inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zu'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 20, char_start: 16, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }), luhu: None }, ku: None }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(blíku fi na'e bo zu'i)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "bliku",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na'e",
+    span: [9,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "bo",
+    span: [13,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zu'i",
+    span: [16,20],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"bliku","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"zu'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  "blíku",
+  Word {
+    kind: "gismu",
+    phonemes: "bliku",
+    span: [0,5],
+  },
   terms: [
     Fa {
-      fa: "fi",
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fi",
+        span: [6,8],
+      },
       NaheBo {
-        nahe: "na'e",
-        bo: "bo",
-        "zu'i",
+        nahe: Word {
+          kind: "cmavo",
+          phonemes: "na'e",
+          span: [9,13],
+        },
+        bo: Word {
+          kind: "cmavo",
+          phonemes: "bo",
+          span: [13,15],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "zu'i",
+          span: [16,20],
+        },
       },
     },
   ],

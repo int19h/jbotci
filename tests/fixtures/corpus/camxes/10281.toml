@@ -33,16 +33,47 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(cu víska mi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "viska",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [9,11],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [0,2],
+  },
   Relation {
-    "víska",
+    Word {
+      kind: "gismu",
+      phonemes: "viska",
+      span: [3,8],
+    },
     terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [9,11],
+      },
     ],
   },
 }"""

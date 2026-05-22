@@ -40,15 +40,63 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zoi(WithFreeModifiers { value: Bare(WordLike(ZoiQuote { zoi: Word(WordData { kind: Cmavo, phonemes: "zoĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }), opening_delimiter: Word(WordData { kind: Cmavo, phonemes: "cy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) }), quoted_text: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 38, char_start: 12, char_end: 38, start: None, end: None }), closing_delimiter: Word(WordData { kind: Cmavo, phonemes: "cy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None }) }) })), free_modifiers: [] })))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(.i [zoĭ cy led-editor.sourceforge.net cy])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [3,6],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "cy",
+      span: [8,10],
+    },
+    quoted_text: [12,38],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "cy",
+      span: [40,42],
+    },
+  },
+]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[3,6],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[8,10],"phonemes":"cy","kind":"cmavo"},"quoted_text":[12,38],"closing_delimiter":{"span":[40,42],"phonemes":"cy","kind":"cmavo"}}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: ".i",
+  i: Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
   Term {
     terms: [
-      "zoĭ-cy-«led-editor.sourceforge.net»-cy",
+      ZoiQuote {
+        zoi: Word {
+          kind: "cmavo",
+          phonemes: "zoĭ",
+          span: [3,6],
+        },
+        opening_delimiter: Word {
+          kind: "cmavo",
+          phonemes: "cy",
+          span: [8,10],
+        },
+        quoted_text: [12,38],
+        closing_delimiter: Word {
+          kind: "cmavo",
+          phonemes: "cy",
+          span: [40,42],
+        },
+      },
     ],
   },
 }"""

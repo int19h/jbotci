@@ -50,22 +50,88 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Prenex { prenex_terms: [Argument(Quote(Zoi(WithFreeModifiers { value: Bare(WordLike(ZoiQuote { zoi: Word(WordData { kind: Cmavo, phonemes: "la'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }), opening_delimiter: Word(WordData { kind: Cmavo, phonemes: "gy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }), quoted_text: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 17, char_start: 7, char_end: 17, start: None, end: None }), closing_delimiter: Word(WordData { kind: Cmavo, phonemes: "gy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) }) })), free_modifiers: [] })))], zohu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 25, char_start: 21, char_end: 25, start: None, end: None }) })))), free_modifiers: [] }, inner_statement: Predicate(PredicateSyntax { leading_terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 28, char_start: 26, char_end: 28, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 29, byte_end: 31, char_start: 29, char_end: 31, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }) }) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "([la'o gy IRC topic gy] zo'u fy mo)"
+tree = """
+[
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "la'o",
+      span: [0,4],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [5,7],
+    },
+    quoted_text: [7,17],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [18,20],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'u",
+    span: [21,25],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fy",
+    span: [26,28],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mo",
+    span: [29,31],
+  },
+]"""
 json = """[{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[7,17],"closing_delimiter":{"span":[18,20],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[21,25],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"fy","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"mo","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Prenex {
   prenex_terms: [
-    "la'o-gy-«IRC topic»-gy",
+    ZoiQuote {
+      zoi: Word {
+        kind: "cmavo",
+        phonemes: "la'o",
+        span: [0,4],
+      },
+      opening_delimiter: Word {
+        kind: "cmavo",
+        phonemes: "gy",
+        span: [5,7],
+      },
+      quoted_text: [7,17],
+      closing_delimiter: Word {
+        kind: "cmavo",
+        phonemes: "gy",
+        span: [18,20],
+      },
+    },
   ],
-  zohu: "zo'u",
+  zohu: Word {
+    kind: "cmavo",
+    phonemes: "zo'u",
+    span: [21,25],
+  },
   Predicate {
     leading_terms: [
       Letter {
-        letter: "fy",
+        letter: Word {
+          kind: "cmavo",
+          phonemes: "fy",
+          span: [26,28],
+        },
       },
     ],
-    "mo",
+    Word {
+      kind: "cmavo",
+      phonemes: "mo",
+      span: [29,31],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"gy","kind":"cmavo"},"quoted_text":[7,17],"closing_delimiter":{"span":[18,20],"phonemes":"gy","kind":"cmavo"}}}}}}}],"zohu":{"Bare":{"Bare":{"span":[21,25],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[26,28],"phonemes":"fy","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[29,31],"phonemes":"mo","kind":"cmavo"}}}}}}}}}}}}}]}]}"""

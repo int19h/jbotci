@@ -30,13 +30,40 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(zo .djet.)"
+tree = """
+[
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [3,5],
+    },
+    Word {
+      kind: "cmevla",
+      phonemes: "djet",
+      span: [6,10],
+    },
+  },
+]"""
 json = '[{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,10],"phonemes":"djet","kind":"cmevla"}}}]'
 
 [expectations.output.gentufa]
 tree = """
 Term {
   terms: [
-    "zo-«.djet.»",
+    ZoQuote {
+      zo: Word {
+        kind: "cmavo",
+        phonemes: "zo",
+        span: [3,5],
+      },
+      Word {
+        kind: "cmevla",
+        phonemes: "djet",
+        span: [6,10],
+      },
+    },
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,10],"phonemes":"djet","kind":"cmevla"}}}}}}}]}}}}]}]}'

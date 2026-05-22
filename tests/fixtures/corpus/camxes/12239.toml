@@ -38,6 +38,30 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ro bróda cu bróde)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [4,6],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "broda",
+    span: [7,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [13,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brode",
+    span: [16,21],
+  },
+]"""
 json = '[{"Bare":{"span":[4,6],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"brode","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -46,12 +70,28 @@ Predicate {
   leading_terms: [
     Descriptor {
       tail_elements: [
-        "ro",
+        Word {
+          kind: "cmavo",
+          phonemes: "ro",
+          span: [4,6],
+        },
       ],
-      relation: "bróda",
+      relation: Word {
+        kind: "gismu",
+        phonemes: "broda",
+        span: [7,12],
+      },
     },
   ],
-  cu: "cu",
-  "bróde",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [13,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brode",
+    span: [16,21],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[4,6],"phonemes":"ro","kind":"cmavo"}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[7,12],"phonemes":"broda","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[16,21],"phonemes":"brode","kind":"gismu"}}}}}}}}}}}]}]}'

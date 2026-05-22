@@ -38,21 +38,61 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(do ca jínvi ra)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jinvi",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ra",
+    span: [15,17],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"jinvi","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ra","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "do",
+    Word {
+      kind: "cmavo",
+      phonemes: "do",
+      span: [3,5],
+    },
   ],
   Relation {
     TenseModal {
-      tense_modal: "ca",
-      "jínvi",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ca",
+        span: [6,8],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "jinvi",
+        span: [9,14],
+      },
     },
     terms: [
-      "ra",
+      Word {
+        kind: "cmavo",
+        phonemes: "ra",
+        span: [15,17],
+      },
     ],
   },
 }"""

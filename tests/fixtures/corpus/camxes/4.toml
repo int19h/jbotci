@@ -27,15 +27,37 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(NonLogical { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ce'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 47, byte_end: 51, char_start: 47, char_end: 51, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }), paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "di", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 52, byte_end: 54, char_start: 52, char_end: 54, start: None, end: None }) })))), free_modifiers: [] }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ce'e di)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ce'e",
+    span: [47,51],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "di",
+    span: [52,54],
+  },
+]"""
 json = """[{"Bare":{"span":[47,51],"phonemes":"ce'e","kind":"cmavo"}},{"Bare":{"span":[52,54],"phonemes":"di","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
-  leading_connective: "ce'e",
+  leading_connective: Word {
+    kind: "cmavo",
+    phonemes: "ce'e",
+    span: [47,51],
+  },
   Term {
     terms: [
-      "di",
+      Word {
+        kind: "cmavo",
+        phonemes: "di",
+        span: [52,54],
+      },
     ],
   },
 }"""

@@ -32,17 +32,48 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "never", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "since", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "pe'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) }), nai: None }), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.never. sínce pe'i)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "never",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "since",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pe'i",
+    span: [12,16],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"never","kind":"cmevla"}},{"Bare":{"span":[6,11],"phonemes":"since","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"pe'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".never.",
+    Word {
+      kind: "cmevla",
+      phonemes: "never",
+      span: [0,5],
+    },
   ],
   WithIndicator {
-    "sínce",
-    indicator: "pe'i",
+    Word {
+      kind: "gismu",
+      phonemes: "since",
+      span: [6,11],
+    },
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "pe'i",
+      span: [12,16],
+    },
   },
 }"""
 json = """{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,5],"phonemes":"never","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"since","kind":"gismu"}}},"indicator":{"span":[12,16],"phonemes":"pe'i","kind":"cmavo"}}}}}}}}}}}]}]}"""

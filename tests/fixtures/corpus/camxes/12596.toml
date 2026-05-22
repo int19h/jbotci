@@ -47,4 +47,38 @@ status = "failure"
 error = { position = 6, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(ma ny ma ny mo re)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ny",
+    span: [2,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ny",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mo",
+    span: [11,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [13,15],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"re","kind":"cmavo"}}]'

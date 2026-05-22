@@ -22,11 +22,24 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: Some(Interval { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "bi'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }), paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "bi'o"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "bi'o",
+    span: [0,4],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"bi'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
-  leading_connective: "bi'o",
+  leading_connective: Word {
+    kind: "cmavo",
+    phonemes: "bi'o",
+    span: [0,4],
+  },
 }"""
 json = """{"leading_connective":{"Interval":{"cmavo":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"bi'o","kind":"cmavo"}}}]}}}"""

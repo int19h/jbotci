@@ -82,6 +82,70 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None }) })) })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "ninmu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 23, char_start: 22, char_end: 23, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [NaKu { na: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None }) })))), na_ku: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 29, char_start: 27, char_end: 29, start: None, end: None }) })))), free_modifiers: [] } }, Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 32, char_start: 30, char_end: 32, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nelci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 33, byte_end: 38, char_start: 33, char_end: 38, start: None, end: None }) }))))), terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 39, byte_end: 41, char_start: 39, char_end: 41, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 42, byte_end: 44, char_start: 42, char_end: 44, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ju'a naĭ cy no nínmu .i na ku mi nélci cy no)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ju'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [5,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cy",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [12,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ninmu",
+    span: [15,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [22,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [24,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [27,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [30,32],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nelci",
+    span: [33,38],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cy",
+    span: [39,41],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [42,44],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'a","kind":"cmavo"}},{"Bare":{"span":[5,8],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"ninmu","kind":"gismu"}},{"Bare":{"span":[22,23],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"no","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -90,8 +154,16 @@ tree = """
 Text {
   leading_indicators: [
     Indicator {
-      "ju'a",
-      nai: "naĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "ju'a",
+        span: [0,4],
+      },
+      nai: Word {
+        kind: "cmavo",
+        phonemes: "naĭ",
+        span: [5,8],
+      },
     },
   ],
   Paragraph {
@@ -99,30 +171,70 @@ Text {
       leading_terms: [
         Letter {
           letter: WithFreeModifiers {
-            "cy",
-            "no",
+            Word {
+              kind: "cmavo",
+              phonemes: "cy",
+              span: [9,11],
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "no",
+              span: [12,14],
+            },
           },
         },
       ],
-      "nínmu",
+      Word {
+        kind: "gismu",
+        phonemes: "ninmu",
+        span: [15,20],
+      },
     },
     ParagraphStatement {
-      i: ".i",
+      i: Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [22,23],
+      },
       Predicate {
         leading_terms: [
           NaKu {
-            na: "na",
-            na_ku: "ku",
+            na: Word {
+              kind: "cmavo",
+              phonemes: "na",
+              span: [24,26],
+            },
+            na_ku: Word {
+              kind: "cmavo",
+              phonemes: "ku",
+              span: [27,29],
+            },
           },
-          "mi",
+          Word {
+            kind: "cmavo",
+            phonemes: "mi",
+            span: [30,32],
+          },
         ],
         Relation {
-          "nélci",
+          Word {
+            kind: "gismu",
+            phonemes: "nelci",
+            span: [33,38],
+          },
           terms: [
             Letter {
               letter: WithFreeModifiers {
-                "cy",
-                "no",
+                Word {
+                  kind: "cmavo",
+                  phonemes: "cy",
+                  span: [39,41],
+                },
+                Word {
+                  kind: "cmavo",
+                  phonemes: "no",
+                  span: [42,44],
+                },
               },
             },
           ],

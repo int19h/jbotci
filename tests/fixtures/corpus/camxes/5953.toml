@@ -88,4 +88,79 @@ status = "failure"
 error = { position = 3, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(pu tcídu da be se ra'a le terfríca [{zo y'y} bu] [zo xy])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tcidu",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ra'a",
+    span: [17,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [22,24],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "terfrica",
+    span: [25,33],
+  },
+  Letter {
+    ZoQuote {
+      zo: Word {
+        kind: "cmavo",
+        phonemes: "zo",
+        span: [34,36],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "y'y",
+        span: [37,40],
+      },
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [40,42],
+    },
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [43,45],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "xy",
+      span: [46,48],
+    },
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ra'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,33],"phonemes":"terfrica","kind":"lujvo"}},{"Letter":{"base":{"ZoQuote":{"zo":{"span":[34,36],"phonemes":"zo","kind":"cmavo"},"word":{"span":[37,40],"phonemes":"y'y","kind":"cmavo"}}},"bu":{"span":[40,42],"phonemes":"bu","kind":"cmavo"}}},{"ZoQuote":{"zo":{"span":[43,45],"phonemes":"zo","kind":"cmavo"},"word":{"span":[46,48],"phonemes":"xy","kind":"cmavo"}}}]"""

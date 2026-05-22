@@ -48,24 +48,82 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ta me laĭ .kraĭslr. me'u kárce)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ta",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "me",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "laĭ",
+    span: [6,9],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "kraĭslr",
+    span: [10,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "me'u",
+    span: [20,24],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "karce",
+    span: [26,31],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"laĭ","kind":"cmavo"}},{"Bare":{"span":[10,17],"phonemes":"kraĭslr","kind":"cmevla"}},{"Bare":{"span":[20,24],"phonemes":"me'u","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"karce","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "ta",
+    Word {
+      kind: "cmavo",
+      phonemes: "ta",
+      span: [0,2],
+    },
   ],
   Compound {
     Me {
-      me: "me",
-      Name {
-        la: "laĭ",
-        names: ".kraĭslr.",
+      me: Word {
+        kind: "cmavo",
+        phonemes: "me",
+        span: [3,5],
       },
-      mehu: "me'u",
+      Name {
+        la: Word {
+          kind: "cmavo",
+          phonemes: "laĭ",
+          span: [6,9],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "kraĭslr",
+          span: [10,17],
+        },
+      },
+      mehu: Word {
+        kind: "cmavo",
+        phonemes: "me'u",
+        span: [20,24],
+      },
     },
-    "kárce",
+    Word {
+      kind: "gismu",
+      phonemes: "karce",
+      span: [26,31],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Me":{"me":{"Bare":{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}}},"argument":{"Name":{"la":{"Bare":{"Bare":{"span":[6,9],"phonemes":"laĭ","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[10,17],"phonemes":"kraĭslr","kind":"cmevla"}}}]}},"mehu":{"Bare":{"Bare":{"span":[20,24],"phonemes":"me'u","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[26,31],"phonemes":"karce","kind":"gismu"}}}}]}}}}}}}}]}]}"""

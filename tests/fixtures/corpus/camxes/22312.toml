@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ji'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }), nai: None }], free_modifiers: [] }, argument: Some(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ro", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }) }), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(co'o ji'a ro do)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "co'o",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ji'a",
+    span: [5,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [12,14],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -45,12 +69,28 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: WithIndicator {
-        "co'o",
-        indicator: "ji'a",
+        Word {
+          kind: "cmavo",
+          phonemes: "co'o",
+          span: [0,4],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ji'a",
+          span: [5,9],
+        },
       },
       argument: Quantified {
-        quantifier: "ro",
-        "do",
+        quantifier: Word {
+          kind: "cmavo",
+          phonemes: "ro",
+          span: [10,12],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "do",
+          span: [12,14],
+        },
       },
     },
   ],

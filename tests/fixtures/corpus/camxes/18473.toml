@@ -42,19 +42,68 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "za'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "valsi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "jamna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None }) })))), free_modifiers: [] })]) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(na'o ca'o za'o válsi jámna)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "na'o",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca'o",
+    span: [5,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "za'o",
+    span: [10,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "valsi",
+    span: [15,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jamna",
+    span: [21,26],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"na'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"za'o","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"jamna","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 TenseModal {
   tense_modal: WithFreeModifiers {
-    "na'o",
-    "ca'o",
-    "za'o",
+    Word {
+      kind: "cmavo",
+      phonemes: "na'o",
+      span: [0,4],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "ca'o",
+      span: [5,9],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "za'o",
+      span: [10,14],
+    },
   },
   Compound {
-    "válsi",
-    "jámna",
+    Word {
+      kind: "gismu",
+      phonemes: "valsi",
+      span: [15,20],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "jamna",
+      span: [21,26],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[0,4],"phonemes":"na'o","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[5,9],"phonemes":"ca'o","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[10,14],"phonemes":"za'o","kind":"cmavo"}}}}]}},"inner_relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"valsi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"jamna","kind":"gismu"}}}}]}}}}}}}}}}]}]}"""

@@ -37,17 +37,57 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "di'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "trixe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cortu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 16, char_start: 11, char_end: 16, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) }), nai: None }, free_modifiers: [] })]) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(di'a tríxe córtu .oĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "di'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "trixe",
+    span: [5,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cortu",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "oĭ",
+    span: [17,19],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"di'a","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"trixe","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"cortu","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"oĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 TenseModal {
-  tense_modal: "di'a",
+  tense_modal: Word {
+    kind: "cmavo",
+    phonemes: "di'a",
+    span: [0,4],
+  },
   Compound {
-    "tríxe",
+    Word {
+      kind: "gismu",
+      phonemes: "trixe",
+      span: [5,10],
+    },
     WithIndicator {
-      "córtu",
-      indicator: ".oĭ",
+      Word {
+        kind: "gismu",
+        phonemes: "cortu",
+        span: [11,16],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "oĭ",
+        span: [17,19],
+      },
     },
   },
 }"""

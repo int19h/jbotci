@@ -28,6 +28,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ju'o ja'o)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ju'o",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ja'o",
+    span: [8,12],
+  },
+]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ja'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -35,8 +49,16 @@ tree = """
 Text {
   leading_indicators: [
     WithIndicator {
-      "ju'o",
-      indicator: "ja'o",
+      Word {
+        kind: "cmavo",
+        phonemes: "ju'o",
+        span: [3,7],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ja'o",
+        span: [8,12],
+      },
     },
   ],
 }"""

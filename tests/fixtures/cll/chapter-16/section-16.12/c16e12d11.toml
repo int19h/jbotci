@@ -80,6 +80,65 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "djan", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] } }), NaKu { na: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), na_ku: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) })))), free_modifiers: [] } }], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "klama", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 19, char_start: 14, char_end: 19, start: None, end: None }) }))))), terms: [Argument(Gek { gek: Forethought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ge", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 22, char_start: 20, char_end: 22, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, leading_argument: Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "paris", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 31, char_start: 26, char_end: 31, start: None, end: None }) }))))], free_modifiers: [] } }, gik: Forethought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 33, byte_end: 35, char_start: 33, char_end: 35, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_argument: Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 38, char_start: 36, char_end: 38, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "rom", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 39, byte_end: 42, char_start: 39, char_end: 42, start: None, end: None }) }))))], free_modifiers: [] } }, gihi: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(la .djan. na ku kláma ge la .paris. gi la .rom.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "djan",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [11,13],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [14,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ge",
+    span: [20,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [23,25],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "paris",
+    span: [26,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi",
+    span: [33,35],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [36,38],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "rom",
+    span: [39,42],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"paris","kind":"cmevla"}},{"Bare":{"span":[33,35],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[39,42],"phonemes":"rom","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
@@ -88,27 +147,71 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: "la",
-      names: ".djan.",
+      la: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [0,2],
+      },
+      names: Word {
+        kind: "cmevla",
+        phonemes: "djan",
+        span: [3,7],
+      },
     },
     NaKu {
-      na: "na",
-      na_ku: "ku",
+      na: Word {
+        kind: "cmavo",
+        phonemes: "na",
+        span: [9,11],
+      },
+      na_ku: Word {
+        kind: "cmavo",
+        phonemes: "ku",
+        span: [11,13],
+      },
     },
   ],
   Relation {
-    "kláma",
+    Word {
+      kind: "gismu",
+      phonemes: "klama",
+      span: [14,19],
+    },
     terms: [
       Gek {
-        gek: "ge",
-        leading_argument: Name {
-          la: "la",
-          names: ".paris.",
+        gek: Word {
+          kind: "cmavo",
+          phonemes: "ge",
+          span: [20,22],
         },
-        gik: "gi",
+        leading_argument: Name {
+          la: Word {
+            kind: "cmavo",
+            phonemes: "la",
+            span: [23,25],
+          },
+          names: Word {
+            kind: "cmevla",
+            phonemes: "paris",
+            span: [26,31],
+          },
+        },
+        gik: Word {
+          kind: "cmavo",
+          phonemes: "gi",
+          span: [33,35],
+        },
         trailing_argument: Name {
-          la: "la",
-          names: ".rom.",
+          la: Word {
+            kind: "cmavo",
+            phonemes: "la",
+            span: [36,38],
+          },
+          names: Word {
+            kind: "cmevla",
+            phonemes: "rom",
+            span: [39,42],
+          },
         },
       },
     ],

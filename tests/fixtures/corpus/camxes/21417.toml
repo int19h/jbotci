@@ -32,15 +32,46 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cerni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tatpi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }), nai: None }, free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(cérni tátpi xu)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "cerni",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tatpi",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [12,14],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cerni","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"tatpi","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"xu","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "cérni",
+  Word {
+    kind: "gismu",
+    phonemes: "cerni",
+    span: [0,5],
+  },
   WithIndicator {
-    "tátpi",
-    indicator: "xu",
+    Word {
+      kind: "gismu",
+      phonemes: "tatpi",
+      span: [6,11],
+    },
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [12,14],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"cerni","kind":"gismu"}}}},{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"tatpi","kind":"gismu"}}},"indicator":{"span":[12,14],"phonemes":"xu","kind":"cmavo"}}}}]}}}}}}}}]}]}'

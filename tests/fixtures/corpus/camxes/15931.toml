@@ -42,6 +42,35 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Connected { leading_argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "banske", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 9, char_start: 3, char_end: 9, start: None, end: None }) })))))), relative_clauses: [], ku: None }), connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 11, char_start: 10, char_end: 11, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "sambanske", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 24, char_start: 15, char_end: 24, start: None, end: None }) })))))), relative_clauses: [], ku: None }) })], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(le bánske .e le sambánske)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "banske",
+    span: [3,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [10,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [12,14],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "sambanske",
+    span: [15,24],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"banske","kind":"lujvo"}},{"Bare":{"span":[10,11],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,24],"phonemes":"sambanske","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
@@ -50,13 +79,33 @@ Term {
   terms: [
     Connected {
       leading_argument: Descriptor {
-        descriptor: "le",
-        relation: "bánske",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [0,2],
+        },
+        relation: Word {
+          kind: "lujvo",
+          phonemes: "banske",
+          span: [3,9],
+        },
       },
-      connective: ".e",
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "e",
+        span: [10,11],
+      },
       trailing_argument: Descriptor {
-        descriptor: "le",
-        relation: "sambánske",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [12,14],
+        },
+        relation: Word {
+          kind: "lujvo",
+          phonemes: "sambanske",
+          span: [15,24],
+        },
       },
     },
   ],

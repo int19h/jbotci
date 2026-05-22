@@ -62,31 +62,116 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "za'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cmima", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }))))), terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "loĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 17, char_start: 14, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "traji", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) })))), free_modifiers: [] }), Connected { leading_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cmalu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))), free_modifiers: [] }), connective: Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 32, char_start: 30, char_end: 32, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "lojbo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 33, byte_end: 38, char_start: 33, char_end: 38, start: None, end: None }) })))), free_modifiers: [] }) }, Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "girzu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 39, byte_end: 44, char_start: 39, char_end: 44, start: None, end: None }) })))), free_modifiers: [] })])), relative_clauses: [], ku: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(za'a do cmíma loĭ tráji cmálu je lójbo gírzu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "za'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cmima",
+    span: [8,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "loĭ",
+    span: [14,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "traji",
+    span: [18,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cmalu",
+    span: [24,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [30,32],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lojbo",
+    span: [33,38],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "girzu",
+    span: [39,44],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cmima","kind":"gismu"}},{"Bare":{"span":[14,17],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"traji","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[39,44],"phonemes":"girzu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "za'a",
+    Word {
+      kind: "cmavo",
+      phonemes: "za'a",
+      span: [0,4],
+    },
   ],
   Predicate {
     leading_terms: [
-      "do",
+      Word {
+        kind: "cmavo",
+        phonemes: "do",
+        span: [5,7],
+      },
     ],
     Relation {
-      "cmíma",
+      Word {
+        kind: "gismu",
+        phonemes: "cmima",
+        span: [8,13],
+      },
       terms: [
         Descriptor {
-          descriptor: "loĭ",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "loĭ",
+            span: [14,17],
+          },
           relation: Compound {
-            "tráji",
-            Connected {
-              leading_unit: "cmálu",
-              connective: "je",
-              trailing_unit: "lójbo",
+            Word {
+              kind: "gismu",
+              phonemes: "traji",
+              span: [18,23],
             },
-            "gírzu",
+            Connected {
+              leading_unit: Word {
+                kind: "gismu",
+                phonemes: "cmalu",
+                span: [24,29],
+              },
+              connective: Word {
+                kind: "cmavo",
+                phonemes: "je",
+                span: [30,32],
+              },
+              trailing_unit: Word {
+                kind: "gismu",
+                phonemes: "lojbo",
+                span: [33,38],
+              },
+            },
+            Word {
+              kind: "gismu",
+              phonemes: "girzu",
+              span: [39,44],
+            },
           },
         },
       ],

@@ -58,6 +58,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.i .e'o saĭ ko ge kánba gi cinseltcídu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [4,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e'o",
+    span: [7,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "saĭ",
+    span: [10,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ko",
+    span: [14,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ge",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kanba",
+    span: [20,25],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi",
+    span: [26,28],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "cinseltcidu",
+    span: [29,40],
+  },
+]"""
 json = """[{"Bare":{"span":[4,5],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"kanba","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[29,40],"phonemes":"cinseltcidu","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
@@ -65,20 +109,52 @@ tree = """
 ParagraphStatement {
   i: WithIndicator {
     WithIndicator {
-      ".i",
-      indicator: ".e'o",
+      Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [4,5],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "e'o",
+        span: [7,10],
+      },
     },
-    indicator: "saĭ",
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "saĭ",
+      span: [10,13],
+    },
   },
   Predicate {
     leading_terms: [
-      "ko",
+      Word {
+        kind: "cmavo",
+        phonemes: "ko",
+        span: [14,16],
+      },
     ],
     Pair {
-      gek: "ge",
-      first: "kánba",
-      gik: "gi",
-      second: "cinseltcídu",
+      gek: Word {
+        kind: "cmavo",
+        phonemes: "ge",
+        span: [17,19],
+      },
+      first: Word {
+        kind: "gismu",
+        phonemes: "kanba",
+        span: [20,25],
+      },
+      gik: Word {
+        kind: "cmavo",
+        phonemes: "gi",
+        span: [26,28],
+      },
+      second: Word {
+        kind: "lujvo",
+        phonemes: "cinseltcidu",
+        span: [29,40],
+      },
     },
   },
 }"""

@@ -37,6 +37,30 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cfari", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "prenu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 19, char_start: 14, char_end: 19, start: None, end: None }) })))), free_modifiers: [] })]), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(coĭ doĭ cfári prénu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [4,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cfari",
+    span: [8,13],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "prenu",
+    span: [14,19],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cfari","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"prenu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -45,13 +69,29 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: WithFreeModifiers {
-        "coĭ",
-        "doĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "coĭ",
+          span: [0,3],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "doĭ",
+          span: [4,7],
+        },
       },
       argument: RelationVocative {
         relation: Compound {
-          "cfári",
-          "prénu",
+          Word {
+            kind: "gismu",
+            phonemes: "cfari",
+            span: [8,13],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "prenu",
+            span: [14,19],
+          },
         },
       },
     },

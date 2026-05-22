@@ -32,13 +32,44 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "prami", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "naljdice", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 14, char_start: 6, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cevni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(prámi naljdíce cévni)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "prami",
+    span: [0,5],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "naljdice",
+    span: [6,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cevni",
+    span: [15,20],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"prami","kind":"gismu"}},{"Bare":{"span":[6,14],"phonemes":"naljdice","kind":"lujvo"}},{"Bare":{"span":[15,20],"phonemes":"cevni","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "prámi",
-  "naljdíce",
-  "cévni",
+  Word {
+    kind: "gismu",
+    phonemes: "prami",
+    span: [0,5],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "naljdice",
+    span: [6,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cevni",
+    span: [15,20],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"prami","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,14],"phonemes":"naljdice","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"cevni","kind":"gismu"}}}}]}}}}}}}}]}]}'

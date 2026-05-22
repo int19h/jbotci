@@ -27,15 +27,37 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 5, char_start: 2, char_end: 5, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }] }, boi: None })))) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(ci coĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [2,5],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"coĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 WithFreeModifiers {
-  "ci",
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [0,2],
+  },
   free_modifiers: [
     Vocative {
-      vocative_markers: "coĭ",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "coĭ",
+        span: [2,5],
+      },
     },
   ],
 }"""

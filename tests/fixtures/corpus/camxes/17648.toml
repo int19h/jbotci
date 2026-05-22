@@ -32,18 +32,49 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "so", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [To { to: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "recap", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }, toi: None }] }, boi: None })))) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(so to .recap.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "so",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "recap",
+    span: [6,11],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"so","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"recap","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 WithFreeModifiers {
-  "so",
+  Word {
+    kind: "cmavo",
+    phonemes: "so",
+    span: [0,2],
+  },
   free_modifiers: [
     To {
-      to: "to",
+      to: Word {
+        kind: "cmavo",
+        phonemes: "to",
+        span: [3,5],
+      },
       Text {
         leading_cmevla: [
-          ".recap.",
+          Word {
+            kind: "cmevla",
+            phonemes: "recap",
+            span: [6,11],
+          },
         ],
       },
     },

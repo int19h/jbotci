@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Connected { leading_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), connective: NonLogical { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "jo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }) })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(do jo'u ri)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "jo'u",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ri",
+    span: [8,10],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"jo'u","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ri","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -39,9 +58,21 @@ tree = """
 Term {
   terms: [
     Connected {
-      leading_argument: "do",
-      connective: "jo'u",
-      trailing_argument: "ri",
+      leading_argument: Word {
+        kind: "cmavo",
+        phonemes: "do",
+        span: [0,2],
+      },
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "jo'u",
+        span: [3,7],
+      },
+      trailing_argument: Word {
+        kind: "cmavo",
+        phonemes: "ri",
+        span: [8,10],
+      },
     },
   ],
 }"""

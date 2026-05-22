@@ -38,19 +38,59 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(cu se cméne ma)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cmene",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [15,17],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [3,5],
+  },
   Relation {
     Se {
-      se: "se",
-      "cméne",
+      se: Word {
+        kind: "cmavo",
+        phonemes: "se",
+        span: [6,8],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "cmene",
+        span: [9,14],
+      },
     },
     terms: [
-      "ma",
+      Word {
+        kind: "cmavo",
+        phonemes: "ma",
+        span: [15,17],
+      },
     ],
   },
 }"""

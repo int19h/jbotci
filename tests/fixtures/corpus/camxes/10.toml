@@ -27,12 +27,34 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(RelativeClause([Goi(GoiRelativeClauseSyntax { goi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "goĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 30, char_start: 27, char_end: 30, start: None, end: None }) })))), free_modifiers: [] }, argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ko'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 35, char_start: 31, char_end: 35, start: None, end: None }) })))), free_modifiers: [] }), gehu: None })]))) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(goĭ ko'a)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "goĭ",
+    span: [27,30],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ko'a",
+    span: [31,35],
+  },
+]"""
 json = """[{"Bare":{"span":[27,30],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[31,35],"phonemes":"ko'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 GoiRelativeClause {
-  goi: "goĭ",
-  "ko'a",
+  goi: Word {
+    kind: "cmavo",
+    phonemes: "goĭ",
+    span: [27,30],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ko'a",
+    span: [31,35],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[27,30],"phonemes":"goĭ","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[31,35],"phonemes":"ko'a","kind":"cmavo"}}}}}}]}}}]}]}"""

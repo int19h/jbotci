@@ -27,6 +27,20 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "robin", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(ju'i .robin.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ju'i",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "robin",
+    span: [5,10],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"robin","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -34,8 +48,16 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "ju'i",
-      argument: ".robin.",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "ju'i",
+        span: [0,4],
+      },
+      argument: Word {
+        kind: "cmevla",
+        phonemes: "robin",
+        span: [5,10],
+      },
     },
   ],
 }"""

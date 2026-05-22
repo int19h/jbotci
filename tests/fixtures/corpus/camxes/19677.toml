@@ -62,6 +62,55 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ro", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }) }), dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 12, char_start: 11, char_end: 12, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ba", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None }) }))))), Word(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "a'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 25, char_start: 22, char_end: 25, start: None, end: None }) }), nai: None })], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sipna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 31, char_start: 26, char_end: 31, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(co'o ro do .i mi ba zi .a'o sípna)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "co'o",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [7,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [11,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [13,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ba",
+    span: [16,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zi",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "a'o",
+    span: [22,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sipna",
+    span: [26,31],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,12],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"zi","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"sipna","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -69,28 +118,64 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "co'o",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "co'o",
+        span: [0,4],
+      },
       argument: Quantified {
-        quantifier: "ro",
-        "do",
+        quantifier: Word {
+          kind: "cmavo",
+          phonemes: "ro",
+          span: [5,7],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "do",
+          span: [7,9],
+        },
       },
     },
   ],
   ParagraphStatement {
-    i: ".i",
+    i: Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [11,12],
+    },
     Predicate {
       leading_terms: [
-        "mi",
+        Word {
+          kind: "cmavo",
+          phonemes: "mi",
+          span: [13,15],
+        },
       ],
       TenseModal {
         tense_modal: WithFreeModifiers {
-          "ba",
+          Word {
+            kind: "cmavo",
+            phonemes: "ba",
+            span: [16,18],
+          },
           WithIndicator {
-            "zi",
-            indicator: ".a'o",
+            Word {
+              kind: "cmavo",
+              phonemes: "zi",
+              span: [18,20],
+            },
+            indicator: Word {
+              kind: "cmavo",
+              phonemes: "a'o",
+              span: [22,25],
+            },
           },
         },
-        "sípna",
+        Word {
+          kind: "gismu",
+          phonemes: "sipna",
+          span: [26,31],
+        },
       },
     },
   },

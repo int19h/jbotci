@@ -57,27 +57,103 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "xamgu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ku'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nandu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) }))))), terms: [Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) })))), free_modifiers: [] }, argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Abstraction(AbstractionSyntax { nu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "nu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 27, char_start: 25, char_end: 27, start: None, end: None }) })))), free_modifiers: [] }, nai: None, additional_nu: [], subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "jorne", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 33, char_start: 28, char_end: 33, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kei: None })), relative_clauses: [], ku: None }), ku: None }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(xámgu .i ku'i nándu fa lo nu jórne)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "xamgu",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [6,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku'i",
+    span: [8,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nandu",
+    span: [13,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fa",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [22,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [25,27],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jorne",
+    span: [28,33],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"nandu","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"jorne","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  "xámgu",
+  Word {
+    kind: "gismu",
+    phonemes: "xamgu",
+    span: [0,5],
+  },
   ParagraphStatement {
     i: WithIndicator {
-      ".i",
-      indicator: "ku'i",
+      Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [6,7],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ku'i",
+        span: [8,12],
+      },
     },
     Relation {
-      "nándu",
+      Word {
+        kind: "gismu",
+        phonemes: "nandu",
+        span: [13,18],
+      },
       terms: [
         Fa {
-          fa: "fa",
+          fa: Word {
+            kind: "cmavo",
+            phonemes: "fa",
+            span: [19,21],
+          },
           Descriptor {
-            descriptor: "lo",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "lo",
+              span: [22,24],
+            },
             relation: Abstraction {
-              nu: "nu",
-              "jórne",
+              nu: Word {
+                kind: "cmavo",
+                phonemes: "nu",
+                span: [25,27],
+              },
+              Word {
+                kind: "gismu",
+                phonemes: "jorne",
+                span: [28,33],
+              },
             },
           },
         },

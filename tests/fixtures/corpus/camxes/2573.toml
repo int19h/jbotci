@@ -52,27 +52,94 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Lu { lu: WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "e'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }), nai: None }, free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "roĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "crakla", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 22, char_start: 16, char_end: 22, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }, lihu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 27, char_start: 23, char_end: 27, start: None, end: None }) })))), free_modifiers: [] }) }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.i lu .e'e re roĭ crákla li'u)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lu",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e'e",
+    span: [6,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "roĭ",
+    span: [12,15],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "crakla",
+    span: [16,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li'u",
+    span: [23,27],
+  },
+]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"e'e","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"roĭ","kind":"cmavo"}},{"Bare":{"span":[16,22],"phonemes":"crakla","kind":"lujvo"}},{"Bare":{"span":[23,27],"phonemes":"li'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: ".i",
+  i: Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
   Term {
     terms: [
       Lu {
         lu: WithIndicator {
-          "lu",
-          indicator: ".e'e",
+          Word {
+            kind: "cmavo",
+            phonemes: "lu",
+            span: [3,5],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "e'e",
+            span: [6,9],
+          },
         },
         TenseModal {
           tense_modal: WithFreeModifiers {
-            "re",
-            "roĭ",
+            Word {
+              kind: "cmavo",
+              phonemes: "re",
+              span: [10,12],
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "roĭ",
+              span: [12,15],
+            },
           },
-          "crákla",
+          Word {
+            kind: "lujvo",
+            phonemes: "crakla",
+            span: [16,22],
+          },
         },
-        lihu: "li'u",
+        lihu: Word {
+          kind: "cmavo",
+          phonemes: "li'u",
+          span: [23,27],
+        },
       },
     ],
   },

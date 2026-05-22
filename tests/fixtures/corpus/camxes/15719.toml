@@ -64,4 +64,55 @@ status = "failure"
 error = { position = 8, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(zo'o do távla baŭ la [.u bu] ry ly)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'o",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tavla",
+    span: [8,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "baŭ",
+    span: [14,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [18,20],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "u",
+      span: [21,22],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [22,24],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ry",
+    span: [25,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ly",
+    span: [28,30],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[14,17],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[21,22],"phonemes":"u","kind":"cmavo"}},"bu":{"span":[22,24],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[25,27],"phonemes":"ry","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"ly","kind":"cmavo"}}]"""

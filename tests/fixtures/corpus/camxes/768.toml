@@ -58,6 +58,50 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(la .djan. cu djíca le nu sónci keĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "djan",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "djica",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [21,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sonci",
+    span: [24,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "keĭ",
+    span: [31,34],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"djica","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"sonci","kind":"gismu"}},{"Bare":{"span":[31,34],"phonemes":"keĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -65,20 +109,52 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: "la",
-      names: ".djan.",
+      la: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [0,2],
+      },
+      names: Word {
+        kind: "cmevla",
+        phonemes: "djan",
+        span: [3,7],
+      },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [9,11],
+  },
   Relation {
-    "djíca",
+    Word {
+      kind: "gismu",
+      phonemes: "djica",
+      span: [12,17],
+    },
     terms: [
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [18,20],
+        },
         relation: Abstraction {
-          nu: "nu",
-          "sónci",
-          kei: "keĭ",
+          nu: Word {
+            kind: "cmavo",
+            phonemes: "nu",
+            span: [21,23],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "sonci",
+            span: [24,29],
+          },
+          kei: Word {
+            kind: "cmavo",
+            phonemes: "keĭ",
+            span: [31,34],
+          },
         },
       },
     ],

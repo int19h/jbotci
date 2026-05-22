@@ -53,27 +53,94 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(xu le ríjno cu vácri se toljínsa)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "rijno",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [15,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "vacri",
+    span: [18,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [24,26],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "toljinsa",
+    span: [27,35],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"rijno","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"vacri","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[27,35],"phonemes":"toljinsa","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "xu",
+    Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [3,5],
+    },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: "le",
-        relation: "ríjno",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [6,8],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "rijno",
+          span: [9,14],
+        },
       },
     ],
-    cu: "cu",
+    cu: Word {
+      kind: "cmavo",
+      phonemes: "cu",
+      span: [15,17],
+    },
     Compound {
-      "vácri",
+      Word {
+        kind: "gismu",
+        phonemes: "vacri",
+        span: [18,23],
+      },
       Se {
-        se: "se",
-        "toljínsa",
+        se: Word {
+          kind: "cmavo",
+          phonemes: "se",
+          span: [24,26],
+        },
+        Word {
+          kind: "lujvo",
+          phonemes: "toljinsa",
+          span: [27,35],
+        },
       },
     },
   },

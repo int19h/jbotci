@@ -33,17 +33,48 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.mumym. ca kélci)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "mumym",
+    span: [1,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [8,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kelci",
+    span: [11,16],
+  },
+]"""
 json = '[{"Bare":{"span":[1,6],"phonemes":"mumym","kind":"cmevla"}},{"Bare":{"span":[8,10],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"kelci","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".mumym.",
+    Word {
+      kind: "cmevla",
+      phonemes: "mumym",
+      span: [1,6],
+    },
   ],
   TenseModal {
-    tense_modal: "ca",
-    "kélci",
+    tense_modal: Word {
+      kind: "cmavo",
+      phonemes: "ca",
+      span: [8,10],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "kelci",
+      span: [11,16],
+    },
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[1,6],"phonemes":"mumym","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[8,10],"phonemes":"ca","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"kelci","kind":"gismu"}}}}}}}}}}}}}]}]}'

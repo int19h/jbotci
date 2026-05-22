@@ -73,32 +73,135 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi flíba tu'a le sotprekárce pe li no re re mu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fliba",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "tu'a",
+    span: [9,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [14,16],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "sotprekarce",
+    span: [17,28],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pe",
+    span: [29,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [32,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [35,36],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [36,37],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [38,39],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu",
+    span: [39,40],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"fliba","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,28],"phonemes":"sotprekarce","kind":"lujvo"}},{"Bare":{"span":[29,31],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[35,36],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[36,37],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[38,39],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[39,40],"phonemes":"mu","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
   Relation {
-    "flíba",
+    Word {
+      kind: "gismu",
+      phonemes: "fliba",
+      span: [3,8],
+    },
     terms: [
       Lahe {
-        lahe: "tu'a",
+        lahe: Word {
+          kind: "cmavo",
+          phonemes: "tu'a",
+          span: [9,13],
+        },
         Descriptor {
-          descriptor: "le",
-          relation: "sotprekárce",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [14,16],
+          },
+          relation: Word {
+            kind: "lujvo",
+            phonemes: "sotprekarce",
+            span: [17,28],
+          },
           relative_clauses: [
             GoiRelativeClause {
-              goi: "pe",
+              goi: Word {
+                kind: "cmavo",
+                phonemes: "pe",
+                span: [29,31],
+              },
               MathExpression {
-                li: "li",
+                li: Word {
+                  kind: "cmavo",
+                  phonemes: "li",
+                  span: [32,34],
+                },
                 WithFreeModifiers {
-                  "no",
-                  "re",
-                  "re",
-                  "mu",
+                  Word {
+                    kind: "cmavo",
+                    phonemes: "no",
+                    span: [35,36],
+                  },
+                  Word {
+                    kind: "cmavo",
+                    phonemes: "re",
+                    span: [36,37],
+                  },
+                  Word {
+                    kind: "cmavo",
+                    phonemes: "re",
+                    span: [38,39],
+                  },
+                  Word {
+                    kind: "cmavo",
+                    phonemes: "mu",
+                    span: [39,40],
+                  },
                 },
               },
             },

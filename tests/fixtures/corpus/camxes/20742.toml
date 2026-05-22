@@ -32,20 +32,51 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pe'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "so'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "roĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(pe'i so'a roĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pe'i",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "so'a",
+    span: [5,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "roĭ",
+    span: [9,12],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"so'a","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"roĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "pe'i",
+    Word {
+      kind: "cmavo",
+      phonemes: "pe'i",
+      span: [0,4],
+    },
   ],
   Term {
     terms: [
       Tagged {
         tense_modal: WithFreeModifiers {
-          "so'a",
-          "roĭ",
+          Word {
+            kind: "cmavo",
+            phonemes: "so'a",
+            span: [5,9],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "roĭ",
+            span: [9,12],
+          },
         },
         Zohe {},
       },

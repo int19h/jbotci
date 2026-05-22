@@ -33,17 +33,48 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(tsáli .i do)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "tsali",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [7,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [9,11],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"tsali","kind":"gismu"}},{"Bare":{"span":[7,8],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"do","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
-  "tsáli",
+  Word {
+    kind: "gismu",
+    phonemes: "tsali",
+    span: [0,5],
+  },
   ParagraphStatement {
-    i: ".i",
+    i: Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [7,8],
+    },
     Term {
       terms: [
-        "do",
+        Word {
+          kind: "cmavo",
+          phonemes: "do",
+          span: [9,11],
+        },
       ],
     },
   },

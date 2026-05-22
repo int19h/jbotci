@@ -32,6 +32,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "baĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "seĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, terms: [], cu: None, relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nibli", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }))))), sehu: None }] }, nai: None, ki: None }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(baĭ seĭ níbli)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "baĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "seĭ",
+    span: [4,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nibli",
+    span: [8,13],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"baĭ","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"nibli","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -41,11 +60,23 @@ Term {
     Tagged {
       tense_modal: Simple {
         bai: WithFreeModifiers {
-          "baĭ",
+          Word {
+            kind: "cmavo",
+            phonemes: "baĭ",
+            span: [0,3],
+          },
           free_modifiers: [
             Sei {
-              sei: "seĭ",
-              relation: "níbli",
+              sei: Word {
+                kind: "cmavo",
+                phonemes: "seĭ",
+                span: [4,7],
+              },
+              relation: Word {
+                kind: "gismu",
+                phonemes: "nibli",
+                span: [8,13],
+              },
             },
           ],
         },

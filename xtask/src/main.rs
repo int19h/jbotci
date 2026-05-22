@@ -11,8 +11,9 @@ use jbotci_morphology::{
     MorphologyOptions, WordLike, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_output::{
-    JsonRenderOptions, compact_json_string_with_options, compact_json_value, pretty_brackets,
-    pretty_tree,
+    BracketRenderOptions, JsonRenderOptions, TreeRenderOptions, compact_json_string_with_options,
+    compact_json_value, pretty_brackets, pretty_morphology_brackets_with_options,
+    pretty_morphology_tree_with_options, pretty_tree,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, SyntaxError, parse_syntax_tree_with_source_and_options};
@@ -295,6 +296,19 @@ fn refresh_fixture_expectations(fixture: &mut LoadedTestCase) -> Result<()> {
             &morphology_words,
             JsonRenderOptions { indent: 0 },
         )?));
+        vlasei.brackets = Some(text_expectation(pretty_morphology_brackets_with_options(
+            &morphology_words,
+            &fixture.test_case.lojban,
+            BracketRenderOptions { color: false },
+        )?));
+        vlasei.tree = Some(text_expectation(pretty_morphology_tree_with_options(
+            &morphology_words,
+            &fixture.test_case.lojban,
+            TreeRenderOptions {
+                color: false,
+                indent: 2,
+            },
+        )?));
     }
     let refresh_syntax = fixture
         .test_case
@@ -391,7 +405,7 @@ fn ensure_gentufa_output(
 }
 
 #[requires(true)]
-#[ensures(!ret.text.is_empty())]
+#[ensures(true)]
 fn text_expectation(text: String) -> fixtures::TextExpectation {
     fixtures::TextExpectation { text }
 }
@@ -900,15 +914,98 @@ impl FixtureBackend for NotImplementedBackend {
             Facet::Morphology => run_morphology_fixture(fixture),
             Facet::Syntax => run_syntax_fixture(fixture),
             Facet::Warnings => run_warnings_fixture(fixture),
-            Facet::VlaseiBrackets => {
-                FacetResult::skipped("vlasei brackets output is not implemented yet")
-            }
-            Facet::VlaseiTree => FacetResult::skipped("vlasei tree output is not implemented yet"),
+            Facet::VlaseiBrackets => run_vlasei_brackets_fixture(fixture),
+            Facet::VlaseiTree => run_vlasei_tree_fixture(fixture),
             Facet::VlaseiJson => run_vlasei_json_fixture(fixture),
             Facet::GentufaBrackets => run_gentufa_brackets_fixture(fixture),
             Facet::GentufaTree => run_gentufa_tree_fixture(fixture),
             Facet::GentufaJson => run_gentufa_json_fixture(fixture),
         }
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_vlasei_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.vlasei.as_ref())
+        .and_then(|output| output.brackets.as_ref())
+    else {
+        return FacetResult::skipped("fixture has no vlasei brackets expectation");
+    };
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) {
+        Ok(words) => words,
+        Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
+    };
+    match pretty_morphology_brackets_with_options(
+        &words,
+        &fixture.test_case.lojban,
+        BracketRenderOptions { color: false },
+    ) {
+        Ok(actual) if actual == expectation.text => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_mismatch(
+            "vlasei brackets",
+            &expectation.text,
+            &actual,
+        )),
+        Err(error) => FacetResult::failed(format!("vlasei brackets render error: {error}")),
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_vlasei_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.vlasei.as_ref())
+        .and_then(|output| output.tree.as_ref())
+    else {
+        return FacetResult::skipped("fixture has no vlasei tree expectation");
+    };
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) {
+        Ok(words) => words,
+        Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
+    };
+    match pretty_morphology_tree_with_options(
+        &words,
+        &fixture.test_case.lojban,
+        TreeRenderOptions {
+            color: false,
+            indent: 2,
+        },
+    ) {
+        Ok(actual) if actual == expectation.text => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_mismatch(
+            "vlasei tree",
+            &expectation.text,
+            &actual,
+        )),
+        Err(error) => FacetResult::failed(format!("vlasei tree render error: {error}")),
     }
 }
 

@@ -71,4 +71,58 @@ error = { position = 0, allowed-next = [], message = """Syntax parse error; expe
 xfail = { source = "muplis", reason = "The relative-clause body du pu zu skicu is not accepted by camxes beta/experimental either.", accepted-status = "failure" }
 
 [expectations.output.vlasei]
+brackets = "(xu ti du le cúkta poĭ du pu zu skícu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ti",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cukta",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "poĭ",
+    span: [18,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du",
+    span: [22,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [25,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zu",
+    span: [28,30],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "skicu",
+    span: [31,36],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[18,21],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"zu","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"skicu","kind":"gismu"}}]'

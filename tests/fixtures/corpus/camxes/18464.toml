@@ -57,33 +57,109 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ku'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Prenex { prenex_terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lo'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Abstraction(AbstractionSyntax { nu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "si'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }, nai: None, additional_nu: [], subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "kensa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kei: None })), relative_clauses: [], ku: None }))], zohu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 25, char_start: 21, char_end: 25, start: None, end: None }) })))), free_modifiers: [] }, inner_statement: Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "claxu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 31, char_start: 26, char_end: 31, start: None, end: None }) }))))), terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ro", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 32, byte_end: 34, char_start: 32, char_end: 34, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "ratni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 35, byte_end: 40, char_start: 35, char_end: 40, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }) }) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ku'i lo'e si'o kénsa zo'u cláxu ro rátni)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ku'i",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo'e",
+    span: [5,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "si'o",
+    span: [10,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kensa",
+    span: [15,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'u",
+    span: [21,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "claxu",
+    span: [26,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [32,34],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ratni",
+    span: [35,40],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"si'o","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"kensa","kind":"gismu"}},{"Bare":{"span":[21,25],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"claxu","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"ratni","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "ku'i",
+    Word {
+      kind: "cmavo",
+      phonemes: "ku'i",
+      span: [0,4],
+    },
   ],
   Prenex {
     prenex_terms: [
       Descriptor {
-        descriptor: "lo'e",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "lo'e",
+          span: [5,9],
+        },
         relation: Abstraction {
-          nu: "si'o",
-          "kénsa",
+          nu: Word {
+            kind: "cmavo",
+            phonemes: "si'o",
+            span: [10,14],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "kensa",
+            span: [15,20],
+          },
         },
       },
     ],
-    zohu: "zo'u",
+    zohu: Word {
+      kind: "cmavo",
+      phonemes: "zo'u",
+      span: [21,25],
+    },
     Relation {
-      "cláxu",
+      Word {
+        kind: "gismu",
+        phonemes: "claxu",
+        span: [26,31],
+      },
       terms: [
         Descriptor {
           tail_elements: [
-            "ro",
+            Word {
+              kind: "cmavo",
+              phonemes: "ro",
+              span: [32,34],
+            },
           ],
-          relation: "rátni",
+          relation: Word {
+            kind: "gismu",
+            phonemes: "ratni",
+            span: [35,40],
+          },
         },
       ],
     },

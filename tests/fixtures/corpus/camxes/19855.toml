@@ -27,15 +27,37 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "batkyci'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 9, char_start: 0, char_end: 9, start: None, end: None }) }))))), terms: [Argument(Quote(Lu { lu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }, lihu: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(batkycí'a lu)"
+tree = """
+[
+  Word {
+    kind: "lujvo",
+    phonemes: "batkyci'a",
+    span: [0,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lu",
+    span: [10,12],
+  },
+]"""
 json = """[{"Bare":{"span":[0,9],"phonemes":"batkyci'a","kind":"lujvo"}},{"Bare":{"span":[10,12],"phonemes":"lu","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  "batkycí'a",
+  Word {
+    kind: "lujvo",
+    phonemes: "batkyci'a",
+    span: [0,9],
+  },
   terms: [
     Lu {
-      lu: "lu",
+      lu: Word {
+        kind: "cmavo",
+        phonemes: "lu",
+        span: [10,12],
+      },
       Text {},
     },
   ],

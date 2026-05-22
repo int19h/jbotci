@@ -90,6 +90,82 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi .e la .avital. pu sojypá'a le nu do fónxa bénji fi [.a bu])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [7,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "avital",
+    span: [12,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [19,21],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "sojypa'a",
+    span: [22,30],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [31,33],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [34,36],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [37,39],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fonxa",
+    span: [40,45],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "benji",
+    span: [46,51],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi",
+    span: [52,54],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "a",
+      span: [55,56],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [56,58],
+    },
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[7,8],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[12,18],"phonemes":"avital","kind":"cmevla"}},{"Bare":{"span":[19,21],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[22,30],"phonemes":"sojypa'a","kind":"lujvo"}},{"Bare":{"span":[31,33],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"fonxa","kind":"gismu"}},{"Bare":{"span":[46,51],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[52,54],"phonemes":"fi","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[55,56],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[56,58],"phonemes":"bu","kind":"cmavo"}}}]"""
 
 [expectations.output.gentufa]
@@ -97,38 +173,97 @@ tree = """
 Predicate {
   leading_terms: [
     Connected {
-      leading_argument: "mi",
-      connective: ".e",
+      leading_argument: Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [3,5],
+      },
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "e",
+        span: [7,8],
+      },
       trailing_argument: Name {
-        la: "la",
-        names: ".avital.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [9,11],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "avital",
+          span: [12,18],
+        },
       },
     },
   ],
   Relation {
     TenseModal {
-      tense_modal: "pu",
-      "sojypá'a",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "pu",
+        span: [19,21],
+      },
+      Word {
+        kind: "lujvo",
+        phonemes: "sojypa'a",
+        span: [22,30],
+      },
     },
     terms: [
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [31,33],
+        },
         relation: Abstraction {
-          nu: "nu",
+          nu: Word {
+            kind: "cmavo",
+            phonemes: "nu",
+            span: [34,36],
+          },
           Predicate {
             leading_terms: [
-              "do",
+              Word {
+                kind: "cmavo",
+                phonemes: "do",
+                span: [37,39],
+              },
             ],
             Relation {
               Compound {
-                "fónxa",
-                "bénji",
+                Word {
+                  kind: "gismu",
+                  phonemes: "fonxa",
+                  span: [40,45],
+                },
+                Word {
+                  kind: "gismu",
+                  phonemes: "benji",
+                  span: [46,51],
+                },
               },
               terms: [
                 Fa {
-                  fa: "fi",
+                  fa: Word {
+                    kind: "cmavo",
+                    phonemes: "fi",
+                    span: [52,54],
+                  },
                   Letter {
-                    letter: ".a-bu",
+                    letter: Letter {
+                      Word {
+                        kind: "cmavo",
+                        phonemes: "a",
+                        span: [55,56],
+                      },
+                      bu: Word {
+                        kind: "cmavo",
+                        phonemes: "bu",
+                        span: [56,58],
+                      },
+                    },
                   },
                 },
               ],

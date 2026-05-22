@@ -78,35 +78,147 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.i le bavlámji sotprekárce cu cfári ca li no ci vo no)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [2,4],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "bavlamji",
+    span: [5,13],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "sotprekarce",
+    span: [14,25],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [26,28],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cfari",
+    span: [29,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [35,37],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [38,40],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [41,42],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [42,43],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vo",
+    span: [44,45],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [45,46],
+  },
+]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,13],"phonemes":"bavlamji","kind":"lujvo"}},{"Bare":{"span":[14,25],"phonemes":"sotprekarce","kind":"lujvo"}},{"Bare":{"span":[26,28],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"cfari","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[41,42],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[42,43],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[44,45],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[45,46],"phonemes":"no","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: ".i",
+  i: Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [2,4],
+        },
         relation: Compound {
-          "bavlámji",
-          "sotprekárce",
+          Word {
+            kind: "lujvo",
+            phonemes: "bavlamji",
+            span: [5,13],
+          },
+          Word {
+            kind: "lujvo",
+            phonemes: "sotprekarce",
+            span: [14,25],
+          },
         },
       },
     ],
-    cu: "cu",
+    cu: Word {
+      kind: "cmavo",
+      phonemes: "cu",
+      span: [26,28],
+    },
     Relation {
-      "cfári",
+      Word {
+        kind: "gismu",
+        phonemes: "cfari",
+        span: [29,34],
+      },
       terms: [
         Tagged {
-          tense_modal: "ca",
+          tense_modal: Word {
+            kind: "cmavo",
+            phonemes: "ca",
+            span: [35,37],
+          },
           MathExpression {
-            li: "li",
+            li: Word {
+              kind: "cmavo",
+              phonemes: "li",
+              span: [38,40],
+            },
             WithFreeModifiers {
-              "no",
-              "ci",
-              "vo",
-              "no",
+              Word {
+                kind: "cmavo",
+                phonemes: "no",
+                span: [41,42],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "ci",
+                span: [42,43],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "vo",
+                span: [44,45],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "no",
+                span: [45,46],
+              },
             },
           },
         },

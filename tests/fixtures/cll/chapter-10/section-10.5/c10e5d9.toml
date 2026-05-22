@@ -48,6 +48,35 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ta", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ri'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ve'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "finpe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 22, char_start: 17, char_end: 22, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ta ri'u ve'i ca'u fínpe)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ta",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ri'u",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ve'i",
+    span: [8,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca'u",
+    span: [12,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "finpe",
+    span: [17,22],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ri'u","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ve'i","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ca'u","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"finpe","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -55,15 +84,35 @@ brackets = "(ta [{ri'u ve'i ca'u} fínpe])"
 tree = """
 Predicate {
   leading_terms: [
-    "ta",
+    Word {
+      kind: "cmavo",
+      phonemes: "ta",
+      span: [0,2],
+    },
   ],
   TenseModal {
     tense_modal: WithFreeModifiers {
-      "ri'u",
-      "ve'i",
-      "ca'u",
+      Word {
+        kind: "cmavo",
+        phonemes: "ri'u",
+        span: [3,7],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "ve'i",
+        span: [8,12],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "ca'u",
+        span: [12,16],
+      },
     },
-    "fínpe",
+    Word {
+      kind: "gismu",
+      phonemes: "finpe",
+      span: [17,22],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[3,7],"phonemes":"ri'u","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[8,12],"phonemes":"ve'i","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[12,16],"phonemes":"ca'u","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[17,22],"phonemes":"finpe","kind":"gismu"}}}}}}}}}}}}}]}]}"""

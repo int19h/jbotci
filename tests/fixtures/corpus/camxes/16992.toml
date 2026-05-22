@@ -42,6 +42,35 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ĭi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ro'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ro", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }) })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "smaji", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.ĭi ro'i ro do smáji)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ĭi",
+    span: [1,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro'i",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [10,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "smaji",
+    span: [13,18],
+  },
+]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ĭi","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ro'i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"smaji","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -49,18 +78,38 @@ tree = """
 Text {
   leading_indicators: [
     WithIndicator {
-      ".ĭi",
-      indicator: "ro'i",
+      Word {
+        kind: "cmavo",
+        phonemes: "ĭi",
+        span: [1,3],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ro'i",
+        span: [3,7],
+      },
     },
   ],
   Predicate {
     leading_terms: [
       Quantified {
-        quantifier: "ro",
-        "do",
+        quantifier: Word {
+          kind: "cmavo",
+          phonemes: "ro",
+          span: [8,10],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "do",
+          span: [10,12],
+        },
       },
     ],
-    "smáji",
+    Word {
+      kind: "gismu",
+      phonemes: "smaji",
+      span: [13,18],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[8,10],"phonemes":"ro","kind":"cmavo"}}}]}},"inner_argument":{"Koha":{"Bare":{"Bare":{"span":[10,12],"phonemes":"do","kind":"cmavo"}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"smaji","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[1,3],"phonemes":"ĭi","kind":"cmavo"}}},"indicator":{"span":[3,7],"phonemes":"ro'i","kind":"cmavo"}}}}]}"""

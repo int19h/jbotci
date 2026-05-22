@@ -32,21 +32,52 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "jilks", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "selbri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 16, char_start: 10, char_end: 16, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(.jilks. no sélbri)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "jilks",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [7,9],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "selbri",
+    span: [10,16],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"jilks","kind":"cmevla"}},{"Bare":{"span":[7,9],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[10,16],"phonemes":"selbri","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".jilks.",
+    Word {
+      kind: "cmevla",
+      phonemes: "jilks",
+      span: [0,5],
+    },
   ],
   Term {
     terms: [
       Descriptor {
         tail_elements: [
-          "no",
+          Word {
+            kind: "cmavo",
+            phonemes: "no",
+            span: [7,9],
+          },
         ],
-        relation: "sélbri",
+        relation: Word {
+          kind: "lujvo",
+          phonemes: "selbri",
+          span: [10,16],
+        },
       },
     ],
   },

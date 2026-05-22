@@ -32,6 +32,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Fuhivla, phonemes: "flexive", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 9, char_start: 2, char_end: 9, start: None, end: None }) })))))), relative_clauses: [], ku: None })), Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }, argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] }, ku: None }], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(re flexíve fa)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [0,2],
+  },
+  Word {
+    kind: "fu'ivla",
+    phonemes: "flexive",
+    span: [2,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fa",
+    span: [10,12],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[2,9],"phonemes":"flexive","kind":"fu'ivla"}},{"Bare":{"span":[10,12],"phonemes":"fa","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -40,12 +59,24 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        "re",
+        Word {
+          kind: "cmavo",
+          phonemes: "re",
+          span: [0,2],
+        },
       ],
-      relation: "flexíve",
+      relation: Word {
+        kind: "fu'ivla",
+        phonemes: "flexive",
+        span: [2,9],
+      },
     },
     Fa {
-      fa: "fa",
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fa",
+        span: [10,12],
+      },
       Zohe {},
     },
   ],

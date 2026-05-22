@@ -53,6 +53,44 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Letter { base: WordLike(LohuQuote { lohu: Word(WordData { kind: Cmavo, phonemes: "lo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }), quoted_words: [Word(WordData { kind: Cmavo, phonemes: "co", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }), Word(WordData { kind: Cmavo, phonemes: "co", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) }), Word(WordData { kind: Cmavo, phonemes: "co", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) })], lehu: Word(WordData { kind: Cmavo, phonemes: "le'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None }) }) }), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) }) }))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "([lo'u co co co le'u] bu)"
+tree = """
+[
+  Letter {
+    LohuQuote {
+      lohu: Word {
+        kind: "cmavo",
+        phonemes: "lo'u",
+        span: [0,4],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "co",
+        span: [5,7],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "co",
+        span: [8,10],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "co",
+        span: [11,13],
+      },
+      lehu: Word {
+        kind: "cmavo",
+        phonemes: "le'u",
+        span: [14,18],
+      },
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [19,21],
+    },
+  },
+]"""
 json = """[{"Letter":{"base":{"LohuQuote":{"lohu":{"span":[0,4],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[5,7],"phonemes":"co","kind":"cmavo"},{"span":[8,10],"phonemes":"co","kind":"cmavo"},{"span":[11,13],"phonemes":"co","kind":"cmavo"}],"lehu":{"span":[14,18],"phonemes":"le'u","kind":"cmavo"}}},"bu":{"span":[19,21],"phonemes":"bu","kind":"cmavo"}}}]"""
 
 [expectations.output.gentufa]
@@ -60,7 +98,40 @@ tree = """
 Term {
   terms: [
     Letter {
-      letter: "lo'u-«co co co»-le'u-bu",
+      letter: Letter {
+        LohuQuote {
+          lohu: Word {
+            kind: "cmavo",
+            phonemes: "lo'u",
+            span: [0,4],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "co",
+            span: [5,7],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "co",
+            span: [8,10],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "co",
+            span: [11,13],
+          },
+          lehu: Word {
+            kind: "cmavo",
+            phonemes: "le'u",
+            span: [14,18],
+          },
+        },
+        bu: Word {
+          kind: "cmavo",
+          phonemes: "bu",
+          span: [19,21],
+        },
+      },
     },
   ],
 }"""

@@ -28,14 +28,36 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(tcána ma)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "tcana",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [9,11],
+  },
+]"""
 json = '[{"Bare":{"span":[3,8],"phonemes":"tcana","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  "tcána",
+  Word {
+    kind: "gismu",
+    phonemes: "tcana",
+    span: [3,8],
+  },
   terms: [
-    "ma",
+    Word {
+      kind: "cmavo",
+      phonemes: "ma",
+      span: [9,11],
+    },
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"tcana","kind":"gismu"}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[9,11],"phonemes":"ma","kind":"cmavo"}}}}}]}}}}}}}}]}]}'

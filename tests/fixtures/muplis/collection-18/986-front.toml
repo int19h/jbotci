@@ -35,6 +35,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "eĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "klama", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.eĭ ma'a kláma)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "eĭ",
+    span: [1,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma'a",
+    span: [4,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [9,14],
+  },
+]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ma'a","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"klama","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -42,13 +61,25 @@ brackets = "(.eĭ [ma'a kláma])"
 tree = """
 Text {
   leading_indicators: [
-    ".eĭ",
+    Word {
+      kind: "cmavo",
+      phonemes: "eĭ",
+      span: [1,3],
+    },
   ],
   Predicate {
     leading_terms: [
-      "ma'a",
+      Word {
+        kind: "cmavo",
+        phonemes: "ma'a",
+        span: [4,8],
+      },
     ],
-    "kláma",
+    Word {
+      kind: "gismu",
+      phonemes: "klama",
+      span: [9,14],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[4,8],"phonemes":"ma'a","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"klama","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"eĭ","kind":"cmavo"}}}}]}"""

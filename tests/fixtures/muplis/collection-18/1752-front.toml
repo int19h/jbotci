@@ -96,4 +96,83 @@ error = { position = 0, allowed-next = [], message = """Syntax parse error; expe
 xfail = { source = "muplis", reason = "The abstraction le nu ro me vo'a citno lacks a sentence boundary such as cu before citno; camxes beta/experimental reject this form too.", accepted-status = "failure" }
 
 [expectations.output.vlasei]
+brackets = "(.i leĭ za'u da pu co'a ku mórsi ca le nu ro me vo'a cítno)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "leĭ",
+    span: [3,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "za'u",
+    span: [7,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "co'a",
+    span: [18,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "morsi",
+    span: [26,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [32,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [35,37],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [38,40],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [41,43],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "me",
+    span: [44,46],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vo'a",
+    span: [47,51],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "citno",
+    span: [52,57],
+  },
+]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"za'u","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"morsi","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[35,37],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[47,51],"phonemes":"vo'a","kind":"cmavo"}},{"Bare":{"span":[52,57],"phonemes":"citno","kind":"gismu"}}]"""

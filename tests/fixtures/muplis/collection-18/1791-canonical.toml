@@ -55,6 +55,45 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Prenex { prenex_terms: [Argument(RelativeClause { base_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), vuho: None, relative_clauses: [Goi(GoiRelativeClauseSyntax { goi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "goĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }, argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ko'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 11, char_start: 7, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }), gehu: None })] }), Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ko'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 19, char_start: 15, char_end: 19, start: None, end: None }) })))), free_modifiers: [] }) }], zohu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 24, char_start: 20, char_end: 24, start: None, end: None }) })))), free_modifiers: [] }, inner_statement: Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cfari", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 30, char_start: 25, char_end: 30, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }) }) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ma goĭ ko'a ca ko'a zo'u cfári)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "goĭ",
+    span: [3,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ko'a",
+    span: [7,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ko'a",
+    span: [15,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'u",
+    span: [20,24],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cfari",
+    span: [25,30],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"goĭ","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[15,19],"phonemes":"ko'a","kind":"cmavo"}},{"Bare":{"span":[20,24],"phonemes":"zo'u","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"cfari","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -63,20 +102,48 @@ tree = """
 Prenex {
   prenex_terms: [
     RelativeClause {
-      base_argument: "ma",
+      base_argument: Word {
+        kind: "cmavo",
+        phonemes: "ma",
+        span: [0,2],
+      },
       relative_clauses: [
         GoiRelativeClause {
-          goi: "goĭ",
-          "ko'a",
+          goi: Word {
+            kind: "cmavo",
+            phonemes: "goĭ",
+            span: [3,6],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "ko'a",
+            span: [7,11],
+          },
         },
       ],
     },
     Tagged {
-      tense_modal: "ca",
-      "ko'a",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ca",
+        span: [12,14],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "ko'a",
+        span: [15,19],
+      },
     },
   ],
-  zohu: "zo'u",
-  "cfári",
+  zohu: Word {
+    kind: "cmavo",
+    phonemes: "zo'u",
+    span: [20,24],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cfari",
+    span: [25,30],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Argument":{"RelativeClause":{"base_argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ma","kind":"cmavo"}}}},"relative_clauses":[{"Goi":{"goi":{"Bare":{"Bare":{"span":[3,6],"phonemes":"goĭ","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[7,11],"phonemes":"ko'a","kind":"cmavo"}}}}}}]}}},{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[12,14],"phonemes":"ca","kind":"cmavo"}}}}]}},"argument":{"Koha":{"Bare":{"Bare":{"span":[15,19],"phonemes":"ko'a","kind":"cmavo"}}}}}}],"zohu":{"Bare":{"Bare":{"span":[20,24],"phonemes":"zo'u","kind":"cmavo"}}},"inner_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[25,30],"phonemes":"cfari","kind":"gismu"}}}}}}}}}}}}}]}]}"""

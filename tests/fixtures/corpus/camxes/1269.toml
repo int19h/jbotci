@@ -53,25 +53,92 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi cu kláma le mélbi .ŭi ku)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [4,6],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [8,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [14,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "melbi",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭi",
+    span: [24,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [28,30],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[28,30],"phonemes":"ku","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [4,6],
+  },
   Relation {
-    "kláma",
+    Word {
+      kind: "gismu",
+      phonemes: "klama",
+      span: [8,13],
+    },
     terms: [
       Descriptor {
-        descriptor: "le",
-        relation: WithIndicator {
-          "mélbi",
-          indicator: ".ŭi",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [14,16],
         },
-        ku: "ku",
+        relation: WithIndicator {
+          Word {
+            kind: "gismu",
+            phonemes: "melbi",
+            span: [17,22],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "ŭi",
+            span: [24,26],
+          },
+        },
+        ku: Word {
+          kind: "cmavo",
+          phonemes: "ku",
+          span: [28,30],
+        },
       },
     ],
   },

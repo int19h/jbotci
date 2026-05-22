@@ -40,6 +40,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Lu { lu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }, lihu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }) })), Argument(Quote(Lu { lu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }, lihu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }) }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(lu li'u lu li'u)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "lu",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li'u",
+    span: [4,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lu",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li'u",
+    span: [13,17],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"li'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -48,14 +72,30 @@ tree = """
 Term {
   terms: [
     Lu {
-      lu: "lu",
+      lu: Word {
+        kind: "cmavo",
+        phonemes: "lu",
+        span: [0,2],
+      },
       Text {},
-      lihu: "li'u",
+      lihu: Word {
+        kind: "cmavo",
+        phonemes: "li'u",
+        span: [4,8],
+      },
     },
     Lu {
-      lu: "lu",
+      lu: Word {
+        kind: "cmavo",
+        phonemes: "lu",
+        span: [9,11],
+      },
       Text {},
-      lihu: "li'u",
+      lihu: Word {
+        kind: "cmavo",
+        phonemes: "li'u",
+        span: [13,17],
+      },
     },
   ],
 }"""

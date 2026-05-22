@@ -42,17 +42,66 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Connected { leading_statement: Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "zerle'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), i: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 10, char_start: 9, char_end: 10, start: None, end: None }) })))), connective: Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ba", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "bo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_statement: Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "citka", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }) }) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(zerlé'a .i ba bo cítka)"
+tree = """
+[
+  Word {
+    kind: "lujvo",
+    phonemes: "zerle'a",
+    span: [0,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [9,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ba",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "bo",
+    span: [12,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "citka",
+    span: [15,20],
+  },
+]"""
 json = """[{"Bare":{"span":[0,7],"phonemes":"zerle'a","kind":"lujvo"}},{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ba","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"citka","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_statement: "zerlé'a",
-  i: ".i",
-  connective: WithFreeModifiers {
-    "ba",
-    "bo",
+  leading_statement: Word {
+    kind: "lujvo",
+    phonemes: "zerle'a",
+    span: [0,7],
   },
-  trailing_statement: "cítka",
+  i: Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [9,10],
+  },
+  connective: WithFreeModifiers {
+    Word {
+      kind: "cmavo",
+      phonemes: "ba",
+      span: [10,12],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "bo",
+      span: [12,14],
+    },
+  },
+  trailing_statement: Word {
+    kind: "gismu",
+    phonemes: "citka",
+    span: [15,20],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Connected":{"leading_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[0,7],"phonemes":"zerle'a","kind":"lujvo"}}}}}}}}}},"i":{"Bare":{"Bare":{"span":[9,10],"phonemes":"i","kind":"cmavo"}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[10,12],"phonemes":"ba","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[12,14],"phonemes":"bo","kind":"cmavo"}}}]}},"trailing_statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,20],"phonemes":"citka","kind":"gismu"}}}}}}}}}}}}}]}]}"""

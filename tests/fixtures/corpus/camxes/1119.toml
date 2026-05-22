@@ -83,6 +83,75 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(li ny du li ni'i gi veĭ re su'i re ve'o gi vo)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ny",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du",
+    span: [7,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ni'i",
+    span: [13,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi",
+    span: [17,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "veĭ",
+    span: [20,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [24,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "su'i",
+    span: [27,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [32,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ve'o",
+    span: [36,40],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi",
+    span: [42,44],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vo",
+    span: [45,47],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ny","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ni'i","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"veĭ","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[32,34],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[36,40],"phonemes":"ve'o","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[45,47],"phonemes":"vo","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -90,31 +159,83 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: "li",
-      "ny",
+      li: Word {
+        kind: "cmavo",
+        phonemes: "li",
+        span: [0,2],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "ny",
+        span: [3,5],
+      },
     },
   ],
   Relation {
-    "du",
+    Word {
+      kind: "cmavo",
+      phonemes: "du",
+      span: [7,9],
+    },
     terms: [
       MathExpression {
-        li: "li",
+        li: Word {
+          kind: "cmavo",
+          phonemes: "li",
+          span: [10,12],
+        },
         Gek {
           gek: WithFreeModifiers {
-            "ni'i",
-            "gi",
+            Word {
+              kind: "cmavo",
+              phonemes: "ni'i",
+              span: [13,17],
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "gi",
+              span: [17,19],
+            },
           },
           left_expression: Vei {
-            vei: "veĭ",
-            Binary {
-              left_expression: "re",
-              operator: "su'i",
-              right_expression: "re",
+            vei: Word {
+              kind: "cmavo",
+              phonemes: "veĭ",
+              span: [20,23],
             },
-            veho: "ve'o",
+            Binary {
+              left_expression: Word {
+                kind: "cmavo",
+                phonemes: "re",
+                span: [24,26],
+              },
+              operator: Word {
+                kind: "cmavo",
+                phonemes: "su'i",
+                span: [27,31],
+              },
+              right_expression: Word {
+                kind: "cmavo",
+                phonemes: "re",
+                span: [32,34],
+              },
+            },
+            veho: Word {
+              kind: "cmavo",
+              phonemes: "ve'o",
+              span: [36,40],
+            },
           },
-          gik: "gi",
-          right_expression: "vo",
+          gik: Word {
+            kind: "cmavo",
+            phonemes: "gi",
+            span: [42,44],
+          },
+          right_expression: Word {
+            kind: "cmavo",
+            phonemes: "vo",
+            span: [45,47],
+          },
         },
       },
     ],

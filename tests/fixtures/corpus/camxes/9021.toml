@@ -32,18 +32,49 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cmene", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "galfi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), free_modifiers: [] })]), terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(cméne gálfi pu)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "cmene",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "galfi",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [12,14],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cmene","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"galfi","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"pu","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Relation {
   Compound {
-    "cméne",
-    "gálfi",
+    Word {
+      kind: "gismu",
+      phonemes: "cmene",
+      span: [0,5],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "galfi",
+      span: [6,11],
+    },
   },
   terms: [
     Tagged {
-      tense_modal: "pu",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "pu",
+        span: [12,14],
+      },
       Zohe {},
     },
   ],

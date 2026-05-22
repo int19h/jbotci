@@ -32,18 +32,49 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "closer", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sinxa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }, toi: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(.closer. to sínxa)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "closer",
+    span: [0,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [7,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sinxa",
+    span: [10,15],
+  },
+]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"closer","kind":"cmevla"}},{"Bare":{"span":[7,9],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"sinxa","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".closer.",
+    Word {
+      kind: "cmevla",
+      phonemes: "closer",
+      span: [0,6],
+    },
   ],
   leading_free_modifiers: [
     To {
-      to: "to",
-      "sínxa",
+      to: Word {
+        kind: "cmavo",
+        phonemes: "to",
+        span: [7,9],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "sinxa",
+        span: [10,15],
+      },
     },
   ],
 }"""

@@ -47,27 +47,85 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "za'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ro", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "slabu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], cu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) })))), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zvati", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 22, char_start: 17, char_end: 22, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ŭi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None }) }), nai: None }), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(za'a ro slábu cu zváti .ŭi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "za'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "slabu",
+    span: [8,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [14,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zvati",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭi",
+    span: [24,26],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"za'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"slabu","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"zvati","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"ŭi","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "za'a",
+    Word {
+      kind: "cmavo",
+      phonemes: "za'a",
+      span: [0,4],
+    },
   ],
   Predicate {
     leading_terms: [
       Descriptor {
         tail_elements: [
-          "ro",
+          Word {
+            kind: "cmavo",
+            phonemes: "ro",
+            span: [5,7],
+          },
         ],
-        relation: "slábu",
+        relation: Word {
+          kind: "gismu",
+          phonemes: "slabu",
+          span: [8,13],
+        },
       },
     ],
-    cu: "cu",
+    cu: Word {
+      kind: "cmavo",
+      phonemes: "cu",
+      span: [14,16],
+    },
     WithIndicator {
-      "zváti",
-      indicator: ".ŭi",
+      Word {
+        kind: "gismu",
+        phonemes: "zvati",
+        span: [17,22],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ŭi",
+        span: [24,26],
+      },
     },
   },
 }"""

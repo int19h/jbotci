@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(MathExpression { li: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "me'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, expression: Binary { left_expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), operator: Vuhu(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "su'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }), right_expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }) }, loho: None })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(me'o re su'i re)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "me'o",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "su'i",
+    span: [8,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [13,15],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"me'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"re","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -44,11 +68,27 @@ tree = """
 Term {
   terms: [
     MathExpression {
-      li: "me'o",
+      li: Word {
+        kind: "cmavo",
+        phonemes: "me'o",
+        span: [0,4],
+      },
       Binary {
-        left_expression: "re",
-        operator: "su'i",
-        right_expression: "re",
+        left_expression: Word {
+          kind: "cmavo",
+          phonemes: "re",
+          span: [5,7],
+        },
+        operator: Word {
+          kind: "cmavo",
+          phonemes: "su'i",
+          span: [8,12],
+        },
+        right_expression: Word {
+          kind: "cmavo",
+          phonemes: "re",
+          span: [13,15],
+        },
       },
     },
   ],

@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [WithIndicator { base: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "daĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "ŭu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) }), nai: None }], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(je'e .oĭ daĭ .ŭu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "je'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "oĭ",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "daĭ",
+    span: [7,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭu",
+    span: [11,13],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"daĭ","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ŭu","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -47,12 +71,28 @@ Text {
       vocative_markers: WithIndicator {
         WithIndicator {
           WithIndicator {
-            "je'e",
-            indicator: ".oĭ",
+            Word {
+              kind: "cmavo",
+              phonemes: "je'e",
+              span: [0,4],
+            },
+            indicator: Word {
+              kind: "cmavo",
+              phonemes: "oĭ",
+              span: [5,7],
+            },
           },
-          indicator: "daĭ",
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "daĭ",
+            span: [7,10],
+          },
         },
-        indicator: ".ŭu",
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ŭu",
+          span: [11,13],
+        },
       },
     },
   ],

@@ -88,46 +88,176 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.i mi pílno le xámgu ju se skícu be le xúnre cúkta beĭ bángu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pilno",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [12,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xamgu",
+    span: [15,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ju",
+    span: [21,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [24,26],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "skicu",
+    span: [27,32],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [33,35],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [36,38],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xunre",
+    span: [39,44],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cukta",
+    span: [45,50],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "beĭ",
+    span: [51,54],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bangu",
+    span: [55,60],
+  },
+]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"skicu","kind":"gismu"}},{"Bare":{"span":[33,35],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[45,50],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[51,54],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[55,60],"phonemes":"bangu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: ".i",
+  i: Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
   Predicate {
     leading_terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [3,5],
+      },
     ],
     Relation {
-      "pílno",
+      Word {
+        kind: "gismu",
+        phonemes: "pilno",
+        span: [6,11],
+      },
       terms: [
         Descriptor {
-          descriptor: "le",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [12,14],
+          },
           relation: Compound {
             Connected {
-              leading_unit: "xámgu",
-              connective: "ju",
+              leading_unit: Word {
+                kind: "gismu",
+                phonemes: "xamgu",
+                span: [15,20],
+              },
+              connective: Word {
+                kind: "cmavo",
+                phonemes: "ju",
+                span: [21,23],
+              },
               trailing_unit: Be {
                 Se {
-                  se: "se",
-                  "skícu",
+                  se: Word {
+                    kind: "cmavo",
+                    phonemes: "se",
+                    span: [24,26],
+                  },
+                  Word {
+                    kind: "gismu",
+                    phonemes: "skicu",
+                    span: [27,32],
+                  },
                 },
-                be: "be",
+                be: Word {
+                  kind: "cmavo",
+                  phonemes: "be",
+                  span: [33,35],
+                },
                 first_argument: Descriptor {
-                  descriptor: "le",
+                  descriptor: Word {
+                    kind: "cmavo",
+                    phonemes: "le",
+                    span: [36,38],
+                  },
                   relation: Compound {
-                    "xúnre",
-                    "cúkta",
+                    Word {
+                      kind: "gismu",
+                      phonemes: "xunre",
+                      span: [39,44],
+                    },
+                    Word {
+                      kind: "gismu",
+                      phonemes: "cukta",
+                      span: [45,50],
+                    },
                   },
                 },
                 bei_links: [
                   BeiLink {
-                    bei: "beĭ",
+                    bei: Word {
+                      kind: "cmavo",
+                      phonemes: "beĭ",
+                      span: [51,54],
+                    },
                   },
                 ],
               },
             },
-            "bángu",
+            Word {
+              kind: "gismu",
+              phonemes: "bangu",
+              span: [55,60],
+            },
           },
         },
       ],

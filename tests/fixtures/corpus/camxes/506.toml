@@ -34,6 +34,27 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ce'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "xancisk", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 13, char_start: 6, char_end: 13, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) }) }))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ce'a [.xancisk. bu])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ce'a",
+    span: [0,4],
+  },
+  Letter {
+    Word {
+      kind: "cmevla",
+      phonemes: "xancisk",
+      span: [6,13],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [15,17],
+    },
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ce'a","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[6,13],"phonemes":"xancisk","kind":"cmevla"}},"bu":{"span":[15,17],"phonemes":"bu","kind":"cmavo"}}}]"""
 
 [expectations.output.gentufa]
@@ -42,8 +63,23 @@ Term {
   terms: [
     Letter {
       letter: WithFreeModifiers {
-        "ce'a",
-        ".xancisk.bu",
+        Word {
+          kind: "cmavo",
+          phonemes: "ce'a",
+          span: [0,4],
+        },
+        Letter {
+          Word {
+            kind: "cmevla",
+            phonemes: "xancisk",
+            span: [6,13],
+          },
+          bu: Word {
+            kind: "cmavo",
+            phonemes: "bu",
+            span: [15,17],
+          },
+        },
       },
     },
   ],

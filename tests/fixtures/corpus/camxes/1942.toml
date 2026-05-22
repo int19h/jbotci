@@ -78,40 +78,152 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(xu la .djan. cu na pu kláma la .paris. .e la .rom.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "djan",
+    span: [6,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [13,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [17,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [20,22],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [23,28],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [29,31],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "paris",
+    span: [32,37],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [40,41],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [42,44],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "rom",
+    span: [45,48],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[13,15],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[29,31],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[32,37],"phonemes":"paris","kind":"cmevla"}},{"Bare":{"span":[40,41],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[45,48],"phonemes":"rom","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "xu",
+    Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [0,2],
+    },
   ],
   Predicate {
     leading_terms: [
       Name {
-        la: "la",
-        names: ".djan.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [3,5],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "djan",
+          span: [6,10],
+        },
       },
     ],
-    cu: "cu",
+    cu: Word {
+      kind: "cmavo",
+      phonemes: "cu",
+      span: [13,15],
+    },
     Relation {
       Na {
-        na: "na",
+        na: Word {
+          kind: "cmavo",
+          phonemes: "na",
+          span: [17,19],
+        },
         TenseModal {
-          tense_modal: "pu",
-          "kláma",
+          tense_modal: Word {
+            kind: "cmavo",
+            phonemes: "pu",
+            span: [20,22],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "klama",
+            span: [23,28],
+          },
         },
       },
       terms: [
         Connected {
           leading_argument: Name {
-            la: "la",
-            names: ".paris.",
+            la: Word {
+              kind: "cmavo",
+              phonemes: "la",
+              span: [29,31],
+            },
+            names: Word {
+              kind: "cmevla",
+              phonemes: "paris",
+              span: [32,37],
+            },
           },
-          connective: ".e",
+          connective: Word {
+            kind: "cmavo",
+            phonemes: "e",
+            span: [40,41],
+          },
           trailing_argument: Name {
-            la: "la",
-            names: ".rom.",
+            la: Word {
+              kind: "cmavo",
+              phonemes: "la",
+              span: [42,44],
+            },
+            names: Word {
+              kind: "cmevla",
+              phonemes: "rom",
+              span: [45,48],
+            },
           },
         },
       ],

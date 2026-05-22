@@ -27,6 +27,20 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "zu'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 6, char_start: 2, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(se zu'e)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zu'e",
+    span: [2,6],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"zu'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -35,8 +49,16 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        se: "se",
-        bai: "zu'e",
+        se: Word {
+          kind: "cmavo",
+          phonemes: "se",
+          span: [0,2],
+        },
+        bai: Word {
+          kind: "cmavo",
+          phonemes: "zu'e",
+          span: [2,6],
+        },
       },
       Zohe {},
     },

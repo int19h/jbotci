@@ -38,16 +38,56 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(na da mi pánzi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [2,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "panzi",
+    span: [8,13],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"panzi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "na",
-    "da",
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "na",
+      span: [0,2],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "da",
+      span: [2,4],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [5,7],
+    },
   ],
-  "pánzi",
+  Word {
+    kind: "gismu",
+    phonemes: "panzi",
+    span: [8,13],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"BareNa":{"Bare":{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[2,4],"phonemes":"da","kind":"cmavo"}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[8,13],"phonemes":"panzi","kind":"gismu"}}}}}}}}}}}]}]}'

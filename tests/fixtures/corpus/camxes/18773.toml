@@ -32,6 +32,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ry", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "lakne", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sipna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(ry lákne sípna)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ry",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lakne",
+    span: [3,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sipna",
+    span: [9,14],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ry","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"lakne","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"sipna","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -39,12 +58,24 @@ tree = """
 Predicate {
   leading_terms: [
     Letter {
-      letter: "ry",
+      letter: Word {
+        kind: "cmavo",
+        phonemes: "ry",
+        span: [0,2],
+      },
     },
   ],
   Compound {
-    "lákne",
-    "sípna",
+    Word {
+      kind: "gismu",
+      phonemes: "lakne",
+      span: [3,8],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "sipna",
+      span: [9,14],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ry","kind":"cmavo"}}}]}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"lakne","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"sipna","kind":"gismu"}}}}]}}}}}}}}]}]}'

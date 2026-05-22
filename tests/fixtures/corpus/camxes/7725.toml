@@ -38,6 +38,30 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le ka cnáno cármi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cnano",
+    span: [9,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "carmi",
+    span: [15,20],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cnano","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"carmi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -45,12 +69,28 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [3,5],
+      },
       relation: Abstraction {
-        nu: "ka",
+        nu: Word {
+          kind: "cmavo",
+          phonemes: "ka",
+          span: [6,8],
+        },
         Compound {
-          "cnáno",
-          "cármi",
+          Word {
+            kind: "gismu",
+            phonemes: "cnano",
+            span: [9,14],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "carmi",
+            span: [15,20],
+          },
         },
       },
     },

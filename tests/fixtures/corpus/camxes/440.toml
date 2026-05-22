@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ro'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "ro'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 13, char_start: 9, char_end: 13, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "ro'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(.oĭ ro'i ro'a ro'e)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "oĭ",
+    span: [1,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro'i",
+    span: [4,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro'a",
+    span: [9,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro'e",
+    span: [14,18],
+  },
+]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ro'i","kind":"cmavo"}},{"Bare":{"span":[9,13],"phonemes":"ro'a","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"ro'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -46,12 +70,28 @@ Text {
     WithIndicator {
       WithIndicator {
         WithIndicator {
-          ".oĭ",
-          indicator: "ro'i",
+          Word {
+            kind: "cmavo",
+            phonemes: "oĭ",
+            span: [1,3],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "ro'i",
+            span: [4,8],
+          },
         },
-        indicator: "ro'a",
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ro'a",
+          span: [9,13],
+        },
       },
-      indicator: "ro'e",
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ro'e",
+        span: [14,18],
+      },
     },
   ],
 }"""

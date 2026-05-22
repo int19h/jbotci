@@ -48,6 +48,40 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le mi cúsku cu na vájni)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cusku",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [18,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "vajni",
+    span: [21,26],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"vajni","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -55,17 +89,41 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [3,5],
+      },
       tail_elements: [
-        "mi",
+        Word {
+          kind: "cmavo",
+          phonemes: "mi",
+          span: [6,8],
+        },
       ],
-      relation: "cúsku",
+      relation: Word {
+        kind: "gismu",
+        phonemes: "cusku",
+        span: [9,14],
+      },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [15,17],
+  },
   Na {
-    na: "na",
-    "vájni",
+    na: Word {
+      kind: "cmavo",
+      phonemes: "na",
+      span: [18,20],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "vajni",
+      span: [21,26],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}}},"tail_elements":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}}}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"cusku","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Na":{"na":{"Bare":{"Bare":{"span":[18,20],"phonemes":"na","kind":"cmavo"}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[21,26],"phonemes":"vajni","kind":"gismu"}}}}}}}}}}}}}]}]}'

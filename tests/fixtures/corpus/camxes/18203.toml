@@ -38,20 +38,60 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.bancus. doĭ .mumym. brédi)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "bancus",
+    span: [1,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [9,12],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "mumym",
+    span: [13,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bredi",
+    span: [20,25],
+  },
+]"""
 json = '[{"Bare":{"span":[1,7],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[9,12],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"mumym","kind":"cmevla"}},{"Bare":{"span":[20,25],"phonemes":"bredi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".bancus.",
+    Word {
+      kind: "cmevla",
+      phonemes: "bancus",
+      span: [1,7],
+    },
   ],
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "doĭ",
-      argument: ".mumym.",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "doĭ",
+        span: [9,12],
+      },
+      argument: Word {
+        kind: "cmevla",
+        phonemes: "mumym",
+        span: [13,18],
+      },
     },
   ],
-  "brédi",
+  Word {
+    kind: "gismu",
+    phonemes: "bredi",
+    span: [20,25],
+  },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[1,7],"phonemes":"bancus","kind":"cmevla"}}}],"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[9,12],"phonemes":"doĭ","kind":"cmavo"}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"span":[13,18],"phonemes":"mumym","kind":"cmevla"}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"bredi","kind":"gismu"}}}}}}}}}}}]}]}'

@@ -38,6 +38,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(fo le lójbo li'o)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "fo",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lojbo",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li'o",
+    span: [15,19],
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"li'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -45,12 +69,28 @@ tree = """
 Term {
   terms: [
     Fa {
-      fa: "fo",
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fo",
+        span: [3,5],
+      },
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [6,8],
+        },
         relation: WithIndicator {
-          "lójbo",
-          indicator: "li'o",
+          Word {
+            kind: "gismu",
+            phonemes: "lojbo",
+            span: [9,14],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "li'o",
+            span: [15,19],
+          },
         },
       },
     },

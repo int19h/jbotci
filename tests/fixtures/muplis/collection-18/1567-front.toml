@@ -40,6 +40,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ko'oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi'aĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mo'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "gunka", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 22, char_start: 17, char_end: 22, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ko'oĭ mi'aĭ mo'u gúnka)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ko'oĭ",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi'aĭ",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mo'u",
+    span: [12,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gunka",
+    span: [17,22],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"ko'oĭ","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"mi'aĭ","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"mo'u","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"gunka","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -47,15 +71,31 @@ brackets = "(ko'oĭ [mi'aĭ {mo'u gúnka}])"
 tree = """
 Text {
   leading_indicators: [
-    "ko'oĭ",
+    Word {
+      kind: "cmavo",
+      phonemes: "ko'oĭ",
+      span: [0,5],
+    },
   ],
   Predicate {
     leading_terms: [
-      "mi'aĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi'aĭ",
+        span: [6,11],
+      },
     ],
     TenseModal {
-      tense_modal: "mo'u",
-      "gúnka",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "mo'u",
+        span: [12,16],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "gunka",
+        span: [17,22],
+      },
     },
   },
 }"""

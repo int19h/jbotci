@@ -43,20 +43,69 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi ti cu vécnu ta)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ti",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [7,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "vecnu",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ta",
+    span: [17,19],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"vecnu","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"ta","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
-    "ti",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "ti",
+      span: [3,5],
+    },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [7,9],
+  },
   Relation {
-    "vécnu",
+    Word {
+      kind: "gismu",
+      phonemes: "vecnu",
+      span: [11,16],
+    },
     terms: [
-      "ta",
+      Word {
+        kind: "cmavo",
+        phonemes: "ta",
+        span: [17,19],
+      },
     ],
   },
 }"""

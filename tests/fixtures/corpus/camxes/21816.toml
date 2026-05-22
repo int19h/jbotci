@@ -37,6 +37,30 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "seĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "alis", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 11, char_start: 7, char_end: 11, start: None, end: None }) }))))], free_modifiers: [] } })], cu: None, relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cusku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) }))))), sehu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(seĭ la .alis. cúsku)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "seĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "alis",
+    span: [7,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cusku",
+    span: [13,18],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"alis","kind":"cmevla"}},{"Bare":{"span":[13,18],"phonemes":"cusku","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -44,14 +68,30 @@ tree = """
 Text {
   leading_free_modifiers: [
     Sei {
-      sei: "seĭ",
+      sei: Word {
+        kind: "cmavo",
+        phonemes: "seĭ",
+        span: [0,3],
+      },
       terms: [
         Name {
-          la: "la",
-          names: ".alis.",
+          la: Word {
+            kind: "cmavo",
+            phonemes: "la",
+            span: [4,6],
+          },
+          names: Word {
+            kind: "cmevla",
+            phonemes: "alis",
+            span: [7,11],
+          },
         },
       ],
-      relation: "cúsku",
+      relation: Word {
+        kind: "gismu",
+        phonemes: "cusku",
+        span: [13,18],
+      },
     },
   ],
 }"""

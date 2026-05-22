@@ -62,4 +62,53 @@ status = "failure"
 error = { position = 1, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(li le za'i mi sípna li'u .is. .a súmti)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "za'i",
+    span: [6,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [11,13],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sipna",
+    span: [14,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li'u",
+    span: [20,24],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "is",
+    span: [25,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "a",
+    span: [28,29],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sumti",
+    span: [30,35],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"za'i","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"sipna","kind":"gismu"}},{"Bare":{"span":[20,24],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"is","kind":"cmevla"}},{"Bare":{"span":[28,29],"phonemes":"a","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"sumti","kind":"gismu"}}]"""

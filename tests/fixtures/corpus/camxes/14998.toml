@@ -47,6 +47,40 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) })))), free_modifiers: [To { to: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) })))), free_modifiers: [To { to: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }))], vau: None })) }] }] }, toi: None }] }))], vau: None })) }] }] }, toi: None }] }))], vau: None })) }] }] }, toi: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(to ra to ra to ra)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ra",
+    span: [2,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ra",
+    span: [7,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ra",
+    span: [12,14],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"ra","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"ra","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -54,24 +88,48 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: "to",
+      to: Word {
+        kind: "cmavo",
+        phonemes: "to",
+        span: [0,2],
+      },
       Term {
         terms: [
           WithFreeModifiers {
-            "ra",
+            Word {
+              kind: "cmavo",
+              phonemes: "ra",
+              span: [2,4],
+            },
             free_modifiers: [
               To {
-                to: "to",
+                to: Word {
+                  kind: "cmavo",
+                  phonemes: "to",
+                  span: [5,7],
+                },
                 Term {
                   terms: [
                     WithFreeModifiers {
-                      "ra",
+                      Word {
+                        kind: "cmavo",
+                        phonemes: "ra",
+                        span: [7,9],
+                      },
                       free_modifiers: [
                         To {
-                          to: "to",
+                          to: Word {
+                            kind: "cmavo",
+                            phonemes: "to",
+                            span: [10,12],
+                          },
                           Term {
                             terms: [
-                              "ra",
+                              Word {
+                                kind: "cmavo",
+                                phonemes: "ra",
+                                span: [12,14],
+                              },
                             ],
                           },
                         },

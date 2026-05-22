@@ -52,6 +52,45 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "so'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }) })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "certu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 15, char_start: 14, char_end: 15, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ko", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "surla", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 24, char_start: 19, char_end: 24, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "troci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 30, char_start: 25, char_end: 30, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(so'u da cértu .i ko súrla tróci)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "so'u",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [4,6],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "certu",
+    span: [7,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [14,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ko",
+    span: [16,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "surla",
+    span: [19,24],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "troci",
+    span: [25,30],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'u","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"certu","kind":"gismu"}},{"Bare":{"span":[14,15],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"surla","kind":"gismu"}},{"Bare":{"span":[25,30],"phonemes":"troci","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -60,21 +99,49 @@ Paragraph {
   Predicate {
     leading_terms: [
       Quantified {
-        quantifier: "so'u",
-        "da",
+        quantifier: Word {
+          kind: "cmavo",
+          phonemes: "so'u",
+          span: [0,4],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "da",
+          span: [4,6],
+        },
       },
     ],
-    "cértu",
+    Word {
+      kind: "gismu",
+      phonemes: "certu",
+      span: [7,12],
+    },
   },
   ParagraphStatement {
-    i: ".i",
+    i: Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [14,15],
+    },
     Predicate {
       leading_terms: [
-        "ko",
+        Word {
+          kind: "cmavo",
+          phonemes: "ko",
+          span: [16,18],
+        },
       ],
       Compound {
-        "súrla",
-        "tróci",
+        Word {
+          kind: "gismu",
+          phonemes: "surla",
+          span: [19,24],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "troci",
+          span: [25,30],
+        },
       },
     },
   },

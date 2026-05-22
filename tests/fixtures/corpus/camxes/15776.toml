@@ -38,18 +38,58 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(me mi se gídva)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "me",
+    span: [2,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [8,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gidva",
+    span: [11,16],
+  },
+]"""
 json = '[{"Bare":{"span":[2,4],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"gidva","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
   Me {
-    me: "me",
-    "mi",
+    me: Word {
+      kind: "cmavo",
+      phonemes: "me",
+      span: [2,4],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [5,7],
+    },
   },
   Se {
-    se: "se",
-    "gídva",
+    se: Word {
+      kind: "cmavo",
+      phonemes: "se",
+      span: [8,10],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "gidva",
+      span: [11,16],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Me":{"me":{"Bare":{"Bare":{"span":[2,4],"phonemes":"me","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"mi","kind":"cmavo"}}}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[8,10],"phonemes":"se","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[11,16],"phonemes":"gidva","kind":"gismu"}}}}}}]}}}}}}}}]}]}'

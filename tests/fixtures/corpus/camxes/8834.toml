@@ -33,19 +33,50 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.zmitav. ko dáncu)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "zmitav",
+    span: [0,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ko",
+    span: [8,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "dancu",
+    span: [11,16],
+  },
+]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"zmitav","kind":"cmevla"}},{"Bare":{"span":[8,10],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"dancu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".zmitav.",
+    Word {
+      kind: "cmevla",
+      phonemes: "zmitav",
+      span: [0,6],
+    },
   ],
   Predicate {
     leading_terms: [
-      "ko",
+      Word {
+        kind: "cmavo",
+        phonemes: "ko",
+        span: [8,10],
+      },
     ],
-    "dáncu",
+    Word {
+      kind: "gismu",
+      phonemes: "dancu",
+      span: [11,16],
+    },
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,6],"phonemes":"zmitav","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[8,10],"phonemes":"ko","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"dancu","kind":"gismu"}}}}}}}}}}}]}]}'

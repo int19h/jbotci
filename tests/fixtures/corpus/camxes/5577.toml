@@ -44,6 +44,37 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Lahe { lahe: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, relative_clauses: [], inner_argument: Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }), word: Word(WordData { kind: Cmavo, phonemes: "nu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) }) })), free_modifiers: [Xi { xi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) })))), free_modifiers: [] }, expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }) }] })), luhu: None })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(la'e [zo nu] xi ci)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la'e",
+    span: [0,4],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [5,7],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "nu",
+      span: [8,10],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xi",
+    span: [11,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [14,16],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"la'e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[5,7],"phonemes":"zo","kind":"cmavo"},"word":{"span":[8,10],"phonemes":"nu","kind":"cmavo"}}},{"Bare":{"span":[11,13],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ci","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -51,13 +82,36 @@ tree = """
 Term {
   terms: [
     Lahe {
-      lahe: "la'e",
+      lahe: Word {
+        kind: "cmavo",
+        phonemes: "la'e",
+        span: [0,4],
+      },
       WithFreeModifiers {
-        "zo-«nu»",
+        ZoQuote {
+          zo: Word {
+            kind: "cmavo",
+            phonemes: "zo",
+            span: [5,7],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "nu",
+            span: [8,10],
+          },
+        },
         free_modifiers: [
           Xi {
-            xi: "xi",
-            "ci",
+            xi: Word {
+              kind: "cmavo",
+              phonemes: "xi",
+              span: [11,13],
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "ci",
+              span: [14,16],
+            },
           },
         ],
       },

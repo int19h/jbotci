@@ -54,4 +54,45 @@ status = "failure"
 error = { position = 6, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(mu'a la by [.a bu] sy fy)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mu'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "by",
+    span: [8,10],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "a",
+      span: [11,12],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [12,14],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "sy",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fy",
+    span: [18,20],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"by","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[11,12],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[12,14],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[15,17],"phonemes":"sy","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"fy","kind":"cmavo"}}]"""

@@ -78,38 +78,150 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ja denbáne fáncu tu'a le du'u do glétu na jo stáce djíca)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ja",
+    span: [0,2],
+  },
+  Word {
+    kind: "fu'ivla",
+    phonemes: "denbane",
+    span: [2,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fancu",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "tu'a",
+    span: [17,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [22,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du'u",
+    span: [25,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [30,32],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gletu",
+    span: [33,38],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [39,41],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "jo",
+    span: [41,43],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "stace",
+    span: [44,49],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "djica",
+    span: [50,55],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ja","kind":"cmavo"}},{"Bare":{"span":[2,9],"phonemes":"denbane","kind":"fu'ivla"}},{"Bare":{"span":[11,16],"phonemes":"fancu","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,29],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"gletu","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"stace","kind":"gismu"}},{"Bare":{"span":[50,55],"phonemes":"djica","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
-  leading_connective: "ja",
+  leading_connective: Word {
+    kind: "cmavo",
+    phonemes: "ja",
+    span: [0,2],
+  },
   Relation {
     Compound {
-      "denbáne",
-      "fáncu",
+      Word {
+        kind: "fu'ivla",
+        phonemes: "denbane",
+        span: [2,9],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "fancu",
+        span: [11,16],
+      },
     },
     terms: [
       Lahe {
-        lahe: "tu'a",
+        lahe: Word {
+          kind: "cmavo",
+          phonemes: "tu'a",
+          span: [17,21],
+        },
         Descriptor {
-          descriptor: "le",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [22,24],
+          },
           relation: Abstraction {
-            nu: "du'u",
+            nu: Word {
+              kind: "cmavo",
+              phonemes: "du'u",
+              span: [25,29],
+            },
             Predicate {
               leading_terms: [
-                "do",
+                Word {
+                  kind: "cmavo",
+                  phonemes: "do",
+                  span: [30,32],
+                },
               ],
               Compound {
                 Connected {
-                  leading_unit: "glétu",
-                  connective: Relation {
-                    na: "na",
-                    "jo",
+                  leading_unit: Word {
+                    kind: "gismu",
+                    phonemes: "gletu",
+                    span: [33,38],
                   },
-                  trailing_unit: "stáce",
+                  connective: Relation {
+                    na: Word {
+                      kind: "cmavo",
+                      phonemes: "na",
+                      span: [39,41],
+                    },
+                    Word {
+                      kind: "cmavo",
+                      phonemes: "jo",
+                      span: [41,43],
+                    },
+                  },
+                  trailing_unit: Word {
+                    kind: "gismu",
+                    phonemes: "stace",
+                    span: [44,49],
+                  },
                 },
-                "djíca",
+                Word {
+                  kind: "gismu",
+                  phonemes: "djica",
+                  span: [50,55],
+                },
               },
             },
           },

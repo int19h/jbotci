@@ -56,6 +56,49 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ty", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) })))), Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "y'y", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) }) })), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) })))), Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "y", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 18, char_start: 17, char_end: 18, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) }) }))], free_modifiers: [] }, boi: None }), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(coĭ ty [y'y bu] fy [y bu])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ty",
+    span: [4,6],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "y'y",
+      span: [7,10],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [11,13],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fy",
+    span: [14,16],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "y",
+      span: [17,18],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [19,21],
+    },
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"ty","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[7,10],"phonemes":"y'y","kind":"cmavo"}},"bu":{"span":[11,13],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[14,16],"phonemes":"fy","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[17,18],"phonemes":"y","kind":"cmavo"}},"bu":{"span":[19,21],"phonemes":"bu","kind":"cmavo"}}}]"""
 
 [expectations.output.gentufa]
@@ -63,13 +106,47 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "coĭ",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "coĭ",
+        span: [0,3],
+      },
       argument: Letter {
         letter: WithFreeModifiers {
-          "ty",
-          "y'y-bu",
-          "fy",
-          "y-bu",
+          Word {
+            kind: "cmavo",
+            phonemes: "ty",
+            span: [4,6],
+          },
+          Letter {
+            Word {
+              kind: "cmavo",
+              phonemes: "y'y",
+              span: [7,10],
+            },
+            bu: Word {
+              kind: "cmavo",
+              phonemes: "bu",
+              span: [11,13],
+            },
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "fy",
+            span: [14,16],
+          },
+          Letter {
+            Word {
+              kind: "cmavo",
+              phonemes: "y",
+              span: [17,18],
+            },
+            bu: Word {
+              kind: "cmavo",
+              phonemes: "bu",
+              span: [19,21],
+            },
+          },
         },
       },
     },

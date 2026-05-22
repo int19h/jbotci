@@ -59,27 +59,108 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cmene", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }))))) } }, terms: [Argument(Quote(Zo(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) }), word: Word(WordData { kind: Cmevla, phonemes: "mark", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 22, char_start: 18, char_end: 22, start: None, end: None }) }) })), indicator: Word(WordData { kind: Cmavo, phonemes: "ŭe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 27, char_start: 25, char_end: 27, start: None, end: None }) }), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 30, char_start: 27, char_end: 30, start: None, end: None }) })) }, free_modifiers: [] })))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(da ca se cméne [zo .mark.] .ŭe naĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cmene",
+    span: [9,14],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [15,17],
+    },
+    Word {
+      kind: "cmevla",
+      phonemes: "mark",
+      span: [18,22],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭe",
+    span: [25,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [27,30],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cmene","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[15,17],"phonemes":"zo","kind":"cmavo"},"word":{"span":[18,22],"phonemes":"mark","kind":"cmevla"}}},{"Bare":{"span":[25,27],"phonemes":"ŭe","kind":"cmavo"}},{"Bare":{"span":[27,30],"phonemes":"naĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "da",
+    Word {
+      kind: "cmavo",
+      phonemes: "da",
+      span: [0,2],
+    },
   ],
   Relation {
     TenseModal {
-      tense_modal: "ca",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ca",
+        span: [3,5],
+      },
       Se {
-        se: "se",
-        "cméne",
+        se: Word {
+          kind: "cmavo",
+          phonemes: "se",
+          span: [6,8],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "cmene",
+          span: [9,14],
+        },
       },
     },
     terms: [
       WithIndicator {
-        "zo-«.mark.»",
-        indicator: ".ŭe",
-        nai: "naĭ",
+        ZoQuote {
+          zo: Word {
+            kind: "cmavo",
+            phonemes: "zo",
+            span: [15,17],
+          },
+          Word {
+            kind: "cmevla",
+            phonemes: "mark",
+            span: [18,22],
+          },
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ŭe",
+          span: [25,27],
+        },
+        nai: Word {
+          kind: "cmavo",
+          phonemes: "naĭ",
+          span: [27,30],
+        },
       },
     ],
   },

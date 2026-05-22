@@ -53,6 +53,45 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(la jípci cu vrúsi da ga'a mi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jipci",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [12,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "vrusi",
+    span: [15,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [21,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ga'a",
+    span: [24,28],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [29,31],
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"jipci","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"vrusi","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[24,28],"phonemes":"ga'a","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"mi","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -60,20 +99,48 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "la",
-      relation: "jípci",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [3,5],
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "jipci",
+        span: [6,11],
+      },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [12,14],
+  },
   Relation {
-    "vrúsi",
+    Word {
+      kind: "gismu",
+      phonemes: "vrusi",
+      span: [15,20],
+    },
     terms: [
-      "da",
+      Word {
+        kind: "cmavo",
+        phonemes: "da",
+        span: [21,23],
+      },
       Tagged {
         tense_modal: Simple {
-          bai: "ga'a",
+          bai: Word {
+            kind: "cmavo",
+            phonemes: "ga'a",
+            span: [24,28],
+          },
         },
-        "mi",
+        Word {
+          kind: "cmavo",
+          phonemes: "mi",
+          span: [29,31],
+        },
       },
     ],
   },

@@ -48,20 +48,69 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zekri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Ke { ke_tense_modal: None, ke: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ke", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "nenri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "klama", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))), free_modifiers: [] })]), kehe: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ke'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 25, char_start: 21, char_end: 25, start: None, end: None }) })))), free_modifiers: [] }) }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(zékri ke nénri kláma ke'e)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "zekri",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nenri",
+    span: [9,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [15,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke'e",
+    span: [21,25],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"zekri","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"nenri","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[21,25],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 brackets = "(zékri [ke {nénri kláma} ke'e])"
 tree = """
 Compound {
-  "zékri",
+  Word {
+    kind: "gismu",
+    phonemes: "zekri",
+    span: [0,5],
+  },
   Ke {
-    ke: "ke",
-    Compound {
-      "nénri",
-      "kláma",
+    ke: Word {
+      kind: "cmavo",
+      phonemes: "ke",
+      span: [6,8],
     },
-    kehe: "ke'e",
+    Compound {
+      Word {
+        kind: "gismu",
+        phonemes: "nenri",
+        span: [9,14],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "klama",
+        span: [15,20],
+      },
+    },
+    kehe: Word {
+      kind: "cmavo",
+      phonemes: "ke'e",
+      span: [21,25],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"zekri","kind":"gismu"}}}},{"Ke":{"ke":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"nenri","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"klama","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[21,25],"phonemes":"ke'e","kind":"cmavo"}}}}}]}}}}}}}}]}]}"""

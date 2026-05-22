@@ -10,7 +10,8 @@ use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options};
 use jbotci_output::{
     BracketRenderOptions, JsonRenderOptions, TreeRenderOptions, compact_json_string_with_options,
-    pretty_brackets_with_options, pretty_tree_with_options,
+    pretty_brackets_with_options, pretty_morphology_brackets_with_options,
+    pretty_morphology_tree_with_options, pretty_tree_with_options,
 };
 use jbotci_syntax::{
     ParseOptions, SyntaxParse, parse_syntax_tree_with_source_and_options, syntax_warning_displays,
@@ -64,6 +65,8 @@ enum GentufaFormat {
 #[invariant(true)]
 enum VlaseiFormat {
     Plain,
+    Brackets,
+    Tree,
     Raw,
     #[value(alias = "djeisone")]
     Json,
@@ -260,6 +263,27 @@ fn run_cli<WOut: Write, WErr: Write>(
                         },
                     )?;
                     writeln!(stdout, "{}", colorize_json(&rendered, color_enabled))?;
+                }
+                VlaseiFormat::Brackets => {
+                    let rendered = pretty_morphology_brackets_with_options(
+                        &words,
+                        &text,
+                        BracketRenderOptions {
+                            color: color_enabled,
+                        },
+                    )?;
+                    writeln!(stdout, "{rendered}")?;
+                }
+                VlaseiFormat::Tree => {
+                    let rendered = pretty_morphology_tree_with_options(
+                        &words,
+                        &text,
+                        TreeRenderOptions {
+                            color: color_enabled,
+                            indent: input.indent.unwrap_or(2),
+                        },
+                    )?;
+                    writeln!(stdout, "{rendered}")?;
                 }
                 VlaseiFormat::Raw => write_debug_output(stdout, &words, input.indent)?,
             }
@@ -723,6 +747,24 @@ mod tests {
         };
         assert_eq!(alias_input.format, VlaseiFormat::Json);
 
+        let Command::Vlasei(brackets_input) =
+            Cli::try_parse_from(["jbotci", "vlasei", "--format", "brackets", "coi"])
+                .expect("vlasei brackets")
+                .command
+        else {
+            panic!("expected vlasei command")
+        };
+        assert_eq!(brackets_input.format, VlaseiFormat::Brackets);
+
+        let Command::Vlasei(tree_input) =
+            Cli::try_parse_from(["jbotci", "vlasei", "--format", "tree", "coi"])
+                .expect("vlasei tree")
+                .command
+        else {
+            panic!("expected vlasei command")
+        };
+        assert_eq!(tree_input.format, VlaseiFormat::Tree);
+
         assert_eq!(
             Cli::try_parse_from(["jbotci", "vlasei", "--turtai", "xml", "coi"])
                 .expect_err("unknown vlasei format")
@@ -793,6 +835,8 @@ mod tests {
         assert!(help.contains("--turtai"));
         assert!(help.contains("--format"));
         assert!(help.contains("plain"));
+        assert!(help.contains("brackets"));
+        assert!(help.contains("tree"));
         assert!(help.contains("raw"));
         assert!(help.contains("json"));
         assert!(!help.contains("--turtau"));
@@ -802,10 +846,10 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gentufa_compact_output_matches_bracket_renderer() {
+    fn gentufa_default_output_matches_bracket_renderer() {
         run_on_large_stack(|| {
             let cli =
-                Cli::try_parse_from(["jbotci", "gentufa", "mi", "klama"]).expect("gentufa compact");
+                Cli::try_parse_from(["jbotci", "gentufa", "mi", "klama"]).expect("gentufa default");
             let mut output = Vec::new();
             let mut error = Vec::new();
             run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
@@ -938,10 +982,10 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
 
             assert!(output.starts_with("Predicate {\n"));
-            assert!(output.contains("\n  leading_terms: [\n    \"mi\","));
+            assert!(output.contains("\n  leading_terms: [\n    Word {"));
             assert!(output.contains("leading_terms: ["));
-            assert!(output.contains("\"mi\""));
-            assert!(output.contains("\"kláma\""));
+            assert!(output.contains("phonemes: \"mi\""));
+            assert!(output.contains("phonemes: \"klama\""));
             assert!(!output.contains("Text {"));
         });
     }
@@ -1008,7 +1052,7 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
             assert_eq!(
                 output.trim_end(),
-                r#"Predicate{leading_terms:["mi"],"kláma"}"#
+                r#"Predicate{leading_terms:[Word{kind:"cmavo",phonemes:"mi",span:[0,2]}],Word{kind:"gismu",phonemes:"klama",span:[3,8]}}"#
             );
         });
     }
@@ -1142,7 +1186,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gentufa_color_flag_forces_ansi_compact_output() {
+    fn gentufa_color_flag_forces_ansi_bracket_output() {
         run_on_large_stack(|| {
             let cli = Cli::try_parse_from(["jbotci", "gentufa", "--color", "mi", "klama"])
                 .expect("gentufa color");

@@ -42,6 +42,35 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "seĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "lojbo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "casnu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sutra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 24, char_start: 19, char_end: 24, start: None, end: None }) })))), free_modifiers: [] })]), sehu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(seĭ do lójbo cásnu sútra)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "seĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [4,6],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lojbo",
+    span: [7,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "casnu",
+    span: [13,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sutra",
+    span: [19,24],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[13,18],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"sutra","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -49,14 +78,34 @@ tree = """
 Text {
   leading_free_modifiers: [
     Sei {
-      sei: "seĭ",
+      sei: Word {
+        kind: "cmavo",
+        phonemes: "seĭ",
+        span: [0,3],
+      },
       terms: [
-        "do",
+        Word {
+          kind: "cmavo",
+          phonemes: "do",
+          span: [4,6],
+        },
       ],
       relation: Compound {
-        "lójbo",
-        "cásnu",
-        "sútra",
+        Word {
+          kind: "gismu",
+          phonemes: "lojbo",
+          span: [7,12],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "casnu",
+          span: [13,18],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "sutra",
+          span: [19,24],
+        },
       },
     },
   ],

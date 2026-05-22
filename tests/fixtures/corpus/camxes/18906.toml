@@ -39,4 +39,30 @@ status = "failure"
 error = { position = 1, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(.e la'e [zo .e'u])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la'e",
+    span: [2,6],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [7,9],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "e'u",
+      span: [10,13],
+    },
+  },
+]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"la'e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[7,9],"phonemes":"zo","kind":"cmavo"},"word":{"span":[10,13],"phonemes":"e'u","kind":"cmavo"}}}]"""

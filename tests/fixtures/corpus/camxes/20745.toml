@@ -28,6 +28,20 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ta'i ma)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ta'i",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [8,10],
+  },
+]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"ta'i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ma","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -36,9 +50,17 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: "ta'i",
+        bai: Word {
+          kind: "cmavo",
+          phonemes: "ta'i",
+          span: [3,7],
+        },
       },
-      "ma",
+      Word {
+        kind: "cmavo",
+        phonemes: "ma",
+        span: [8,10],
+      },
     },
   ],
 }"""

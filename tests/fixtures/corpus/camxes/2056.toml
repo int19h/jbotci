@@ -72,37 +72,136 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Lu { lu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Word(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "tajgaĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 15, char_start: 9, char_end: 15, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "po'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 20, char_start: 16, char_end: 20, start: None, end: None }) }), nai: None }, free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "seĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 24, char_start: 21, char_end: 24, start: None, end: None }) })))), free_modifiers: [] }, terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 27, char_start: 25, char_end: 27, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "alis", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 32, char_start: 28, char_end: 32, start: None, end: None }) }))))], free_modifiers: [] } })], cu: None, relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "badri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 33, byte_end: 38, char_start: 33, char_end: 38, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cusku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 39, byte_end: 44, char_start: 39, char_end: 44, start: None, end: None }) })))), free_modifiers: [] })]), sehu: None }] })])), relative_clauses: [], ku: None }))], vau: None })) }] }] }, lihu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 45, byte_end: 49, char_start: 45, char_end: 49, start: None, end: None }) })))), free_modifiers: [] }) }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.i lu lo tájgaĭ po'o seĭ la .alis. bádri cúsku li'u)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lu",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [6,8],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "tajgaĭ",
+    span: [9,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "po'o",
+    span: [16,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "seĭ",
+    span: [21,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [25,27],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "alis",
+    span: [28,32],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "badri",
+    span: [33,38],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cusku",
+    span: [39,44],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li'u",
+    span: [45,49],
+  },
+]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[9,15],"phonemes":"tajgaĭ","kind":"lujvo"}},{"Bare":{"span":[16,20],"phonemes":"po'o","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[28,32],"phonemes":"alis","kind":"cmevla"}},{"Bare":{"span":[33,38],"phonemes":"badri","kind":"gismu"}},{"Bare":{"span":[39,44],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[45,49],"phonemes":"li'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: ".i",
+  i: Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
   Term {
     terms: [
       Lu {
-        lu: "lu",
+        lu: Word {
+          kind: "cmavo",
+          phonemes: "lu",
+          span: [3,5],
+        },
         Term {
           terms: [
             Descriptor {
-              descriptor: "lo",
+              descriptor: Word {
+                kind: "cmavo",
+                phonemes: "lo",
+                span: [6,8],
+              },
               relation: WithFreeModifiers {
                 WithIndicator {
-                  "tájgaĭ",
-                  indicator: "po'o",
+                  Word {
+                    kind: "lujvo",
+                    phonemes: "tajgaĭ",
+                    span: [9,15],
+                  },
+                  indicator: Word {
+                    kind: "cmavo",
+                    phonemes: "po'o",
+                    span: [16,20],
+                  },
                 },
                 free_modifiers: [
                   Sei {
-                    sei: "seĭ",
+                    sei: Word {
+                      kind: "cmavo",
+                      phonemes: "seĭ",
+                      span: [21,24],
+                    },
                     terms: [
                       Name {
-                        la: "la",
-                        names: ".alis.",
+                        la: Word {
+                          kind: "cmavo",
+                          phonemes: "la",
+                          span: [25,27],
+                        },
+                        names: Word {
+                          kind: "cmevla",
+                          phonemes: "alis",
+                          span: [28,32],
+                        },
                       },
                     ],
                     relation: Compound {
-                      "bádri",
-                      "cúsku",
+                      Word {
+                        kind: "gismu",
+                        phonemes: "badri",
+                        span: [33,38],
+                      },
+                      Word {
+                        kind: "gismu",
+                        phonemes: "cusku",
+                        span: [39,44],
+                      },
                     },
                   },
                 ],
@@ -110,7 +209,11 @@ ParagraphStatement {
             },
           ],
         },
-        lihu: "li'u",
+        lihu: Word {
+          kind: "cmavo",
+          phonemes: "li'u",
+          span: [45,49],
+        },
       },
     ],
   },

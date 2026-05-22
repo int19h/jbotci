@@ -29,13 +29,40 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 39, byte_end: 41, char_start: 39, char_end: 41, start: None, end: None }) }), word: Word(WordData { kind: Cmevla, phonemes: "djan", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 43, byte_end: 47, char_start: 43, char_end: 47, start: None, end: None }) }) })), free_modifiers: [] })))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(zo .djan.)"
+tree = """
+[
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [39,41],
+    },
+    Word {
+      kind: "cmevla",
+      phonemes: "djan",
+      span: [43,47],
+    },
+  },
+]"""
 json = '[{"ZoQuote":{"zo":{"span":[39,41],"phonemes":"zo","kind":"cmavo"},"word":{"span":[43,47],"phonemes":"djan","kind":"cmevla"}}}]'
 
 [expectations.output.gentufa]
 tree = """
 Term {
   terms: [
-    "zo-«.djan.»",
+    ZoQuote {
+      zo: Word {
+        kind: "cmavo",
+        phonemes: "zo",
+        span: [39,41],
+      },
+      Word {
+        kind: "cmevla",
+        phonemes: "djan",
+        span: [43,47],
+      },
+    },
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[39,41],"phonemes":"zo","kind":"cmavo"},"word":{"span":[43,47],"phonemes":"djan","kind":"cmevla"}}}}}}}]}}}}]}]}'

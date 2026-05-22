@@ -33,4 +33,23 @@ error = { position = 2, allowed-next = [] }
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "failure" }
 
 [expectations.output.vlasei]
+brackets = "(na gi'e prámi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [32,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi'e",
+    span: [35,39],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "prami",
+    span: [40,45],
+  },
+]"""
 json = """[{"Bare":{"span":[32,34],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[35,39],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"prami","kind":"gismu"}}]"""

@@ -52,28 +52,95 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Na { na: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ka'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cpare", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) }))))) } }, terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "vi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "loĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 25, char_start: 22, char_end: 25, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "fagri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 31, char_start: 26, char_end: 31, start: None, end: None }) })))))), relative_clauses: [], ku: None }) }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(li'a na ka'e cpáre vi loĭ fágri)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "li'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka'e",
+    span: [8,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cpare",
+    span: [13,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vi",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "loĭ",
+    span: [22,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fagri",
+    span: [26,31],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"li'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"cpare","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"fagri","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "li'a",
+    Word {
+      kind: "cmavo",
+      phonemes: "li'a",
+      span: [0,4],
+    },
   ],
   Relation {
     Na {
-      na: "na",
+      na: Word {
+        kind: "cmavo",
+        phonemes: "na",
+        span: [5,7],
+      },
       TenseModal {
-        tense_modal: "ka'e",
-        "cpáre",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "ka'e",
+          span: [8,12],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "cpare",
+          span: [13,18],
+        },
       },
     },
     terms: [
       Tagged {
-        tense_modal: "vi",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "vi",
+          span: [19,21],
+        },
         Descriptor {
-          descriptor: "loĭ",
-          relation: "fágri",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "loĭ",
+            span: [22,25],
+          },
+          relation: Word {
+            kind: "gismu",
+            phonemes: "fagri",
+            span: [26,31],
+          },
         },
       },
     ],

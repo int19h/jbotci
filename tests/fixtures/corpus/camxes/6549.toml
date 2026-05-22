@@ -57,4 +57,48 @@ status = "failure"
 error = { position = 7, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(le nu skícu le glíco sídbo .i naĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "skicu",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [12,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "glico",
+    span: [15,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sidbo",
+    span: [21,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [28,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [30,33],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"skicu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"sidbo","kind":"gismu"}},{"Bare":{"span":[28,29],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[30,33],"phonemes":"naĭ","kind":"cmavo"}}]'

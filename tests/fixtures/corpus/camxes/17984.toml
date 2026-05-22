@@ -37,6 +37,30 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ĭo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "saĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 5, char_start: 2, char_end: 5, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "rabn", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(.ĭo saĭ doĭ .rabn.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ĭo",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "saĭ",
+    span: [2,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [6,9],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "rabn",
+    span: [10,14],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ĭo","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"rabn","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
@@ -44,14 +68,30 @@ tree = """
 Text {
   leading_indicators: [
     WithIndicator {
-      ".ĭo",
-      indicator: "saĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "ĭo",
+        span: [0,2],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "saĭ",
+        span: [2,5],
+      },
     },
   ],
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "doĭ",
-      argument: ".rabn.",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "doĭ",
+        span: [6,9],
+      },
+      argument: Word {
+        kind: "cmevla",
+        phonemes: "rabn",
+        span: [10,14],
+      },
     },
   ],
 }"""

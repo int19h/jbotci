@@ -93,6 +93,85 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(to .i je xu do dízlo bínxo ca le cabnícte .ŭi .ĭi toĭ .ŭi .ĭi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [4,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [11,13],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "dizlo",
+    span: [14,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "binxo",
+    span: [20,25],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [26,28],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [29,31],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "cabnicte",
+    span: [32,40],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭi",
+    span: [42,44],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ĭi",
+    span: [44,46],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "toĭ",
+    span: [47,50],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭi",
+    span: [53,55],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ĭi",
+    span: [55,57],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[4,5],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"dizlo","kind":"gismu"}},{"Bare":{"span":[20,25],"phonemes":"binxo","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[32,40],"phonemes":"cabnicte","kind":"lujvo"}},{"Bare":{"span":[42,44],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"ĭi","kind":"cmavo"}},{"Bare":{"span":[47,50],"phonemes":"toĭ","kind":"cmavo"}},{"Bare":{"span":[53,55],"phonemes":"ŭi","kind":"cmavo"}},{"Bare":{"span":[55,57],"phonemes":"ĭi","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -100,33 +179,81 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: "to",
+      to: Word {
+        kind: "cmavo",
+        phonemes: "to",
+        span: [0,2],
+      },
       ParagraphStatement {
-        i: ".i",
+        i: Word {
+          kind: "cmavo",
+          phonemes: "i",
+          span: [4,5],
+        },
         connective: WithIndicator {
-          "je",
-          indicator: "xu",
+          Word {
+            kind: "cmavo",
+            phonemes: "je",
+            span: [5,7],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "xu",
+            span: [8,10],
+          },
         },
         Predicate {
           leading_terms: [
-            "do",
+            Word {
+              kind: "cmavo",
+              phonemes: "do",
+              span: [11,13],
+            },
           ],
           Relation {
             Compound {
-              "dízlo",
-              "bínxo",
+              Word {
+                kind: "gismu",
+                phonemes: "dizlo",
+                span: [14,19],
+              },
+              Word {
+                kind: "gismu",
+                phonemes: "binxo",
+                span: [20,25],
+              },
             },
             terms: [
               Tagged {
-                tense_modal: "ca",
+                tense_modal: Word {
+                  kind: "cmavo",
+                  phonemes: "ca",
+                  span: [26,28],
+                },
                 Descriptor {
-                  descriptor: "le",
+                  descriptor: Word {
+                    kind: "cmavo",
+                    phonemes: "le",
+                    span: [29,31],
+                  },
                   relation: WithIndicator {
                     WithIndicator {
-                      "cabnícte",
-                      indicator: ".ŭi",
+                      Word {
+                        kind: "lujvo",
+                        phonemes: "cabnicte",
+                        span: [32,40],
+                      },
+                      indicator: Word {
+                        kind: "cmavo",
+                        phonemes: "ŭi",
+                        span: [42,44],
+                      },
                     },
-                    indicator: ".ĭi",
+                    indicator: Word {
+                      kind: "cmavo",
+                      phonemes: "ĭi",
+                      span: [44,46],
+                    },
                   },
                 },
               },
@@ -136,10 +263,22 @@ Text {
       },
       toi: WithIndicator {
         WithIndicator {
-          "toĭ",
-          indicator: ".ŭi",
+          Word {
+            kind: "cmavo",
+            phonemes: "toĭ",
+            span: [47,50],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "ŭi",
+            span: [53,55],
+          },
         },
-        indicator: ".ĭi",
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ĭi",
+          span: [55,57],
+        },
       },
     },
   ],

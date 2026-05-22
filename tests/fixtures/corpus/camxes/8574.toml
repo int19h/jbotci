@@ -37,6 +37,30 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "seĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }, terms: [], cu: None, relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cnino", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }, inner_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "casnu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))), free_modifiers: [] }) }]), sehu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(seĭ cníno se cásnu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "seĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cnino",
+    span: [4,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [10,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "casnu",
+    span: [13,18],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"seĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"casnu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -44,12 +68,28 @@ tree = """
 Text {
   leading_free_modifiers: [
     Sei {
-      sei: "seĭ",
+      sei: Word {
+        kind: "cmavo",
+        phonemes: "seĭ",
+        span: [0,3],
+      },
       relation: Compound {
-        "cníno",
+        Word {
+          kind: "gismu",
+          phonemes: "cnino",
+          span: [4,9],
+        },
         Se {
-          se: "se",
-          "cásnu",
+          se: Word {
+            kind: "cmavo",
+            phonemes: "se",
+            span: [10,12],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "casnu",
+            span: [13,18],
+          },
         },
       },
     },

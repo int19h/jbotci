@@ -53,6 +53,45 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(fi'a do dúnda fe le vi rózgu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "fi'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "dunda",
+    span: [8,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fe",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vi",
+    span: [22,24],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "rozgu",
+    span: [25,30],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"fi'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"dunda","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"rozgu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -60,20 +99,48 @@ tree = """
 Predicate {
   leading_terms: [
     Fa {
-      fa: "fi'a",
-      "do",
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fi'a",
+        span: [0,4],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "do",
+        span: [5,7],
+      },
     },
   ],
   Relation {
-    "dúnda",
+    Word {
+      kind: "gismu",
+      phonemes: "dunda",
+      span: [8,13],
+    },
     terms: [
       Fa {
-        fa: "fe",
+        fa: Word {
+          kind: "cmavo",
+          phonemes: "fe",
+          span: [15,17],
+        },
         Descriptor {
-          descriptor: "le",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [19,21],
+          },
           relation: TenseModal {
-            tense_modal: "vi",
-            "rózgu",
+            tense_modal: Word {
+              kind: "cmavo",
+              phonemes: "vi",
+              span: [22,24],
+            },
+            Word {
+              kind: "gismu",
+              phonemes: "rozgu",
+              span: [25,30],
+            },
           },
         },
       },

@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "u'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "saĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ki'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 11, char_start: 7, char_end: 11, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(.u'i saĭ ki'e)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "u'i",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "saĭ",
+    span: [3,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'e",
+    span: [7,11],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"saĭ","kind":"cmavo"}},{"Bare":{"span":[7,11],"phonemes":"ki'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -39,13 +58,25 @@ tree = """
 Text {
   leading_indicators: [
     WithIndicator {
-      ".u'i",
-      indicator: "saĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "u'i",
+        span: [0,3],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "saĭ",
+        span: [3,6],
+      },
     },
   ],
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "ki'e",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "ki'e",
+        span: [7,11],
+      },
     },
   ],
 }"""

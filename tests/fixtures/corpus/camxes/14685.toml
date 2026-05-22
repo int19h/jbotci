@@ -48,6 +48,40 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(pa ci mu mu vi cábna)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu",
+    span: [3,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu",
+    span: [4,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vi",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cabna",
+    span: [9,14],
+  },
+]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[1,2],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[3,4],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[4,5],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cabna","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -57,15 +91,39 @@ Term {
     Descriptor {
       tail_elements: [
         WithFreeModifiers {
-          "pa",
-          "ci",
-          "mu",
-          "mu",
+          Word {
+            kind: "cmavo",
+            phonemes: "pa",
+            span: [0,1],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "ci",
+            span: [1,2],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "mu",
+            span: [3,4],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "mu",
+            span: [4,5],
+          },
         },
       ],
       relation: TenseModal {
-        tense_modal: "vi",
-        "cábna",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "vi",
+          span: [6,8],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "cabna",
+          span: [9,14],
+        },
       },
     },
   ],

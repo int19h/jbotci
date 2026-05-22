@@ -32,21 +32,52 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "bad", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cture", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(.bad. pi ctúre)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "bad",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pi",
+    span: [4,6],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cture",
+    span: [6,11],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"bad","kind":"cmevla"}},{"Bare":{"span":[4,6],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cture","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".bad.",
+    Word {
+      kind: "cmevla",
+      phonemes: "bad",
+      span: [0,3],
+    },
   ],
   Term {
     terms: [
       Descriptor {
         tail_elements: [
-          "pi",
+          Word {
+            kind: "cmavo",
+            phonemes: "pi",
+            span: [4,6],
+          },
         ],
-        relation: "ctúre",
+        relation: Word {
+          kind: "gismu",
+          phonemes: "cture",
+          span: [6,11],
+        },
       },
     ],
   },

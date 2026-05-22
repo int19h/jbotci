@@ -38,19 +38,59 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi na'e te jíbri)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na'e",
+    span: [6,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "te",
+    span: [11,13],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jibri",
+    span: [14,19],
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"te","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"jibri","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [3,5],
+    },
   ],
   Nahe {
-    nahe: "na'e",
+    nahe: Word {
+      kind: "cmavo",
+      phonemes: "na'e",
+      span: [6,10],
+    },
     Se {
-      se: "te",
-      "jíbri",
+      se: Word {
+        kind: "cmavo",
+        phonemes: "te",
+        span: [11,13],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "jibri",
+        span: [14,19],
+      },
     },
   },
 }"""

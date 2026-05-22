@@ -22,13 +22,26 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "cikagos", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 10, char_start: 3, char_end: 10, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = ".cikagos."
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "cikagos",
+    span: [3,10],
+  },
+]"""
 json = '[{"Bare":{"span":[3,10],"phonemes":"cikagos","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".cikagos.",
+    Word {
+      kind: "cmevla",
+      phonemes: "cikagos",
+      span: [3,10],
+    },
   ],
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[3,10],"phonemes":"cikagos","kind":"cmevla"}}}]}'

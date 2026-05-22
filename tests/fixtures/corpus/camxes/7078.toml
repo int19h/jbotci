@@ -27,12 +27,34 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "so", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })))) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(pi so)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "so",
+    span: [2,4],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"so","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 WithFreeModifiers {
-  "pi",
-  "so",
+  Word {
+    kind: "cmavo",
+    phonemes: "pi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "so",
+    span: [2,4],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"pi","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[2,4],"phonemes":"so","kind":"cmavo"}}}]}}}}}}]}]}'

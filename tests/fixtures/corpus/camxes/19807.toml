@@ -32,13 +32,44 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "paĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "paĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })))) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(paĭ pi paĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "paĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pi",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "paĭ",
+    span: [7,10],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"paĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"paĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 WithFreeModifiers {
-  "paĭ",
-  "pi",
-  "paĭ",
+  Word {
+    kind: "cmavo",
+    phonemes: "paĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pi",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "paĭ",
+    span: [7,10],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,3],"phonemes":"paĭ","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[4,6],"phonemes":"pi","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[7,10],"phonemes":"paĭ","kind":"cmavo"}}}]}}}}}}]}]}'

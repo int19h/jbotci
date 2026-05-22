@@ -48,6 +48,40 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(je'e le do cúkta cu bácru)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "je'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [8,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cukta",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bacru",
+    span: [20,25],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"bacru","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -55,19 +89,43 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "je'e",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "je'e",
+        span: [0,4],
+      },
       argument: Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [5,7],
+        },
         tail_elements: [
-          "do",
+          Word {
+            kind: "cmavo",
+            phonemes: "do",
+            span: [8,10],
+          },
         ],
-        relation: "cúkta",
+        relation: Word {
+          kind: "gismu",
+          phonemes: "cukta",
+          span: [11,16],
+        },
       },
     },
   ],
   Predicate {
-    cu: "cu",
-    "bácru",
+    cu: Word {
+      kind: "cmavo",
+      phonemes: "cu",
+      span: [17,19],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "bacru",
+      span: [20,25],
+    },
   },
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}}}],"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}}},"tail_elements":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}}}}}],"relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"cukta","kind":"gismu"}}}}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"cu":{"Bare":{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"bacru","kind":"gismu"}}}}}}}}}}}]}]}"""

@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "di'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [Xi { xi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }) }] }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(di'u xi re)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "di'u",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xi",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [8,10],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"di'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -39,11 +58,23 @@ tree = """
 Term {
   terms: [
     WithFreeModifiers {
-      "di'u",
+      Word {
+        kind: "cmavo",
+        phonemes: "di'u",
+        span: [0,4],
+      },
       free_modifiers: [
         Xi {
-          xi: "xi",
-          "re",
+          xi: Word {
+            kind: "cmavo",
+            phonemes: "xi",
+            span: [5,7],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "re",
+            span: [8,10],
+          },
         },
       ],
     },

@@ -62,6 +62,55 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Connected { leading_argument: Connected { leading_argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "carvi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))))), relative_clauses: [], ku: None }), connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ji", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "lindi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) })))))), relative_clauses: [], ku: None }) }, connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ji", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 29, char_start: 27, char_end: 29, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "lidvru", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 36, char_start: 30, char_end: 36, start: None, end: None }) })))))), relative_clauses: [], ku: None }) } }], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(ca le cárvi ji le líndi ji le lídvru)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "carvi",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ji",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [15,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lindi",
+    span: [18,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ji",
+    span: [24,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [27,29],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "lidvru",
+    span: [30,36],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"carvi","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"ji","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"lindi","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"ji","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[30,36],"phonemes":"lidvru","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
@@ -69,23 +118,59 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: "ca",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ca",
+        span: [0,2],
+      },
       Connected {
         leading_argument: Connected {
           leading_argument: Descriptor {
-            descriptor: "le",
-            relation: "cárvi",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [3,5],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "carvi",
+              span: [6,11],
+            },
           },
-          connective: "ji",
+          connective: Word {
+            kind: "cmavo",
+            phonemes: "ji",
+            span: [12,14],
+          },
           trailing_argument: Descriptor {
-            descriptor: "le",
-            relation: "líndi",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [15,17],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "lindi",
+              span: [18,23],
+            },
           },
         },
-        connective: "ji",
+        connective: Word {
+          kind: "cmavo",
+          phonemes: "ji",
+          span: [24,26],
+        },
         trailing_argument: Descriptor {
-          descriptor: "le",
-          relation: "lídvru",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [27,29],
+          },
+          relation: Word {
+            kind: "lujvo",
+            phonemes: "lidvru",
+            span: [30,36],
+          },
         },
       },
     },

@@ -63,35 +63,120 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi víska la'e lu le xúnre cmaxírma li'u lu'u)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "viska",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la'e",
+    span: [9,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lu",
+    span: [14,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xunre",
+    span: [20,25],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "cmaxirma",
+    span: [26,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li'u",
+    span: [35,39],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lu'u",
+    span: [41,45],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"xunre","kind":"gismu"}},{"Bare":{"span":[26,34],"phonemes":"cmaxirma","kind":"lujvo"}},{"Bare":{"span":[35,39],"phonemes":"li'u","kind":"cmavo"}},{"Bare":{"span":[41,45],"phonemes":"lu'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
   Relation {
-    "víska",
+    Word {
+      kind: "gismu",
+      phonemes: "viska",
+      span: [3,8],
+    },
     terms: [
       Lahe {
-        lahe: "la'e",
+        lahe: Word {
+          kind: "cmavo",
+          phonemes: "la'e",
+          span: [9,13],
+        },
         Lu {
-          lu: "lu",
+          lu: Word {
+            kind: "cmavo",
+            phonemes: "lu",
+            span: [14,16],
+          },
           Term {
             terms: [
               Descriptor {
-                descriptor: "le",
+                descriptor: Word {
+                  kind: "cmavo",
+                  phonemes: "le",
+                  span: [17,19],
+                },
                 relation: Compound {
-                  "xúnre",
-                  "cmaxírma",
+                  Word {
+                    kind: "gismu",
+                    phonemes: "xunre",
+                    span: [20,25],
+                  },
+                  Word {
+                    kind: "lujvo",
+                    phonemes: "cmaxirma",
+                    span: [26,34],
+                  },
                 },
               },
             ],
           },
-          lihu: "li'u",
+          lihu: Word {
+            kind: "cmavo",
+            phonemes: "li'u",
+            span: [35,39],
+          },
         },
-        luhu: "lu'u",
+        luhu: Word {
+          kind: "cmavo",
+          phonemes: "lu'u",
+          span: [41,45],
+        },
       },
     ],
   },

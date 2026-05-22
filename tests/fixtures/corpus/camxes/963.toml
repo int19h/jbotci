@@ -73,6 +73,65 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le nánmu ku joĭ le nínmu ku cu kláma le zárci)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nanmu",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "joĭ",
+    span: [12,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [16,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ninmu",
+    span: [19,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [26,28],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [30,32],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [33,38],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [39,41],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zarci",
+    span: [42,47],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"joĭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"ninmu","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[39,41],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"zarci","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -81,25 +140,69 @@ Predicate {
   leading_terms: [
     Connected {
       leading_argument: Descriptor {
-        descriptor: "le",
-        relation: "nánmu",
-        ku: "ku",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [0,2],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "nanmu",
+          span: [3,8],
+        },
+        ku: Word {
+          kind: "cmavo",
+          phonemes: "ku",
+          span: [9,11],
+        },
       },
-      connective: "joĭ",
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "joĭ",
+        span: [12,15],
+      },
       trailing_argument: Descriptor {
-        descriptor: "le",
-        relation: "nínmu",
-        ku: "ku",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [16,18],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "ninmu",
+          span: [19,24],
+        },
+        ku: Word {
+          kind: "cmavo",
+          phonemes: "ku",
+          span: [26,28],
+        },
       },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [30,32],
+  },
   Relation {
-    "kláma",
+    Word {
+      kind: "gismu",
+      phonemes: "klama",
+      span: [33,38],
+    },
     terms: [
       Descriptor {
-        descriptor: "le",
-        relation: "zárci",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [39,41],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "zarci",
+          span: [42,47],
+        },
       },
     ],
   },

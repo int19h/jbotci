@@ -70,26 +70,128 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cpacu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))), terms: [Argument(Connected { leading_argument: Connected { leading_argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "leĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sodva", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))))), relative_clauses: [], ku: None }), connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 18, char_start: 17, char_end: 18, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_argument: Quote(Zoi(WithFreeModifiers { value: Bare(WordLike(ZoiQuote { zoi: Word(WordData { kind: Cmavo, phonemes: "la'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 23, char_start: 19, char_end: 23, start: None, end: None }) }), opening_delimiter: Word(WordData { kind: Cmavo, phonemes: "gy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None }) }), quoted_text: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 35, char_start: 28, char_end: 35, start: None, end: None }), closing_delimiter: Word(WordData { kind: Cmavo, phonemes: "gy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 37, byte_end: 39, char_start: 37, char_end: 39, start: None, end: None }) }) })), free_modifiers: [] })) }, connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 42, byte_end: 43, char_start: 42, char_end: 43, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "leĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 47, char_start: 44, char_end: 47, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "cersaĭgru", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 48, byte_end: 57, char_start: 48, char_end: 57, start: None, end: None }) })))))), relative_clauses: [], ku: None }) })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(cpácu leĭ sódva .e [la'o gy cookies gy] .e leĭ cersáĭgru)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "cpacu",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "leĭ",
+    span: [6,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sodva",
+    span: [10,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [17,18],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "la'o",
+      span: [19,23],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [24,26],
+    },
+    quoted_text: [28,35],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [37,39],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [42,43],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "leĭ",
+    span: [44,47],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "cersaĭgru",
+    span: [48,57],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"cpacu","kind":"gismu"}},{"Bare":{"span":[6,9],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"sodva","kind":"gismu"}},{"Bare":{"span":[17,18],"phonemes":"e","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[19,23],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[24,26],"phonemes":"gy","kind":"cmavo"},"quoted_text":[28,35],"closing_delimiter":{"span":[37,39],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[42,43],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[44,47],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[48,57],"phonemes":"cersaĭgru","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  "cpácu",
+  Word {
+    kind: "gismu",
+    phonemes: "cpacu",
+    span: [0,5],
+  },
   terms: [
     Connected {
       leading_argument: Connected {
         leading_argument: Descriptor {
-          descriptor: "leĭ",
-          relation: "sódva",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "leĭ",
+            span: [6,9],
+          },
+          relation: Word {
+            kind: "gismu",
+            phonemes: "sodva",
+            span: [10,15],
+          },
         },
-        connective: ".e",
-        trailing_argument: "la'o-gy-«cookies»-gy",
+        connective: Word {
+          kind: "cmavo",
+          phonemes: "e",
+          span: [17,18],
+        },
+        trailing_argument: ZoiQuote {
+          zoi: Word {
+            kind: "cmavo",
+            phonemes: "la'o",
+            span: [19,23],
+          },
+          opening_delimiter: Word {
+            kind: "cmavo",
+            phonemes: "gy",
+            span: [24,26],
+          },
+          quoted_text: [28,35],
+          closing_delimiter: Word {
+            kind: "cmavo",
+            phonemes: "gy",
+            span: [37,39],
+          },
+        },
       },
-      connective: ".e",
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "e",
+        span: [42,43],
+      },
       trailing_argument: Descriptor {
-        descriptor: "leĭ",
-        relation: "cersáĭgru",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "leĭ",
+          span: [44,47],
+        },
+        relation: Word {
+          kind: "lujvo",
+          phonemes: "cersaĭgru",
+          span: [48,57],
+        },
       },
     },
   ],

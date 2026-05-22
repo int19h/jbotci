@@ -93,43 +93,182 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi kláma nu'i ge le zárci le bríju nu'u gi le zdáni le ckúle nu'u)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu'i",
+    span: [9,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ge",
+    span: [14,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zarci",
+    span: [20,25],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [26,28],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "briju",
+    span: [29,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu'u",
+    span: [35,39],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi",
+    span: [40,42],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [43,45],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zdani",
+    span: [46,51],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [52,54],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ckule",
+    span: [55,60],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu'u",
+    span: [62,66],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"nu'i","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[26,28],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"briju","kind":"gismu"}},{"Bare":{"span":[35,39],"phonemes":"nu'u","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"zdani","kind":"gismu"}},{"Bare":{"span":[52,54],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[55,60],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"span":[62,66],"phonemes":"nu'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
   Relation {
-    "kláma",
+    Word {
+      kind: "gismu",
+      phonemes: "klama",
+      span: [3,8],
+    },
     terms: [
       GekNuhiTermset {
-        m_nuhi: "nu'i",
-        gek: "ge",
+        m_nuhi: Word {
+          kind: "cmavo",
+          phonemes: "nu'i",
+          span: [9,13],
+        },
+        gek: Word {
+          kind: "cmavo",
+          phonemes: "ge",
+          span: [14,16],
+        },
         terms: [
           Descriptor {
-            descriptor: "le",
-            relation: "zárci",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [17,19],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "zarci",
+              span: [20,25],
+            },
           },
           Descriptor {
-            descriptor: "le",
-            relation: "bríju",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [26,28],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "briju",
+              span: [29,34],
+            },
           },
         ],
-        nuhu: "nu'u",
-        gik: "gi",
+        nuhu: Word {
+          kind: "cmavo",
+          phonemes: "nu'u",
+          span: [35,39],
+        },
+        gik: Word {
+          kind: "cmavo",
+          phonemes: "gi",
+          span: [40,42],
+        },
         gik_terms: [
           Descriptor {
-            descriptor: "le",
-            relation: "zdáni",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [43,45],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "zdani",
+              span: [46,51],
+            },
           },
           Descriptor {
-            descriptor: "le",
-            relation: "ckúle",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [52,54],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "ckule",
+              span: [55,60],
+            },
           },
         ],
-        gik_nuhu: "nu'u",
+        gik_nuhu: Word {
+          kind: "cmavo",
+          phonemes: "nu'u",
+          span: [62,66],
+        },
       },
     ],
   },

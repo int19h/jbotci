@@ -78,6 +78,70 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le cípni cu cádzu fa'a loĭ gárna gi'e dáspo ri gi'e vófli)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cipni",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [15,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cadzu",
+    span: [18,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fa'a",
+    span: [24,28],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "loĭ",
+    span: [29,32],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "garna",
+    span: [33,38],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi'e",
+    span: [39,43],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "daspo",
+    span: [44,49],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ri",
+    span: [50,52],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi'e",
+    span: [53,57],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "vofli",
+    span: [58,63],
+  },
+]"""
 json = """[{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cipni","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"cadzu","kind":"gismu"}},{"Bare":{"span":[24,28],"phonemes":"fa'a","kind":"cmavo"}},{"Bare":{"span":[29,32],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"garna","kind":"gismu"}},{"Bare":{"span":[39,43],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[44,49],"phonemes":"daspo","kind":"gismu"}},{"Bare":{"span":[50,52],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[53,57],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[58,63],"phonemes":"vofli","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -85,37 +149,85 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "le",
-      relation: "cípni",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [6,8],
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "cipni",
+        span: [9,14],
+      },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [15,17],
+  },
   PredicateTail1 {
     Relation {
-      "cádzu",
+      Word {
+        kind: "gismu",
+        phonemes: "cadzu",
+        span: [18,23],
+      },
       terms: [
         Tagged {
-          tense_modal: "fa'a",
+          tense_modal: Word {
+            kind: "cmavo",
+            phonemes: "fa'a",
+            span: [24,28],
+          },
           Descriptor {
-            descriptor: "loĭ",
-            relation: "gárna",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "loĭ",
+              span: [29,32],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "garna",
+              span: [33,38],
+            },
           },
         },
       ],
     },
     continuations: [
       PredicateTailContinuation {
-        connective: "gi'e",
+        connective: Word {
+          kind: "cmavo",
+          phonemes: "gi'e",
+          span: [39,43],
+        },
         Relation {
-          "dáspo",
+          Word {
+            kind: "gismu",
+            phonemes: "daspo",
+            span: [44,49],
+          },
           terms: [
-            "ri",
+            Word {
+              kind: "cmavo",
+              phonemes: "ri",
+              span: [50,52],
+            },
           ],
         },
       },
       PredicateTailContinuation {
-        connective: "gi'e",
-        "vófli",
+        connective: Word {
+          kind: "cmavo",
+          phonemes: "gi'e",
+          span: [53,57],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "vofli",
+          span: [58,63],
+        },
       },
     ],
   },

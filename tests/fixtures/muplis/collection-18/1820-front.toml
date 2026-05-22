@@ -60,32 +60,108 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) })))), free_modifiers: [] })), Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ta'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }), free_modifiers: [] } }, Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ti'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }) }], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 25, char_start: 21, char_end: 25, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cikna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 31, char_start: 26, char_end: 31, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.i do ta'e ku ti'u ma co'a cíkna)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [2,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ta'e",
+    span: [5,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ti'u",
+    span: [13,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "co'a",
+    span: [21,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cikna",
+    span: [26,31],
+  },
+]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ta'e","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ti'u","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"cikna","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 brackets = "(.i [{do (ta'e ku) (ti'u ma)} {co'a cíkna}])"
 tree = """
 ParagraphStatement {
-  i: ".i",
+  i: Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
   Predicate {
     leading_terms: [
-      "do",
+      Word {
+        kind: "cmavo",
+        phonemes: "do",
+        span: [2,4],
+      },
       Tagged {
-        tense_modal: "ta'e",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "ta'e",
+          span: [5,9],
+        },
         Zohe {
-          maybe_ku: "ku",
+          maybe_ku: Word {
+            kind: "cmavo",
+            phonemes: "ku",
+            span: [10,12],
+          },
         },
       },
       Tagged {
         tense_modal: Simple {
-          bai: "ti'u",
+          bai: Word {
+            kind: "cmavo",
+            phonemes: "ti'u",
+            span: [13,17],
+          },
         },
-        "ma",
+        Word {
+          kind: "cmavo",
+          phonemes: "ma",
+          span: [18,20],
+        },
       },
     ],
     TenseModal {
-      tense_modal: "co'a",
-      "cíkna",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "co'a",
+        span: [21,25],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "cikna",
+        span: [26,31],
+      },
     },
   },
 }"""

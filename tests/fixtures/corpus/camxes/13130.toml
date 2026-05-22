@@ -32,17 +32,48 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ve", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: Compound([Moi { number: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gaĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) }))))], moi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "moĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))), free_modifiers: [] } }]) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(ve gaĭ moĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ve",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gaĭ",
+    span: [3,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "moĭ",
+    span: [6,9],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ve","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"gaĭ","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"moĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Se {
-  se: "ve",
+  se: Word {
+    kind: "cmavo",
+    phonemes: "ve",
+    span: [0,2],
+  },
   Moi {
     number: [
-      "gaĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "gaĭ",
+        span: [3,6],
+      },
     ],
-    moi: "moĭ",
+    moi: Word {
+      kind: "cmavo",
+      phonemes: "moĭ",
+      span: [6,9],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Se":{"se":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ve","kind":"cmavo"}}},"inner_relation":{"Compound":[{"Moi":{"number":[{"Bare":{"Bare":{"span":[3,6],"phonemes":"gaĭ","kind":"cmavo"}}}],"moi":{"Bare":{"Bare":{"span":[6,9],"phonemes":"moĭ","kind":"cmavo"}}}}}]}}}}}}}}}}]}]}'

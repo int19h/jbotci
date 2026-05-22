@@ -48,6 +48,40 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(lo'e pémci je lójbo je cníno)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "lo'e",
+    span: [3,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pemci",
+    span: [8,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [14,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lojbo",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cnino",
+    span: [26,31],
+  },
+]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"lo'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"pemci","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"lojbo","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"cnino","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -55,15 +89,39 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "lo'e",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "lo'e",
+        span: [3,7],
+      },
       relation: Connected {
         leading_relation: Connected {
-          leading_relation: "pémci",
-          connective: "je",
-          trailing_relation: "lójbo",
+          leading_relation: Word {
+            kind: "gismu",
+            phonemes: "pemci",
+            span: [8,13],
+          },
+          connective: Word {
+            kind: "cmavo",
+            phonemes: "je",
+            span: [14,16],
+          },
+          trailing_relation: Word {
+            kind: "gismu",
+            phonemes: "lojbo",
+            span: [17,22],
+          },
         },
-        connective: "je",
-        trailing_relation: "cníno",
+        connective: Word {
+          kind: "cmavo",
+          phonemes: "je",
+          span: [23,25],
+        },
+        trailing_relation: Word {
+          kind: "gismu",
+          phonemes: "cnino",
+          span: [26,31],
+        },
       },
     },
   ],

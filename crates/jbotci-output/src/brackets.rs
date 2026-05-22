@@ -1,7 +1,9 @@
+use bityzba::data;
 #[allow(unused_imports)]
 use bityzba::ensures;
 use bityzba::{contract_trait, requires};
-use jbotci_morphology::WordLike;
+use jbotci_morphology::{Word, WordLike, WordLikeData};
+use jbotci_source::SourceSpan;
 use jbotci_syntax::ast::*;
 use jbotci_syntax::{Indicator, WithIndicators};
 
@@ -15,6 +17,25 @@ pub(crate) fn pretty_brackets_with_options(
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
     let sexpr = text(tree, source);
+    Ok(sexpr::render_bracketed_with_options(
+        &sexpr::flatten(sexpr),
+        options,
+    ))
+}
+
+#[requires(true)]
+#[ensures(words.is_empty() || ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+pub(crate) fn pretty_morphology_brackets_with_options(
+    words: &[WordLike],
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<String, OutputError> {
+    let sexpr = sexpr::node(
+        words
+            .iter()
+            .map(|word_like| word_like_brackets(word_like, source))
+            .collect(),
+    );
     Ok(sexpr::render_bracketed_with_options(
         &sexpr::flatten(sexpr),
         options,
@@ -2278,7 +2299,7 @@ fn words(words: &[WithIndicators<WordLike>], source: &str) -> Vec<sexpr::SExpr> 
 #[requires(true)]
 #[ensures(true)]
 fn word(word: &WithIndicators<WordLike>, source: &str) -> sexpr::SExpr {
-    sexpr::leaf(surface::format_with_indicators(word, source))
+    with_indicators_brackets(word, source)
 }
 
 #[requires(true)]
@@ -2287,6 +2308,101 @@ fn word_no_leading_pause(word: &WithIndicators<WordLike>, source: &str) -> sexpr
     sexpr::leaf(normalize_attached_surface(surface::format_with_indicators(
         word, source,
     )))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn with_indicators_brackets(word: &WithIndicators<WordLike>, source: &str) -> sexpr::SExpr {
+    match word {
+        WithIndicators::Bare(word_like) => word_like_brackets(word_like, source),
+        WithIndicators::Emphasized { bahe, word_like } => sexpr::node(vec![
+            word_leaf(bahe, source),
+            word_like_brackets(word_like, source),
+        ]),
+        WithIndicators::WithIndicator {
+            base,
+            indicator,
+            nai,
+        } => {
+            let mut children = vec![
+                with_indicators_brackets(base, source),
+                word_leaf(indicator, source),
+            ];
+            if let Some(nai) = nai {
+                children.push(word_leaf(nai, source));
+            }
+            sexpr::node(children)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_like_brackets(word_like: &WordLike, source: &str) -> sexpr::SExpr {
+    match word_like.as_data() {
+        data!(WordLike::Bare(word)) => word_leaf(word, source),
+        data!(WordLike::ZoQuote { zo, word }) => {
+            sexpr::node(vec![word_leaf(zo, source), word_leaf(word, source)])
+        }
+        data!(WordLike::ZoiQuote {
+            zoi,
+            opening_delimiter,
+            quoted_text,
+            closing_delimiter,
+        }) => sexpr::node(vec![
+            word_leaf(zoi, source),
+            word_leaf(opening_delimiter, source),
+            quoted_text_leaf(quoted_text, source),
+            word_leaf(closing_delimiter, source),
+        ]),
+        data!(WordLike::LohuQuote {
+            lohu,
+            quoted_words,
+            lehu,
+        }) => {
+            let mut children = vec![word_leaf(lohu, source)];
+            children.extend(quoted_words.iter().map(|word| word_leaf(word, source)));
+            children.push(word_leaf(lehu, source));
+            sexpr::node(children)
+        }
+        data!(WordLike::SingleWordQuote {
+            marker,
+            quoted_text,
+        }) => sexpr::node(vec![
+            word_leaf(marker, source),
+            quoted_text_leaf(quoted_text, source),
+        ]),
+        data!(WordLike::Letter { base, bu }) => sexpr::node(vec![
+            word_like_brackets(base, source),
+            word_leaf(bu, source),
+        ]),
+        data!(WordLike::ZeiLujvo { left, zei, right }) => sexpr::node(vec![
+            word_like_brackets(left, source),
+            word_leaf(zei, source),
+            word_leaf(right, source),
+        ]),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_leaf(word: &Word, source: &str) -> sexpr::SExpr {
+    sexpr::leaf(surface::format_with_indicators(
+        &WithIndicators::bare(WordLike::bare(word.clone())),
+        source,
+    ))
+}
+
+#[requires(span.byte_start <= span.byte_end)]
+#[ensures(true)]
+fn quoted_text_leaf(span: &SourceSpan, source: &str) -> sexpr::SExpr {
+    sexpr::leaf(
+        source
+            .get(span.byte_start..span.byte_end)
+            .unwrap_or_default()
+            .trim()
+            .to_owned(),
+    )
 }
 
 #[requires(true)]

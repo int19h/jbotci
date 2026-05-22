@@ -58,6 +58,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(xy boĭ xi veĭ by ce'o dy ve'o)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "xy",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "boĭ",
+    span: [4,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xi",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "veĭ",
+    span: [11,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "by",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ce'o",
+    span: [19,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "dy",
+    span: [24,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ve'o",
+    span: [29,33],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"xy","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"xi","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"veĭ","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"ce'o","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"dy","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"ve'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -65,20 +109,52 @@ tree = """
 Term {
   terms: [
     Letter {
-      letter: "xy",
+      letter: Word {
+        kind: "cmavo",
+        phonemes: "xy",
+        span: [0,2],
+      },
       boi: WithFreeModifiers {
-        "boĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "boĭ",
+          span: [4,7],
+        },
         free_modifiers: [
           Xi {
-            xi: "xi",
+            xi: Word {
+              kind: "cmavo",
+              phonemes: "xi",
+              span: [8,10],
+            },
             Vei {
-              vei: "veĭ",
-              Connected {
-                left_expression: "by",
-                connective: "ce'o",
-                right_expression: "dy",
+              vei: Word {
+                kind: "cmavo",
+                phonemes: "veĭ",
+                span: [11,14],
               },
-              veho: "ve'o",
+              Connected {
+                left_expression: Word {
+                  kind: "cmavo",
+                  phonemes: "by",
+                  span: [15,17],
+                },
+                connective: Word {
+                  kind: "cmavo",
+                  phonemes: "ce'o",
+                  span: [19,23],
+                },
+                right_expression: Word {
+                  kind: "cmavo",
+                  phonemes: "dy",
+                  span: [24,26],
+                },
+              },
+              veho: Word {
+                kind: "cmavo",
+                phonemes: "ve'o",
+                span: [29,33],
+              },
             },
           },
         ],

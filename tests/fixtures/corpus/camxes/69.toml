@@ -32,6 +32,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Connected { leading_argument: Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "by", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 45, char_start: 44, char_end: 45, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_argument: Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 46, byte_end: 48, char_start: 46, char_end: 48, start: None, end: None }) }))))], free_modifiers: [] }, boi: None } })], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(by .e cy)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "by",
+    span: [40,42],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [44,45],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cy",
+    span: [46,48],
+  },
+]"""
 json = '[{"Bare":{"span":[40,42],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[44,45],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"cy","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -40,11 +59,23 @@ Term {
   terms: [
     Connected {
       leading_argument: Letter {
-        letter: "by",
+        letter: Word {
+          kind: "cmavo",
+          phonemes: "by",
+          span: [40,42],
+        },
       },
-      connective: ".e",
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "e",
+        span: [44,45],
+      },
       trailing_argument: Letter {
-        letter: "cy",
+        letter: Word {
+          kind: "cmavo",
+          phonemes: "cy",
+          span: [46,48],
+        },
       },
     },
   ],

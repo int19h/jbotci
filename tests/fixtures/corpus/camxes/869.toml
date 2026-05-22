@@ -58,6 +58,50 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(la .tam. cu se távla mélbi la .meris.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "tam",
+    span: [3,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [13,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tavla",
+    span: [16,21],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "melbi",
+    span: [22,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [28,30],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "meris",
+    span: [31,36],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"tam","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"meris","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
@@ -65,23 +109,55 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: "la",
-      names: ".tam.",
+      la: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [0,2],
+      },
+      names: Word {
+        kind: "cmevla",
+        phonemes: "tam",
+        span: [3,6],
+      },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [9,11],
+  },
   Relation {
     Compound {
       Se {
-        se: "se",
-        "távla",
+        se: Word {
+          kind: "cmavo",
+          phonemes: "se",
+          span: [13,15],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "tavla",
+          span: [16,21],
+        },
       },
-      "mélbi",
+      Word {
+        kind: "gismu",
+        phonemes: "melbi",
+        span: [22,27],
+      },
     },
     terms: [
       Name {
-        la: "la",
-        names: ".meris.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [28,30],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "meris",
+          span: [31,36],
+        },
       },
     ],
   },

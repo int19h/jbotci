@@ -43,19 +43,68 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(je ke níxli ckúle ke'e)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nixli",
+    span: [6,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ckule",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke'e",
+    span: [19,23],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"span":[19,23],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
-  leading_connective: "je",
+  leading_connective: Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [0,2],
+  },
   Ke {
-    ke: "ke",
-    Compound {
-      "níxli",
-      "ckúle",
+    ke: Word {
+      kind: "cmavo",
+      phonemes: "ke",
+      span: [3,5],
     },
-    kehe: "ke'e",
+    Compound {
+      Word {
+        kind: "gismu",
+        phonemes: "nixli",
+        span: [6,11],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "ckule",
+        span: [12,17],
+      },
+    },
+    kehe: Word {
+      kind: "cmavo",
+      phonemes: "ke'e",
+      span: [19,23],
+    },
   },
 }"""
 json = """{"leading_connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"je","kind":"cmavo"}}}]}},"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Ke":{"ke":{"Bare":{"Bare":{"span":[3,5],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"nixli","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"ckule","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[19,23],"phonemes":"ke'e","kind":"cmavo"}}}}}}}}}}}}]}]}"""

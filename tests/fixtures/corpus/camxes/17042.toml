@@ -38,20 +38,60 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(tírno ju'i doĭ lójbo)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "tirno",
+    span: [1,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ju'i",
+    span: [8,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [13,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lojbo",
+    span: [17,22],
+  },
+]"""
 json = """[{"Bare":{"span":[1,6],"phonemes":"tirno","kind":"gismu"}},{"Bare":{"span":[8,12],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[13,16],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"lojbo","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 WithFreeModifiers {
-  "tírno",
+  Word {
+    kind: "gismu",
+    phonemes: "tirno",
+    span: [1,6],
+  },
   free_modifiers: [
     Vocative {
       vocative_markers: WithFreeModifiers {
-        "ju'i",
-        "doĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "ju'i",
+          span: [8,12],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "doĭ",
+          span: [13,16],
+        },
       },
       argument: RelationVocative {
-        relation: "lójbo",
+        relation: Word {
+          kind: "gismu",
+          phonemes: "lojbo",
+          span: [17,22],
+        },
       },
     },
   ],

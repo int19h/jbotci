@@ -55,6 +55,45 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "catlu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 16, char_start: 11, char_end: 16, start: None, end: None }) }))))) }, terms: [Argument(RelativeClause { base_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "tu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) })))), free_modifiers: [] }), vuho: None, relative_clauses: [Noi { noi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "voĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 23, char_start: 20, char_end: 23, start: None, end: None }) })))), free_modifiers: [] }, subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tricu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kuho: None }] })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(do ca ca'o cátlu tu voĭ trícu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca'o",
+    span: [6,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "catlu",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "tu",
+    span: [17,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "voĭ",
+    span: [20,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tricu",
+    span: [24,29],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"ca'o","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"catlu","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"tu","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"voĭ","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"tricu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -62,23 +101,51 @@ brackets = "(do [{(ca ca'o) cátlu} {tu (voĭ trícu)}])"
 tree = """
 Predicate {
   leading_terms: [
-    "do",
+    Word {
+      kind: "cmavo",
+      phonemes: "do",
+      span: [0,2],
+    },
   ],
   Relation {
     TenseModal {
       tense_modal: WithFreeModifiers {
-        "ca",
-        "ca'o",
+        Word {
+          kind: "cmavo",
+          phonemes: "ca",
+          span: [3,5],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "ca'o",
+          span: [6,10],
+        },
       },
-      "cátlu",
+      Word {
+        kind: "gismu",
+        phonemes: "catlu",
+        span: [11,16],
+      },
     },
     terms: [
       RelativeClause {
-        base_argument: "tu",
+        base_argument: Word {
+          kind: "cmavo",
+          phonemes: "tu",
+          span: [17,19],
+        },
         relative_clauses: [
           Noi {
-            noi: "voĭ",
-            "trícu",
+            noi: Word {
+              kind: "cmavo",
+              phonemes: "voĭ",
+              span: [20,23],
+            },
+            Word {
+              kind: "gismu",
+              phonemes: "tricu",
+              span: [24,29],
+            },
           },
         ],
       },

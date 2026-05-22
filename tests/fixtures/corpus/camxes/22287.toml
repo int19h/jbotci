@@ -47,6 +47,40 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "leĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "remna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], cu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "klesi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) }))))), terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "leĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 22, char_start: 19, char_end: 22, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "danlu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 28, char_start: 23, char_end: 28, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(leĭ rémna cu klési leĭ dánlu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "leĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "remna",
+    span: [4,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [10,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klesi",
+    span: [13,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "leĭ",
+    span: [19,22],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "danlu",
+    span: [23,28],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"remna","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"klesi","kind":"gismu"}},{"Bare":{"span":[19,22],"phonemes":"leĭ","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"danlu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -54,17 +88,41 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "leĭ",
-      relation: "rémna",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "leĭ",
+        span: [0,3],
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "remna",
+        span: [4,9],
+      },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [10,12],
+  },
   Relation {
-    "klési",
+    Word {
+      kind: "gismu",
+      phonemes: "klesi",
+      span: [13,18],
+    },
     terms: [
       Descriptor {
-        descriptor: "leĭ",
-        relation: "dánlu",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "leĭ",
+          span: [19,22],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "danlu",
+          span: [23,28],
+        },
       },
     ],
   },

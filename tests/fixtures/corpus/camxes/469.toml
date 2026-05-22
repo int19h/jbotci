@@ -33,18 +33,49 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(zo'e víska mi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'e",
+    span: [1,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "viska",
+    span: [7,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [13,15],
+  },
+]"""
 json = """[{"Bare":{"span":[1,5],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[7,12],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[13,15],"phonemes":"mi","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "zo'e",
+    Word {
+      kind: "cmavo",
+      phonemes: "zo'e",
+      span: [1,5],
+    },
   ],
   Relation {
-    "víska",
+    Word {
+      kind: "gismu",
+      phonemes: "viska",
+      span: [7,12],
+    },
     terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [13,15],
+      },
     ],
   },
 }"""

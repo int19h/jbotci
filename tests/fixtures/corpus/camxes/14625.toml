@@ -38,22 +38,62 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.not. ca na da)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "not",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [8,10],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"not","kind":"cmevla"}},{"Bare":{"span":[4,6],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"da","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".not.",
+    Word {
+      kind: "cmevla",
+      phonemes: "not",
+      span: [0,3],
+    },
   ],
   Term {
     terms: [
       Tagged {
-        tense_modal: "ca",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "ca",
+          span: [4,6],
+        },
         Zohe {},
       },
-      "na",
-      "da",
+      Word {
+        kind: "cmavo",
+        phonemes: "na",
+        span: [6,8],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "da",
+        span: [8,10],
+      },
     ],
   },
 }"""

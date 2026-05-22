@@ -47,16 +47,74 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ki'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ki'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "vo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })))) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(pa ki'o re ci ki'o vo)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'o",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [11,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'o",
+    span: [14,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vo",
+    span: [19,21],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"ki'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"ki'o","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"vo","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 WithFreeModifiers {
-  "pa",
-  "ki'o",
-  "re",
-  "ci",
-  "ki'o",
-  "vo",
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'o",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [11,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'o",
+    span: [14,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vo",
+    span: [19,21],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[3,7],"phonemes":"ki'o","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[8,10],"phonemes":"re","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[11,13],"phonemes":"ci","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[14,18],"phonemes":"ki'o","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[19,21],"phonemes":"vo","kind":"cmavo"}}}]}}}}}}]}]}"""

@@ -43,6 +43,35 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(to la'a clíra dúkse toĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la'a",
+    span: [6,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "clira",
+    span: [11,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "dukse",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "toĭ",
+    span: [23,26],
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"clira","kind":"gismu"}},{"Bare":{"span":[17,22],"phonemes":"dukse","kind":"gismu"}},{"Bare":{"span":[23,26],"phonemes":"toĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -51,14 +80,34 @@ Text {
   leading_free_modifiers: [
     To {
       to: WithIndicator {
-        "to",
-        indicator: "la'a",
+        Word {
+          kind: "cmavo",
+          phonemes: "to",
+          span: [3,5],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "la'a",
+          span: [6,10],
+        },
       },
       Compound {
-        "clíra",
-        "dúkse",
+        Word {
+          kind: "gismu",
+          phonemes: "clira",
+          span: [11,16],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "dukse",
+          span: [17,22],
+        },
       },
-      toi: "toĭ",
+      toi: Word {
+        kind: "cmavo",
+        phonemes: "toĭ",
+        span: [23,26],
+      },
     },
   ],
 }"""

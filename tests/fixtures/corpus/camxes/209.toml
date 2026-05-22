@@ -32,6 +32,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "dy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 30, char_start: 28, char_end: 30, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "de", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 33, char_start: 31, char_end: 33, start: None, end: None }) })))), free_modifiers: [] })), Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "dy", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 34, byte_end: 36, char_start: 34, char_end: 36, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(dy de dy)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "dy",
+    span: [28,30],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "de",
+    span: [31,33],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "dy",
+    span: [34,36],
+  },
+]"""
 json = '[{"Bare":{"span":[28,30],"phonemes":"dy","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"de","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"dy","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -39,11 +58,23 @@ tree = """
 Term {
   terms: [
     Letter {
-      letter: "dy",
+      letter: Word {
+        kind: "cmavo",
+        phonemes: "dy",
+        span: [28,30],
+      },
     },
-    "de",
+    Word {
+      kind: "cmavo",
+      phonemes: "de",
+      span: [31,33],
+    },
     Letter {
-      letter: "dy",
+      letter: Word {
+        kind: "cmavo",
+        phonemes: "dy",
+        span: [34,36],
+      },
     },
   ],
 }"""

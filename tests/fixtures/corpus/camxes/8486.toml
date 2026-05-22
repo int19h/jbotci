@@ -49,6 +49,42 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mu'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }) }, Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(ZeiLujvo { left: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ŭi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))), zei: Word(WordData { kind: Cmavo, phonemes: "zeĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 18, char_start: 15, char_end: 18, start: None, end: None }) }), right: Word(WordData { kind: Gismu, phonemes: "cinmo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 24, char_start: 19, char_end: 24, start: None, end: None }) }) }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(mu'i ma do [.ŭi zeĭ cínmo])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mu'i",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [8,10],
+  },
+  ZeiLujvo {
+    left: Word {
+      kind: "cmavo",
+      phonemes: "ŭi",
+      span: [12,14],
+    },
+    zei: Word {
+      kind: "cmavo",
+      phonemes: "zeĭ",
+      span: [15,18],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "cinmo",
+      span: [19,24],
+    },
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"ZeiLujvo":{"left":{"Bare":{"span":[12,14],"phonemes":"ŭi","kind":"cmavo"}},"zei":{"span":[15,18],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[19,24],"phonemes":"cinmo","kind":"gismu"}}}]"""
 
 [expectations.output.gentufa]
@@ -57,12 +93,40 @@ Predicate {
   leading_terms: [
     Tagged {
       tense_modal: Simple {
-        bai: "mu'i",
+        bai: Word {
+          kind: "cmavo",
+          phonemes: "mu'i",
+          span: [0,4],
+        },
       },
-      "ma",
+      Word {
+        kind: "cmavo",
+        phonemes: "ma",
+        span: [5,7],
+      },
     },
-    "do",
+    Word {
+      kind: "cmavo",
+      phonemes: "do",
+      span: [8,10],
+    },
   ],
-  ".ŭi-zeĭ-cínmo",
+  ZeiLujvo {
+    left: Word {
+      kind: "cmavo",
+      phonemes: "ŭi",
+      span: [12,14],
+    },
+    zei: Word {
+      kind: "cmavo",
+      phonemes: "zeĭ",
+      span: [15,18],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "cinmo",
+      span: [19,24],
+    },
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[0,4],"phonemes":"mu'i","kind":"cmavo"}}}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[5,7],"phonemes":"ma","kind":"cmavo"}}}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"ZeiLujvo":{"left":{"Bare":{"span":[12,14],"phonemes":"ŭi","kind":"cmavo"}},"zei":{"span":[15,18],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[19,24],"phonemes":"cinmo","kind":"gismu"}}}}}}}}}}}}]}]}"""

@@ -86,4 +86,73 @@ error = { position = 0, allowed-next = [], message = """Syntax parse error; expe
 xfail = { source = "muplis", reason = "The BE linkarg contains bare re before a relative clause, which is not a valid sumti; camxes beta/experimental reject this form too.", accepted-status = "failure" }
 
 [expectations.output.vlasei]
+brackets = "(.i xu le pátfu be re poĭ nánmu cu cértu le ka míkce)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "patfu",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "poĭ",
+    span: [21,24],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nanmu",
+    span: [25,30],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [31,33],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "certu",
+    span: [34,39],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [40,42],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka",
+    span: [43,45],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mikce",
+    span: [46,51],
+  },
+]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"patfu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"certu","kind":"gismu"}},{"Bare":{"span":[40,42],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[46,51],"phonemes":"mikce","kind":"gismu"}}]'

@@ -32,18 +32,49 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] })), Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "du'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "blanu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(da du'e blánu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du'e",
+    span: [3,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "blanu",
+    span: [8,13],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"du'e","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"blanu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Term {
   terms: [
-    "da",
+    Word {
+      kind: "cmavo",
+      phonemes: "da",
+      span: [0,2],
+    },
     Descriptor {
       tail_elements: [
-        "du'e",
+        Word {
+          kind: "cmavo",
+          phonemes: "du'e",
+          span: [3,7],
+        },
       ],
-      relation: "blánu",
+      relation: Word {
+        kind: "gismu",
+        phonemes: "blanu",
+        span: [8,13],
+      },
     },
   ],
 }"""

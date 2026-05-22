@@ -83,42 +83,163 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.i le cníno se cúxna co'a túrni ti'u li no mu re mu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [2,4],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cnino",
+    span: [5,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [11,13],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cuxna",
+    span: [14,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "co'a",
+    span: [20,24],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "turni",
+    span: [25,30],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ti'u",
+    span: [31,35],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [36,38],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [39,40],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu",
+    span: [40,41],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [42,43],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu",
+    span: [43,44],
+  },
+]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[11,13],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"cuxna","kind":"gismu"}},{"Bare":{"span":[20,24],"phonemes":"co'a","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"turni","kind":"gismu"}},{"Bare":{"span":[31,35],"phonemes":"ti'u","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[39,40],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[40,41],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[42,43],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[43,44],"phonemes":"mu","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: ".i",
+  i: Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
   Predicate {
     leading_terms: [
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [2,4],
+        },
         relation: Compound {
-          "cníno",
+          Word {
+            kind: "gismu",
+            phonemes: "cnino",
+            span: [5,10],
+          },
           Se {
-            se: "se",
-            "cúxna",
+            se: Word {
+              kind: "cmavo",
+              phonemes: "se",
+              span: [11,13],
+            },
+            Word {
+              kind: "gismu",
+              phonemes: "cuxna",
+              span: [14,19],
+            },
           },
         },
       },
     ],
     Relation {
       TenseModal {
-        tense_modal: "co'a",
-        "túrni",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "co'a",
+          span: [20,24],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "turni",
+          span: [25,30],
+        },
       },
       terms: [
         Tagged {
           tense_modal: Simple {
-            bai: "ti'u",
+            bai: Word {
+              kind: "cmavo",
+              phonemes: "ti'u",
+              span: [31,35],
+            },
           },
           MathExpression {
-            li: "li",
+            li: Word {
+              kind: "cmavo",
+              phonemes: "li",
+              span: [36,38],
+            },
             WithFreeModifiers {
-              "no",
-              "mu",
-              "re",
-              "mu",
+              Word {
+                kind: "cmavo",
+                phonemes: "no",
+                span: [39,40],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "mu",
+                span: [40,41],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "re",
+                span: [42,43],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "mu",
+                span: [43,44],
+              },
             },
           },
         },

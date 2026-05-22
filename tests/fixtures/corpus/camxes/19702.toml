@@ -52,30 +52,97 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "paŭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }), ku: None }], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "peĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 18, char_start: 15, char_end: 18, start: None, end: None }) }), nai: None }), terms: [Argument(Koha(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ko", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None }) }), nai: None }, free_modifiers: [] }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(paŭ fi'a ma mo peĭ ko xu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "paŭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi'a",
+    span: [4,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mo",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "peĭ",
+    span: [15,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ko",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [22,24],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"paŭ","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"fi'a","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mo","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"peĭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"xu","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "paŭ",
+    Word {
+      kind: "cmavo",
+      phonemes: "paŭ",
+      span: [0,3],
+    },
   ],
   Predicate {
     leading_terms: [
       Fa {
-        fa: "fi'a",
-        "ma",
+        fa: Word {
+          kind: "cmavo",
+          phonemes: "fi'a",
+          span: [4,8],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "ma",
+          span: [9,11],
+        },
       },
     ],
     Relation {
       WithIndicator {
-        "mo",
-        indicator: "peĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "mo",
+          span: [12,14],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "peĭ",
+          span: [15,18],
+        },
       },
       terms: [
         WithIndicator {
-          "ko",
-          indicator: "xu",
+          Word {
+            kind: "cmavo",
+            phonemes: "ko",
+            span: [19,21],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "xu",
+            span: [22,24],
+          },
         },
       ],
     },

@@ -33,15 +33,46 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ba'e cu kláma)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ba'e",
+    span: [1,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [9,14],
+  },
+]"""
 json = """[{"Bare":{"span":[1,5],"phonemes":"ba'e","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"klama","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   cu: Emphasized {
-    bahe: "ba'e",
-    "cu",
+    bahe: Word {
+      kind: "cmavo",
+      phonemes: "ba'e",
+      span: [1,5],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "cu",
+      span: [6,8],
+    },
   },
-  "kláma",
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [9,14],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"cu":{"Emphasized":{"bahe":{"span":[1,5],"phonemes":"ba'e","kind":"cmavo"},"word_like":{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"klama","kind":"gismu"}}}}}}}}}}}]}]}"""

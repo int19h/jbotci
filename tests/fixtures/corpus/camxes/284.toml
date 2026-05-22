@@ -44,19 +44,73 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) }), word: Word(WordData { kind: Cmavo, phonemes: "si", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }) })), free_modifiers: [] }))), Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }, argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] }, ku: None }], cu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 33, byte_end: 35, char_start: 33, char_end: 35, start: None, end: None }) })))), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "valsi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 45, char_start: 40, char_end: 45, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "([zo si] fi cu válsi)"
+tree = """
+[
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [2,4],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "si",
+      span: [5,7],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [33,35],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "valsi",
+    span: [40,45],
+  },
+]"""
 json = '[{"ZoQuote":{"zo":{"span":[2,4],"phonemes":"zo","kind":"cmavo"},"word":{"span":[5,7],"phonemes":"si","kind":"cmavo"}}},{"Bare":{"span":[12,14],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[33,35],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"valsi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "zo-«si»",
+    ZoQuote {
+      zo: Word {
+        kind: "cmavo",
+        phonemes: "zo",
+        span: [2,4],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "si",
+        span: [5,7],
+      },
+    },
     Fa {
-      fa: "fi",
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fi",
+        span: [12,14],
+      },
       Zohe {},
     },
   ],
-  cu: "cu",
-  "válsi",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [33,35],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "valsi",
+    span: [40,45],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[2,4],"phonemes":"zo","kind":"cmavo"},"word":{"span":[5,7],"phonemes":"si","kind":"cmavo"}}}}}}},{"Fa":{"fa":{"Bare":{"Bare":{"span":[12,14],"phonemes":"fi","kind":"cmavo"}}},"argument":{"Zohe":{}}}}],"cu":{"Bare":{"Bare":{"span":[33,35],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[40,45],"phonemes":"valsi","kind":"gismu"}}}}}}}}}}}]}]}'

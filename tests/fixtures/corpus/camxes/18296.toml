@@ -48,29 +48,87 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(xu cy noĭ ka'e li'o vízyzva)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cy",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "noĭ",
+    span: [9,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka'e",
+    span: [13,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li'o",
+    span: [18,22],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "vizyzva",
+    span: [23,30],
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"noĭ","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[18,22],"phonemes":"li'o","kind":"cmavo"}},{"Bare":{"span":[23,30],"phonemes":"vizyzva","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "xu",
+    Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [3,5],
+    },
   ],
   Term {
     terms: [
       RelativeClause {
         base_argument: Letter {
-          letter: "cy",
+          letter: Word {
+            kind: "cmavo",
+            phonemes: "cy",
+            span: [6,8],
+          },
         },
         relative_clauses: [
           Noi {
-            noi: "noĭ",
+            noi: Word {
+              kind: "cmavo",
+              phonemes: "noĭ",
+              span: [9,12],
+            },
             TenseModal {
               tense_modal: WithIndicator {
-                "ka'e",
-                indicator: "li'o",
+                Word {
+                  kind: "cmavo",
+                  phonemes: "ka'e",
+                  span: [13,17],
+                },
+                indicator: Word {
+                  kind: "cmavo",
+                  phonemes: "li'o",
+                  span: [18,22],
+                },
               },
-              "vízyzva",
+              Word {
+                kind: "lujvo",
+                phonemes: "vizyzva",
+                span: [23,30],
+              },
             },
           },
         ],

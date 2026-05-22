@@ -48,22 +48,80 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.xod. fúzme be le se cúsku)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "xod",
+    span: [1,4],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fuzme",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [18,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cusku",
+    span: [21,26],
+  },
+]"""
 json = '[{"Bare":{"span":[1,4],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[6,11],"phonemes":"fuzme","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"cusku","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".xod.",
+    Word {
+      kind: "cmevla",
+      phonemes: "xod",
+      span: [1,4],
+    },
   ],
   Be {
-    "fúzme",
-    be: "be",
+    Word {
+      kind: "gismu",
+      phonemes: "fuzme",
+      span: [6,11],
+    },
+    be: Word {
+      kind: "cmavo",
+      phonemes: "be",
+      span: [12,14],
+    },
     first_argument: Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [15,17],
+      },
       relation: Se {
-        se: "se",
-        "cúsku",
+        se: Word {
+          kind: "cmavo",
+          phonemes: "se",
+          span: [18,20],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "cusku",
+          span: [21,26],
+        },
       },
     },
   },

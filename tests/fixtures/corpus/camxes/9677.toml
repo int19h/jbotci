@@ -52,24 +52,91 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Connected { leading_relation: Connected { leading_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cusku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) }))))), connective: Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "casnu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 22, char_start: 17, char_end: 22, start: None, end: None }) }))))) }, connective: Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "ciska", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 31, char_start: 26, char_end: 31, start: None, end: None }) }))))) } }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(mi'o ca cúsku je cásnu je císka)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi'o",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cusku",
+    span: [8,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [14,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "casnu",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ciska",
+    span: [26,31],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'o","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"ciska","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi'o",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi'o",
+      span: [0,4],
+    },
   ],
   TenseModal {
-    tense_modal: "ca",
+    tense_modal: Word {
+      kind: "cmavo",
+      phonemes: "ca",
+      span: [5,7],
+    },
     Connected {
       leading_relation: Connected {
-        leading_relation: "cúsku",
-        connective: "je",
-        trailing_relation: "cásnu",
+        leading_relation: Word {
+          kind: "gismu",
+          phonemes: "cusku",
+          span: [8,13],
+        },
+        connective: Word {
+          kind: "cmavo",
+          phonemes: "je",
+          span: [14,16],
+        },
+        trailing_relation: Word {
+          kind: "gismu",
+          phonemes: "casnu",
+          span: [17,22],
+        },
       },
-      connective: "je",
-      trailing_relation: "císka",
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "je",
+        span: [23,25],
+      },
+      trailing_relation: Word {
+        kind: "gismu",
+        phonemes: "ciska",
+        span: [26,31],
+      },
     },
   },
 }"""

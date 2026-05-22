@@ -47,20 +47,78 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: GekSentence(Pair { gek: Forethought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ge", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, nai: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 5, char_start: 2, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }) }, first: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "krinu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), gik: Forethought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ku'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None }) }), nai: None }], free_modifiers: [] }, nai: None }, second: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "rinka", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 24, char_start: 19, char_end: 24, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), gihi: None, tail_terms: [], vau: None, free_modifiers: [] }), bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ge naĭ krínu gi ku'i rínka)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ge",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [2,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "krinu",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku'i",
+    span: [14,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "rinka",
+    span: [19,24],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ge","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"krinu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"rinka","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Pair {
   gek: Forethought {
-    "ge",
-    nai: "naĭ",
+    Word {
+      kind: "cmavo",
+      phonemes: "ge",
+      span: [0,2],
+    },
+    nai: Word {
+      kind: "cmavo",
+      phonemes: "naĭ",
+      span: [2,5],
+    },
   },
-  first: "krínu",
+  first: Word {
+    kind: "gismu",
+    phonemes: "krinu",
+    span: [6,11],
+  },
   gik: WithIndicator {
-    "gi",
-    indicator: "ku'i",
+    Word {
+      kind: "cmavo",
+      phonemes: "gi",
+      span: [12,14],
+    },
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "ku'i",
+      span: [14,18],
+    },
   },
-  second: "rínka",
+  second: Word {
+    kind: "gismu",
+    phonemes: "rinka",
+    span: [19,24],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"GekSentence":{"Pair":{"gek":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ge","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}}}}},"first":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"krinu","kind":"gismu"}}}}}}}}}},"gik":{"Forethought":{"cmavo":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[12,14],"phonemes":"gi","kind":"cmavo"}}},"indicator":{"span":[14,18],"phonemes":"ku'i","kind":"cmavo"}}}]}},"second":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[19,24],"phonemes":"rinka","kind":"gismu"}}}}}}}}}}}}}}}}}}}]}]}"""

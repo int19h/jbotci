@@ -27,6 +27,20 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "caĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(ju'o caĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ju'o",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "caĭ",
+    span: [4,7],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'o","kind":"cmavo"}},{"Bare":{"span":[4,7],"phonemes":"caĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -34,8 +48,16 @@ tree = """
 Text {
   leading_indicators: [
     WithIndicator {
-      "ju'o",
-      indicator: "caĭ",
+      Word {
+        kind: "cmavo",
+        phonemes: "ju'o",
+        span: [0,4],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "caĭ",
+        span: [4,7],
+      },
     },
   ],
 }"""

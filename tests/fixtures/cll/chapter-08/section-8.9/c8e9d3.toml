@@ -53,6 +53,40 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Connected { leading_argument: Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "frank", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }))))], free_modifiers: [] } }, connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 18, char_start: 17, char_end: 18, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_argument: Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "djordj", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 29, char_start: 23, char_end: 29, start: None, end: None }) }))))], free_modifiers: [] } } }), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(fi'i la .frank. .e la .djordj.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "fi'i",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "frank",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [17,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "djordj",
+    span: [23,29],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"fi'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"frank","kind":"cmevla"}},{"Bare":{"span":[17,18],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[23,29],"phonemes":"djordj","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -61,16 +95,40 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "fi'i",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "fi'i",
+        span: [0,4],
+      },
       argument: Connected {
         leading_argument: Name {
-          la: "la",
-          names: ".frank.",
+          la: Word {
+            kind: "cmavo",
+            phonemes: "la",
+            span: [5,7],
+          },
+          names: Word {
+            kind: "cmevla",
+            phonemes: "frank",
+            span: [9,14],
+          },
         },
-        connective: ".e",
+        connective: Word {
+          kind: "cmavo",
+          phonemes: "e",
+          span: [17,18],
+        },
         trailing_argument: Name {
-          la: "la",
-          names: ".djordj.",
+          la: Word {
+            kind: "cmavo",
+            phonemes: "la",
+            span: [19,21],
+          },
+          names: Word {
+            kind: "cmevla",
+            phonemes: "djordj",
+            span: [23,29],
+          },
         },
       },
     },

@@ -23,6 +23,15 @@ words = [
 status = "not-applicable"
 
 [expectations.output.vlasei]
+brackets = "coĭ"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [0,3],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -30,7 +39,11 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "coĭ",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "coĭ",
+        span: [0,3],
+      },
     },
   ],
 }"""

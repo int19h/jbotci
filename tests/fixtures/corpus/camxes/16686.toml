@@ -98,4 +98,89 @@ status = "failure"
 error = { position = 10, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(mi jmína le válsi plúta po [zoĭ gy bar gy] .e [zoĭ gy staff gy] .e li'o)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jmina",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "valsi",
+    span: [12,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pluta",
+    span: [18,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "po",
+    span: [24,26],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [27,30],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [31,33],
+    },
+    quoted_text: [35,38],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [39,41],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [44,45],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [46,49],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [50,52],
+    },
+    quoted_text: [54,59],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [60,62],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [65,66],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li'o",
+    span: [67,71],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"jmina","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"valsi","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"pluta","kind":"gismu"}},{"Bare":{"span":[24,26],"phonemes":"po","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[27,30],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[31,33],"phonemes":"gy","kind":"cmavo"},"quoted_text":[35,38],"closing_delimiter":{"span":[39,41],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[44,45],"phonemes":"e","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[46,49],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[50,52],"phonemes":"gy","kind":"cmavo"},"quoted_text":[54,59],"closing_delimiter":{"span":[60,62],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[65,66],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[67,71],"phonemes":"li'o","kind":"cmavo"}}]"""

@@ -68,4 +68,59 @@ status = "failure"
 error = { position = 4, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "([la'o dy Goethe dy] cu me [la'o ly Homo sapiens ly] la'o)"
+tree = """
+[
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "la'o",
+      span: [0,4],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "dy",
+      span: [5,7],
+    },
+    quoted_text: [9,15],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "dy",
+      span: [17,19],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [21,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "me",
+    span: [24,26],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "la'o",
+      span: [27,31],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "ly",
+      span: [32,34],
+    },
+    quoted_text: [36,48],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "ly",
+      span: [50,52],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la'o",
+    span: [55,59],
+  },
+]"""
 json = """[{"ZoiQuote":{"zoi":{"span":[0,4],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[5,7],"phonemes":"dy","kind":"cmavo"},"quoted_text":[9,15],"closing_delimiter":{"span":[17,19],"phonemes":"dy","kind":"cmavo"}}},{"Bare":{"span":[21,23],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"me","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[27,31],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[32,34],"phonemes":"ly","kind":"cmavo"},"quoted_text":[36,48],"closing_delimiter":{"span":[50,52],"phonemes":"ly","kind":"cmavo"}}},{"Bare":{"span":[55,59],"phonemes":"la'o","kind":"cmavo"}}]"""

@@ -48,6 +48,40 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(co'o le mi re brúna pe'a)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "co'o",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [11,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [14,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bruna",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pe'a",
+    span: [23,27],
+  },
+]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"bruna","kind":"gismu"}},{"Bare":{"span":[23,27],"phonemes":"pe'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -55,16 +89,40 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "co'o",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "co'o",
+        span: [3,7],
+      },
       argument: Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [8,10],
+        },
         tail_elements: [
-          "mi",
-          "re",
+          Word {
+            kind: "cmavo",
+            phonemes: "mi",
+            span: [11,13],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "re",
+            span: [14,16],
+          },
         ],
         relation: WithIndicator {
-          "brúna",
-          indicator: "pe'a",
+          Word {
+            kind: "gismu",
+            phonemes: "bruna",
+            span: [17,22],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "pe'a",
+            span: [23,27],
+          },
         },
       },
     },

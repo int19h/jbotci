@@ -74,4 +74,65 @@ status = "failure"
 error = { position = 3, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(na rápli nítcu cu zmádu [zo ke'u] poĭ mi pílno ke'a)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "rapli",
+    span: [3,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nitcu",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [15,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zmadu",
+    span: [18,23],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [24,26],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "ke'u",
+      span: [27,31],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "poĭ",
+    span: [32,35],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [36,38],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pilno",
+    span: [39,44],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke'a",
+    span: [45,49],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"rapli","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"nitcu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"zmadu","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[24,26],"phonemes":"zo","kind":"cmavo"},"word":{"span":[27,31],"phonemes":"ke'u","kind":"cmavo"}}},{"Bare":{"span":[32,35],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[36,38],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[39,44],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[45,49],"phonemes":"ke'a","kind":"cmavo"}}]"""

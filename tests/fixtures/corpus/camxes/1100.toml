@@ -57,6 +57,50 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(MathExpression { li: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, expression: Binary { left_expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), operator: Nahe { nahe: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }, inner_operator: Vuhu(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "vu'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None }) })))), free_modifiers: [] }) }, right_expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }) }, loho: None })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "du", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) }))))), terms: [Argument(MathExpression { li: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None }) })))), free_modifiers: [] }, expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 27, char_start: 25, char_end: 27, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), loho: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(li ci to'e vu'u re du li mu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "to'e",
+    span: [6,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vu'u",
+    span: [11,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [16,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [22,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu",
+    span: [25,27],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[6,10],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"vu'u","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"mu","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -64,23 +108,55 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: "li",
+      li: Word {
+        kind: "cmavo",
+        phonemes: "li",
+        span: [0,2],
+      },
       Binary {
-        left_expression: "ci",
-        operator: Nahe {
-          nahe: "to'e",
-          "vu'u",
+        left_expression: Word {
+          kind: "cmavo",
+          phonemes: "ci",
+          span: [3,5],
         },
-        right_expression: "re",
+        operator: Nahe {
+          nahe: Word {
+            kind: "cmavo",
+            phonemes: "to'e",
+            span: [6,10],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "vu'u",
+            span: [11,15],
+          },
+        },
+        right_expression: Word {
+          kind: "cmavo",
+          phonemes: "re",
+          span: [16,18],
+        },
       },
     },
   ],
   Relation {
-    "du",
+    Word {
+      kind: "cmavo",
+      phonemes: "du",
+      span: [19,21],
+    },
     terms: [
       MathExpression {
-        li: "li",
-        "mu",
+        li: Word {
+          kind: "cmavo",
+          phonemes: "li",
+          span: [22,24],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "mu",
+          span: [25,27],
+        },
       },
     ],
   },

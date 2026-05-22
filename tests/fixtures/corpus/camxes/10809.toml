@@ -58,6 +58,50 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(pa ci pi pa mi nélci le ctúca)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pi",
+    span: [2,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [3,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nelci",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [18,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ctuca",
+    span: [21,26],
+  },
+]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[1,2],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[2,3],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[3,4],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"ctuca","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -66,20 +110,52 @@ Predicate {
   leading_terms: [
     Quantified {
       quantifier: WithFreeModifiers {
-        "pa",
-        "ci",
-        "pi",
-        "pa",
+        Word {
+          kind: "cmavo",
+          phonemes: "pa",
+          span: [0,1],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "ci",
+          span: [1,2],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "pi",
+          span: [2,3],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "pa",
+          span: [3,4],
+        },
       },
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [9,11],
+      },
     },
   ],
   Relation {
-    "nélci",
+    Word {
+      kind: "gismu",
+      phonemes: "nelci",
+      span: [12,17],
+    },
     terms: [
       Descriptor {
-        descriptor: "le",
-        relation: "ctúca",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [18,20],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "ctuca",
+          span: [21,26],
+        },
       },
     ],
   },

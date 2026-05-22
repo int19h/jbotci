@@ -37,6 +37,30 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "perl", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ĭu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "saĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) }), nai: None }], free_modifiers: [] } })], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(la .perl. .ĭu saĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "perl",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ĭu",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "saĭ",
+    span: [12,15],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"perl","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"ĭu","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"saĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -44,13 +68,29 @@ tree = """
 Term {
   terms: [
     Name {
-      la: "la",
+      la: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [0,2],
+      },
       names: WithIndicator {
         WithIndicator {
-          ".perl.",
-          indicator: ".ĭu",
+          Word {
+            kind: "cmevla",
+            phonemes: "perl",
+            span: [3,7],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "ĭu",
+            span: [10,12],
+          },
         },
-        indicator: "saĭ",
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "saĭ",
+          span: [12,15],
+        },
       },
     },
   ],

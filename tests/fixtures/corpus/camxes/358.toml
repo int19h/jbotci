@@ -60,6 +60,52 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "([.a bu] boĭ dúnda by boĭ cy boĭ)"
+tree = """
+[
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "a",
+      span: [1,2],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [2,4],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "boĭ",
+    span: [6,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "dunda",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "by",
+    span: [17,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "boĭ",
+    span: [21,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cy",
+    span: [25,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "boĭ",
+    span: [30,33],
+  },
+]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[1,2],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[2,4],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[6,9],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"dunda","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[21,24],"phonemes":"boĭ","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"cy","kind":"cmavo"}},{"Bare":{"span":[30,33],"phonemes":"boĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -67,20 +113,55 @@ tree = """
 Predicate {
   leading_terms: [
     Letter {
-      letter: ".a-bu",
-      boi: "boĭ",
+      letter: Letter {
+        Word {
+          kind: "cmavo",
+          phonemes: "a",
+          span: [1,2],
+        },
+        bu: Word {
+          kind: "cmavo",
+          phonemes: "bu",
+          span: [2,4],
+        },
+      },
+      boi: Word {
+        kind: "cmavo",
+        phonemes: "boĭ",
+        span: [6,9],
+      },
     },
   ],
   Relation {
-    "dúnda",
+    Word {
+      kind: "gismu",
+      phonemes: "dunda",
+      span: [11,16],
+    },
     terms: [
       Letter {
-        letter: "by",
-        boi: "boĭ",
+        letter: Word {
+          kind: "cmavo",
+          phonemes: "by",
+          span: [17,19],
+        },
+        boi: Word {
+          kind: "cmavo",
+          phonemes: "boĭ",
+          span: [21,24],
+        },
       },
       Letter {
-        letter: "cy",
-        boi: "boĭ",
+        letter: Word {
+          kind: "cmavo",
+          phonemes: "cy",
+          span: [25,27],
+        },
+        boi: Word {
+          kind: "cmavo",
+          phonemes: "boĭ",
+          span: [30,33],
+        },
       },
     ],
   },

@@ -68,33 +68,127 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(zálvi se sánce gi'e fálcru loĭ vífne ke dícysro slánu)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "zalvi",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sance",
+    span: [26,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi'e",
+    span: [32,36],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "falcru",
+    span: [37,43],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "loĭ",
+    span: [44,47],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "vifne",
+    span: [48,53],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke",
+    span: [54,56],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "dicysro",
+    span: [57,64],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "slanu",
+    span: [65,70],
+  },
+]"""
 json = """[{"Bare":{"span":[17,22],"phonemes":"zalvi","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"sance","kind":"gismu"}},{"Bare":{"span":[32,36],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[37,43],"phonemes":"falcru","kind":"lujvo"}},{"Bare":{"span":[44,47],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[48,53],"phonemes":"vifne","kind":"gismu"}},{"Bare":{"span":[54,56],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[57,64],"phonemes":"dicysro","kind":"lujvo"}},{"Bare":{"span":[65,70],"phonemes":"slanu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 PredicateTail1 {
   Compound {
-    "zálvi",
+    Word {
+      kind: "gismu",
+      phonemes: "zalvi",
+      span: [17,22],
+    },
     Se {
-      se: "se",
-      "sánce",
+      se: Word {
+        kind: "cmavo",
+        phonemes: "se",
+        span: [23,25],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "sance",
+        span: [26,31],
+      },
     },
   },
   continuations: [
     PredicateTailContinuation {
-      connective: "gi'e",
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "gi'e",
+        span: [32,36],
+      },
       Relation {
-        "fálcru",
+        Word {
+          kind: "lujvo",
+          phonemes: "falcru",
+          span: [37,43],
+        },
         terms: [
           Descriptor {
-            descriptor: "loĭ",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "loĭ",
+              span: [44,47],
+            },
             relation: Compound {
-              "vífne",
+              Word {
+                kind: "gismu",
+                phonemes: "vifne",
+                span: [48,53],
+              },
               Ke {
-                ke: "ke",
+                ke: Word {
+                  kind: "cmavo",
+                  phonemes: "ke",
+                  span: [54,56],
+                },
                 Compound {
-                  "dícysro",
-                  "slánu",
+                  Word {
+                    kind: "lujvo",
+                    phonemes: "dicysro",
+                    span: [57,64],
+                  },
+                  Word {
+                    kind: "gismu",
+                    phonemes: "slanu",
+                    span: [65,70],
+                  },
                 },
               },
             },

@@ -38,6 +38,30 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le spénu cu nalnélci)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "spenu",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [12,14],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "nalnelci",
+    span: [15,23],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"spenu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,23],"phonemes":"nalnelci","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
@@ -45,11 +69,27 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "le",
-      relation: "spénu",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [3,5],
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "spenu",
+        span: [6,11],
+      },
     },
   ],
-  cu: "cu",
-  "nalnélci",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [12,14],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "nalnelci",
+    span: [15,23],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"spenu","kind":"gismu"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[15,23],"phonemes":"nalnelci","kind":"lujvo"}}}}}}}}}}}]}]}'

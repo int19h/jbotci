@@ -33,13 +33,44 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(cpína cípni cpínycpi)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "cpina",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cipni",
+    span: [6,11],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "cpinycpi",
+    span: [13,21],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"cpina","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"cipni","kind":"gismu"}},{"Bare":{"span":[13,21],"phonemes":"cpinycpi","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "cpína",
-  "cípni",
-  "cpínycpi",
+  Word {
+    kind: "gismu",
+    phonemes: "cpina",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cipni",
+    span: [6,11],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "cpinycpi",
+    span: [13,21],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"cpina","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"cipni","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[13,21],"phonemes":"cpinycpi","kind":"lujvo"}}}}]}}}}}}}}]}]}'

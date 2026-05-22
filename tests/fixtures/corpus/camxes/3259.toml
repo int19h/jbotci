@@ -48,23 +48,81 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(bróca coĭ doĭ by vy xy)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "broca",
+    span: [1,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [8,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [12,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "by",
+    span: [16,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vy",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xy",
+    span: [22,24],
+  },
+]"""
 json = '[{"Bare":{"span":[1,6],"phonemes":"broca","kind":"gismu"}},{"Bare":{"span":[8,11],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"by","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"vy","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"xy","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 WithFreeModifiers {
-  "bróca",
+  Word {
+    kind: "gismu",
+    phonemes: "broca",
+    span: [1,6],
+  },
   free_modifiers: [
     Vocative {
       vocative_markers: WithFreeModifiers {
-        "coĭ",
-        "doĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "coĭ",
+          span: [8,11],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "doĭ",
+          span: [12,15],
+        },
       },
       argument: Letter {
         letter: WithFreeModifiers {
-          "by",
-          "vy",
-          "xy",
+          Word {
+            kind: "cmavo",
+            phonemes: "by",
+            span: [16,18],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "vy",
+            span: [19,21],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "xy",
+            span: [22,24],
+          },
         },
       },
     },

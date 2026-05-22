@@ -48,6 +48,40 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le mi fúkpi be la .leming.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fukpi",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "leming",
+    span: [21,27],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"fukpi","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[21,27],"phonemes":"leming","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
@@ -55,16 +89,40 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [3,5],
+      },
       tail_elements: [
-        "mi",
+        Word {
+          kind: "cmavo",
+          phonemes: "mi",
+          span: [6,8],
+        },
       ],
       relation: Be {
-        "fúkpi",
-        be: "be",
+        Word {
+          kind: "gismu",
+          phonemes: "fukpi",
+          span: [9,14],
+        },
+        be: Word {
+          kind: "cmavo",
+          phonemes: "be",
+          span: [15,17],
+        },
         first_argument: Name {
-          la: "la",
-          names: ".leming.",
+          la: Word {
+            kind: "cmavo",
+            phonemes: "la",
+            span: [18,20],
+          },
+          names: Word {
+            kind: "cmevla",
+            phonemes: "leming",
+            span: [21,27],
+          },
         },
       },
     },

@@ -29,6 +29,22 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) }) }))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(.a bu)"
+tree = """
+[
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "a",
+      span: [0,1],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [1,3],
+    },
+  },
+]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[0,1],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[1,3],"phonemes":"bu","kind":"cmavo"}}}]'
 
 [expectations.output.gentufa]
@@ -36,7 +52,18 @@ tree = """
 Term {
   terms: [
     Letter {
-      letter: ".a-bu",
+      letter: Letter {
+        Word {
+          kind: "cmavo",
+          phonemes: "a",
+          span: [0,1],
+        },
+        bu: Word {
+          kind: "cmavo",
+          phonemes: "bu",
+          span: [1,3],
+        },
+      },
     },
   ],
 }"""

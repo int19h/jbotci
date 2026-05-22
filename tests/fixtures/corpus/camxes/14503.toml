@@ -27,12 +27,34 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "bislykaĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "carvi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(bíslykaĭ cárvi)"
+tree = """
+[
+  Word {
+    kind: "lujvo",
+    phonemes: "bislykaĭ",
+    span: [0,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "carvi",
+    span: [9,14],
+  },
+]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"bislykaĭ","kind":"lujvo"}},{"Bare":{"span":[9,14],"phonemes":"carvi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "bíslykaĭ",
-  "cárvi",
+  Word {
+    kind: "lujvo",
+    phonemes: "bislykaĭ",
+    span: [0,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "carvi",
+    span: [9,14],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,8],"phonemes":"bislykaĭ","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"carvi","kind":"gismu"}}}}]}}}}}}}}]}]}'

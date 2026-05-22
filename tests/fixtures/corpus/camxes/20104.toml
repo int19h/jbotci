@@ -38,18 +38,58 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(bénji le na'o sélsku)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "benji",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na'o",
+    span: [12,16],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "selsku",
+    span: [17,23],
+  },
+]"""
 json = """[{"Bare":{"span":[3,8],"phonemes":"benji","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"na'o","kind":"cmavo"}},{"Bare":{"span":[17,23],"phonemes":"selsku","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  "bénji",
+  Word {
+    kind: "gismu",
+    phonemes: "benji",
+    span: [3,8],
+  },
   terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [9,11],
+      },
       relation: TenseModal {
-        tense_modal: "na'o",
-        "sélsku",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "na'o",
+          span: [12,16],
+        },
+        Word {
+          kind: "lujvo",
+          phonemes: "selsku",
+          span: [17,23],
+        },
       },
     },
   ],

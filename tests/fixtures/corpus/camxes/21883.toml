@@ -52,21 +52,88 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "kakne", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "klama", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "datpapri", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 23, char_start: 15, char_end: 23, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "pilno", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "termifterckiku", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 44, char_start: 30, char_end: 44, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sampu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 45, byte_end: 50, char_start: 45, char_end: 50, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(do kákne kláma datpápri pílno termifterckíku sámpu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kakne",
+    span: [3,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [9,14],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "datpapri",
+    span: [15,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pilno",
+    span: [24,29],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "termifterckiku",
+    span: [30,44],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sampu",
+    span: [45,50],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"kakne","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[15,23],"phonemes":"datpapri","kind":"lujvo"}},{"Bare":{"span":[24,29],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[30,44],"phonemes":"termifterckiku","kind":"lujvo"}},{"Bare":{"span":[45,50],"phonemes":"sampu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "do",
+    Word {
+      kind: "cmavo",
+      phonemes: "do",
+      span: [0,2],
+    },
   ],
   Compound {
-    "kákne",
-    "kláma",
-    "datpápri",
-    "pílno",
-    "termifterckíku",
-    "sámpu",
+    Word {
+      kind: "gismu",
+      phonemes: "kakne",
+      span: [3,8],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "klama",
+      span: [9,14],
+    },
+    Word {
+      kind: "lujvo",
+      phonemes: "datpapri",
+      span: [15,23],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "pilno",
+      span: [24,29],
+    },
+    Word {
+      kind: "lujvo",
+      phonemes: "termifterckiku",
+      span: [30,44],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "sampu",
+      span: [45,50],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"kakne","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"klama","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,23],"phonemes":"datpapri","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"pilno","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[30,44],"phonemes":"termifterckiku","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[45,50],"phonemes":"sampu","kind":"gismu"}}}}]}}}}}}}}]}]}'

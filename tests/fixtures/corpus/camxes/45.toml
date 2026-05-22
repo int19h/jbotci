@@ -45,15 +45,72 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Quote(Zoi(WithFreeModifiers { value: Bare(WordLike(ZoiQuote { zoi: Word(WordData { kind: Cmavo, phonemes: "zoĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 35, byte_end: 38, char_start: 35, char_end: 38, start: None, end: None }) }), opening_delimiter: Word(WordData { kind: Cmavo, phonemes: "sa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 39, byte_end: 41, char_start: 39, char_end: 41, start: None, end: None }) }), quoted_text: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 41, byte_end: 58, char_start: 41, char_end: 58, start: None, end: None }), closing_delimiter: Word(WordData { kind: Cmavo, phonemes: "sa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 59, byte_end: 61, char_start: 59, char_end: 61, start: None, end: None }) }) })), free_modifiers: [] })))], cu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 62, byte_end: 64, char_start: 62, char_end: 64, start: None, end: None }) })))), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "mupli", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 65, byte_end: 70, char_start: 65, char_end: 70, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "([zoĭ sa some other words sa] cu múpli)"
+tree = """
+[
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [35,38],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "sa",
+      span: [39,41],
+    },
+    quoted_text: [41,58],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "sa",
+      span: [59,61],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [62,64],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mupli",
+    span: [65,70],
+  },
+]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[35,38],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[39,41],"phonemes":"sa","kind":"cmavo"},"quoted_text":[41,58],"closing_delimiter":{"span":[59,61],"phonemes":"sa","kind":"cmavo"}}},{"Bare":{"span":[62,64],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[65,70],"phonemes":"mupli","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "zoĭ-sa-«some other words»-sa",
+    ZoiQuote {
+      zoi: Word {
+        kind: "cmavo",
+        phonemes: "zoĭ",
+        span: [35,38],
+      },
+      opening_delimiter: Word {
+        kind: "cmavo",
+        phonemes: "sa",
+        span: [39,41],
+      },
+      quoted_text: [41,58],
+      closing_delimiter: Word {
+        kind: "cmavo",
+        phonemes: "sa",
+        span: [59,61],
+      },
+    },
   ],
-  cu: "cu",
-  "múpli",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [62,64],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mupli",
+    span: [65,70],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"span":[35,38],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[39,41],"phonemes":"sa","kind":"cmavo"},"quoted_text":[41,58],"closing_delimiter":{"span":[59,61],"phonemes":"sa","kind":"cmavo"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[62,64],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[65,70],"phonemes":"mupli","kind":"gismu"}}}}}}}}}}}]}]}'

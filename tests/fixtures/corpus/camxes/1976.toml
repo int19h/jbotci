@@ -55,4 +55,46 @@ status = "failure"
 error = { position = 4, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "([zoĭ gy John is a man gy] cu glíco júfra zoĭ)"
+tree = """
+[
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [0,3],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [4,6],
+    },
+    quoted_text: [8,21],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [23,25],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [27,29],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "glico",
+    span: [30,35],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jufra",
+    span: [36,41],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zoĭ",
+    span: [43,46],
+  },
+]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,6],"phonemes":"gy","kind":"cmavo"},"quoted_text":[8,21],"closing_delimiter":{"span":[23,25],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[27,29],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"glico","kind":"gismu"}},{"Bare":{"span":[36,41],"phonemes":"jufra","kind":"gismu"}},{"Bare":{"span":[43,46],"phonemes":"zoĭ","kind":"cmavo"}}]'

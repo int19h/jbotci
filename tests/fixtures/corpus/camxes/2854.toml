@@ -28,14 +28,36 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(do na)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [3,5],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Term {
   terms: [
-    "do",
-    "na",
+    Word {
+      kind: "cmavo",
+      phonemes: "do",
+      span: [0,2],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "na",
+      span: [3,5],
+    },
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}}}}},{"BareNa":{"Bare":{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}}}}]}}}}]}]}'

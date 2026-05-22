@@ -53,6 +53,45 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le ni la .djeĭn. cu mámta keĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ni",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "djeĭn",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [16,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mamta",
+    span: [19,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "keĭ",
+    span: [26,29],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"djeĭn","kind":"cmevla"}},{"Bare":{"span":[16,18],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"mamta","kind":"gismu"}},{"Bare":{"span":[26,29],"phonemes":"keĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -60,20 +99,48 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
       relation: Abstraction {
-        nu: "ni",
+        nu: Word {
+          kind: "cmavo",
+          phonemes: "ni",
+          span: [3,5],
+        },
         Predicate {
           leading_terms: [
             Name {
-              la: "la",
-              names: ".djeĭn.",
+              la: Word {
+                kind: "cmavo",
+                phonemes: "la",
+                span: [6,8],
+              },
+              names: Word {
+                kind: "cmevla",
+                phonemes: "djeĭn",
+                span: [9,14],
+              },
             },
           ],
-          cu: "cu",
-          "mámta",
+          cu: Word {
+            kind: "cmavo",
+            phonemes: "cu",
+            span: [16,18],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "mamta",
+            span: [19,24],
+          },
         },
-        kei: "keĭ",
+        kei: Word {
+          kind: "cmavo",
+          phonemes: "keĭ",
+          span: [26,29],
+        },
       },
     },
   ],

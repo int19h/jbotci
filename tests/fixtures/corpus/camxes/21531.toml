@@ -53,28 +53,95 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi'o ka'e cásnu le pínca skári ja'a)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi'o",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka'e",
+    span: [5,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "casnu",
+    span: [10,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [16,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pinca",
+    span: [19,24],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "skari",
+    span: [25,30],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ja'a",
+    span: [31,35],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"pinca","kind":"gismu"}},{"Bare":{"span":[25,30],"phonemes":"skari","kind":"gismu"}},{"Bare":{"span":[31,35],"phonemes":"ja'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi'o",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi'o",
+      span: [0,4],
+    },
   ],
   Relation {
     TenseModal {
-      tense_modal: "ka'e",
-      "cásnu",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ka'e",
+        span: [5,9],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "casnu",
+        span: [10,15],
+      },
     },
     terms: [
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [16,18],
+        },
         relation: Compound {
-          "pínca",
-          "skári",
+          Word {
+            kind: "gismu",
+            phonemes: "pinca",
+            span: [19,24],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "skari",
+            span: [25,30],
+          },
         },
       },
-      "ja'a",
+      Word {
+        kind: "cmavo",
+        phonemes: "ja'a",
+        span: [31,35],
+      },
     ],
   },
 }"""

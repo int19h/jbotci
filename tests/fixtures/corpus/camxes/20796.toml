@@ -47,6 +47,40 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(WithIndicator { base: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ji'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "caĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "jecta", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tavla", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.i ji'a .oĭ caĭ jécta távla)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ji'a",
+    span: [1,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "oĭ",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "caĭ",
+    span: [8,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jecta",
+    span: [12,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tavla",
+    span: [18,23],
+  },
+]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[1,5],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[8,11],"phonemes":"caĭ","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"jecta","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"tavla","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -55,16 +89,40 @@ ParagraphStatement {
   i: WithIndicator {
     WithIndicator {
       WithIndicator {
-        ".i",
-        indicator: "ji'a",
+        Word {
+          kind: "cmavo",
+          phonemes: "i",
+          span: [0,1],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ji'a",
+          span: [1,5],
+        },
       },
-      indicator: ".oĭ",
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "oĭ",
+        span: [6,8],
+      },
     },
-    indicator: "caĭ",
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "caĭ",
+      span: [8,11],
+    },
   },
   Compound {
-    "jécta",
-    "távla",
+    Word {
+      kind: "gismu",
+      phonemes: "jecta",
+      span: [12,17],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "tavla",
+      span: [18,23],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,1],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[1,5],"phonemes":"ji'a","kind":"cmavo"}}},"indicator":{"span":[6,8],"phonemes":"oĭ","kind":"cmavo"}}},"indicator":{"span":[8,11],"phonemes":"caĭ","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"jecta","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"tavla","kind":"gismu"}}}}]}}}}}}}}]}]}"""

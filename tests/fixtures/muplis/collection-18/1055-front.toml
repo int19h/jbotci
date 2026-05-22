@@ -35,6 +35,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ŭu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "peĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(.ŭu .oĭ peĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭu",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "oĭ",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "peĭ",
+    span: [6,9],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ŭu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"peĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -44,10 +63,22 @@ Text {
   leading_indicators: [
     WithIndicator {
       WithIndicator {
-        ".ŭu",
-        indicator: ".oĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "ŭu",
+          span: [0,2],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "oĭ",
+          span: [3,5],
+        },
       },
-      indicator: "peĭ",
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "peĭ",
+        span: [6,9],
+      },
     },
   ],
 }"""

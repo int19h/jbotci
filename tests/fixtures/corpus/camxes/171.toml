@@ -33,6 +33,25 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le nu bróda)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [24,26],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "broda",
+    span: [27,32],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"broda","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -40,10 +59,22 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
       relation: Abstraction {
-        nu: "nu",
-        "bróda",
+        nu: Word {
+          kind: "cmavo",
+          phonemes: "nu",
+          span: [24,26],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "broda",
+          span: [27,32],
+        },
       },
     },
   ],

@@ -60,6 +60,53 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tirno", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))))), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Quote(Zoi(WithFreeModifiers { value: Bare(WordLike(ZoiQuote { zoi: Word(WordData { kind: Cmavo, phonemes: "zoĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) }), opening_delimiter: Word(WordData { kind: Cmavo, phonemes: "ky", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None }) }), quoted_text: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 22, char_start: 16, char_end: 22, start: None, end: None }), closing_delimiter: Word(WordData { kind: Cmavo, phonemes: "ky", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None }) }) })), free_modifiers: [] })))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Se { se: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 28, char_start: 26, char_end: 28, start: None, end: None }) })))), free_modifiers: [] }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "smuni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 29, byte_end: 34, char_start: 29, char_end: 34, start: None, end: None }) }))))) }, terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 35, byte_end: 37, char_start: 35, char_end: 37, start: None, end: None }) })))), free_modifiers: [] }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(doĭ tírno [zoĭ ky tirno ky] se smúni ma)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tirno",
+    span: [4,9],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [10,13],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "ky",
+      span: [14,16],
+    },
+    quoted_text: [16,22],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "ky",
+      span: [23,25],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [26,28],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "smuni",
+    span: [29,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [35,37],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"tirno","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[10,13],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[14,16],"phonemes":"ky","kind":"cmavo"},"quoted_text":[16,22],"closing_delimiter":{"span":[23,25],"phonemes":"ky","kind":"cmavo"}}},{"Bare":{"span":[26,28],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"ma","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -67,23 +114,60 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "doĭ",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "doĭ",
+        span: [0,3],
+      },
       argument: RelationVocative {
-        relation: "tírno",
+        relation: Word {
+          kind: "gismu",
+          phonemes: "tirno",
+          span: [4,9],
+        },
       },
     },
   ],
   Predicate {
     leading_terms: [
-      "zoĭ-ky-«tirno»-ky",
+      ZoiQuote {
+        zoi: Word {
+          kind: "cmavo",
+          phonemes: "zoĭ",
+          span: [10,13],
+        },
+        opening_delimiter: Word {
+          kind: "cmavo",
+          phonemes: "ky",
+          span: [14,16],
+        },
+        quoted_text: [16,22],
+        closing_delimiter: Word {
+          kind: "cmavo",
+          phonemes: "ky",
+          span: [23,25],
+        },
+      },
     ],
     Relation {
       Se {
-        se: "se",
-        "smúni",
+        se: Word {
+          kind: "cmavo",
+          phonemes: "se",
+          span: [26,28],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "smuni",
+          span: [29,34],
+        },
       },
       terms: [
-        "ma",
+        Word {
+          kind: "cmavo",
+          phonemes: "ma",
+          span: [35,37],
+        },
       ],
     },
   },

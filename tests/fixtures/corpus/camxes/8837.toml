@@ -39,6 +39,32 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))), Word(Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "su'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None }) }) }))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "roĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(pa [su'i bu] roĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [0,2],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "su'i",
+      span: [3,7],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [7,9],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "roĭ",
+    span: [10,13],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[3,7],"phonemes":"su'i","kind":"cmavo"}},"bu":{"span":[7,9],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[10,13],"phonemes":"roĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -47,9 +73,28 @@ Term {
   terms: [
     Tagged {
       tense_modal: WithFreeModifiers {
-        "pa",
-        "su'i-bu",
-        "roĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "pa",
+          span: [0,2],
+        },
+        Letter {
+          Word {
+            kind: "cmavo",
+            phonemes: "su'i",
+            span: [3,7],
+          },
+          bu: Word {
+            kind: "cmavo",
+            phonemes: "bu",
+            span: [7,9],
+          },
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "roĭ",
+          span: [10,13],
+        },
       },
       Zohe {},
     },

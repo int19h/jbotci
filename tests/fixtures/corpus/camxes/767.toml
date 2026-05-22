@@ -68,6 +68,60 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(la .djan. cu ckáji le ka se rísna zo'e keĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "djan",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ckaji",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka",
+    span: [21,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [24,26],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "risna",
+    span: [27,32],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'e",
+    span: [34,38],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "keĭ",
+    span: [41,44],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"ckaji","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[27,32],"phonemes":"risna","kind":"gismu"}},{"Bare":{"span":[34,38],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[41,44],"phonemes":"keĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -75,28 +129,68 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: "la",
-      names: ".djan.",
+      la: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [0,2],
+      },
+      names: Word {
+        kind: "cmevla",
+        phonemes: "djan",
+        span: [3,7],
+      },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [9,11],
+  },
   Relation {
-    "ckáji",
+    Word {
+      kind: "gismu",
+      phonemes: "ckaji",
+      span: [12,17],
+    },
     terms: [
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [18,20],
+        },
         relation: Abstraction {
-          nu: "ka",
+          nu: Word {
+            kind: "cmavo",
+            phonemes: "ka",
+            span: [21,23],
+          },
           Relation {
             Se {
-              se: "se",
-              "rísna",
+              se: Word {
+                kind: "cmavo",
+                phonemes: "se",
+                span: [24,26],
+              },
+              Word {
+                kind: "gismu",
+                phonemes: "risna",
+                span: [27,32],
+              },
             },
             terms: [
-              "zo'e",
+              Word {
+                kind: "cmavo",
+                phonemes: "zo'e",
+                span: [34,38],
+              },
             ],
           },
-          kei: "keĭ",
+          kei: Word {
+            kind: "cmavo",
+            phonemes: "keĭ",
+            span: [41,44],
+          },
         },
       },
     ],

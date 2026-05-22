@@ -33,13 +33,44 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(xájmi je mélbi)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "xajmi",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "melbi",
+    span: [12,17],
+  },
+]"""
 json = '[{"Bare":{"span":[3,8],"phonemes":"xajmi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"melbi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_relation: "xájmi",
-  connective: "je",
-  trailing_relation: "mélbi",
+  leading_relation: Word {
+    kind: "gismu",
+    phonemes: "xajmi",
+    span: [3,8],
+  },
+  connective: Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [9,11],
+  },
+  trailing_relation: Word {
+    kind: "gismu",
+    phonemes: "melbi",
+    span: [12,17],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"xajmi","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"melbi","kind":"gismu"}}}}}}}}}}}}}]}]}'

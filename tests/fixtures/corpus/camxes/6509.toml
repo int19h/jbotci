@@ -32,19 +32,50 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "takes", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sutra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) }))))), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(.takes. coĭ sútra)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "takes",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [6,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sutra",
+    span: [10,15],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"takes","kind":"cmevla"}},{"Bare":{"span":[6,9],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"sutra","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".takes.",
+    Word {
+      kind: "cmevla",
+      phonemes: "takes",
+      span: [0,5],
+    },
   ],
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "coĭ",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "coĭ",
+        span: [6,9],
+      },
       argument: RelationVocative {
-        relation: "sútra",
+        relation: Word {
+          kind: "gismu",
+          phonemes: "sutra",
+          span: [10,15],
+        },
       },
     },
   ],

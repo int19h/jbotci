@@ -32,15 +32,46 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "baŭpla", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "kuzyfamni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 16, char_start: 7, char_end: 16, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None }) }), nai: None }, free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(báŭpla kuzyfámni xu)"
+tree = """
+[
+  Word {
+    kind: "lujvo",
+    phonemes: "baŭpla",
+    span: [0,6],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "kuzyfamni",
+    span: [7,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [17,19],
+  },
+]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"baŭpla","kind":"lujvo"}},{"Bare":{"span":[7,16],"phonemes":"kuzyfamni","kind":"lujvo"}},{"Bare":{"span":[17,19],"phonemes":"xu","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "báŭpla",
+  Word {
+    kind: "lujvo",
+    phonemes: "baŭpla",
+    span: [0,6],
+  },
   WithIndicator {
-    "kuzyfámni",
-    indicator: "xu",
+    Word {
+      kind: "lujvo",
+      phonemes: "kuzyfamni",
+      span: [7,16],
+    },
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [17,19],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,6],"phonemes":"baŭpla","kind":"lujvo"}}}},{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[7,16],"phonemes":"kuzyfamni","kind":"lujvo"}}},"indicator":{"span":[17,19],"phonemes":"xu","kind":"cmavo"}}}}]}}}}}}}}]}]}'

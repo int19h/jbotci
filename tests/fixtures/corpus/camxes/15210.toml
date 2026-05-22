@@ -58,33 +58,109 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.norpan. do na dráni .i lo prenrnínja túrni)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "norpan",
+    span: [0,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [11,13],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "drani",
+    span: [14,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [21,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [23,25],
+  },
+  Word {
+    kind: "fu'ivla",
+    phonemes: "prenrninja",
+    span: [26,36],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "turni",
+    span: [37,42],
+  },
+]"""
 json = """[{"Bare":{"span":[0,6],"phonemes":"norpan","kind":"cmevla"}},{"Bare":{"span":[8,10],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"drani","kind":"gismu"}},{"Bare":{"span":[21,22],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[26,36],"phonemes":"prenrninja","kind":"fu'ivla"}},{"Bare":{"span":[37,42],"phonemes":"turni","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".norpan.",
+    Word {
+      kind: "cmevla",
+      phonemes: "norpan",
+      span: [0,6],
+    },
   ],
   Paragraph {
     Predicate {
       leading_terms: [
-        "do",
+        Word {
+          kind: "cmavo",
+          phonemes: "do",
+          span: [8,10],
+        },
       ],
       Na {
-        na: "na",
-        "dráni",
+        na: Word {
+          kind: "cmavo",
+          phonemes: "na",
+          span: [11,13],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "drani",
+          span: [14,19],
+        },
       },
     },
     ParagraphStatement {
-      i: ".i",
+      i: Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [21,22],
+      },
       Term {
         terms: [
           Descriptor {
-            descriptor: "lo",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "lo",
+              span: [23,25],
+            },
             relation: Compound {
-              "prenrnínja",
-              "túrni",
+              Word {
+                kind: "fu'ivla",
+                phonemes: "prenrninja",
+                span: [26,36],
+              },
+              Word {
+                kind: "gismu",
+                phonemes: "turni",
+                span: [37,42],
+              },
             },
           },
         ],

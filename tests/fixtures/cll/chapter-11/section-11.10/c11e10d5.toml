@@ -48,22 +48,71 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Lahe { lahe: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "tu'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, relative_clauses: [], inner_argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "vorme", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None }) })))))), relative_clauses: [], ku: None }), luhu: Some(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lu'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ki'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 23, char_start: 19, char_end: 23, start: None, end: None }) }), nai: None }, free_modifiers: [] }) })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(tu'a le vórme lu'u ki'a)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "tu'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "vorme",
+    span: [8,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lu'u",
+    span: [14,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'a",
+    span: [19,23],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"vorme","kind":"gismu"}},{"Bare":{"span":[14,18],"phonemes":"lu'u","kind":"cmavo"}},{"Bare":{"span":[19,23],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
-brackets = "(tu'a [le vórme] lu'u-ki'a)"
+brackets = "(tu'a [le vórme] [lu'u ki'a])"
 tree = """
 Term {
   terms: [
     Lahe {
-      lahe: "tu'a",
+      lahe: Word {
+        kind: "cmavo",
+        phonemes: "tu'a",
+        span: [0,4],
+      },
       Descriptor {
-        descriptor: "le",
-        relation: "vórme",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [5,7],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "vorme",
+          span: [8,13],
+        },
       },
       luhu: WithIndicator {
-        "lu'u",
-        indicator: "ki'a",
+        Word {
+          kind: "cmavo",
+          phonemes: "lu'u",
+          span: [14,18],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ki'a",
+          span: [19,23],
+        },
       },
     },
   ],

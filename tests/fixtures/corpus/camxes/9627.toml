@@ -27,16 +27,38 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "capital", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None }) }))))), connective: None, free_modifiers: [], statement: None }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(.capital. .i)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "capital",
+    span: [0,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [8,9],
+  },
+]"""
 json = '[{"Bare":{"span":[0,7],"phonemes":"capital","kind":"cmevla"}},{"Bare":{"span":[8,9],"phonemes":"i","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".capital.",
+    Word {
+      kind: "cmevla",
+      phonemes: "capital",
+      span: [0,7],
+    },
   ],
   ParagraphStatement {
-    i: ".i",
+    i: Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [8,9],
+    },
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,7],"phonemes":"capital","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"span":[8,9],"phonemes":"i","kind":"cmavo"}}}}]}]}'

@@ -37,20 +37,60 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "used", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([PreposedBe { be: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "be", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }, fa: None, first_argument: None, bei_links: [], beho: None, base: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cmana", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 16, char_start: 11, char_end: 16, start: None, end: None }) })))), free_modifiers: [] }) }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }, toi: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(.used. to be cmána)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "used",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [8,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cmana",
+    span: [11,16],
+  },
+]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"used","kind":"cmevla"}},{"Bare":{"span":[5,7],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"cmana","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".used.",
+    Word {
+      kind: "cmevla",
+      phonemes: "used",
+      span: [0,4],
+    },
   ],
   leading_free_modifiers: [
     To {
-      to: "to",
+      to: Word {
+        kind: "cmavo",
+        phonemes: "to",
+        span: [5,7],
+      },
       PreposedBe {
-        be: "be",
-        "cmána",
+        be: Word {
+          kind: "cmavo",
+          phonemes: "be",
+          span: [8,10],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "cmana",
+          span: [11,16],
+        },
       },
     },
   ],

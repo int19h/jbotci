@@ -27,12 +27,34 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Goha { goha: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "go'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, raho: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ra'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }) }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(go'a ra'o)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "go'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ra'o",
+    span: [5,9],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"go'a","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ra'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Goha {
-  goha: "go'a",
-  raho: "ra'o",
+  goha: Word {
+    kind: "cmavo",
+    phonemes: "go'a",
+    span: [0,4],
+  },
+  raho: Word {
+    kind: "cmavo",
+    phonemes: "ra'o",
+    span: [5,9],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Goha":{"goha":{"Bare":{"Bare":{"span":[0,4],"phonemes":"go'a","kind":"cmavo"}}},"raho":{"Bare":{"Bare":{"span":[5,9],"phonemes":"ra'o","kind":"cmavo"}}}}}]}}}}}}}}]}]}"""

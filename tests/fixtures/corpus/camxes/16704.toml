@@ -93,49 +93,188 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.eĭ mi zbásu le mi sánmi .i tcíka li re pa pa no bu'u mi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "eĭ",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zbasu",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [15,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sanmi",
+    span: [18,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [24,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tcika",
+    span: [26,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [32,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [35,36],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [36,37],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [38,39],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [39,40],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "bu'u",
+    span: [41,45],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [46,48],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"zbasu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"sanmi","kind":"gismu"}},{"Bare":{"span":[24,25],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"tcika","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[35,36],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[36,37],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[38,39],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[39,40],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[41,45],"phonemes":"bu'u","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"mi","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    ".eĭ",
+    Word {
+      kind: "cmavo",
+      phonemes: "eĭ",
+      span: [0,2],
+    },
   ],
   Paragraph {
     Predicate {
       leading_terms: [
-        "mi",
+        Word {
+          kind: "cmavo",
+          phonemes: "mi",
+          span: [3,5],
+        },
       ],
       Relation {
-        "zbásu",
+        Word {
+          kind: "gismu",
+          phonemes: "zbasu",
+          span: [6,11],
+        },
         terms: [
           Descriptor {
-            descriptor: "le",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [12,14],
+            },
             tail_elements: [
-              "mi",
+              Word {
+                kind: "cmavo",
+                phonemes: "mi",
+                span: [15,17],
+              },
             ],
-            relation: "sánmi",
+            relation: Word {
+              kind: "gismu",
+              phonemes: "sanmi",
+              span: [18,23],
+            },
           },
         ],
       },
     },
     ParagraphStatement {
-      i: ".i",
+      i: Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [24,25],
+      },
       Relation {
-        "tcíka",
+        Word {
+          kind: "gismu",
+          phonemes: "tcika",
+          span: [26,31],
+        },
         terms: [
           MathExpression {
-            li: "li",
+            li: Word {
+              kind: "cmavo",
+              phonemes: "li",
+              span: [32,34],
+            },
             WithFreeModifiers {
-              "re",
-              "pa",
-              "pa",
-              "no",
+              Word {
+                kind: "cmavo",
+                phonemes: "re",
+                span: [35,36],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "pa",
+                span: [36,37],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "pa",
+                span: [38,39],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "no",
+                span: [39,40],
+              },
             },
           },
           Tagged {
-            tense_modal: "bu'u",
-            "mi",
+            tense_modal: Word {
+              kind: "cmavo",
+              phonemes: "bu'u",
+              span: [41,45],
+            },
+            Word {
+              kind: "cmavo",
+              phonemes: "mi",
+              span: [46,48],
+            },
           },
         ],
       },

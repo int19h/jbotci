@@ -42,22 +42,71 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "a'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "xamgu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "cerni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None }) })))), free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 19, char_start: 16, char_end: 19, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "robin", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 25, char_start: 20, char_end: 25, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.a'o xámgu cérni doĭ .robin.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "a'o",
+    span: [0,3],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xamgu",
+    span: [4,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cerni",
+    span: [10,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [16,19],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "robin",
+    span: [20,25],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"a'o","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"cerni","kind":"gismu"}},{"Bare":{"span":[16,19],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"robin","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    ".a'o",
+    Word {
+      kind: "cmavo",
+      phonemes: "a'o",
+      span: [0,3],
+    },
   ],
   Compound {
-    "xámgu",
+    Word {
+      kind: "gismu",
+      phonemes: "xamgu",
+      span: [4,9],
+    },
     WithFreeModifiers {
-      "cérni",
+      Word {
+        kind: "gismu",
+        phonemes: "cerni",
+        span: [10,15],
+      },
       free_modifiers: [
         Vocative {
-          vocative_markers: "doĭ",
-          argument: ".robin.",
+          vocative_markers: Word {
+            kind: "cmavo",
+            phonemes: "doĭ",
+            span: [16,19],
+          },
+          argument: Word {
+            kind: "cmevla",
+            phonemes: "robin",
+            span: [20,25],
+          },
         },
       ],
     },

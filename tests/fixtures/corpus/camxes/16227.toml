@@ -110,4 +110,101 @@ status = "failure"
 error = { position = 3, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(.i mi mu .u dúnku tu .a le nábmi be [zoĭ gy ago gy] poĭ la .xorxes. cu távla)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "u",
+    span: [9,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "dunku",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "tu",
+    span: [17,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "a",
+    span: [20,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [22,24],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nabmi",
+    span: [25,30],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [31,33],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [34,37],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [37,39],
+    },
+    quoted_text: [41,44],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [45,47],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "poĭ",
+    span: [49,52],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [53,55],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "xorxes",
+    span: [56,62],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [63,65],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tavla",
+    span: [66,71],
+  },
+]"""
 json = '[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[9,10],"phonemes":"u","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"dunku","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"tu","kind":"cmavo"}},{"Bare":{"span":[20,21],"phonemes":"a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[25,30],"phonemes":"nabmi","kind":"gismu"}},{"Bare":{"span":[31,33],"phonemes":"be","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[34,37],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[37,39],"phonemes":"gy","kind":"cmavo"},"quoted_text":[41,44],"closing_delimiter":{"span":[45,47],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[49,52],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[53,55],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[56,62],"phonemes":"xorxes","kind":"cmevla"}},{"Bare":{"span":[63,65],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[66,71],"phonemes":"tavla","kind":"gismu"}}]'

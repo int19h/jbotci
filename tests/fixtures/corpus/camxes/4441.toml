@@ -33,13 +33,44 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(fractúre sútra jívna)"
+tree = """
+[
+  Word {
+    kind: "lujvo",
+    phonemes: "fracture",
+    span: [0,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sutra",
+    span: [10,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jivna",
+    span: [16,21],
+  },
+]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"fracture","kind":"lujvo"}},{"Bare":{"span":[10,15],"phonemes":"sutra","kind":"gismu"}},{"Bare":{"span":[16,21],"phonemes":"jivna","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "fractúre",
-  "sútra",
-  "jívna",
+  Word {
+    kind: "lujvo",
+    phonemes: "fracture",
+    span: [0,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sutra",
+    span: [10,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jivna",
+    span: [16,21],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,8],"phonemes":"fracture","kind":"lujvo"}}}},{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"sutra","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[16,21],"phonemes":"jivna","kind":"gismu"}}}}]}}}}}}}}]}]}'

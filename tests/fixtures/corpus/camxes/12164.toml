@@ -53,6 +53,45 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(xa pi xa re prénu víska mi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "xa",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pi",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xa",
+    span: [2,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "prenu",
+    span: [9,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "viska",
+    span: [15,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [21,23],
+  },
+]"""
 json = '[{"Bare":{"span":[0,1],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[1,2],"phonemes":"pi","kind":"cmavo"}},{"Bare":{"span":[2,3],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"prenu","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"viska","kind":"gismu"}},{"Bare":{"span":[21,23],"phonemes":"mi","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -62,18 +101,46 @@ Term {
     Descriptor {
       tail_elements: [
         WithFreeModifiers {
-          "xa",
-          "pi",
-          "xa",
-          "re",
+          Word {
+            kind: "cmavo",
+            phonemes: "xa",
+            span: [0,1],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "pi",
+            span: [1,2],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "xa",
+            span: [2,3],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "re",
+            span: [6,8],
+          },
         },
       ],
       relation: Compound {
-        "prénu",
-        "víska",
+        Word {
+          kind: "gismu",
+          phonemes: "prenu",
+          span: [9,14],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "viska",
+          span: [15,20],
+        },
       },
     },
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [21,23],
+    },
   ],
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,1],"phonemes":"xa","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[1,2],"phonemes":"pi","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[2,3],"phonemes":"xa","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[6,8],"phonemes":"re","kind":"cmavo"}}}]}}}],"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"prenu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"viska","kind":"gismu"}}}}]}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[21,23],"phonemes":"mi","kind":"cmavo"}}}}}]}}}}]}]}'

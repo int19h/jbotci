@@ -48,6 +48,40 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [WithIndicator { base: Bare
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.bancus. xu do pónse le píxra)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "bancus",
+    span: [0,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [11,13],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ponse",
+    span: [14,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [20,22],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pixra",
+    span: [23,28],
+  },
+]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[8,10],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[11,13],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"ponse","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"pixra","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -55,20 +89,44 @@ tree = """
 Text {
   leading_cmevla: [
     WithIndicator {
-      ".bancus.",
-      indicator: "xu",
+      Word {
+        kind: "cmevla",
+        phonemes: "bancus",
+        span: [0,6],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "xu",
+        span: [8,10],
+      },
     },
   ],
   Predicate {
     leading_terms: [
-      "do",
+      Word {
+        kind: "cmavo",
+        phonemes: "do",
+        span: [11,13],
+      },
     ],
     Relation {
-      "pónse",
+      Word {
+        kind: "gismu",
+        phonemes: "ponse",
+        span: [14,19],
+      },
       terms: [
         Descriptor {
-          descriptor: "le",
-          relation: "píxra",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [20,22],
+          },
+          relation: Word {
+            kind: "gismu",
+            phonemes: "pixra",
+            span: [23,28],
+          },
         },
       ],
     },

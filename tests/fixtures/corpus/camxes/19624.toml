@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "so'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "u'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) }), nai: None }, free_modifiers: [] }) })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(so'i da .u'i)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "so'i",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "u'i",
+    span: [9,12],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"so'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"u'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -39,10 +58,22 @@ tree = """
 Term {
   terms: [
     Quantified {
-      quantifier: "so'i",
+      quantifier: Word {
+        kind: "cmavo",
+        phonemes: "so'i",
+        span: [0,4],
+      },
       WithIndicator {
-        "da",
-        indicator: ".u'i",
+        Word {
+          kind: "cmavo",
+          phonemes: "da",
+          span: [5,7],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "u'i",
+          span: [9,12],
+        },
       },
     },
   ],

@@ -48,6 +48,35 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ta", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Me { me: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "me", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }, argument: Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "laĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "kraĭslr", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 18, char_start: 11, char_end: 18, start: None, end: None }) }))))], free_modifiers: [] } }, mehu: None, moi_marker: None }, Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "karce", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 25, char_start: 20, char_end: 25, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(ta me laĭ .kraĭslr. kárce)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ta",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "me",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "laĭ",
+    span: [6,9],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "kraĭslr",
+    span: [11,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "karce",
+    span: [20,25],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[6,9],"phonemes":"laĭ","kind":"cmavo"}},{"Bare":{"span":[11,18],"phonemes":"kraĭslr","kind":"cmevla"}},{"Bare":{"span":[20,25],"phonemes":"karce","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -55,17 +84,37 @@ brackets = "(ta [{me (laĭ .kraĭslr.)} kárce])"
 tree = """
 Predicate {
   leading_terms: [
-    "ta",
+    Word {
+      kind: "cmavo",
+      phonemes: "ta",
+      span: [0,2],
+    },
   ],
   Compound {
     Me {
-      me: "me",
+      me: Word {
+        kind: "cmavo",
+        phonemes: "me",
+        span: [3,5],
+      },
       Name {
-        la: "laĭ",
-        names: ".kraĭslr.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "laĭ",
+          span: [6,9],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "kraĭslr",
+          span: [11,18],
+        },
       },
     },
-    "kárce",
+    Word {
+      kind: "gismu",
+      phonemes: "karce",
+      span: [20,25],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Me":{"me":{"Bare":{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}}},"argument":{"Name":{"la":{"Bare":{"Bare":{"span":[6,9],"phonemes":"laĭ","kind":"cmavo"}}},"names":[{"Bare":{"Bare":{"span":[11,18],"phonemes":"kraĭslr","kind":"cmevla"}}}]}}}},{"Word":{"Bare":{"Bare":{"span":[20,25],"phonemes":"karce","kind":"gismu"}}}}]}}}}}}}}]}]}'

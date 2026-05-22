@@ -27,4 +27,18 @@ status = "failure"
 error = { position = 1, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(mábla .interpreting.)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "mabla",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "interpreting",
+    span: [6,18],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"mabla","kind":"gismu"}},{"Bare":{"span":[6,18],"phonemes":"interpreting","kind":"cmevla"}}]'

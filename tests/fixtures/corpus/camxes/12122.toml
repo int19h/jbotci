@@ -63,6 +63,55 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ca ro djédi lo nánmu cu cínba la .meris.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [2,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "djedi",
+    span: [8,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [14,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nanmu",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cinba",
+    span: [26,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [32,34],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "meris",
+    span: [35,40],
+  },
+]"""
 json = '[{"Bare":{"span":[2,4],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"djedi","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"nanmu","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"cinba","kind":"gismu"}},{"Bare":{"span":[32,34],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"meris","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
@@ -70,26 +119,62 @@ tree = """
 Predicate {
   leading_terms: [
     Tagged {
-      tense_modal: "ca",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ca",
+        span: [2,4],
+      },
       Descriptor {
         tail_elements: [
-          "ro",
+          Word {
+            kind: "cmavo",
+            phonemes: "ro",
+            span: [5,7],
+          },
         ],
-        relation: "djédi",
+        relation: Word {
+          kind: "gismu",
+          phonemes: "djedi",
+          span: [8,13],
+        },
       },
     },
     Descriptor {
-      descriptor: "lo",
-      relation: "nánmu",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "lo",
+        span: [14,16],
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "nanmu",
+        span: [17,22],
+      },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [23,25],
+  },
   Relation {
-    "cínba",
+    Word {
+      kind: "gismu",
+      phonemes: "cinba",
+      span: [26,31],
+    },
     terms: [
       Name {
-        la: "la",
-        names: ".meris.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [32,34],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "meris",
+          span: [35,40],
+        },
       },
     ],
   },

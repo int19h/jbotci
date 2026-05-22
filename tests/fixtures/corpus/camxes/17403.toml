@@ -43,24 +43,73 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi na pu taĭ tcídu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "taĭ",
+    span: [9,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tcidu",
+    span: [13,18],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"tcidu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
-    "na",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "na",
+      span: [3,5],
+    },
     Tagged {
-      tense_modal: "pu",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "pu",
+        span: [6,8],
+      },
       Zohe {},
     },
   ],
   TenseModal {
     tense_modal: Simple {
-      bai: "taĭ",
+      bai: Word {
+        kind: "cmavo",
+        phonemes: "taĭ",
+        span: [9,12],
+      },
     },
-    "tcídu",
+    Word {
+      kind: "gismu",
+      phonemes: "tcidu",
+      span: [13,18],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}}}}},{"BareNa":{"Bare":{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}}}},{"Tagged":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[6,8],"phonemes":"pu","kind":"cmavo"}}}}]}},"argument":{"Zohe":{}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"TenseModal":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"span":[9,12],"phonemes":"taĭ","kind":"cmavo"}}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[13,18],"phonemes":"tcidu","kind":"gismu"}}}}}}}}}}}}}]}]}'

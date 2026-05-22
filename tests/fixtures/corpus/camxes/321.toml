@@ -51,4 +51,40 @@ status = "failure"
 error = { position = 1, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "([lo'u mi le'u] co le'u kláma)"
+tree = """
+[
+  LohuQuote {
+    lohu: Word {
+      kind: "cmavo",
+      phonemes: "lo'u",
+      span: [0,4],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [5,7],
+    },
+    lehu: Word {
+      kind: "cmavo",
+      phonemes: "le'u",
+      span: [8,12],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "co",
+    span: [13,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le'u",
+    span: [16,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [21,26],
+  },
+]"""
 json = """[{"LohuQuote":{"lohu":{"span":[0,4],"phonemes":"lo'u","kind":"cmavo"},"quoted_words":[{"span":[5,7],"phonemes":"mi","kind":"cmavo"}],"lehu":{"span":[8,12],"phonemes":"le'u","kind":"cmavo"}}},{"Bare":{"span":[13,15],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"le'u","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"klama","kind":"gismu"}}]"""

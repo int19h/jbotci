@@ -33,13 +33,35 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Nuha { nuha: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "nu'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, math_operator: Vuhu(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "su'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) })))), free_modifiers: [] }) }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(nu'a su'i)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "nu'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "su'i",
+    span: [5,9],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"nu'a","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"su'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 brackets = "(nu'a su'i)"
 tree = """
 Nuha {
-  nuha: "nu'a",
-  "su'i",
+  nuha: Word {
+    kind: "cmavo",
+    phonemes: "nu'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "su'i",
+    span: [5,9],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Nuha":{"nuha":{"Bare":{"Bare":{"span":[0,4],"phonemes":"nu'a","kind":"cmavo"}}},"math_operator":{"Vuhu":{"Bare":{"Bare":{"span":[5,9],"phonemes":"su'i","kind":"cmavo"}}}}}}]}}}}}}}}]}]}"""

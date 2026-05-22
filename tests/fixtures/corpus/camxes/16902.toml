@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "bu'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "do", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "co'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tavla", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) }))))), trailing_relative_clauses: [] }), dohu: None }] }) }], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(bu'u do co'o távla)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "bu'u",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "co'o",
+    span: [8,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tavla",
+    span: [13,18],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"bu'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"co'o","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"tavla","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -44,14 +68,30 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: "bu'u",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "bu'u",
+        span: [0,4],
+      },
       WithFreeModifiers {
-        "do",
+        Word {
+          kind: "cmavo",
+          phonemes: "do",
+          span: [5,7],
+        },
         free_modifiers: [
           Vocative {
-            vocative_markers: "co'o",
+            vocative_markers: Word {
+              kind: "cmavo",
+              phonemes: "co'o",
+              span: [8,12],
+            },
             argument: RelationVocative {
-              relation: "távla",
+              relation: Word {
+                kind: "gismu",
+                phonemes: "tavla",
+                span: [13,18],
+              },
             },
           },
         ],

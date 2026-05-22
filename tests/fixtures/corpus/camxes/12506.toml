@@ -23,13 +23,26 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "saĭ"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "saĭ",
+    span: [2,5],
+  },
+]"""
 json = '[{"Bare":{"span":[2,5],"phonemes":"saĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "saĭ",
+    Word {
+      kind: "cmavo",
+      phonemes: "saĭ",
+      span: [2,5],
+    },
   ],
 }"""
 json = '{"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[2,5],"phonemes":"saĭ","kind":"cmavo"}}}}]}'

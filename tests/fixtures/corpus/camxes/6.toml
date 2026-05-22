@@ -33,16 +33,47 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ka bródi do)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ka",
+    span: [21,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brodi",
+    span: [24,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [30,32],
+  },
+]"""
 json = '[{"Bare":{"span":[21,23],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"brodi","kind":"gismu"}},{"Bare":{"span":[30,32],"phonemes":"do","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Abstraction {
-  nu: "ka",
+  nu: Word {
+    kind: "cmavo",
+    phonemes: "ka",
+    span: [21,23],
+  },
   Relation {
-    "bródi",
+    Word {
+      kind: "gismu",
+      phonemes: "brodi",
+      span: [24,29],
+    },
     terms: [
-      "do",
+      Word {
+        kind: "cmavo",
+        phonemes: "do",
+        span: [30,32],
+      },
     ],
   },
 }"""

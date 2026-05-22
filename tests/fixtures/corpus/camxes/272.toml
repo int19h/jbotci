@@ -51,6 +51,44 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Connected { leading_argument: Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Letter { base: WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "y", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None }) }))), bu: Word(WordData { kind: Cmavo, phonemes: "bu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }) }))], free_modifiers: [] }, boi: None }, connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 15, char_start: 14, char_end: 15, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_argument: Quote(Zo(WithFreeModifiers { value: Bare(WordLike(ZoQuote { zo: Word(WordData { kind: Cmavo, phonemes: "zo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None }) }), word: Word(WordData { kind: Cmavo, phonemes: "cu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None }) }) })), free_modifiers: [] })) })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "valsi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 35, char_start: 30, char_end: 35, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "([y bu] .e [zo cu] válsi)"
+tree = """
+[
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "y",
+      span: [3,4],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [6,8],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [14,15],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [16,18],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "cu",
+      span: [23,25],
+    },
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "valsi",
+    span: [30,35],
+  },
+]"""
 json = '[{"Letter":{"base":{"Bare":{"span":[3,4],"phonemes":"y","kind":"cmavo"}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[14,15],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[16,18],"phonemes":"zo","kind":"cmavo"},"word":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}}},{"Bare":{"span":[30,35],"phonemes":"valsi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -59,12 +97,42 @@ Predicate {
   leading_terms: [
     Connected {
       leading_argument: Letter {
-        letter: "y-bu",
+        letter: Letter {
+          Word {
+            kind: "cmavo",
+            phonemes: "y",
+            span: [3,4],
+          },
+          bu: Word {
+            kind: "cmavo",
+            phonemes: "bu",
+            span: [6,8],
+          },
+        },
       },
-      connective: ".e",
-      trailing_argument: "zo-«cu»",
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "e",
+        span: [14,15],
+      },
+      trailing_argument: ZoQuote {
+        zo: Word {
+          kind: "cmavo",
+          phonemes: "zo",
+          span: [16,18],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "cu",
+          span: [23,25],
+        },
+      },
     },
   ],
-  "válsi",
+  Word {
+    kind: "gismu",
+    phonemes: "valsi",
+    span: [30,35],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Connected":{"leading_argument":{"Letter":{"letter":[{"Bare":{"Letter":{"base":{"Bare":{"span":[3,4],"phonemes":"y","kind":"cmavo"}},"bu":{"span":[6,8],"phonemes":"bu","kind":"cmavo"}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"span":[14,15],"phonemes":"e","kind":"cmavo"}}}]}},"trailing_argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"span":[16,18],"phonemes":"zo","kind":"cmavo"},"word":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}}}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[30,35],"phonemes":"valsi","kind":"gismu"}}}}}}}}}}}]}]}'

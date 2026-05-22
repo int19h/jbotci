@@ -451,6 +451,7 @@ fn tree_node_struct_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStr
 
 fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream> {
     let enum_ident = &item.ident;
+    let uses_data_patterns = enum_uses_data_patterns(item);
     let arms = item
         .variants
         .iter()
@@ -463,12 +464,20 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
                         .named
                         .iter()
                         .map(|field| field.ident.as_ref().unwrap());
+                    let pattern_bindings = bindings.clone();
                     let visits = field_visits(&variant.fields, |_index, field| {
                         let ident = field.ident.as_ref().unwrap();
                         quote!(#ident)
                     })?;
+                    let pattern = if uses_data_patterns {
+                        quote!(
+                            ::bityzba::data!(#enum_ident::#variant_ident { #(#pattern_bindings,)* })
+                        )
+                    } else {
+                        quote!(#enum_ident::#variant_ident { #(#pattern_bindings,)* })
+                    };
                     Ok(quote! {
-                        #enum_ident::#variant_ident { #(#bindings,)* } => {
+                        #pattern => {
                             let node = NodeRef::#node_ref_variant(self);
                             visitor.enter_node(node);
                             #(#visits)*
@@ -480,12 +489,20 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
                     let bindings = (0..fields.unnamed.len())
                         .map(|index| format_ident!("field_{index}"))
                         .collect::<Vec<_>>();
+                    let pattern_bindings = bindings.clone();
                     let visits = field_visits(&variant.fields, |index, _field| {
                         let ident = &bindings[index];
                         quote!(#ident)
                     })?;
+                    let pattern = if uses_data_patterns {
+                        quote!(
+                            ::bityzba::data!(#enum_ident::#variant_ident(#(#pattern_bindings,)*))
+                        )
+                    } else {
+                        quote!(#enum_ident::#variant_ident(#(#pattern_bindings,)*))
+                    };
                     Ok(quote! {
-                        #enum_ident::#variant_ident(#(#bindings,)*) => {
+                        #pattern => {
                             let node = NodeRef::#node_ref_variant(self);
                             visitor.enter_node(node);
                             #(#visits)*
@@ -493,28 +510,62 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
                         }
                     })
                 }
-                Fields::Unit => Ok(quote! {
-                    #enum_ident::#variant_ident => {
-                        let node = NodeRef::#node_ref_variant(self);
-                        visitor.enter_node(node);
-                        visitor.exit_node(node);
-                    }
-                }),
+                Fields::Unit => {
+                    let pattern = if uses_data_patterns {
+                        quote!(::bityzba::data!(#enum_ident::#variant_ident))
+                    } else {
+                        quote!(#enum_ident::#variant_ident)
+                    };
+                    Ok(quote! {
+                        #pattern => {
+                            let node = NodeRef::#node_ref_variant(self);
+                            visitor.enter_node(node);
+                            visitor.exit_node(node);
+                        }
+                    })
+                }
             }
         })
         .collect::<syn::Result<Vec<_>>>()?;
+    let match_value = if uses_data_patterns {
+        quote!(self.as_data())
+    } else {
+        quote!(self)
+    };
     Ok(quote! {
         impl TreeNode for #enum_ident {
             fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
-                match self {
+                match #match_value {
                     #(#arms)*
                 }
             }
         }
     })
+}
+
+fn enum_uses_data_patterns(item: &ItemEnum) -> bool {
+    item.attrs
+        .iter()
+        .filter(|attr| {
+            attr.path().is_ident("invariant") || attr.path().is_ident("expensive_invariant")
+        })
+        .any(|attr| !attr_is_true_contract(attr))
+}
+
+fn attr_is_true_contract(attr: &Attribute) -> bool {
+    let Ok(expr) = attr.parse_args::<syn::Expr>() else {
+        return false;
+    };
+    matches!(
+        expr,
+        syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Bool(lit),
+            ..
+        }) if lit.value
+    )
 }
 
 fn field_visits<F>(fields: &Fields, access: F) -> syn::Result<Vec<proc_macro2::TokenStream>>

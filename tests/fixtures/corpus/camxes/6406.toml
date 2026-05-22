@@ -27,16 +27,38 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "must", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(BeLink { be: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "be", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, fa: None, first_argument: None, bei_links: [], beho: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(.must. be)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "must",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [5,7],
+  },
+]"""
 json = '[{"Bare":{"span":[0,4],"phonemes":"must","kind":"cmevla"}},{"Bare":{"span":[5,7],"phonemes":"be","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".must.",
+    Word {
+      kind: "cmevla",
+      phonemes: "must",
+      span: [0,4],
+    },
   ],
   BeLink {
-    be: "be",
+    be: Word {
+      kind: "cmavo",
+      phonemes: "be",
+      span: [5,7],
+    },
   },
 }"""
 json = '{"leading_cmevla":[{"Bare":{"Bare":{"span":[0,4],"phonemes":"must","kind":"cmevla"}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"BeLink":{"be":{"Bare":{"Bare":{"span":[5,7],"phonemes":"be","kind":"cmavo"}}}}}}}]}]}'

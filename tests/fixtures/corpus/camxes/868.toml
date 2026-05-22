@@ -53,6 +53,45 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(la .tam. cu mélbi távla la .meris.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "tam",
+    span: [3,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "melbi",
+    span: [13,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tavla",
+    span: [19,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [25,27],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "meris",
+    span: [28,33],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"tam","kind":"cmevla"}},{"Bare":{"span":[9,11],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"meris","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
@@ -60,20 +99,48 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: "la",
-      names: ".tam.",
+      la: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [0,2],
+      },
+      names: Word {
+        kind: "cmevla",
+        phonemes: "tam",
+        span: [3,6],
+      },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [9,11],
+  },
   Relation {
     Compound {
-      "mélbi",
-      "távla",
+      Word {
+        kind: "gismu",
+        phonemes: "melbi",
+        span: [13,18],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "tavla",
+        span: [19,24],
+      },
     },
     terms: [
       Name {
-        la: "la",
-        names: ".meris.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [25,27],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "meris",
+          span: [28,33],
+        },
       },
     ],
   },

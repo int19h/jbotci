@@ -28,12 +28,34 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(bróda bróde)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "broda",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brode",
+    span: [10,15],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[10,15],"phonemes":"brode","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "bróda",
-  "bróde",
+  Word {
+    kind: "gismu",
+    phonemes: "broda",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brode",
+    span: [10,15],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[10,15],"phonemes":"brode","kind":"gismu"}}}}]}}}}}}}}]}]}'

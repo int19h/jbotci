@@ -33,18 +33,49 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(pe'a ci'ájbu ja'a)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pe'a",
+    span: [0,4],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "ci'ajbu",
+    span: [5,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ja'a",
+    span: [13,17],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[5,12],"phonemes":"ci'ajbu","kind":"lujvo"}},{"Bare":{"span":[13,17],"phonemes":"ja'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "pe'a",
+    Word {
+      kind: "cmavo",
+      phonemes: "pe'a",
+      span: [0,4],
+    },
   ],
   Relation {
-    "ci'ájbu",
+    Word {
+      kind: "lujvo",
+      phonemes: "ci'ajbu",
+      span: [5,12],
+    },
     terms: [
-      "ja'a",
+      Word {
+        kind: "cmavo",
+        phonemes: "ja'a",
+        span: [13,17],
+      },
     ],
   },
 }"""

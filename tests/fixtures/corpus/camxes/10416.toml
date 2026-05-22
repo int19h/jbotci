@@ -37,6 +37,30 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "se", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "taĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 5, char_start: 2, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), argument: Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "ctatanru", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 17, char_start: 9, char_end: 17, start: None, end: None }) })))))), relative_clauses: [], ku: None }) }], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(se taĭ la ctatánru)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "taĭ",
+    span: [2,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [6,8],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "ctatanru",
+    span: [9,17],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"taĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,17],"phonemes":"ctatanru","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
@@ -45,12 +69,28 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        se: "se",
-        bai: "taĭ",
+        se: Word {
+          kind: "cmavo",
+          phonemes: "se",
+          span: [0,2],
+        },
+        bai: Word {
+          kind: "cmavo",
+          phonemes: "taĭ",
+          span: [2,5],
+        },
       },
       Descriptor {
-        descriptor: "la",
-        relation: "ctatánru",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [6,8],
+        },
+        relation: Word {
+          kind: "lujvo",
+          phonemes: "ctatanru",
+          span: [9,17],
+        },
       },
     },
   ],

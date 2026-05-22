@@ -53,24 +53,91 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ta mélbi cmálu ke níxli ckúle ke'e)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ta",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "melbi",
+    span: [3,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cmalu",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke",
+    span: [15,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nixli",
+    span: [18,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ckule",
+    span: [24,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke'e",
+    span: [31,35],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ta","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[9,14],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[15,17],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"span":[31,35],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "ta",
+    Word {
+      kind: "cmavo",
+      phonemes: "ta",
+      span: [0,2],
+    },
   ],
   Compound {
-    "mélbi",
-    "cmálu",
+    Word {
+      kind: "gismu",
+      phonemes: "melbi",
+      span: [3,8],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "cmalu",
+      span: [9,14],
+    },
     Ke {
-      ke: "ke",
-      Compound {
-        "níxli",
-        "ckúle",
+      ke: Word {
+        kind: "cmavo",
+        phonemes: "ke",
+        span: [15,17],
       },
-      kehe: "ke'e",
+      Compound {
+        Word {
+          kind: "gismu",
+          phonemes: "nixli",
+          span: [18,23],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "ckule",
+          span: [24,29],
+        },
+      },
+      kehe: Word {
+        kind: "cmavo",
+        phonemes: "ke'e",
+        span: [31,35],
+      },
     },
   },
 }"""

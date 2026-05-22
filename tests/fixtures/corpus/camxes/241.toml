@@ -37,17 +37,57 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(BeiLink([BeiLinkSyntax { bei: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "beĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 33, byte_end: 36, char_start: 33, char_end: 36, start: None, end: None }) })))), free_modifiers: [] }, fa: None, argument: Some(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 37, byte_end: 39, char_start: 37, char_end: 39, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Abstraction(AbstractionSyntax { nu: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "nu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None }) })))), free_modifiers: [] }, nai: None, additional_nu: [], subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "klama", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 43, byte_end: 48, char_start: 43, char_end: 48, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kei: None })), relative_clauses: [], ku: None })) }]))) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(beĭ le nu kláma)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "beĭ",
+    span: [33,36],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [37,39],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [40,42],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [43,48],
+  },
+]"""
 json = '[{"Bare":{"span":[33,36],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[40,42],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[43,48],"phonemes":"klama","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 BeiLink {
-  bei: "beĭ",
+  bei: Word {
+    kind: "cmavo",
+    phonemes: "beĭ",
+    span: [33,36],
+  },
   argument: Descriptor {
-    descriptor: "le",
+    descriptor: Word {
+      kind: "cmavo",
+      phonemes: "le",
+      span: [37,39],
+    },
     relation: Abstraction {
-      nu: "nu",
-      "kláma",
+      nu: Word {
+        kind: "cmavo",
+        phonemes: "nu",
+        span: [40,42],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "klama",
+        span: [43,48],
+      },
     },
   },
 }"""

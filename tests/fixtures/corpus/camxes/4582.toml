@@ -85,4 +85,76 @@ status = "failure"
 error = { position = 10, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(.u'i ri mútce zmádu [la'o gy java gy] le ka mi na nélci la'o)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "u'i",
+    span: [1,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ri",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mutce",
+    span: [8,13],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zmadu",
+    span: [14,19],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "la'o",
+      span: [20,24],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [25,27],
+    },
+    quoted_text: [29,33],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [35,37],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [38,40],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka",
+    span: [41,43],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [44,46],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [47,49],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nelci",
+    span: [50,55],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la'o",
+    span: [57,61],
+  },
+]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"u'i","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"ri","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"mutce","kind":"gismu"}},{"Bare":{"span":[14,19],"phonemes":"zmadu","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[20,24],"phonemes":"la'o","kind":"cmavo"},"opening_delimiter":{"span":[25,27],"phonemes":"gy","kind":"cmavo"},"quoted_text":[29,33],"closing_delimiter":{"span":[35,37],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[38,40],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[41,43],"phonemes":"ka","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[47,49],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[50,55],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[57,61],"phonemes":"la'o","kind":"cmavo"}}]"""

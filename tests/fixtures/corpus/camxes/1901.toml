@@ -58,28 +58,104 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ti xámgu be do beĭ mi be'o zdáni)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ti",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xamgu",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "beĭ",
+    span: [15,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be'o",
+    span: [23,27],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zdani",
+    span: [29,34],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[23,27],"phonemes":"be'o","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"zdani","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "ti",
+    Word {
+      kind: "cmavo",
+      phonemes: "ti",
+      span: [0,2],
+    },
   ],
   Compound {
     Be {
-      "xámgu",
-      be: "be",
-      first_argument: "do",
+      Word {
+        kind: "gismu",
+        phonemes: "xamgu",
+        span: [3,8],
+      },
+      be: Word {
+        kind: "cmavo",
+        phonemes: "be",
+        span: [9,11],
+      },
+      first_argument: Word {
+        kind: "cmavo",
+        phonemes: "do",
+        span: [12,14],
+      },
       bei_links: [
         BeiLink {
-          bei: "beĭ",
-          argument: "mi",
+          bei: Word {
+            kind: "cmavo",
+            phonemes: "beĭ",
+            span: [15,18],
+          },
+          argument: Word {
+            kind: "cmavo",
+            phonemes: "mi",
+            span: [19,21],
+          },
         },
       ],
-      beho: "be'o",
+      beho: Word {
+        kind: "cmavo",
+        phonemes: "be'o",
+        span: [23,27],
+      },
     },
-    "zdáni",
+    Word {
+      kind: "gismu",
+      phonemes: "zdani",
+      span: [29,34],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"xamgu","kind":"gismu"}}}},"be":{"Bare":{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}}},"first_argument":{"Koha":{"Bare":{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}}}},"bei_links":[{"bei":{"Bare":{"Bare":{"span":[15,18],"phonemes":"beĭ","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[19,21],"phonemes":"mi","kind":"cmavo"}}}}}],"beho":{"Bare":{"Bare":{"span":[23,27],"phonemes":"be'o","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[29,34],"phonemes":"zdani","kind":"gismu"}}}}]}}}}}}}}]}]}"""

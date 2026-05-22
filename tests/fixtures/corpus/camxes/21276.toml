@@ -68,36 +68,130 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.ekted. mi tcídu le cúkta poĭ nénri le mi kárce)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "ekted",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [7,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tcidu",
+    span: [10,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [16,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cukta",
+    span: [19,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "poĭ",
+    span: [25,28],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nenri",
+    span: [29,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [35,37],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [38,40],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "karce",
+    span: [41,46],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"ekted","kind":"cmevla"}},{"Bare":{"span":[7,9],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"cukta","kind":"gismu"}},{"Bare":{"span":[25,28],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[29,34],"phonemes":"nenri","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[38,40],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[41,46],"phonemes":"karce","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".ekted.",
+    Word {
+      kind: "cmevla",
+      phonemes: "ekted",
+      span: [0,5],
+    },
   ],
   Predicate {
     leading_terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [7,9],
+      },
     ],
     Relation {
-      "tcídu",
+      Word {
+        kind: "gismu",
+        phonemes: "tcidu",
+        span: [10,15],
+      },
       terms: [
         Descriptor {
-          descriptor: "le",
-          relation: "cúkta",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [16,18],
+          },
+          relation: Word {
+            kind: "gismu",
+            phonemes: "cukta",
+            span: [19,24],
+          },
           relative_clauses: [
             Poi {
-              poi: "poĭ",
+              poi: Word {
+                kind: "cmavo",
+                phonemes: "poĭ",
+                span: [25,28],
+              },
               Relation {
-                "nénri",
+                Word {
+                  kind: "gismu",
+                  phonemes: "nenri",
+                  span: [29,34],
+                },
                 terms: [
                   Descriptor {
-                    descriptor: "le",
+                    descriptor: Word {
+                      kind: "cmavo",
+                      phonemes: "le",
+                      span: [35,37],
+                    },
                     tail_elements: [
-                      "mi",
+                      Word {
+                        kind: "cmavo",
+                        phonemes: "mi",
+                        span: [38,40],
+                      },
                     ],
-                    relation: "kárce",
+                    relation: Word {
+                      kind: "gismu",
+                      phonemes: "karce",
+                      span: [41,46],
+                    },
                   },
                 ],
               },

@@ -58,6 +58,50 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(to le júkpa le cífnu cu kánsa toĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [2,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [5,7],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jukpa",
+    span: [8,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [14,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cifnu",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [23,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kansa",
+    span: [26,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "toĭ",
+    span: [32,35],
+  },
+]"""
 json = '[{"Bare":{"span":[2,4],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"jukpa","kind":"gismu"}},{"Bare":{"span":[14,16],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"cifnu","kind":"gismu"}},{"Bare":{"span":[23,25],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[26,31],"phonemes":"kansa","kind":"gismu"}},{"Bare":{"span":[32,35],"phonemes":"toĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -65,22 +109,54 @@ tree = """
 Text {
   leading_free_modifiers: [
     To {
-      to: "to",
+      to: Word {
+        kind: "cmavo",
+        phonemes: "to",
+        span: [2,4],
+      },
       Predicate {
         leading_terms: [
           Descriptor {
-            descriptor: "le",
-            relation: "júkpa",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [5,7],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "jukpa",
+              span: [8,13],
+            },
           },
           Descriptor {
-            descriptor: "le",
-            relation: "cífnu",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [14,16],
+            },
+            relation: Word {
+              kind: "gismu",
+              phonemes: "cifnu",
+              span: [17,22],
+            },
           },
         ],
-        cu: "cu",
-        "kánsa",
+        cu: Word {
+          kind: "cmavo",
+          phonemes: "cu",
+          span: [23,25],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "kansa",
+          span: [26,31],
+        },
       },
-      toi: "toĭ",
+      toi: Word {
+        kind: "cmavo",
+        phonemes: "toĭ",
+        span: [32,35],
+      },
     },
   ],
 }"""

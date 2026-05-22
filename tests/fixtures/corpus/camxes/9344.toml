@@ -121,4 +121,112 @@ status = "failure"
 error = { position = 9, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(mi jínvi le du'u le [xu bu] to [zoĭ gy gy] toĭ [zo .e] [zo zmádu] le ni mábla)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jinvi",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du'u",
+    span: [11,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [16,18],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [19,21],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [22,24],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [25,27],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [28,31],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [32,34],
+    },
+    quoted_text: [36,36],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [39,41],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "toĭ",
+    span: [43,46],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [47,49],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "e",
+      span: [53,54],
+    },
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [55,57],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "zmadu",
+      span: [60,65],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [66,68],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ni",
+    span: [69,71],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mabla",
+    span: [72,77],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"jinvi","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[11,15],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"le","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[19,21],"phonemes":"xu","kind":"cmavo"}},"bu":{"span":[22,24],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[25,27],"phonemes":"to","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[28,31],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[32,34],"phonemes":"gy","kind":"cmavo"},"quoted_text":[36,36],"closing_delimiter":{"span":[39,41],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[43,46],"phonemes":"toĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[47,49],"phonemes":"zo","kind":"cmavo"},"word":{"span":[53,54],"phonemes":"e","kind":"cmavo"}}},{"ZoQuote":{"zo":{"span":[55,57],"phonemes":"zo","kind":"cmavo"},"word":{"span":[60,65],"phonemes":"zmadu","kind":"gismu"}}},{"Bare":{"span":[66,68],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[69,71],"phonemes":"ni","kind":"cmavo"}},{"Bare":{"span":[72,77],"phonemes":"mabla","kind":"gismu"}}]"""

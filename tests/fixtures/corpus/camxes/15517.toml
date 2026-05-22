@@ -42,6 +42,35 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] }, ku: None }], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tcika", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))))), terms: [Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }, argument: MathExpression { li: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }, expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), loho: None }, ku: None }], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(fi tcíka fa li xa)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "fi",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tcika",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fa",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xa",
+    span: [15,17],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"tcika","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"xa","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -49,18 +78,38 @@ tree = """
 Predicate {
   leading_terms: [
     Fa {
-      fa: "fi",
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fi",
+        span: [0,2],
+      },
       Zohe {},
     },
   ],
   Relation {
-    "tcíka",
+    Word {
+      kind: "gismu",
+      phonemes: "tcika",
+      span: [3,8],
+    },
     terms: [
       Fa {
-        fa: "fa",
+        fa: Word {
+          kind: "cmavo",
+          phonemes: "fa",
+          span: [9,11],
+        },
         MathExpression {
-          li: "li",
-          "xa",
+          li: Word {
+            kind: "cmavo",
+            phonemes: "li",
+            span: [12,14],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "xa",
+            span: [15,17],
+          },
         },
       },
     ],

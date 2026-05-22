@@ -83,6 +83,75 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(la .djan. cu pu na'e ke kláma ke'e la .paris. .e la .rom.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "djan",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [14,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na'e",
+    span: [17,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke",
+    span: [21,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [24,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke'e",
+    span: [31,35],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [37,39],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "paris",
+    span: [40,45],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [48,49],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [50,52],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "rom",
+    span: [53,56],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,7],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[14,16],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"na'e","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[24,29],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[31,35],"phonemes":"ke'e","kind":"cmavo"}},{"Bare":{"span":[37,39],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"paris","kind":"cmevla"}},{"Bare":{"span":[48,49],"phonemes":"e","kind":"cmavo"}},{"Bare":{"span":[50,52],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[53,56],"phonemes":"rom","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -90,33 +159,85 @@ tree = """
 Predicate {
   leading_terms: [
     Name {
-      la: "la",
-      names: ".djan.",
+      la: Word {
+        kind: "cmavo",
+        phonemes: "la",
+        span: [0,2],
+      },
+      names: Word {
+        kind: "cmevla",
+        phonemes: "djan",
+        span: [3,7],
+      },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [10,12],
+  },
   Relation {
     TenseModal {
-      tense_modal: "pu",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "pu",
+        span: [14,16],
+      },
       Nahe {
-        nahe: "na'e",
+        nahe: Word {
+          kind: "cmavo",
+          phonemes: "na'e",
+          span: [17,21],
+        },
         Ke {
-          ke: "ke",
-          "kláma",
-          kehe: "ke'e",
+          ke: Word {
+            kind: "cmavo",
+            phonemes: "ke",
+            span: [21,23],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "klama",
+            span: [24,29],
+          },
+          kehe: Word {
+            kind: "cmavo",
+            phonemes: "ke'e",
+            span: [31,35],
+          },
         },
       },
     },
     terms: [
       Connected {
         leading_argument: Name {
-          la: "la",
-          names: ".paris.",
+          la: Word {
+            kind: "cmavo",
+            phonemes: "la",
+            span: [37,39],
+          },
+          names: Word {
+            kind: "cmevla",
+            phonemes: "paris",
+            span: [40,45],
+          },
         },
-        connective: ".e",
+        connective: Word {
+          kind: "cmavo",
+          phonemes: "e",
+          span: [48,49],
+        },
         trailing_argument: Name {
-          la: "la",
-          names: ".rom.",
+          la: Word {
+            kind: "cmavo",
+            phonemes: "la",
+            span: [50,52],
+          },
+          names: Word {
+            kind: "cmevla",
+            phonemes: "rom",
+            span: [53,56],
+          },
         },
       },
     ],

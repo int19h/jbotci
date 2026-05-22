@@ -37,6 +37,30 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "doĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "jbodju", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 10, char_start: 4, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "vlataĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 17, char_start: 11, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "gasnu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) })))), free_modifiers: [] })]), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(doĭ jbódju vlátaĭ gásnu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "jbodju",
+    span: [4,10],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "vlataĭ",
+    span: [11,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gasnu",
+    span: [18,23],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"jbodju","kind":"lujvo"}},{"Bare":{"span":[11,17],"phonemes":"vlataĭ","kind":"lujvo"}},{"Bare":{"span":[18,23],"phonemes":"gasnu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -44,12 +68,28 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "doĭ",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "doĭ",
+        span: [0,3],
+      },
       argument: RelationVocative {
         relation: Compound {
-          "jbódju",
-          "vlátaĭ",
-          "gásnu",
+          Word {
+            kind: "lujvo",
+            phonemes: "jbodju",
+            span: [4,10],
+          },
+          Word {
+            kind: "lujvo",
+            phonemes: "vlataĭ",
+            span: [11,17],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "gasnu",
+            span: [18,23],
+          },
         },
       },
     },

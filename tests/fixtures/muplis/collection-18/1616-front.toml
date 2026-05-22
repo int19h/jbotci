@@ -65,35 +65,120 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "tom", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) }))))], free_modifiers: [] } })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ca", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "na'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 20, char_start: 16, char_end: 20, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "kansa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None }) }))))) }, terms: [Argument(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 27, byte_end: 29, char_start: 27, char_end: 29, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "da", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 32, char_start: 30, char_end: 32, start: None, end: None }) })))), free_modifiers: [] }) })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.i xu la .tom. ca na'o kánsa no da)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "tom",
+    span: [9,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [13,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na'o",
+    span: [16,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kansa",
+    span: [21,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [27,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [30,32],
+  },
+]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"tom","kind":"cmevla"}},{"Bare":{"span":[13,15],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"na'o","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"kansa","kind":"gismu"}},{"Bare":{"span":[27,29],"phonemes":"no","kind":"cmavo"}},{"Bare":{"span":[30,32],"phonemes":"da","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
-brackets = "(.i-xu [{la .tom.} {([ca na'o] kánsa) (no da)}])"
+brackets = "([.i xu] [{la .tom.} {([ca na'o] kánsa) (no da)}])"
 tree = """
 ParagraphStatement {
   i: WithIndicator {
-    ".i",
-    indicator: "xu",
+    Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [1,2],
+    },
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "xu",
+      span: [3,5],
+    },
   },
   Predicate {
     leading_terms: [
       Name {
-        la: "la",
-        names: ".tom.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [6,8],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "tom",
+          span: [9,12],
+        },
       },
     ],
     Relation {
       TenseModal {
         tense_modal: WithFreeModifiers {
-          "ca",
-          "na'o",
+          Word {
+            kind: "cmavo",
+            phonemes: "ca",
+            span: [13,15],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "na'o",
+            span: [16,20],
+          },
         },
-        "kánsa",
+        Word {
+          kind: "gismu",
+          phonemes: "kansa",
+          span: [21,26],
+        },
       },
       terms: [
         Quantified {
-          quantifier: "no",
-          "da",
+          quantifier: Word {
+            kind: "cmavo",
+            phonemes: "no",
+            span: [27,29],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "da",
+            span: [30,32],
+          },
         },
       ],
     },

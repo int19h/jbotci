@@ -58,6 +58,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le me le ci nolráĭtru ku me'u nunsálci)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "me",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [9,11],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "nolraĭtru",
+    span: [12,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [23,25],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "me'u",
+    span: [27,31],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "nunsalci",
+    span: [32,40],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"me","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[12,21],"phonemes":"nolraĭtru","kind":"lujvo"}},{"Bare":{"span":[23,25],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"me'u","kind":"cmavo"}},{"Bare":{"span":[32,40],"phonemes":"nunsalci","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
@@ -65,21 +109,53 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
       relation: Compound {
         Me {
-          me: "me",
-          Descriptor {
-            descriptor: "le",
-            tail_elements: [
-              "ci",
-            ],
-            relation: "nolráĭtru",
-            ku: "ku",
+          me: Word {
+            kind: "cmavo",
+            phonemes: "me",
+            span: [3,5],
           },
-          mehu: "me'u",
+          Descriptor {
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [6,8],
+            },
+            tail_elements: [
+              Word {
+                kind: "cmavo",
+                phonemes: "ci",
+                span: [9,11],
+              },
+            ],
+            relation: Word {
+              kind: "lujvo",
+              phonemes: "nolraĭtru",
+              span: [12,21],
+            },
+            ku: Word {
+              kind: "cmavo",
+              phonemes: "ku",
+              span: [23,25],
+            },
+          },
+          mehu: Word {
+            kind: "cmavo",
+            phonemes: "me'u",
+            span: [27,31],
+          },
         },
-        "nunsálci",
+        Word {
+          kind: "lujvo",
+          phonemes: "nunsalci",
+          span: [32,40],
+        },
       },
     },
   ],

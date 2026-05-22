@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ŭu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: None }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(je'e .i .ŭu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "je'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [6,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭu",
+    span: [9,11],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[6,7],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ŭu","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -39,13 +58,25 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "je'e",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "je'e",
+        span: [0,4],
+      },
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
-      ".i",
-      indicator: ".ŭu",
+      Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [6,7],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ŭu",
+        span: [9,11],
+      },
     },
   },
 }"""

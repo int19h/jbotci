@@ -35,6 +35,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "suzyn", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "grin", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(mi'e .suzyn. .grin.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "suzyn",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "grin",
+    span: [12,16],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'e","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"suzyn","kind":"cmevla"}},{"Bare":{"span":[12,16],"phonemes":"grin","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -43,10 +62,22 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "mi'e",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "mi'e",
+        span: [0,4],
+      },
       argument: WithFreeModifiers {
-        ".suzyn.",
-        ".grin.",
+        Word {
+          kind: "cmevla",
+          phonemes: "suzyn",
+          span: [6,11],
+        },
+        Word {
+          kind: "cmevla",
+          phonemes: "grin",
+          span: [12,16],
+        },
       },
     },
   ],

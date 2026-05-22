@@ -63,33 +63,118 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.xod. lu cítka je naĭ cínta le gérku cídja)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "xod",
+    span: [2,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lu",
+    span: [7,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "citka",
+    span: [10,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [16,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [18,21],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cinta",
+    span: [22,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [28,30],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gerku",
+    span: [31,36],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cidja",
+    span: [37,42],
+  },
+]"""
 json = '[{"Bare":{"span":[2,5],"phonemes":"xod","kind":"cmevla"}},{"Bare":{"span":[7,9],"phonemes":"lu","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"citka","kind":"gismu"}},{"Bare":{"span":[16,18],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"cinta","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[37,42],"phonemes":"cidja","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".xod.",
+    Word {
+      kind: "cmevla",
+      phonemes: "xod",
+      span: [2,5],
+    },
   ],
   Term {
     terms: [
       Lu {
-        lu: "lu",
+        lu: Word {
+          kind: "cmavo",
+          phonemes: "lu",
+          span: [7,9],
+        },
         Relation {
           Connected {
-            leading_relation: "cítka",
-            connective: Relation {
-              "je",
-              nai: "naĭ",
+            leading_relation: Word {
+              kind: "gismu",
+              phonemes: "citka",
+              span: [10,15],
             },
-            trailing_relation: "cínta",
+            connective: Relation {
+              Word {
+                kind: "cmavo",
+                phonemes: "je",
+                span: [16,18],
+              },
+              nai: Word {
+                kind: "cmavo",
+                phonemes: "naĭ",
+                span: [18,21],
+              },
+            },
+            trailing_relation: Word {
+              kind: "gismu",
+              phonemes: "cinta",
+              span: [22,27],
+            },
           },
           terms: [
             Descriptor {
-              descriptor: "le",
+              descriptor: Word {
+                kind: "cmavo",
+                phonemes: "le",
+                span: [28,30],
+              },
               relation: Compound {
-                "gérku",
-                "cídja",
+                Word {
+                  kind: "gismu",
+                  phonemes: "gerku",
+                  span: [31,36],
+                },
+                Word {
+                  kind: "gismu",
+                  phonemes: "cidja",
+                  span: [37,42],
+                },
               },
             },
           ],

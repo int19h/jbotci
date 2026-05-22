@@ -63,6 +63,55 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(loĭ jmíve cu se zbásu zo'e fi loĭ sélci)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "loĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jmive",
+    span: [4,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [13,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zbasu",
+    span: [16,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'e",
+    span: [23,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi",
+    span: [29,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "loĭ",
+    span: [32,35],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "selci",
+    span: [36,41],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"jmive","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"zbasu","kind":"gismu"}},{"Bare":{"span":[23,27],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[32,35],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[36,41],"phonemes":"selci","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -70,23 +119,59 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "loĭ",
-      relation: "jmíve",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "loĭ",
+        span: [0,3],
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "jmive",
+        span: [4,9],
+      },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [10,12],
+  },
   Relation {
     Se {
-      se: "se",
-      "zbásu",
+      se: Word {
+        kind: "cmavo",
+        phonemes: "se",
+        span: [13,15],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "zbasu",
+        span: [16,21],
+      },
     },
     terms: [
-      "zo'e",
+      Word {
+        kind: "cmavo",
+        phonemes: "zo'e",
+        span: [23,27],
+      },
       Fa {
-        fa: "fi",
+        fa: Word {
+          kind: "cmavo",
+          phonemes: "fi",
+          span: [29,31],
+        },
         Descriptor {
-          descriptor: "loĭ",
-          relation: "sélci",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "loĭ",
+            span: [32,35],
+          },
+          relation: Word {
+            kind: "gismu",
+            phonemes: "selci",
+            span: [36,41],
+          },
         },
       },
     ],

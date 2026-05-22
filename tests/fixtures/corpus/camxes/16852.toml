@@ -52,4 +52,43 @@ status = "failure"
 error = { position = 3, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(lo ci gérku .or. ci lo gérku)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gerku",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "or",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [18,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "gerku",
+    span: [21,26],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"gerku","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"or","kind":"cmevla"}},{"Bare":{"span":[15,17],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"gerku","kind":"gismu"}}]'

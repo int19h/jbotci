@@ -32,6 +32,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] }, ku: None }, Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }, argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] }, ku: None }, Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] }, ku: None }], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(fi fi fi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "fi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi",
+    span: [6,8],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"fi","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -39,15 +58,27 @@ tree = """
 Term {
   terms: [
     Fa {
-      fa: "fi",
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fi",
+        span: [0,2],
+      },
       Zohe {},
     },
     Fa {
-      fa: "fi",
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fi",
+        span: [3,5],
+      },
       Zohe {},
     },
     Fa {
-      fa: "fi",
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fi",
+        span: [6,8],
+      },
       Zohe {},
     },
   ],

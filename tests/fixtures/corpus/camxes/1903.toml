@@ -68,30 +68,124 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ti xámgu be fi mi beĭ fe do be'o zdáni)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ti",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xamgu",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [15,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "beĭ",
+    span: [18,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fe",
+    span: [22,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [25,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be'o",
+    span: [29,33],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zdani",
+    span: [35,40],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"fi","kind":"cmavo"}},{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"beĭ","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[29,33],"phonemes":"be'o","kind":"cmavo"}},{"Bare":{"span":[35,40],"phonemes":"zdani","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "ti",
+    Word {
+      kind: "cmavo",
+      phonemes: "ti",
+      span: [0,2],
+    },
   ],
   Compound {
     Be {
-      "xámgu",
-      be: "be",
-      fa: "fi",
-      first_argument: "mi",
+      Word {
+        kind: "gismu",
+        phonemes: "xamgu",
+        span: [3,8],
+      },
+      be: Word {
+        kind: "cmavo",
+        phonemes: "be",
+        span: [9,11],
+      },
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fi",
+        span: [12,14],
+      },
+      first_argument: Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [15,17],
+      },
       bei_links: [
         BeiLink {
-          bei: "beĭ",
-          fa: "fe",
-          argument: "do",
+          bei: Word {
+            kind: "cmavo",
+            phonemes: "beĭ",
+            span: [18,21],
+          },
+          fa: Word {
+            kind: "cmavo",
+            phonemes: "fe",
+            span: [22,24],
+          },
+          argument: Word {
+            kind: "cmavo",
+            phonemes: "do",
+            span: [25,27],
+          },
         },
       ],
-      beho: "be'o",
+      beho: Word {
+        kind: "cmavo",
+        phonemes: "be'o",
+        span: [29,33],
+      },
     },
-    "zdáni",
+    Word {
+      kind: "gismu",
+      phonemes: "zdani",
+      span: [35,40],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[0,2],"phonemes":"ti","kind":"cmavo"}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Be":{"base":{"Word":{"Bare":{"Bare":{"span":[3,8],"phonemes":"xamgu","kind":"gismu"}}}},"be":{"Bare":{"Bare":{"span":[9,11],"phonemes":"be","kind":"cmavo"}}},"fa":{"Bare":{"Bare":{"span":[12,14],"phonemes":"fi","kind":"cmavo"}}},"first_argument":{"Koha":{"Bare":{"Bare":{"span":[15,17],"phonemes":"mi","kind":"cmavo"}}}},"bei_links":[{"bei":{"Bare":{"Bare":{"span":[18,21],"phonemes":"beĭ","kind":"cmavo"}}},"fa":{"Bare":{"Bare":{"span":[22,24],"phonemes":"fe","kind":"cmavo"}}},"argument":{"Koha":{"Bare":{"Bare":{"span":[25,27],"phonemes":"do","kind":"cmavo"}}}}}],"beho":{"Bare":{"Bare":{"span":[29,33],"phonemes":"be'o","kind":"cmavo"}}}}},{"Word":{"Bare":{"Bare":{"span":[35,40],"phonemes":"zdani","kind":"gismu"}}}}]}}}}}}}}]}]}"""

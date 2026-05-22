@@ -38,21 +38,61 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.i mu'i ma li'o)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [3,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu'i",
+    span: [5,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li'o",
+    span: [13,17],
+  },
+]"""
 json = """[{"Bare":{"span":[3,4],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"li'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: ".i",
+  i: Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [3,4],
+  },
   Term {
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: "mu'i",
+          bai: Word {
+            kind: "cmavo",
+            phonemes: "mu'i",
+            span: [5,9],
+          },
         },
         WithIndicator {
-          "ma",
-          indicator: "li'o",
+          Word {
+            kind: "cmavo",
+            phonemes: "ma",
+            span: [10,12],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "li'o",
+            span: [13,17],
+          },
         },
       },
     ],

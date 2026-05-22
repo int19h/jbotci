@@ -32,20 +32,51 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "ánd", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }))))), Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ka'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) })))))], free_modifiers: [] } }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.and. to'e ka'e)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "ánd",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "to'e",
+    span: [4,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka'e",
+    span: [8,12],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"ánd","kind":"cmevla"}},{"Bare":{"span":[4,8],"phonemes":"to'e","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"ka'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".and.",
+    Word {
+      kind: "cmevla",
+      phonemes: "ánd",
+      span: [0,3],
+    },
   ],
   Term {
     terms: [
       Tagged {
         tense_modal: WithFreeModifiers {
-          "to'e",
-          "ka'e",
+          Word {
+            kind: "cmavo",
+            phonemes: "to'e",
+            span: [4,8],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "ka'e",
+            span: [8,12],
+          },
         },
         Zohe {},
       },

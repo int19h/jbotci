@@ -55,4 +55,46 @@ status = "failure"
 error = { position = 4, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(vi ku mélbi [zoĭ gy kroat gy] níxli)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "vi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [2,4],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "melbi",
+    span: [5,10],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [11,14],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [16,18],
+    },
+    quoted_text: [18,24],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "gy",
+      span: [26,28],
+    },
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nixli",
+    span: [29,34],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[5,10],"phonemes":"melbi","kind":"gismu"}},{"ZoiQuote":{"zoi":{"span":[11,14],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[16,18],"phonemes":"gy","kind":"cmavo"},"quoted_text":[18,24],"closing_delimiter":{"span":[26,28],"phonemes":"gy","kind":"cmavo"}}},{"Bare":{"span":[29,34],"phonemes":"nixli","kind":"gismu"}}]'

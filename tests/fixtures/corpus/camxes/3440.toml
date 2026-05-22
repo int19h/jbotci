@@ -68,6 +68,60 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(je'e ku'i le nu sútra bácru lo dénpa cu nándu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "je'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku'i",
+    span: [5,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [13,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sutra",
+    span: [16,21],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bacru",
+    span: [22,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [28,30],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "denpa",
+    span: [31,36],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [37,39],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nandu",
+    span: [40,45],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"ku'i","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"sutra","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"bacru","kind":"gismu"}},{"Bare":{"span":[28,30],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[31,36],"phonemes":"denpa","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[40,45],"phonemes":"nandu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -76,22 +130,54 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: WithIndicator {
-        "je'e",
-        indicator: "ku'i",
+        Word {
+          kind: "cmavo",
+          phonemes: "je'e",
+          span: [0,4],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ku'i",
+          span: [5,9],
+        },
       },
       argument: Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [10,12],
+        },
         relation: Abstraction {
-          nu: "nu",
+          nu: Word {
+            kind: "cmavo",
+            phonemes: "nu",
+            span: [13,15],
+          },
           Relation {
             Compound {
-              "sútra",
-              "bácru",
+              Word {
+                kind: "gismu",
+                phonemes: "sutra",
+                span: [16,21],
+              },
+              Word {
+                kind: "gismu",
+                phonemes: "bacru",
+                span: [22,27],
+              },
             },
             terms: [
               Descriptor {
-                descriptor: "lo",
-                relation: "dénpa",
+                descriptor: Word {
+                  kind: "cmavo",
+                  phonemes: "lo",
+                  span: [28,30],
+                },
+                relation: Word {
+                  kind: "gismu",
+                  phonemes: "denpa",
+                  span: [31,36],
+                },
               },
             ],
           },
@@ -100,8 +186,16 @@ Text {
     },
   ],
   Predicate {
-    cu: "cu",
-    "nándu",
+    cu: Word {
+      kind: "cmavo",
+      phonemes: "cu",
+      span: [37,39],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "nandu",
+      span: [40,45],
+    },
   },
 }"""
 json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,4],"phonemes":"je'e","kind":"cmavo"}}},"indicator":{"span":[5,9],"phonemes":"ku'i","kind":"cmavo"}}}],"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}}},"relation":{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[13,15],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[16,21],"phonemes":"sutra","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[22,27],"phonemes":"bacru","kind":"gismu"}}}}]},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[28,30],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[31,36],"phonemes":"denpa","kind":"gismu"}}}}}}}]}}}}}}}}}}}}}],"paragraphs":[{"statements":[{"statement":{"Predicate":{"cu":{"Bare":{"Bare":{"span":[37,39],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[40,45],"phonemes":"nandu","kind":"gismu"}}}}}}}}}}}]}]}"""

@@ -27,12 +27,34 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "jesyspa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ki'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) }), nai: None }), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(jésyspa ki'a)"
+tree = """
+[
+  Word {
+    kind: "lujvo",
+    phonemes: "jesyspa",
+    span: [0,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'a",
+    span: [8,12],
+  },
+]"""
 json = """[{"Bare":{"span":[0,7],"phonemes":"jesyspa","kind":"lujvo"}},{"Bare":{"span":[8,12],"phonemes":"ki'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 WithIndicator {
-  "jésyspa",
-  indicator: "ki'a",
+  Word {
+    kind: "lujvo",
+    phonemes: "jesyspa",
+    span: [0,7],
+  },
+  indicator: Word {
+    kind: "cmavo",
+    phonemes: "ki'a",
+    span: [8,12],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[0,7],"phonemes":"jesyspa","kind":"lujvo"}}},"indicator":{"span":[8,12],"phonemes":"ki'a","kind":"cmavo"}}}}}}}}}}}]}]}"""

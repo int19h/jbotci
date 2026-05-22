@@ -89,4 +89,80 @@ status = "failure"
 error = { position = 4, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(la [xy bu] ly ty cu skámi mídnoĭ pe lo síste be lo samrú'e)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [0,2],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "xy",
+      span: [3,5],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [5,7],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ly",
+    span: [7,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ty",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [12,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "skami",
+    span: [15,20],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "midnoĭ",
+    span: [21,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pe",
+    span: [28,30],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [31,33],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "siste",
+    span: [34,39],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [40,42],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [43,45],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "samru'e",
+    span: [46,53],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[3,5],"phonemes":"xy","kind":"cmavo"}},"bu":{"span":[5,7],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[7,9],"phonemes":"ly","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ty","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[21,27],"phonemes":"midnoĭ","kind":"lujvo"}},{"Bare":{"span":[28,30],"phonemes":"pe","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"siste","kind":"gismu"}},{"Bare":{"span":[40,42],"phonemes":"be","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[46,53],"phonemes":"samru'e","kind":"lujvo"}}]"""

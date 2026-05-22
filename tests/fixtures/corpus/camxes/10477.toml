@@ -57,4 +57,48 @@ status = "failure"
 error = { position = 7, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(le le ne le bróda ku bróde .parses.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ne",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "broda",
+    span: [12,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ku",
+    span: [18,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brode",
+    span: [21,26],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "parses",
+    span: [27,33],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ne","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[18,20],"phonemes":"ku","kind":"cmavo"}},{"Bare":{"span":[21,26],"phonemes":"brode","kind":"gismu"}},{"Bare":{"span":[27,33],"phonemes":"parses","kind":"cmevla"}}]'

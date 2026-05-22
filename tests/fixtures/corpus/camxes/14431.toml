@@ -43,23 +43,72 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(do se cníno loĭ lójbo)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cnino",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "loĭ",
+    span: [15,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lojbo",
+    span: [19,24],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cnino","kind":"gismu"}},{"Bare":{"span":[15,18],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"lojbo","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "do",
+    Word {
+      kind: "cmavo",
+      phonemes: "do",
+      span: [3,5],
+    },
   ],
   Relation {
     Se {
-      se: "se",
-      "cníno",
+      se: Word {
+        kind: "cmavo",
+        phonemes: "se",
+        span: [6,8],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "cnino",
+        span: [9,14],
+      },
     },
     terms: [
       Descriptor {
-        descriptor: "loĭ",
-        relation: "lójbo",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "loĭ",
+          span: [15,18],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "lojbo",
+          span: [19,24],
+        },
       },
     ],
   },

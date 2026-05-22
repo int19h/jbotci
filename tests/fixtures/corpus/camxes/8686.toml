@@ -83,6 +83,75 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(pa ko kúrji le mábru fínpe .i gaŭ ko jmáji fa ro da)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [2,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ko",
+    span: [8,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kurji",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "mabru",
+    span: [20,25],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "finpe",
+    span: [26,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [33,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gaŭ",
+    span: [35,38],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ko",
+    span: [39,41],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jmaji",
+    span: [42,47],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fa",
+    span: [48,50],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [51,53],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [53,55],
+  },
+]"""
 json = '[{"Bare":{"span":[2,3],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"kurji","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"mabru","kind":"gismu"}},{"Bare":{"span":[26,31],"phonemes":"finpe","kind":"gismu"}},{"Bare":{"span":[33,34],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[35,38],"phonemes":"gaŭ","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[42,47],"phonemes":"jmaji","kind":"gismu"}},{"Bare":{"span":[48,50],"phonemes":"fa","kind":"cmavo"}},{"Bare":{"span":[51,53],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[53,55],"phonemes":"da","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -91,42 +160,94 @@ Paragraph {
   Predicate {
     leading_terms: [
       Quantified {
-        quantifier: "pa",
-        "ko",
+        quantifier: Word {
+          kind: "cmavo",
+          phonemes: "pa",
+          span: [2,3],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "ko",
+          span: [8,10],
+        },
       },
     ],
     Relation {
-      "kúrji",
+      Word {
+        kind: "gismu",
+        phonemes: "kurji",
+        span: [11,16],
+      },
       terms: [
         Descriptor {
-          descriptor: "le",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [17,19],
+          },
           relation: Compound {
-            "mábru",
-            "fínpe",
+            Word {
+              kind: "gismu",
+              phonemes: "mabru",
+              span: [20,25],
+            },
+            Word {
+              kind: "gismu",
+              phonemes: "finpe",
+              span: [26,31],
+            },
           },
         },
       ],
     },
   },
   ParagraphStatement {
-    i: ".i",
+    i: Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [33,34],
+    },
     Predicate {
       leading_terms: [
         Tagged {
           tense_modal: Simple {
-            bai: "gaŭ",
+            bai: Word {
+              kind: "cmavo",
+              phonemes: "gaŭ",
+              span: [35,38],
+            },
           },
-          "ko",
+          Word {
+            kind: "cmavo",
+            phonemes: "ko",
+            span: [39,41],
+          },
         },
       ],
       Relation {
-        "jmáji",
+        Word {
+          kind: "gismu",
+          phonemes: "jmaji",
+          span: [42,47],
+        },
         terms: [
           Fa {
-            fa: "fa",
+            fa: Word {
+              kind: "cmavo",
+              phonemes: "fa",
+              span: [48,50],
+            },
             Quantified {
-              quantifier: "ro",
-              "da",
+              quantifier: Word {
+                kind: "cmavo",
+                phonemes: "ro",
+                span: [51,53],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "da",
+                span: [53,55],
+              },
             },
           },
         ],

@@ -33,18 +33,49 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.b. go'i ma)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "b",
+    span: [0,1],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "go'i",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [8,10],
+  },
+]"""
 json = """[{"Bare":{"span":[0,1],"phonemes":"b","kind":"cmevla"}},{"Bare":{"span":[3,7],"phonemes":"go'i","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"ma","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".b.",
+    Word {
+      kind: "cmevla",
+      phonemes: "b",
+      span: [0,1],
+    },
   ],
   Relation {
-    "go'i",
+    Word {
+      kind: "cmavo",
+      phonemes: "go'i",
+      span: [3,7],
+    },
     terms: [
-      "ma",
+      Word {
+        kind: "cmavo",
+        phonemes: "ma",
+        span: [8,10],
+      },
     ],
   },
 }"""

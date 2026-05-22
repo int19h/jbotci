@@ -56,4 +56,47 @@ status = "failure"
 error = { position = 2, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(mi [zo zo] co .e [zo bródi])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [3,5],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [6,8],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "co",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [13,14],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [48,50],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "brodi",
+      span: [51,56],
+    },
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[3,5],"phonemes":"zo","kind":"cmavo"},"word":{"span":[6,8],"phonemes":"zo","kind":"cmavo"}}},{"Bare":{"span":[9,11],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[13,14],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[48,50],"phonemes":"zo","kind":"cmavo"},"word":{"span":[51,56],"phonemes":"brodi","kind":"gismu"}}}]'

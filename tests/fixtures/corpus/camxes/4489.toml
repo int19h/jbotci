@@ -47,6 +47,40 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "bancus", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 10, char_start: 4, char_end: 10, start: None, end: None }) }))))], free_modifiers: [To { to: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "to", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None }) })))), free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 17, char_start: 14, char_end: 17, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zirpu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) }))))), trailing_relative_clauses: [] }), dohu: None }] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }, toi: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "toĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 27, char_start: 24, char_end: 27, start: None, end: None }) })))), free_modifiers: [] }) }] })), dohu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "(coĭ .bancus. to coĭ zírpu toĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "bancus",
+    span: [4,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "to",
+    span: [11,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [14,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zirpu",
+    span: [18,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "toĭ",
+    span: [24,27],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[4,10],"phonemes":"bancus","kind":"cmevla"}},{"Bare":{"span":[11,13],"phonemes":"to","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"zirpu","kind":"gismu"}},{"Bare":{"span":[24,27],"phonemes":"toĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -54,24 +88,48 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "coĭ",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "coĭ",
+        span: [0,3],
+      },
       argument: WithFreeModifiers {
-        ".bancus.",
+        Word {
+          kind: "cmevla",
+          phonemes: "bancus",
+          span: [4,10],
+        },
         free_modifiers: [
           To {
             to: WithFreeModifiers {
-              "to",
+              Word {
+                kind: "cmavo",
+                phonemes: "to",
+                span: [11,13],
+              },
               free_modifiers: [
                 Vocative {
-                  vocative_markers: "coĭ",
+                  vocative_markers: Word {
+                    kind: "cmavo",
+                    phonemes: "coĭ",
+                    span: [14,17],
+                  },
                   argument: RelationVocative {
-                    relation: "zírpu",
+                    relation: Word {
+                      kind: "gismu",
+                      phonemes: "zirpu",
+                      span: [18,23],
+                    },
                   },
                 },
               ],
             },
             Text {},
-            toi: "toĭ",
+            toi: Word {
+              kind: "cmavo",
+              phonemes: "toĭ",
+              span: [24,27],
+            },
           },
         ],
       },

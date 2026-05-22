@@ -32,6 +32,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None }) })))))], free_modifiers: [] } }, inner_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "rence", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))))) }), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(re fe rénce)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fe",
+    span: [2,4],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "rence",
+    span: [4,9],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[2,4],"phonemes":"fe","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"rence","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -40,11 +59,23 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        "re",
+        Word {
+          kind: "cmavo",
+          phonemes: "re",
+          span: [0,2],
+        },
       ],
       relation: TenseModal {
-        tense_modal: "fe",
-        "rénce",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "fe",
+          span: [2,4],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "rence",
+          span: [4,9],
+        },
       },
     },
   ],

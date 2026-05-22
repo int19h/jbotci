@@ -47,6 +47,40 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Mai { number: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], mai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "maĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 5, char_start: 2, char_end: 5, start: None, end: None }) })))), free_modifiers: [] } }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "crepu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) }))))), terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "loĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "plibu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 21, char_start: 16, char_end: 21, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "taxfu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None }) })))), free_modifiers: [] })])), relative_clauses: [], ku: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(pa maĭ crépu loĭ plíbu táxfu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "maĭ",
+    span: [2,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "crepu",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "loĭ",
+    span: [12,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "plibu",
+    span: [16,21],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "taxfu",
+    span: [22,27],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"maĭ","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"crepu","kind":"gismu"}},{"Bare":{"span":[12,15],"phonemes":"loĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"plibu","kind":"gismu"}},{"Bare":{"span":[22,27],"phonemes":"taxfu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -55,19 +89,43 @@ Text {
   leading_free_modifiers: [
     Mai {
       number: [
-        "pa",
+        Word {
+          kind: "cmavo",
+          phonemes: "pa",
+          span: [0,2],
+        },
       ],
-      mai: "maĭ",
+      mai: Word {
+        kind: "cmavo",
+        phonemes: "maĭ",
+        span: [2,5],
+      },
     },
   ],
   Relation {
-    "crépu",
+    Word {
+      kind: "gismu",
+      phonemes: "crepu",
+      span: [6,11],
+    },
     terms: [
       Descriptor {
-        descriptor: "loĭ",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "loĭ",
+          span: [12,15],
+        },
         relation: Compound {
-          "plíbu",
-          "táxfu",
+          Word {
+            kind: "gismu",
+            phonemes: "plibu",
+            span: [16,21],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "taxfu",
+            span: [22,27],
+          },
         },
       },
     ],

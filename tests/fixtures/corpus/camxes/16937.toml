@@ -83,6 +83,75 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ga naĭ le nu stáli keĭ se zánfri do gi .e'o ko stáli)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ga",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [2,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [8,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "stali",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "keĭ",
+    span: [17,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [21,23],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "zanfri",
+    span: [24,30],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [31,33],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi",
+    span: [34,36],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e'o",
+    span: [38,41],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ko",
+    span: [42,44],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "stali",
+    span: [45,50],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}},{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"stali","kind":"gismu"}},{"Bare":{"span":[17,20],"phonemes":"keĭ","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[24,30],"phonemes":"zanfri","kind":"lujvo"}},{"Bare":{"span":[31,33],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"gi","kind":"cmavo"}},{"Bare":{"span":[38,41],"phonemes":"e'o","kind":"cmavo"}},{"Bare":{"span":[42,44],"phonemes":"ko","kind":"cmavo"}},{"Bare":{"span":[45,50],"phonemes":"stali","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -91,35 +160,87 @@ Predicate {
   leading_terms: [
     GekNuhiTermset {
       gek: Forethought {
-        "ga",
-        nai: "naĭ",
+        Word {
+          kind: "cmavo",
+          phonemes: "ga",
+          span: [0,2],
+        },
+        nai: Word {
+          kind: "cmavo",
+          phonemes: "naĭ",
+          span: [2,5],
+        },
       },
       terms: [
         Descriptor {
-          descriptor: "le",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [6,8],
+          },
           relation: Compound {
             Abstraction {
-              nu: "nu",
-              "stáli",
-              kei: "keĭ",
+              nu: Word {
+                kind: "cmavo",
+                phonemes: "nu",
+                span: [8,10],
+              },
+              Word {
+                kind: "gismu",
+                phonemes: "stali",
+                span: [11,16],
+              },
+              kei: Word {
+                kind: "cmavo",
+                phonemes: "keĭ",
+                span: [17,20],
+              },
             },
             Se {
-              se: "se",
-              "zánfri",
+              se: Word {
+                kind: "cmavo",
+                phonemes: "se",
+                span: [21,23],
+              },
+              Word {
+                kind: "lujvo",
+                phonemes: "zanfri",
+                span: [24,30],
+              },
             },
           },
         },
-        "do",
+        Word {
+          kind: "cmavo",
+          phonemes: "do",
+          span: [31,33],
+        },
       ],
       gik: WithIndicator {
-        "gi",
-        indicator: ".e'o",
+        Word {
+          kind: "cmavo",
+          phonemes: "gi",
+          span: [34,36],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "e'o",
+          span: [38,41],
+        },
       },
       gik_terms: [
-        "ko",
+        Word {
+          kind: "cmavo",
+          phonemes: "ko",
+          span: [42,44],
+        },
       ],
     },
   ],
-  "stáli",
+  Word {
+    kind: "gismu",
+    phonemes: "stali",
+    span: [45,50],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"GekNuhiTermset":{"gek":{"Forethought":{"cmavo":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ga","kind":"cmavo"}}}],"nai":{"Bare":{"Bare":{"span":[2,5],"phonemes":"naĭ","kind":"cmavo"}}}}},"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}}},"relation":{"Compound":[{"Abstraction":{"nu":{"Bare":{"Bare":{"span":[8,10],"phonemes":"nu","kind":"cmavo"}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[11,16],"phonemes":"stali","kind":"gismu"}}}}}}}}}},"kei":{"Bare":{"Bare":{"span":[17,20],"phonemes":"keĭ","kind":"cmavo"}}}}},{"Se":{"se":{"Bare":{"Bare":{"span":[21,23],"phonemes":"se","kind":"cmavo"}}},"inner_unit":{"Word":{"Bare":{"Bare":{"span":[24,30],"phonemes":"zanfri","kind":"lujvo"}}}}}}]}}}},{"Argument":{"Koha":{"Bare":{"Bare":{"span":[31,33],"phonemes":"do","kind":"cmavo"}}}}}],"gik":{"Forethought":{"cmavo":[{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[34,36],"phonemes":"gi","kind":"cmavo"}}},"indicator":{"span":[38,41],"phonemes":"e'o","kind":"cmavo"}}}]}},"gik_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[42,44],"phonemes":"ko","kind":"cmavo"}}}}}]}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[45,50],"phonemes":"stali","kind":"gismu"}}}}}}}}}}}]}]}"""

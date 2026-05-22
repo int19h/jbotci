@@ -28,6 +28,20 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(coĭ .norpan.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [3,6],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "norpan",
+    span: [7,13],
+  },
+]"""
 json = '[{"Bare":{"span":[3,6],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[7,13],"phonemes":"norpan","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
@@ -35,8 +49,16 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "coĭ",
-      argument: ".norpan.",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "coĭ",
+        span: [3,6],
+      },
+      argument: Word {
+        kind: "cmevla",
+        phonemes: "norpan",
+        span: [7,13],
+      },
     },
   ],
 }"""

@@ -3,6 +3,7 @@
 mod grammar;
 mod segment;
 mod syntax_eq;
+pub mod tree;
 
 use std::fmt;
 
@@ -13,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub use syntax_eq::{strip_diacritics, word_like_syntax_eq, word_syntax_eq};
+pub use tree::{AtomRef, NodeRef, TreeNode, Word, WordData, WordLike, WordLikeData};
 
 #[invariant(self.cmavo_dialect_entries.iter().all(CmavoDialectEntry::is_valid), "cmavo dialect entries must be normalized and internally valid")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,14 +115,6 @@ impl fmt::Display for WordKind {
     }
 }
 
-#[invariant(!self.phonemes.is_empty(), "word phoneme text must not be empty")]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Word {
-    pub kind: WordKind,
-    pub phonemes: String,
-    pub span: SourceSpan,
-}
-
 impl fmt::Display for Word {
     #[requires(true)]
     #[ensures(true)]
@@ -172,40 +166,6 @@ impl Word {
             None
         }
     }
-}
-
-#[invariant(word_like_data_is_valid(self.as_data()))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum WordLike {
-    Bare(Box<Word>),
-    ZoQuote {
-        zo: Box<Word>,
-        word: Box<Word>,
-    },
-    ZoiQuote {
-        zoi: Box<Word>,
-        opening_delimiter: Box<Word>,
-        quoted_text: SourceSpan,
-        closing_delimiter: Box<Word>,
-    },
-    LohuQuote {
-        lohu: Box<Word>,
-        quoted_words: Vec<Word>,
-        lehu: Box<Word>,
-    },
-    SingleWordQuote {
-        marker: Box<Word>,
-        quoted_text: SourceSpan,
-    },
-    Letter {
-        base: Box<WordLike>,
-        bu: Box<Word>,
-    },
-    ZeiLujvo {
-        left: Box<WordLike>,
-        zei: Box<Word>,
-        right: Box<Word>,
-    },
 }
 
 impl WordLike {

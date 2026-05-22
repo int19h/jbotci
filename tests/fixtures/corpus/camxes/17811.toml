@@ -47,24 +47,82 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tsiju", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "rango", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ki'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) }), nai: None }, free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }, ParagraphStatementSyntax { i: Some(WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 19, char_start: 18, char_end: 19, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "xu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 22, char_start: 20, char_end: 22, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "ganti", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 28, char_start: 23, char_end: 28, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(tsíju rángo ki'a .i xu gánti)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "tsiju",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "rango",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ki'a",
+    span: [12,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [18,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xu",
+    span: [20,22],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ganti",
+    span: [23,28],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"tsiju","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"rango","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"ki'a","kind":"cmavo"}},{"Bare":{"span":[18,19],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[20,22],"phonemes":"xu","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"ganti","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Paragraph {
   Compound {
-    "tsíju",
+    Word {
+      kind: "gismu",
+      phonemes: "tsiju",
+      span: [0,5],
+    },
     WithIndicator {
-      "rángo",
-      indicator: "ki'a",
+      Word {
+        kind: "gismu",
+        phonemes: "rango",
+        span: [6,11],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ki'a",
+        span: [12,16],
+      },
     },
   },
   ParagraphStatement {
     i: WithIndicator {
-      ".i",
-      indicator: "xu",
+      Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [18,19],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "xu",
+        span: [20,22],
+      },
     },
-    "gánti",
+    Word {
+      kind: "gismu",
+      phonemes: "ganti",
+      span: [23,28],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"tsiju","kind":"gismu"}}}},{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[6,11],"phonemes":"rango","kind":"gismu"}}},"indicator":{"span":[12,16],"phonemes":"ki'a","kind":"cmavo"}}}}]}}}}}}}},{"i":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[18,19],"phonemes":"i","kind":"cmavo"}}},"indicator":{"span":[20,22],"phonemes":"xu","kind":"cmavo"}}},"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[23,28],"phonemes":"ganti","kind":"gismu"}}}}}}}}}}}]}]}"""

@@ -43,24 +43,73 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi pu fárlu se caŭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "farlu",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "caŭ",
+    span: [14,17],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"farlu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[14,17],"phonemes":"caŭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
   Relation {
     TenseModal {
-      tense_modal: "pu",
-      "fárlu",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "pu",
+        span: [3,5],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "farlu",
+        span: [6,11],
+      },
     },
     terms: [
       Tagged {
         tense_modal: Simple {
-          se: "se",
-          bai: "caŭ",
+          se: Word {
+            kind: "cmavo",
+            phonemes: "se",
+            span: [12,14],
+          },
+          bai: Word {
+            kind: "cmavo",
+            phonemes: "caŭ",
+            span: [14,17],
+          },
         },
         Zohe {},
       },

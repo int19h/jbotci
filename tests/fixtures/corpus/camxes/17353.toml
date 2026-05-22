@@ -22,13 +22,26 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "daĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }'
 
 [expectations.output.vlasei]
+brackets = "daĭ"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "daĭ",
+    span: [3,6],
+  },
+]"""
 json = '[{"Bare":{"span":[3,6],"phonemes":"daĭ","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "daĭ",
+    Word {
+      kind: "cmavo",
+      phonemes: "daĭ",
+      span: [3,6],
+    },
   ],
 }"""
 json = '{"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[3,6],"phonemes":"daĭ","kind":"cmavo"}}}}]}'

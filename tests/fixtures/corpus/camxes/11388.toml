@@ -43,6 +43,35 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ca le gaĭ moĭ cácra)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gaĭ",
+    span: [9,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "moĭ",
+    span: [12,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cacra",
+    span: [16,21],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[9,12],"phonemes":"gaĭ","kind":"cmavo"}},{"Bare":{"span":[12,15],"phonemes":"moĭ","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"cacra","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
@@ -50,17 +79,37 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: "ca",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ca",
+        span: [3,5],
+      },
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [6,8],
+        },
         relation: Compound {
           Moi {
             number: [
-              "gaĭ",
+              Word {
+                kind: "cmavo",
+                phonemes: "gaĭ",
+                span: [9,12],
+              },
             ],
-            moi: "moĭ",
+            moi: Word {
+              kind: "cmavo",
+              phonemes: "moĭ",
+              span: [12,15],
+            },
           },
-          "cácra",
+          Word {
+            kind: "gismu",
+            phonemes: "cacra",
+            span: [16,21],
+          },
         },
       },
     },

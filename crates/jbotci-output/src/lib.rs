@@ -162,6 +162,22 @@ pub fn pretty_tree(tree: &TextSyntax, source: &str) -> Result<String, OutputErro
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+pub fn pretty_morphology_tree(words: &[WordLike], source: &str) -> Result<String, OutputError> {
+    pretty_morphology_tree_with_options(words, source, TreeRenderOptions::default())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+pub fn pretty_morphology_tree_with_options(
+    words: &[WordLike],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<String, OutputError> {
+    tree::pretty_morphology_tree_with_options(words, source, options)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
 pub fn pretty_tree_with_options(
     tree: &TextSyntax,
     source: &str,
@@ -590,6 +606,16 @@ pub fn pretty_brackets_with_options(
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
     brackets::pretty_brackets_with_options(tree, source, options)
+}
+
+#[requires(true)]
+#[ensures(words.is_empty() || ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+pub fn pretty_morphology_brackets_with_options(
+    words: &[WordLike],
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<String, OutputError> {
+    brackets::pretty_morphology_brackets_with_options(words, source, options)
 }
 
 #[requires(true)]

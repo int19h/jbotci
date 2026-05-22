@@ -43,24 +43,73 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.ekted. le mi críno kárce)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "ekted",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [7,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [10,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "crino",
+    span: [13,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "karce",
+    span: [19,24],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"ekted","kind":"cmevla"}},{"Bare":{"span":[7,9],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"crino","kind":"gismu"}},{"Bare":{"span":[19,24],"phonemes":"karce","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".ekted.",
+    Word {
+      kind: "cmevla",
+      phonemes: "ekted",
+      span: [0,5],
+    },
   ],
   Term {
     terms: [
       Descriptor {
-        descriptor: "le",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le",
+          span: [7,9],
+        },
         tail_elements: [
-          "mi",
+          Word {
+            kind: "cmavo",
+            phonemes: "mi",
+            span: [10,12],
+          },
         ],
         relation: Compound {
-          "críno",
-          "kárce",
+          Word {
+            kind: "gismu",
+            phonemes: "crino",
+            span: [13,18],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "karce",
+            span: [19,24],
+          },
         },
       },
     ],

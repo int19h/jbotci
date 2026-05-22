@@ -97,6 +97,89 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le lójbo [{zo .irk.} zeĭ seljmáji] vréji cu selstúzi la'e [{zoĭ .i bu http://home.uten.net/arj/lojban/lojban.html .i} bu])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lojbo",
+    span: [3,8],
+  },
+  ZeiLujvo {
+    left: ZoQuote {
+      zo: Word {
+        kind: "cmavo",
+        phonemes: "zo",
+        span: [9,11],
+      },
+      Word {
+        kind: "cmevla",
+        phonemes: "irk",
+        span: [12,15],
+      },
+    },
+    zei: Word {
+      kind: "cmavo",
+      phonemes: "zeĭ",
+      span: [16,19],
+    },
+    Word {
+      kind: "lujvo",
+      phonemes: "seljmaji",
+      span: [20,28],
+    },
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "vreji",
+    span: [29,34],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [35,37],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "selstuzi",
+    span: [38,46],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la'e",
+    span: [47,51],
+  },
+  Letter {
+    ZoiQuote {
+      zoi: Word {
+        kind: "cmavo",
+        phonemes: "zoĭ",
+        span: [52,55],
+      },
+      opening_delimiter: Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [56,57],
+      },
+      quoted_text: [57,103],
+      closing_delimiter: Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [104,105],
+      },
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [105,107],
+    },
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"lojbo","kind":"gismu"}},{"ZeiLujvo":{"left":{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,15],"phonemes":"irk","kind":"cmevla"}}},"zei":{"span":[16,19],"phonemes":"zeĭ","kind":"cmavo"},"right":{"span":[20,28],"phonemes":"seljmaji","kind":"lujvo"}}},{"Bare":{"span":[29,34],"phonemes":"vreji","kind":"gismu"}},{"Bare":{"span":[35,37],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[38,46],"phonemes":"selstuzi","kind":"lujvo"}},{"Bare":{"span":[47,51],"phonemes":"la'e","kind":"cmavo"}},{"Letter":{"base":{"ZoiQuote":{"zoi":{"span":[52,55],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[56,57],"phonemes":"i","kind":"cmavo"},"quoted_text":[57,103],"closing_delimiter":{"span":[104,105],"phonemes":"i","kind":"cmavo"}}},"bu":{"span":[105,107],"phonemes":"bu","kind":"cmavo"}}}]"""
 
 [expectations.output.gentufa]
@@ -104,22 +187,93 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
       relation: Compound {
-        "lójbo",
-        "zo-«.irk.»-zeĭ-seljmáji",
-        "vréji",
+        Word {
+          kind: "gismu",
+          phonemes: "lojbo",
+          span: [3,8],
+        },
+        ZeiLujvo {
+          left: ZoQuote {
+            zo: Word {
+              kind: "cmavo",
+              phonemes: "zo",
+              span: [9,11],
+            },
+            Word {
+              kind: "cmevla",
+              phonemes: "irk",
+              span: [12,15],
+            },
+          },
+          zei: Word {
+            kind: "cmavo",
+            phonemes: "zeĭ",
+            span: [16,19],
+          },
+          Word {
+            kind: "lujvo",
+            phonemes: "seljmaji",
+            span: [20,28],
+          },
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "vreji",
+          span: [29,34],
+        },
       },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [35,37],
+  },
   Relation {
-    "selstúzi",
+    Word {
+      kind: "lujvo",
+      phonemes: "selstuzi",
+      span: [38,46],
+    },
     terms: [
       Lahe {
-        lahe: "la'e",
+        lahe: Word {
+          kind: "cmavo",
+          phonemes: "la'e",
+          span: [47,51],
+        },
         Letter {
-          letter: "zoĭ-i-«bu http://home.uten.net/arj/lojban/lojban.html»-i-bu",
+          letter: Letter {
+            ZoiQuote {
+              zoi: Word {
+                kind: "cmavo",
+                phonemes: "zoĭ",
+                span: [52,55],
+              },
+              opening_delimiter: Word {
+                kind: "cmavo",
+                phonemes: "i",
+                span: [56,57],
+              },
+              quoted_text: [57,103],
+              closing_delimiter: Word {
+                kind: "cmavo",
+                phonemes: "i",
+                span: [104,105],
+              },
+            },
+            bu: Word {
+              kind: "cmavo",
+              phonemes: "bu",
+              span: [105,107],
+            },
+          },
         },
       },
     ],

@@ -94,36 +94,181 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(pu tcídu da poĭ srána le terfríca be [{zo y'y} bu] beĭ [zo xy])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tcidu",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "da",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "poĭ",
+    span: [15,18],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "srana",
+    span: [19,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [25,27],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "terfrica",
+    span: [28,36],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "be",
+    span: [37,39],
+  },
+  Letter {
+    ZoQuote {
+      zo: Word {
+        kind: "cmavo",
+        phonemes: "zo",
+        span: [40,42],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "y'y",
+        span: [43,46],
+      },
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [46,48],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "beĭ",
+    span: [49,52],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [53,55],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "xy",
+      span: [56,58],
+    },
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"tcidu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"da","kind":"cmavo"}},{"Bare":{"span":[15,18],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[19,24],"phonemes":"srana","kind":"gismu"}},{"Bare":{"span":[25,27],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[28,36],"phonemes":"terfrica","kind":"lujvo"}},{"Bare":{"span":[37,39],"phonemes":"be","kind":"cmavo"}},{"Letter":{"base":{"ZoQuote":{"zo":{"span":[40,42],"phonemes":"zo","kind":"cmavo"},"word":{"span":[43,46],"phonemes":"y'y","kind":"cmavo"}}},"bu":{"span":[46,48],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[49,52],"phonemes":"beĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[53,55],"phonemes":"zo","kind":"cmavo"},"word":{"span":[56,58],"phonemes":"xy","kind":"cmavo"}}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
   TenseModal {
-    tense_modal: "pu",
-    "tcídu",
+    tense_modal: Word {
+      kind: "cmavo",
+      phonemes: "pu",
+      span: [3,5],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "tcidu",
+      span: [6,11],
+    },
   },
   terms: [
     RelativeClause {
-      base_argument: "da",
+      base_argument: Word {
+        kind: "cmavo",
+        phonemes: "da",
+        span: [12,14],
+      },
       relative_clauses: [
         Poi {
-          poi: "poĭ",
+          poi: Word {
+            kind: "cmavo",
+            phonemes: "poĭ",
+            span: [15,18],
+          },
           Relation {
-            "srána",
+            Word {
+              kind: "gismu",
+              phonemes: "srana",
+              span: [19,24],
+            },
             terms: [
               Descriptor {
-                descriptor: "le",
+                descriptor: Word {
+                  kind: "cmavo",
+                  phonemes: "le",
+                  span: [25,27],
+                },
                 relation: Be {
-                  "terfríca",
-                  be: "be",
+                  Word {
+                    kind: "lujvo",
+                    phonemes: "terfrica",
+                    span: [28,36],
+                  },
+                  be: Word {
+                    kind: "cmavo",
+                    phonemes: "be",
+                    span: [37,39],
+                  },
                   first_argument: Letter {
-                    letter: "zo-«y'y»-bu",
+                    letter: Letter {
+                      ZoQuote {
+                        zo: Word {
+                          kind: "cmavo",
+                          phonemes: "zo",
+                          span: [40,42],
+                        },
+                        Word {
+                          kind: "cmavo",
+                          phonemes: "y'y",
+                          span: [43,46],
+                        },
+                      },
+                      bu: Word {
+                        kind: "cmavo",
+                        phonemes: "bu",
+                        span: [46,48],
+                      },
+                    },
                   },
                   bei_links: [
                     BeiLink {
-                      bei: "beĭ",
-                      argument: "zo-«xy»",
+                      bei: Word {
+                        kind: "cmavo",
+                        phonemes: "beĭ",
+                        span: [49,52],
+                      },
+                      argument: ZoQuote {
+                        zo: Word {
+                          kind: "cmavo",
+                          phonemes: "zo",
+                          span: [53,55],
+                        },
+                        Word {
+                          kind: "cmavo",
+                          phonemes: "xy",
+                          span: [56,58],
+                        },
+                      },
                     },
                   ],
                 },

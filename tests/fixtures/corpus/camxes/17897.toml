@@ -78,6 +78,70 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le cévni na ka'e káncu le'i cánre se pi'o ci re jetká'u)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cevni",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ka'e",
+    span: [12,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kancu",
+    span: [17,22],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le'i",
+    span: [23,27],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "canre",
+    span: [28,33],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [37,39],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pi'o",
+    span: [39,43],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [44,46],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [46,48],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "jetka'u",
+    span: [49,56],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cevni","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ka'e","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"kancu","kind":"gismu"}},{"Bare":{"span":[23,27],"phonemes":"le'i","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"canre","kind":"gismu"}},{"Bare":{"span":[37,39],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[39,43],"phonemes":"pi'o","kind":"cmavo"}},{"Bare":{"span":[44,46],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[49,56],"phonemes":"jetka'u","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
@@ -85,36 +149,84 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "le",
-      relation: "cévni",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "cevni",
+        span: [3,8],
+      },
     },
   ],
   Relation {
     Na {
-      na: "na",
+      na: Word {
+        kind: "cmavo",
+        phonemes: "na",
+        span: [9,11],
+      },
       TenseModal {
-        tense_modal: "ka'e",
-        "káncu",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "ka'e",
+          span: [12,16],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "kancu",
+          span: [17,22],
+        },
       },
     },
     terms: [
       Descriptor {
-        descriptor: "le'i",
-        relation: "cánre",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "le'i",
+          span: [23,27],
+        },
+        relation: Word {
+          kind: "gismu",
+          phonemes: "canre",
+          span: [28,33],
+        },
       },
       Tagged {
         tense_modal: Simple {
-          se: "se",
-          bai: "pi'o",
+          se: Word {
+            kind: "cmavo",
+            phonemes: "se",
+            span: [37,39],
+          },
+          bai: Word {
+            kind: "cmavo",
+            phonemes: "pi'o",
+            span: [39,43],
+          },
         },
         Descriptor {
           tail_elements: [
             WithFreeModifiers {
-              "ci",
-              "re",
+              Word {
+                kind: "cmavo",
+                phonemes: "ci",
+                span: [44,46],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "re",
+                span: [46,48],
+              },
             },
           ],
-          relation: "jetká'u",
+          relation: Word {
+            kind: "lujvo",
+            phonemes: "jetka'u",
+            span: [49,56],
+          },
         },
       },
     ],

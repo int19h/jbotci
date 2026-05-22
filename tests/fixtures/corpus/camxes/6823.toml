@@ -48,23 +48,81 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.c. xárnu stáli na jo píndi)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "c",
+    span: [3,4],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xarnu",
+    span: [5,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "stali",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [17,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "jo",
+    span: [19,21],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pindi",
+    span: [22,27],
+  },
+]"""
 json = '[{"Bare":{"span":[3,4],"phonemes":"c","kind":"cmevla"}},{"Bare":{"span":[5,10],"phonemes":"xarnu","kind":"gismu"}},{"Bare":{"span":[11,16],"phonemes":"stali","kind":"gismu"}},{"Bare":{"span":[17,19],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"jo","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"pindi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".c.",
+    Word {
+      kind: "cmevla",
+      phonemes: "c",
+      span: [3,4],
+    },
   ],
   Compound {
-    "xárnu",
+    Word {
+      kind: "gismu",
+      phonemes: "xarnu",
+      span: [5,10],
+    },
     Connected {
-      leading_unit: "stáli",
-      connective: Relation {
-        na: "na",
-        "jo",
+      leading_unit: Word {
+        kind: "gismu",
+        phonemes: "stali",
+        span: [11,16],
       },
-      trailing_unit: "píndi",
+      connective: Relation {
+        na: Word {
+          kind: "cmavo",
+          phonemes: "na",
+          span: [17,19],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "jo",
+          span: [19,21],
+        },
+      },
+      trailing_unit: Word {
+        kind: "gismu",
+        phonemes: "pindi",
+        span: [22,27],
+      },
     },
   },
 }"""

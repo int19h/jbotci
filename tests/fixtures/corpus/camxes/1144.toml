@@ -67,6 +67,60 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(MathExpression { li: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, expression: Binary { left_expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), operator: Vuhu(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pi'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }), right_expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }) }, loho: None })], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "du", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None }) }))))), terms: [Argument(MathExpression { li: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "li", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) })))), free_modifiers: [] }, expression: Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "xo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 28, char_start: 26, char_end: 28, start: None, end: None }) }))))], free_modifiers: [] }, boi: None }), loho: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(li re mu pi'i xa du li pa xo no)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pi'i",
+    span: [8,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xa",
+    span: [13,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du",
+    span: [16,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [22,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "xo",
+    span: [24,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no",
+    span: [26,28],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"pi'i","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"xa","kind":"cmavo"}},{"Bare":{"span":[16,18],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"xo","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"no","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -74,26 +128,66 @@ tree = """
 Predicate {
   leading_terms: [
     MathExpression {
-      li: "li",
+      li: Word {
+        kind: "cmavo",
+        phonemes: "li",
+        span: [0,2],
+      },
       Binary {
         left_expression: WithFreeModifiers {
-          "re",
-          "mu",
+          Word {
+            kind: "cmavo",
+            phonemes: "re",
+            span: [3,5],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "mu",
+            span: [5,7],
+          },
         },
-        operator: "pi'i",
-        right_expression: "xa",
+        operator: Word {
+          kind: "cmavo",
+          phonemes: "pi'i",
+          span: [8,12],
+        },
+        right_expression: Word {
+          kind: "cmavo",
+          phonemes: "xa",
+          span: [13,15],
+        },
       },
     },
   ],
   Relation {
-    "du",
+    Word {
+      kind: "cmavo",
+      phonemes: "du",
+      span: [16,18],
+    },
     terms: [
       MathExpression {
-        li: "li",
+        li: Word {
+          kind: "cmavo",
+          phonemes: "li",
+          span: [19,21],
+        },
         WithFreeModifiers {
-          "pa",
-          "xo",
-          "no",
+          Word {
+            kind: "cmavo",
+            phonemes: "pa",
+            span: [22,24],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "xo",
+            span: [24,26],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "no",
+            span: [26,28],
+          },
         },
       },
     ],

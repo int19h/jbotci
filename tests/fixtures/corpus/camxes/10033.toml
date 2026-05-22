@@ -33,15 +33,46 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(cu xámgu zo'o)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xamgu",
+    span: [9,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'o",
+    span: [15,19],
+  },
+]"""
 json = """[{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"xamgu","kind":"gismu"}},{"Bare":{"span":[15,19],"phonemes":"zo'o","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [6,8],
+  },
   WithIndicator {
-    "xámgu",
-    indicator: "zo'o",
+    Word {
+      kind: "gismu",
+      phonemes: "xamgu",
+      span: [9,14],
+    },
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "zo'o",
+      span: [15,19],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"cu":{"Bare":{"Bare":{"span":[6,8],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[9,14],"phonemes":"xamgu","kind":"gismu"}}},"indicator":{"span":[15,19],"phonemes":"zo'o","kind":"cmavo"}}}}}}}}}}}]}]}"""

@@ -32,19 +32,50 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "robin", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }) }))))], free_modifiers: [] } })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(la'a la .robin.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la'a",
+    span: [1,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "robin",
+    span: [9,14],
+  },
+]"""
 json = """[{"Bare":{"span":[1,5],"phonemes":"la'a","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"robin","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    "la'a",
+    Word {
+      kind: "cmavo",
+      phonemes: "la'a",
+      span: [1,5],
+    },
   ],
   Term {
     terms: [
       Name {
-        la: "la",
-        names: ".robin.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [6,8],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "robin",
+          span: [9,14],
+        },
       },
     ],
   },

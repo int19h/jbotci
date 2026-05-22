@@ -72,6 +72,65 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "le", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "selkeĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 9, char_start: 3, char_end: 9, start: None, end: None }) })))))), relative_clauses: [], ku: None }))], cu: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Moi { number: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "pa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 20, char_start: 16, char_end: 20, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None }) }))))], moi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "meĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 27, char_start: 24, char_end: 27, start: None, end: None }) })))), free_modifiers: [] } }, Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "pagbu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 33, char_start: 28, char_end: 33, start: None, end: None }) })))), free_modifiers: [] })]), terms: [Argument(Descriptor(DescriptorSyntax { descriptor: Some(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "lo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 34, byte_end: 36, char_start: 34, char_end: 36, start: None, end: None }) })))), free_modifiers: [] }), outer_quantifier: None, tail_elements: [], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "prane", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 37, byte_end: 42, char_start: 37, char_end: 42, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "selkeĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 43, byte_end: 49, char_start: 43, char_end: 49, start: None, end: None }) })))), free_modifiers: [] })])), relative_clauses: [], ku: None }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(le sélkeĭ cu pa fi'u ci meĭ págbu lo práne sélkeĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "selkeĭ",
+    span: [3,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pa",
+    span: [13,15],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi'u",
+    span: [16,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [21,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "meĭ",
+    span: [24,27],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pagbu",
+    span: [28,33],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [34,36],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "prane",
+    span: [37,42],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "selkeĭ",
+    span: [43,49],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"selkeĭ","kind":"lujvo"}},{"Bare":{"span":[10,12],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"pa","kind":"cmavo"}},{"Bare":{"span":[16,20],"phonemes":"fi'u","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[24,27],"phonemes":"meĭ","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"pagbu","kind":"gismu"}},{"Bare":{"span":[34,36],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[37,42],"phonemes":"prane","kind":"gismu"}},{"Bare":{"span":[43,49],"phonemes":"selkeĭ","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
@@ -79,29 +138,73 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "le",
-      relation: "sélkeĭ",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
+      relation: Word {
+        kind: "lujvo",
+        phonemes: "selkeĭ",
+        span: [3,9],
+      },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [10,12],
+  },
   Relation {
     Compound {
       Moi {
         number: [
-          "pa",
-          "fi'u",
-          "ci",
+          Word {
+            kind: "cmavo",
+            phonemes: "pa",
+            span: [13,15],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "fi'u",
+            span: [16,20],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "ci",
+            span: [21,23],
+          },
         ],
-        moi: "meĭ",
+        moi: Word {
+          kind: "cmavo",
+          phonemes: "meĭ",
+          span: [24,27],
+        },
       },
-      "págbu",
+      Word {
+        kind: "gismu",
+        phonemes: "pagbu",
+        span: [28,33],
+      },
     },
     terms: [
       Descriptor {
-        descriptor: "lo",
+        descriptor: Word {
+          kind: "cmavo",
+          phonemes: "lo",
+          span: [34,36],
+        },
         relation: Compound {
-          "práne",
-          "sélkeĭ",
+          Word {
+            kind: "gismu",
+            phonemes: "prane",
+            span: [37,42],
+          },
+          Word {
+            kind: "lujvo",
+            phonemes: "selkeĭ",
+            span: [43,49],
+          },
         },
       },
     ],

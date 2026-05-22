@@ -28,12 +28,34 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(ju selxráni)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ju",
+    span: [3,5],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "selxrani",
+    span: [6,14],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"ju","kind":"cmavo"}},{"Bare":{"span":[6,14],"phonemes":"selxrani","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
-  leading_connective: "ju",
-  "selxráni",
+  leading_connective: Word {
+    kind: "cmavo",
+    phonemes: "ju",
+    span: [3,5],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "selxrani",
+    span: [6,14],
+  },
 }"""
 json = '{"leading_connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[3,5],"phonemes":"ju","kind":"cmavo"}}}]}},"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[6,14],"phonemes":"selxrani","kind":"lujvo"}}}}}}}}}}}]}]}'

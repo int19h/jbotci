@@ -38,6 +38,30 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(lo prenrnínja cu fénki)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [3,5],
+  },
+  Word {
+    kind: "fu'ivla",
+    phonemes: "prenrninja",
+    span: [6,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fenki",
+    span: [20,25],
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[6,16],"phonemes":"prenrninja","kind":"fu'ivla"}},{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[20,25],"phonemes":"fenki","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -45,11 +69,27 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "lo",
-      relation: "prenrnínja",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "lo",
+        span: [3,5],
+      },
+      relation: Word {
+        kind: "fu'ivla",
+        phonemes: "prenrninja",
+        span: [6,16],
+      },
     },
   ],
-  cu: "cu",
-  "fénki",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [17,19],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fenki",
+    span: [20,25],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[3,5],"phonemes":"lo","kind":"cmavo"}}},"relation":{"Base":{"Bare":{"Bare":{"span":[6,16],"phonemes":"prenrninja","kind":"fu'ivla"}}}}}}}],"cu":{"Bare":{"Bare":{"span":[17,19],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[20,25],"phonemes":"fenki","kind":"gismu"}}}}}}}}}}}]}]}"""

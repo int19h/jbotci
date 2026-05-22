@@ -22,6 +22,15 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ty", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "ty"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ty",
+    span: [0,2],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ty","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -29,7 +38,11 @@ tree = """
 Term {
   terms: [
     Letter {
-      letter: "ty",
+      letter: Word {
+        kind: "cmavo",
+        phonemes: "ty",
+        span: [0,2],
+      },
     },
   ],
 }"""

@@ -43,22 +43,71 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(do cu vu vécnu zo'e)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vu",
+    span: [8,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "vecnu",
+    span: [11,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'e",
+    span: [17,21],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"vu","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"vecnu","kind":"gismu"}},{"Bare":{"span":[17,21],"phonemes":"zo'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "do",
+    Word {
+      kind: "cmavo",
+      phonemes: "do",
+      span: [0,2],
+    },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [4,6],
+  },
   Relation {
     TenseModal {
-      tense_modal: "vu",
-      "vécnu",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "vu",
+        span: [8,10],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "vecnu",
+        span: [11,16],
+      },
     },
     terms: [
-      "zo'e",
+      Word {
+        kind: "cmavo",
+        phonemes: "zo'e",
+        span: [17,21],
+      },
     ],
   },
 }"""

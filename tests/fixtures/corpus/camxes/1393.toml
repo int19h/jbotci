@@ -78,39 +78,151 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi dzúkla le zárci gi'e ca ke cúsku zo'e la .djan. ke'e)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "dzukla",
+    span: [3,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [10,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zarci",
+    span: [13,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi'e",
+    span: [19,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [23,25],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke",
+    span: [25,27],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cusku",
+    span: [28,33],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'e",
+    span: [34,38],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [39,41],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "djan",
+    span: [42,46],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke'e",
+    span: [49,53],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,9],"phonemes":"dzukla","kind":"lujvo"}},{"Bare":{"span":[10,12],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[13,18],"phonemes":"zarci","kind":"gismu"}},{"Bare":{"span":[19,23],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[23,25],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[28,33],"phonemes":"cusku","kind":"gismu"}},{"Bare":{"span":[34,38],"phonemes":"zo'e","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[42,46],"phonemes":"djan","kind":"cmevla"}},{"Bare":{"span":[49,53],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
   PredicateTail {
     Relation {
-      "dzúkla",
+      Word {
+        kind: "lujvo",
+        phonemes: "dzukla",
+        span: [3,9],
+      },
       terms: [
         Descriptor {
-          descriptor: "le",
-          relation: "zárci",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [10,12],
+          },
+          relation: Word {
+            kind: "gismu",
+            phonemes: "zarci",
+            span: [13,18],
+          },
         },
       ],
     },
     ke_continuation: KePredicateTail {
-      connective: "gi'e",
-      tense_modal: "ca",
-      ke: "ke",
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "gi'e",
+        span: [19,23],
+      },
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ca",
+        span: [23,25],
+      },
+      ke: Word {
+        kind: "cmavo",
+        phonemes: "ke",
+        span: [25,27],
+      },
       Relation {
-        "cúsku",
+        Word {
+          kind: "gismu",
+          phonemes: "cusku",
+          span: [28,33],
+        },
         terms: [
-          "zo'e",
+          Word {
+            kind: "cmavo",
+            phonemes: "zo'e",
+            span: [34,38],
+          },
           Name {
-            la: "la",
-            names: ".djan.",
+            la: Word {
+              kind: "cmavo",
+              phonemes: "la",
+              span: [39,41],
+            },
+            names: Word {
+              kind: "cmevla",
+              phonemes: "djan",
+              span: [42,46],
+            },
           },
         ],
       },
-      kehe: "ke'e",
+      kehe: Word {
+        kind: "cmavo",
+        phonemes: "ke'e",
+        span: [49,53],
+      },
     },
   },
 }"""

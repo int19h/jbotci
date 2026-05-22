@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mu'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "greg", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(mu'o mi'e .greg.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mu'o",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi'e",
+    span: [5,9],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "greg",
+    span: [10,14],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mu'o","kind":"cmavo"}},{"Bare":{"span":[5,9],"phonemes":"mi'e","kind":"cmavo"}},{"Bare":{"span":[10,14],"phonemes":"greg","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -40,10 +59,22 @@ Text {
   leading_free_modifiers: [
     Vocative {
       vocative_markers: WithFreeModifiers {
-        "mu'o",
-        "mi'e",
+        Word {
+          kind: "cmavo",
+          phonemes: "mu'o",
+          span: [0,4],
+        },
+        Word {
+          kind: "cmavo",
+          phonemes: "mi'e",
+          span: [5,9],
+        },
       },
-      argument: ".greg.",
+      argument: Word {
+        kind: "cmevla",
+        phonemes: "greg",
+        span: [10,14],
+      },
     },
   ],
 }"""

@@ -32,6 +32,25 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "cu'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), argument: Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "psevdotinkit", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 20, char_start: 8, char_end: 20, start: None, end: None }) }))))], free_modifiers: [] } } }], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(cu'u la .psevdotinkit.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "cu'u",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "psevdotinkit",
+    span: [8,20],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"cu'u","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[8,20],"phonemes":"psevdotinkit","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -40,11 +59,23 @@ Term {
   terms: [
     Tagged {
       tense_modal: Simple {
-        bai: "cu'u",
+        bai: Word {
+          kind: "cmavo",
+          phonemes: "cu'u",
+          span: [0,4],
+        },
       },
       Name {
-        la: "la",
-        names: ".psevdotinkit.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [5,7],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "psevdotinkit",
+          span: [8,20],
+        },
       },
     },
   ],

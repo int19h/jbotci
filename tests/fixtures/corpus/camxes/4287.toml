@@ -38,17 +38,57 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(deĭ na le brídi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "deĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [7,9],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "bridi",
+    span: [10,15],
+  },
+]"""
 json = '[{"Bare":{"span":[0,3],"phonemes":"deĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[10,15],"phonemes":"bridi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Term {
   terms: [
-    "deĭ",
-    "na",
+    Word {
+      kind: "cmavo",
+      phonemes: "deĭ",
+      span: [0,3],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "na",
+      span: [4,6],
+    },
     Descriptor {
-      descriptor: "le",
-      relation: "brídi",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [7,9],
+      },
+      relation: Word {
+        kind: "gismu",
+        phonemes: "bridi",
+        span: [10,15],
+      },
     },
   ],
 }"""

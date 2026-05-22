@@ -37,19 +37,59 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sodva", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "venzmi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 12, char_start: 6, char_end: 12, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [PredicateTailContinuationSyntax { connective: PredicateTail { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "gi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, tense_modal: None, cu: None, predicate_tail: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zabna", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) }))))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, tail_terms: [], vau: None, free_modifiers: [] }] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(sódva vénzmi gi'e zábna)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "sodva",
+    span: [0,5],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "venzmi",
+    span: [6,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "gi'e",
+    span: [13,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zabna",
+    span: [18,23],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"sodva","kind":"gismu"}},{"Bare":{"span":[6,12],"phonemes":"venzmi","kind":"lujvo"}},{"Bare":{"span":[13,17],"phonemes":"gi'e","kind":"cmavo"}},{"Bare":{"span":[18,23],"phonemes":"zabna","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 PredicateTail1 {
   Compound {
-    "sódva",
-    "vénzmi",
+    Word {
+      kind: "gismu",
+      phonemes: "sodva",
+      span: [0,5],
+    },
+    Word {
+      kind: "lujvo",
+      phonemes: "venzmi",
+      span: [6,12],
+    },
   },
   continuations: [
     PredicateTailContinuation {
-      connective: "gi'e",
-      "zábna",
+      connective: Word {
+        kind: "cmavo",
+        phonemes: "gi'e",
+        span: [13,17],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "zabna",
+        span: [18,23],
+      },
     },
   ],
 }"""

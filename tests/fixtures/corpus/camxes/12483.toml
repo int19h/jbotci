@@ -32,19 +32,50 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ŭa", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "ĭe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }), nai: None }], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(.ŭa je'e .ĭe)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭa",
+    span: [1,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je'e",
+    span: [4,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ĭe",
+    span: [10,12],
+  },
+]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭa","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"je'e","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"ĭe","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    ".ŭa",
+    Word {
+      kind: "cmavo",
+      phonemes: "ŭa",
+      span: [1,3],
+    },
   ],
   leading_free_modifiers: [
     Vocative {
       vocative_markers: WithIndicator {
-        "je'e",
-        indicator: ".ĭe",
+        Word {
+          kind: "cmavo",
+          phonemes: "je'e",
+          span: [4,8],
+        },
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ĭe",
+          span: [10,12],
+        },
       },
     },
   ],

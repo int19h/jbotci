@@ -62,24 +62,110 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi cúsku [zo lógji] je naĭ [zo lójbo])"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cusku",
+    span: [3,8],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [9,11],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "logji",
+      span: [12,17],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [20,23],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [24,26],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "lojbo",
+      span: [27,32],
+    },
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"cusku","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[9,11],"phonemes":"zo","kind":"cmavo"},"word":{"span":[12,17],"phonemes":"logji","kind":"gismu"}}},{"Bare":{"span":[18,20],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[20,23],"phonemes":"naĭ","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[24,26],"phonemes":"zo","kind":"cmavo"},"word":{"span":[27,32],"phonemes":"lojbo","kind":"gismu"}}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [0,2],
+    },
   ],
   Relation {
-    "cúsku",
+    Word {
+      kind: "gismu",
+      phonemes: "cusku",
+      span: [3,8],
+    },
     terms: [
       Connected {
-        leading_argument: "zo-«lógji»",
-        connective: Afterthought {
-          "je",
-          nai: "naĭ",
+        leading_argument: ZoQuote {
+          zo: Word {
+            kind: "cmavo",
+            phonemes: "zo",
+            span: [9,11],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "logji",
+            span: [12,17],
+          },
         },
-        trailing_argument: "zo-«lójbo»",
+        connective: Afterthought {
+          Word {
+            kind: "cmavo",
+            phonemes: "je",
+            span: [18,20],
+          },
+          nai: Word {
+            kind: "cmavo",
+            phonemes: "naĭ",
+            span: [20,23],
+          },
+        },
+        trailing_argument: ZoQuote {
+          zo: Word {
+            kind: "cmavo",
+            phonemes: "zo",
+            span: [24,26],
+          },
+          Word {
+            kind: "gismu",
+            phonemes: "lojbo",
+            span: [27,32],
+          },
+        },
       },
     ],
   },

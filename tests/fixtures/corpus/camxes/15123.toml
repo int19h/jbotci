@@ -23,6 +23,15 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "ba"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ba",
+    span: [3,5],
+  },
+]"""
 json = '[{"Bare":{"span":[3,5],"phonemes":"ba","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -30,7 +39,11 @@ tree = """
 Term {
   terms: [
     Tagged {
-      tense_modal: "ba",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ba",
+        span: [3,5],
+      },
       Zohe {},
     },
   ],

@@ -38,20 +38,60 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [In
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.eĭ mi cu kláma)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "eĭ",
+    span: [1,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [4,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [8,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [12,17],
+  },
+]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"klama","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    ".eĭ",
+    Word {
+      kind: "cmavo",
+      phonemes: "eĭ",
+      span: [1,3],
+    },
   ],
   Predicate {
     leading_terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [4,6],
+      },
     ],
-    cu: "cu",
-    "kláma",
+    cu: Word {
+      kind: "cmavo",
+      phonemes: "cu",
+      span: [8,10],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "klama",
+      span: [12,17],
+    },
   },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[4,6],"phonemes":"mi","kind":"cmavo"}}}}}],"cu":{"Bare":{"Bare":{"span":[8,10],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"klama","kind":"gismu"}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"span":[1,3],"phonemes":"eĭ","kind":"cmavo"}}}}]}'

@@ -43,23 +43,72 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi xágji se pa'a do)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "xagji",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pa'a",
+    span: [14,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [19,21],
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"xagji","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"pa'a","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"do","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [3,5],
+    },
   ],
   Relation {
-    "xágji",
+    Word {
+      kind: "gismu",
+      phonemes: "xagji",
+      span: [6,11],
+    },
     terms: [
       Tagged {
         tense_modal: Simple {
-          se: "se",
-          bai: "pa'a",
+          se: Word {
+            kind: "cmavo",
+            phonemes: "se",
+            span: [12,14],
+          },
+          bai: Word {
+            kind: "cmavo",
+            phonemes: "pa'a",
+            span: [14,18],
+          },
         },
-        "do",
+        Word {
+          kind: "cmavo",
+          phonemes: "do",
+          span: [19,21],
+        },
       },
     ],
   },

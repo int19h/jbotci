@@ -22,13 +22,26 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ke'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }))], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "ke'a"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ke'a",
+    span: [3,7],
+  },
+]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"ke'a","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Term {
   terms: [
-    "ke'a",
+    Word {
+      kind: "cmavo",
+      phonemes: "ke'a",
+      span: [3,7],
+    },
   ],
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[3,7],"phonemes":"ke'a","kind":"cmavo"}}}}}]}}}}]}]}"""

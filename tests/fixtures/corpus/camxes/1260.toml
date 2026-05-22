@@ -48,20 +48,78 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mélbi ke cmálu níxli ckúle ke'e)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "melbi",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cmalu",
+    span: [9,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nixli",
+    span: [15,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ckule",
+    span: [21,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ke'e",
+    span: [28,32],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}},{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"cmalu","kind":"gismu"}},{"Bare":{"span":[15,20],"phonemes":"nixli","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"ckule","kind":"gismu"}},{"Bare":{"span":[28,32],"phonemes":"ke'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "mélbi",
+  Word {
+    kind: "gismu",
+    phonemes: "melbi",
+    span: [0,5],
+  },
   Ke {
-    ke: "ke",
-    Compound {
-      "cmálu",
-      "níxli",
-      "ckúle",
+    ke: Word {
+      kind: "cmavo",
+      phonemes: "ke",
+      span: [6,8],
     },
-    kehe: "ke'e",
+    Compound {
+      Word {
+        kind: "gismu",
+        phonemes: "cmalu",
+        span: [9,14],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "nixli",
+        span: [15,20],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "ckule",
+        span: [21,26],
+      },
+    },
+    kehe: Word {
+      kind: "cmavo",
+      phonemes: "ke'e",
+      span: [28,32],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"melbi","kind":"gismu"}}}},{"Ke":{"ke":{"Bare":{"Bare":{"span":[6,8],"phonemes":"ke","kind":"cmavo"}}},"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[9,14],"phonemes":"cmalu","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"nixli","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"ckule","kind":"gismu"}}}}]},"kehe":{"Bare":{"Bare":{"span":[28,32],"phonemes":"ke'e","kind":"cmavo"}}}}}]}}}}}}}}]}]}"""

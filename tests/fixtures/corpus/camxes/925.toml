@@ -68,6 +68,60 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le jeĭ li re su'i re du li vo keĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "jeĭ",
+    span: [3,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [7,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "su'i",
+    span: [13,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du",
+    span: [21,23],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "li",
+    span: [24,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vo",
+    span: [27,29],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "keĭ",
+    span: [31,34],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[3,6],"phonemes":"jeĭ","kind":"cmavo"}},{"Bare":{"span":[7,9],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"su'i","kind":"cmavo"}},{"Bare":{"span":[18,20],"phonemes":"re","kind":"cmavo"}},{"Bare":{"span":[21,23],"phonemes":"du","kind":"cmavo"}},{"Bare":{"span":[24,26],"phonemes":"li","kind":"cmavo"}},{"Bare":{"span":[27,29],"phonemes":"vo","kind":"cmavo"}},{"Bare":{"span":[31,34],"phonemes":"keĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -75,31 +129,71 @@ tree = """
 Term {
   terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [0,2],
+      },
       relation: Abstraction {
-        nu: "jeĭ",
+        nu: Word {
+          kind: "cmavo",
+          phonemes: "jeĭ",
+          span: [3,6],
+        },
         Predicate {
           leading_terms: [
             MathExpression {
-              li: "li",
+              li: Word {
+                kind: "cmavo",
+                phonemes: "li",
+                span: [7,9],
+              },
               Binary {
-                left_expression: "re",
-                operator: "su'i",
-                right_expression: "re",
+                left_expression: Word {
+                  kind: "cmavo",
+                  phonemes: "re",
+                  span: [10,12],
+                },
+                operator: Word {
+                  kind: "cmavo",
+                  phonemes: "su'i",
+                  span: [13,17],
+                },
+                right_expression: Word {
+                  kind: "cmavo",
+                  phonemes: "re",
+                  span: [18,20],
+                },
               },
             },
           ],
           Relation {
-            "du",
+            Word {
+              kind: "cmavo",
+              phonemes: "du",
+              span: [21,23],
+            },
             terms: [
               MathExpression {
-                li: "li",
-                "vo",
+                li: Word {
+                  kind: "cmavo",
+                  phonemes: "li",
+                  span: [24,26],
+                },
+                Word {
+                  kind: "cmavo",
+                  phonemes: "vo",
+                  span: [27,29],
+                },
               },
             ],
           },
         },
-        kei: "keĭ",
+        kei: Word {
+          kind: "cmavo",
+          phonemes: "keĭ",
+          span: [31,34],
+        },
       },
     },
   ],

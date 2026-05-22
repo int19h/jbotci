@@ -33,18 +33,49 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [Bare(WordLike(Bare(Word(Wo
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.carbon. doĭ do)"
+tree = """
+[
+  Word {
+    kind: "cmevla",
+    phonemes: "carbon",
+    span: [0,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "doĭ",
+    span: [8,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [12,14],
+  },
+]"""
 json = '[{"Bare":{"span":[0,6],"phonemes":"carbon","kind":"cmevla"}},{"Bare":{"span":[8,11],"phonemes":"doĭ","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"do","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_cmevla: [
-    ".carbon.",
+    Word {
+      kind: "cmevla",
+      phonemes: "carbon",
+      span: [0,6],
+    },
   ],
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "doĭ",
-      argument: "do",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "doĭ",
+        span: [8,11],
+      },
+      argument: Word {
+        kind: "cmavo",
+        phonemes: "do",
+        span: [12,14],
+      },
     },
   ],
 }"""

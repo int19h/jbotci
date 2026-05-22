@@ -47,6 +47,40 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { descriptor: None, outer_quantifier: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ro", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "pipybanfi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 12, char_start: 3, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "tavla", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None }) })))), free_modifiers: [] })])), relative_clauses: [], ku: None })), Fa { fa: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None }) })))), free_modifiers: [] }, argument: Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "pipyban", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 32, char_start: 25, char_end: 32, start: None, end: None }) }))))], free_modifiers: [] } }, ku: None }], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(ro pipybánfi távla fo la .pipyban.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ro",
+    span: [0,2],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "pipybanfi",
+    span: [3,12],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tavla",
+    span: [13,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fo",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [22,24],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "pipyban",
+    span: [25,32],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"ro","kind":"cmavo"}},{"Bare":{"span":[3,12],"phonemes":"pipybanfi","kind":"lujvo"}},{"Bare":{"span":[13,18],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[19,21],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[25,32],"phonemes":"pipyban","kind":"cmevla"}}]'
 
 [expectations.output.gentufa]
@@ -55,18 +89,42 @@ Term {
   terms: [
     Descriptor {
       tail_elements: [
-        "ro",
+        Word {
+          kind: "cmavo",
+          phonemes: "ro",
+          span: [0,2],
+        },
       ],
       relation: Compound {
-        "pipybánfi",
-        "távla",
+        Word {
+          kind: "lujvo",
+          phonemes: "pipybanfi",
+          span: [3,12],
+        },
+        Word {
+          kind: "gismu",
+          phonemes: "tavla",
+          span: [13,18],
+        },
       },
     },
     Fa {
-      fa: "fo",
+      fa: Word {
+        kind: "cmavo",
+        phonemes: "fo",
+        span: [19,21],
+      },
       Name {
-        la: "la",
-        names: ".pipyban.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [22,24],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "pipyban",
+          span: [25,32],
+        },
       },
     },
   ],

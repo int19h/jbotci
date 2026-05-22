@@ -89,4 +89,80 @@ status = "failure"
 error = { position = 11, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(mu pu cúcli le du'u ma kaŭ no'u la tírno pílno [zo mu'eĭ] zo'o)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mu",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cucli",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [12,14],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "du'u",
+    span: [14,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [19,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "kaŭ",
+    span: [22,25],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "no'u",
+    span: [26,30],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [31,33],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tirno",
+    span: [34,39],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pilno",
+    span: [40,45],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [46,48],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "mu'eĭ",
+      span: [49,54],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'o",
+    span: [55,59],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"cucli","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[14,18],"phonemes":"du'u","kind":"cmavo"}},{"Bare":{"span":[19,21],"phonemes":"ma","kind":"cmavo"}},{"Bare":{"span":[22,25],"phonemes":"kaŭ","kind":"cmavo"}},{"Bare":{"span":[26,30],"phonemes":"no'u","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"tirno","kind":"gismu"}},{"Bare":{"span":[40,45],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[46,48],"phonemes":"zo","kind":"cmavo"},"word":{"span":[49,54],"phonemes":"mu'eĭ","kind":"cmavo"}}},{"Bare":{"span":[55,59],"phonemes":"zo'o","kind":"cmavo"}}]"""

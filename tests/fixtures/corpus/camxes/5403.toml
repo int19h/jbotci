@@ -42,17 +42,66 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "sutra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Connected { leading_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "zmadu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }), connective: Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_unit: Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "smuni", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None }) })))), free_modifiers: [] }) }, Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "dunli", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 26, char_start: 21, char_end: 26, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(sútra zmádu je smúni dúnli)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "sutra",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zmadu",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [12,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "smuni",
+    span: [15,20],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "dunli",
+    span: [21,26],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"sutra","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"zmadu","kind":"gismu"}},{"Bare":{"span":[12,14],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"smuni","kind":"gismu"}},{"Bare":{"span":[21,26],"phonemes":"dunli","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "sútra",
-  Connected {
-    leading_unit: "zmádu",
-    connective: "je",
-    trailing_unit: "smúni",
+  Word {
+    kind: "gismu",
+    phonemes: "sutra",
+    span: [0,5],
   },
-  "dúnli",
+  Connected {
+    leading_unit: Word {
+      kind: "gismu",
+      phonemes: "zmadu",
+      span: [6,11],
+    },
+    connective: Word {
+      kind: "cmavo",
+      phonemes: "je",
+      span: [12,14],
+    },
+    trailing_unit: Word {
+      kind: "gismu",
+      phonemes: "smuni",
+      span: [15,20],
+    },
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "dunli",
+    span: [21,26],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"sutra","kind":"gismu"}}}},{"Connected":{"leading_unit":{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"zmadu","kind":"gismu"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[12,14],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_unit":{"Word":{"Bare":{"Bare":{"span":[15,20],"phonemes":"smuni","kind":"gismu"}}}}}},{"Word":{"Bare":{"Bare":{"span":[21,26],"phonemes":"dunli","kind":"gismu"}}}}]}}}}}}}}]}]}'

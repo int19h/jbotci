@@ -32,13 +32,44 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Connected { leading_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "nalxamji", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None }) }))))), connective: Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "je", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) }))))], free_modifiers: [] }, nai: None }, trailing_relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "fanza", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) }))))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(nalxámji je fánza)"
+tree = """
+[
+  Word {
+    kind: "lujvo",
+    phonemes: "nalxamji",
+    span: [0,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [9,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fanza",
+    span: [12,17],
+  },
+]"""
 json = '[{"Bare":{"span":[0,8],"phonemes":"nalxamji","kind":"lujvo"}},{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[12,17],"phonemes":"fanza","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Connected {
-  leading_relation: "nalxámji",
-  connective: "je",
-  trailing_relation: "fánza",
+  leading_relation: Word {
+    kind: "lujvo",
+    phonemes: "nalxamji",
+    span: [0,8],
+  },
+  connective: Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [9,11],
+  },
+  trailing_relation: Word {
+    kind: "gismu",
+    phonemes: "fanza",
+    span: [12,17],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Connected":{"leading_relation":{"Base":{"Bare":{"Bare":{"span":[0,8],"phonemes":"nalxamji","kind":"lujvo"}}}},"connective":{"Relation":{"cmavo":[{"Bare":{"Bare":{"span":[9,11],"phonemes":"je","kind":"cmavo"}}}]}},"trailing_relation":{"Base":{"Bare":{"Bare":{"span":[12,17],"phonemes":"fanza","kind":"gismu"}}}}}}}}}}}}}]}]}'

@@ -35,6 +35,25 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "eĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "lumci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None }) }))))), terms: [Argument(Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ti", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }))], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(.eĭ lúmci ti)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "eĭ",
+    span: [1,3],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "lumci",
+    span: [4,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ti",
+    span: [10,12],
+  },
+]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"eĭ","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"lumci","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"ti","kind":"cmavo"}}]'
 
 [expectations.output.gentufa]
@@ -42,12 +61,24 @@ brackets = "(.eĭ [lúmci ti])"
 tree = """
 Text {
   leading_indicators: [
-    ".eĭ",
+    Word {
+      kind: "cmavo",
+      phonemes: "eĭ",
+      span: [1,3],
+    },
   ],
   Relation {
-    "lúmci",
+    Word {
+      kind: "gismu",
+      phonemes: "lumci",
+      span: [4,9],
+    },
     terms: [
-      "ti",
+      Word {
+        kind: "cmavo",
+        phonemes: "ti",
+        span: [10,12],
+      },
     ],
   },
 }"""

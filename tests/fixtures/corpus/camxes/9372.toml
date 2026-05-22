@@ -129,6 +129,121 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi nélci lo zu'o pílno [zo lo] nu sítna .i le nu sútra sánji [zo lu] .e [zo li'u] cu nándu)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nelci",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [9,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zu'o",
+    span: [12,16],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pilno",
+    span: [17,22],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [23,25],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "lo",
+      span: [28,30],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [31,33],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sitna",
+    span: [34,39],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [41,42],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [43,45],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [46,48],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sutra",
+    span: [49,54],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "sanji",
+    span: [55,60],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [61,63],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "lu",
+      span: [64,66],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [68,69],
+  },
+  ZoQuote {
+    zo: Word {
+      kind: "cmavo",
+      phonemes: "zo",
+      span: [70,72],
+    },
+    Word {
+      kind: "cmavo",
+      phonemes: "li'u",
+      span: [73,77],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [78,80],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "nandu",
+    span: [81,86],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"nelci","kind":"gismu"}},{"Bare":{"span":[9,11],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"zu'o","kind":"cmavo"}},{"Bare":{"span":[17,22],"phonemes":"pilno","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[23,25],"phonemes":"zo","kind":"cmavo"},"word":{"span":[28,30],"phonemes":"lo","kind":"cmavo"}}},{"Bare":{"span":[31,33],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[34,39],"phonemes":"sitna","kind":"gismu"}},{"Bare":{"span":[41,42],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[43,45],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[46,48],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[49,54],"phonemes":"sutra","kind":"gismu"}},{"Bare":{"span":[55,60],"phonemes":"sanji","kind":"gismu"}},{"ZoQuote":{"zo":{"span":[61,63],"phonemes":"zo","kind":"cmavo"},"word":{"span":[64,66],"phonemes":"lu","kind":"cmavo"}}},{"Bare":{"span":[68,69],"phonemes":"e","kind":"cmavo"}},{"ZoQuote":{"zo":{"span":[70,72],"phonemes":"zo","kind":"cmavo"},"word":{"span":[73,77],"phonemes":"li'u","kind":"cmavo"}}},{"Bare":{"span":[78,80],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[81,86],"phonemes":"nandu","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -136,26 +251,65 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [0,2],
+      },
     ],
     Relation {
-      "nélci",
+      Word {
+        kind: "gismu",
+        phonemes: "nelci",
+        span: [3,8],
+      },
       terms: [
         Descriptor {
-          descriptor: "lo",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "lo",
+            span: [9,11],
+          },
           relation: Compound {
             Abstraction {
-              nu: "zu'o",
+              nu: Word {
+                kind: "cmavo",
+                phonemes: "zu'o",
+                span: [12,16],
+              },
               Relation {
-                "pílno",
+                Word {
+                  kind: "gismu",
+                  phonemes: "pilno",
+                  span: [17,22],
+                },
                 terms: [
-                  "zo-«lo»",
+                  ZoQuote {
+                    zo: Word {
+                      kind: "cmavo",
+                      phonemes: "zo",
+                      span: [23,25],
+                    },
+                    Word {
+                      kind: "cmavo",
+                      phonemes: "lo",
+                      span: [28,30],
+                    },
+                  },
                 ],
               },
             },
             Abstraction {
-              nu: "nu",
-              "sítna",
+              nu: Word {
+                kind: "cmavo",
+                phonemes: "nu",
+                span: [31,33],
+              },
+              Word {
+                kind: "gismu",
+                phonemes: "sitna",
+                span: [34,39],
+              },
             },
           },
         },
@@ -163,31 +317,85 @@ Paragraph {
     },
   },
   ParagraphStatement {
-    i: ".i",
+    i: Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [41,42],
+    },
     Predicate {
       leading_terms: [
         Descriptor {
-          descriptor: "le",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "le",
+            span: [43,45],
+          },
           relation: Abstraction {
-            nu: "nu",
+            nu: Word {
+              kind: "cmavo",
+              phonemes: "nu",
+              span: [46,48],
+            },
             Relation {
               Compound {
-                "sútra",
-                "sánji",
+                Word {
+                  kind: "gismu",
+                  phonemes: "sutra",
+                  span: [49,54],
+                },
+                Word {
+                  kind: "gismu",
+                  phonemes: "sanji",
+                  span: [55,60],
+                },
               },
               terms: [
                 Connected {
-                  leading_argument: "zo-«lu»",
-                  connective: ".e",
-                  trailing_argument: "zo-«li'u»",
+                  leading_argument: ZoQuote {
+                    zo: Word {
+                      kind: "cmavo",
+                      phonemes: "zo",
+                      span: [61,63],
+                    },
+                    Word {
+                      kind: "cmavo",
+                      phonemes: "lu",
+                      span: [64,66],
+                    },
+                  },
+                  connective: Word {
+                    kind: "cmavo",
+                    phonemes: "e",
+                    span: [68,69],
+                  },
+                  trailing_argument: ZoQuote {
+                    zo: Word {
+                      kind: "cmavo",
+                      phonemes: "zo",
+                      span: [70,72],
+                    },
+                    Word {
+                      kind: "cmavo",
+                      phonemes: "li'u",
+                      span: [73,77],
+                    },
+                  },
                 },
               ],
             },
           },
         },
       ],
-      cu: "cu",
-      "nándu",
+      cu: Word {
+        kind: "cmavo",
+        phonemes: "cu",
+        span: [78,80],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "nandu",
+        span: [81,86],
+      },
     },
   },
 }"""

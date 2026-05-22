@@ -32,21 +32,52 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ŭe", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None }) })))), nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ri'a", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) })))), free_modifiers: [] }, nai: None, ki: None }), argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ma", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }) }], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(.ŭe ri'a ma)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ŭe",
+    span: [1,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ri'a",
+    span: [4,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ma",
+    span: [9,11],
+  },
+]"""
 json = """[{"Bare":{"span":[1,3],"phonemes":"ŭe","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"ri'a","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"ma","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Text {
   leading_indicators: [
-    ".ŭe",
+    Word {
+      kind: "cmavo",
+      phonemes: "ŭe",
+      span: [1,3],
+    },
   ],
   Term {
     terms: [
       Tagged {
         tense_modal: Simple {
-          bai: "ri'a",
+          bai: Word {
+            kind: "cmavo",
+            phonemes: "ri'a",
+            span: [4,8],
+          },
         },
-        "ma",
+        Word {
+          kind: "cmavo",
+          phonemes: "ma",
+          span: [9,11],
+        },
       },
     ],
   },

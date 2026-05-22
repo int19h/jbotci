@@ -46,4 +46,33 @@ error = { position = 0, allowed-next = [], message = """Syntax parse error; expe
 xfail = { source = "muplis", reason = "pu je nai is an incomplete connected tense/modal form; camxes beta/experimental reject this form too.", accepted-status = "failure" }
 
 [expectations.output.vlasei]
+brackets = "(do pu je naĭ mórji)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "je",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [7,10],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "morji",
+    span: [11,16],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"je","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[11,16],"phonemes":"morji","kind":"gismu"}}]'

@@ -38,17 +38,57 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(cu na ca zásti)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "na",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ca",
+    span: [6,8],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "zasti",
+    span: [9,14],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"na","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"ca","kind":"cmavo"}},{"Bare":{"span":[9,14],"phonemes":"zasti","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [0,2],
+  },
   Na {
-    na: "na",
+    na: Word {
+      kind: "cmavo",
+      phonemes: "na",
+      span: [3,5],
+    },
     TenseModal {
-      tense_modal: "ca",
-      "zásti",
+      tense_modal: Word {
+        kind: "cmavo",
+        phonemes: "ca",
+        span: [6,8],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "zasti",
+        span: [9,14],
+      },
     },
   },
 }"""

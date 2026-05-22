@@ -47,6 +47,40 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "coĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) }))))], free_modifiers: [] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(WithIndicator { base: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "a'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None }) }), nai: Some(Word(WordData { kind: Cmavo, phonemes: "naĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None }) })) }, indicator: Word(WordData { kind: Cmavo, phonemes: "ro'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "ro'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None }) }), nai: None }), connective: None, free_modifiers: [], statement: None }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(coĭ .i .a'e naĭ ro'o ro'i)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "coĭ",
+    span: [0,3],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [5,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "a'e",
+    span: [7,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "naĭ",
+    span: [10,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro'o",
+    span: [13,17],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ro'i",
+    span: [17,21],
+  },
+]"""
 json = """[{"Bare":{"span":[0,3],"phonemes":"coĭ","kind":"cmavo"}},{"Bare":{"span":[5,6],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[7,10],"phonemes":"a'e","kind":"cmavo"}},{"Bare":{"span":[10,13],"phonemes":"naĭ","kind":"cmavo"}},{"Bare":{"span":[13,17],"phonemes":"ro'o","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ro'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -54,20 +88,44 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "coĭ",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "coĭ",
+        span: [0,3],
+      },
     },
   ],
   ParagraphStatement {
     i: WithIndicator {
       WithIndicator {
         WithIndicator {
-          ".i",
-          indicator: ".a'e",
-          nai: "naĭ",
+          Word {
+            kind: "cmavo",
+            phonemes: "i",
+            span: [5,6],
+          },
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "a'e",
+            span: [7,10],
+          },
+          nai: Word {
+            kind: "cmavo",
+            phonemes: "naĭ",
+            span: [10,13],
+          },
         },
-        indicator: "ro'o",
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "ro'o",
+          span: [13,17],
+        },
       },
-      indicator: "ro'i",
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ro'i",
+        span: [17,21],
+      },
     },
   },
 }"""

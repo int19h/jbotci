@@ -48,6 +48,40 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(vi'o do'u mi jdíce tu'a di'u)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "vi'o",
+    span: [3,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do'u",
+    span: [8,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [13,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jdice",
+    span: [16,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "tu'a",
+    span: [22,26],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "di'u",
+    span: [27,31],
+  },
+]"""
 json = """[{"Bare":{"span":[3,7],"phonemes":"vi'o","kind":"cmavo"}},{"Bare":{"span":[8,12],"phonemes":"do'u","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"jdice","kind":"gismu"}},{"Bare":{"span":[22,26],"phonemes":"tu'a","kind":"cmavo"}},{"Bare":{"span":[27,31],"phonemes":"di'u","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -55,20 +89,44 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "vi'o",
-      dohu: "do'u",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "vi'o",
+        span: [3,7],
+      },
+      dohu: Word {
+        kind: "cmavo",
+        phonemes: "do'u",
+        span: [8,12],
+      },
     },
   ],
   Predicate {
     leading_terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [13,15],
+      },
     ],
     Relation {
-      "jdíce",
+      Word {
+        kind: "gismu",
+        phonemes: "jdice",
+        span: [16,21],
+      },
       terms: [
         Lahe {
-          lahe: "tu'a",
-          "di'u",
+          lahe: Word {
+            kind: "cmavo",
+            phonemes: "tu'a",
+            span: [22,26],
+          },
+          Word {
+            kind: "cmavo",
+            phonemes: "di'u",
+            span: [27,31],
+          },
         },
       ],
     },

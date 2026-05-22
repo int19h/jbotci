@@ -87,38 +87,169 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(.i mi pílno me'o [{zo .u} bu] mu'i le nu mi tolcértu batkycí'a)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [3,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pilno",
+    span: [6,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "me'o",
+    span: [12,16],
+  },
+  Letter {
+    ZoQuote {
+      zo: Word {
+        kind: "cmavo",
+        phonemes: "zo",
+        span: [17,19],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "u",
+        span: [20,21],
+      },
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [21,23],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mu'i",
+    span: [24,28],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [29,31],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "nu",
+    span: [31,33],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [34,36],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "tolcertu",
+    span: [37,45],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "batkyci'a",
+    span: [46,55],
+  },
+]"""
 json = """[{"Bare":{"span":[1,2],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[3,5],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[6,11],"phonemes":"pilno","kind":"gismu"}},{"Bare":{"span":[12,16],"phonemes":"me'o","kind":"cmavo"}},{"Letter":{"base":{"ZoQuote":{"zo":{"span":[17,19],"phonemes":"zo","kind":"cmavo"},"word":{"span":[20,21],"phonemes":"u","kind":"cmavo"}}},"bu":{"span":[21,23],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[24,28],"phonemes":"mu'i","kind":"cmavo"}},{"Bare":{"span":[29,31],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[31,33],"phonemes":"nu","kind":"cmavo"}},{"Bare":{"span":[34,36],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[37,45],"phonemes":"tolcertu","kind":"lujvo"}},{"Bare":{"span":[46,55],"phonemes":"batkyci'a","kind":"lujvo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement {
-  i: ".i",
+  i: Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [1,2],
+  },
   Predicate {
     leading_terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [3,5],
+      },
     ],
     Relation {
-      "pílno",
+      Word {
+        kind: "gismu",
+        phonemes: "pilno",
+        span: [6,11],
+      },
       terms: [
         MathExpression {
-          li: "me'o",
-          "zo-«.u»-bu",
+          li: Word {
+            kind: "cmavo",
+            phonemes: "me'o",
+            span: [12,16],
+          },
+          Letter {
+            ZoQuote {
+              zo: Word {
+                kind: "cmavo",
+                phonemes: "zo",
+                span: [17,19],
+              },
+              Word {
+                kind: "cmavo",
+                phonemes: "u",
+                span: [20,21],
+              },
+            },
+            bu: Word {
+              kind: "cmavo",
+              phonemes: "bu",
+              span: [21,23],
+            },
+          },
         },
         Tagged {
           tense_modal: Simple {
-            bai: "mu'i",
+            bai: Word {
+              kind: "cmavo",
+              phonemes: "mu'i",
+              span: [24,28],
+            },
           },
           Descriptor {
-            descriptor: "le",
+            descriptor: Word {
+              kind: "cmavo",
+              phonemes: "le",
+              span: [29,31],
+            },
             relation: Abstraction {
-              nu: "nu",
+              nu: Word {
+                kind: "cmavo",
+                phonemes: "nu",
+                span: [31,33],
+              },
               Predicate {
                 leading_terms: [
-                  "mi",
+                  Word {
+                    kind: "cmavo",
+                    phonemes: "mi",
+                    span: [34,36],
+                  },
                 ],
                 Compound {
-                  "tolcértu",
-                  "batkycí'a",
+                  Word {
+                    kind: "lujvo",
+                    phonemes: "tolcertu",
+                    span: [37,45],
+                  },
+                  Word {
+                    kind: "lujvo",
+                    phonemes: "batkyci'a",
+                    span: [46,55],
+                  },
                 },
               },
             },

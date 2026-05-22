@@ -32,16 +32,47 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "casnu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) }))))), terms: [Argument(Lahe { lahe: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }, relative_clauses: [], inner_argument: Koha(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "deĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 14, char_start: 11, char_end: 14, start: None, end: None }) })))), free_modifiers: [] }), luhu: None })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(cásnu la'e deĭ)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "casnu",
+    span: [0,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la'e",
+    span: [6,10],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "deĭ",
+    span: [11,14],
+  },
+]"""
 json = """[{"Bare":{"span":[0,5],"phonemes":"casnu","kind":"gismu"}},{"Bare":{"span":[6,10],"phonemes":"la'e","kind":"cmavo"}},{"Bare":{"span":[11,14],"phonemes":"deĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 Relation {
-  "cásnu",
+  Word {
+    kind: "gismu",
+    phonemes: "casnu",
+    span: [0,5],
+  },
   terms: [
     Lahe {
-      lahe: "la'e",
-      "deĭ",
+      lahe: Word {
+        kind: "cmavo",
+        phonemes: "la'e",
+        span: [6,10],
+      },
+      Word {
+        kind: "cmavo",
+        phonemes: "deĭ",
+        span: [11,14],
+      },
     },
   ],
 }"""

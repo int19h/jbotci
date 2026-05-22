@@ -43,22 +43,71 @@ raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [],
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi píkci fo lo ckáfi)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [1,3],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "pikci",
+    span: [4,9],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fo",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "lo",
+    span: [13,15],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "ckafi",
+    span: [16,21],
+  },
+]"""
 json = '[{"Bare":{"span":[1,3],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,9],"phonemes":"pikci","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"fo","kind":"cmavo"}},{"Bare":{"span":[13,15],"phonemes":"lo","kind":"cmavo"}},{"Bare":{"span":[16,21],"phonemes":"ckafi","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Predicate {
   leading_terms: [
-    "mi",
+    Word {
+      kind: "cmavo",
+      phonemes: "mi",
+      span: [1,3],
+    },
   ],
   Relation {
-    "píkci",
+    Word {
+      kind: "gismu",
+      phonemes: "pikci",
+      span: [4,9],
+    },
     terms: [
       Fa {
-        fa: "fo",
+        fa: Word {
+          kind: "cmavo",
+          phonemes: "fo",
+          span: [10,12],
+        },
         Descriptor {
-          descriptor: "lo",
-          relation: "ckáfi",
+          descriptor: Word {
+            kind: "cmavo",
+            phonemes: "lo",
+            span: [13,15],
+          },
+          relation: Word {
+            kind: "gismu",
+            phonemes: "ckafi",
+            span: [16,21],
+          },
         },
       },
     ],

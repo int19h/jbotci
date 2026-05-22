@@ -47,6 +47,40 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(RelativeClause { base_argument: Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "unríl", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None }) }))))], free_modifiers: [] } }, vuho: None, relative_clauses: [Poi { poi: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "poĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None }) })))), free_modifiers: [] }, subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "nuncatra", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 21, char_start: 13, char_end: 21, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "skami", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Lujvo, phonemes: "selkeĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 34, char_start: 28, char_end: 34, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kuho: None }] })], vau: None })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(la .unril. poĭ nuncátra skámi sélkeĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "unríl",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "poĭ",
+    span: [9,12],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "nuncatra",
+    span: [13,21],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "skami",
+    span: [22,27],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "selkeĭ",
+    span: [28,34],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"unríl","kind":"cmevla"}},{"Bare":{"span":[9,12],"phonemes":"poĭ","kind":"cmavo"}},{"Bare":{"span":[13,21],"phonemes":"nuncatra","kind":"lujvo"}},{"Bare":{"span":[22,27],"phonemes":"skami","kind":"gismu"}},{"Bare":{"span":[28,34],"phonemes":"selkeĭ","kind":"lujvo"}}]'
 
 [expectations.output.gentufa]
@@ -55,16 +89,40 @@ Term {
   terms: [
     RelativeClause {
       base_argument: Name {
-        la: "la",
-        names: ".unril.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [0,2],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "unríl",
+          span: [3,8],
+        },
       },
       relative_clauses: [
         Poi {
-          poi: "poĭ",
+          poi: Word {
+            kind: "cmavo",
+            phonemes: "poĭ",
+            span: [9,12],
+          },
           Compound {
-            "nuncátra",
-            "skámi",
-            "sélkeĭ",
+            Word {
+              kind: "lujvo",
+              phonemes: "nuncatra",
+              span: [13,21],
+            },
+            Word {
+              kind: "gismu",
+              phonemes: "skami",
+              span: [22,27],
+            },
+            Word {
+              kind: "lujvo",
+              phonemes: "selkeĭ",
+              span: [28,34],
+            },
           },
         },
       ],

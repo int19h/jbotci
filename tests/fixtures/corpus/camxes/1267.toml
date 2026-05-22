@@ -58,6 +58,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(mi cu kláma .i ji'a do cu stáli)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [4,6],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "klama",
+    span: [8,13],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [15,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ji'a",
+    span: [17,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [22,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [26,28],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "stali",
+    span: [30,35],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[4,6],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[8,13],"phonemes":"klama","kind":"gismu"}},{"Bare":{"span":[15,16],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"ji'a","kind":"cmavo"}},{"Bare":{"span":[22,24],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[26,28],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[30,35],"phonemes":"stali","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -65,22 +109,54 @@ tree = """
 Paragraph {
   Predicate {
     leading_terms: [
-      "mi",
+      Word {
+        kind: "cmavo",
+        phonemes: "mi",
+        span: [0,2],
+      },
     ],
-    cu: "cu",
-    "kláma",
+    cu: Word {
+      kind: "cmavo",
+      phonemes: "cu",
+      span: [4,6],
+    },
+    Word {
+      kind: "gismu",
+      phonemes: "klama",
+      span: [8,13],
+    },
   },
   ParagraphStatement {
     i: WithIndicator {
-      ".i",
-      indicator: "ji'a",
+      Word {
+        kind: "cmavo",
+        phonemes: "i",
+        span: [15,16],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ji'a",
+        span: [17,21],
+      },
     },
     Predicate {
       leading_terms: [
-        "do",
+        Word {
+          kind: "cmavo",
+          phonemes: "do",
+          span: [22,24],
+        },
       ],
-      cu: "cu",
-      "stáli",
+      cu: Word {
+        kind: "cmavo",
+        phonemes: "cu",
+        span: [26,28],
+      },
+      Word {
+        kind: "gismu",
+        phonemes: "stali",
+        span: [30,35],
+      },
     },
   },
 }"""

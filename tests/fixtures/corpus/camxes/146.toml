@@ -83,4 +83,74 @@ status = "failure"
 error = { position = 1, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "([zoĭ doĭ moooo doĭ] co .e [zoĭ zoĭ Katamari Damacy zoĭ] cu cízra se kélci)"
+tree = """
+[
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [0,3],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "doĭ",
+      span: [4,7],
+    },
+    quoted_text: [7,13],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "doĭ",
+      span: [14,17],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "co",
+    span: [18,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "e",
+    span: [22,23],
+  },
+  ZoiQuote {
+    zoi: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [64,67],
+    },
+    opening_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [68,71],
+    },
+    quoted_text: [71,87],
+    closing_delimiter: Word {
+      kind: "cmavo",
+      phonemes: "zoĭ",
+      span: [88,91],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [92,94],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cizra",
+    span: [95,100],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "se",
+    span: [101,103],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "kelci",
+    span: [104,109],
+  },
+]"""
 json = '[{"ZoiQuote":{"zoi":{"span":[0,3],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[4,7],"phonemes":"doĭ","kind":"cmavo"},"quoted_text":[7,13],"closing_delimiter":{"span":[14,17],"phonemes":"doĭ","kind":"cmavo"}}},{"Bare":{"span":[18,20],"phonemes":"co","kind":"cmavo"}},{"Bare":{"span":[22,23],"phonemes":"e","kind":"cmavo"}},{"ZoiQuote":{"zoi":{"span":[64,67],"phonemes":"zoĭ","kind":"cmavo"},"opening_delimiter":{"span":[68,71],"phonemes":"zoĭ","kind":"cmavo"},"quoted_text":[71,87],"closing_delimiter":{"span":[88,91],"phonemes":"zoĭ","kind":"cmavo"}}},{"Bare":{"span":[92,94],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[95,100],"phonemes":"cizra","kind":"gismu"}},{"Bare":{"span":[101,103],"phonemes":"se","kind":"cmavo"}},{"Bare":{"span":[104,109],"phonemes":"kelci","kind":"gismu"}}]'

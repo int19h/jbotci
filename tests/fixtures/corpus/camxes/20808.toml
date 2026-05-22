@@ -47,6 +47,40 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator(IndicatorData { indicator: WithIndicator { base: WithIndicator { base: WithIndicator { base: WithIndicator { base: WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "o'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 4, char_start: 1, char_end: 4, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "cu'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "oĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "ru'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "zo'o", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None }) }), nai: None }, indicator: Word(WordData { kind: Cmavo, phonemes: "ru'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 25, char_start: 21, char_end: 25, start: None, end: None }) }), nai: None }, nai: None })], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(.o'o cu'i .oĭ ru'e zo'o ru'e)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "o'o",
+    span: [1,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu'i",
+    span: [4,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "oĭ",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ru'e",
+    span: [12,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "zo'o",
+    span: [17,21],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ru'e",
+    span: [21,25],
+  },
+]"""
 json = """[{"Bare":{"span":[1,4],"phonemes":"o'o","kind":"cmavo"}},{"Bare":{"span":[4,8],"phonemes":"cu'i","kind":"cmavo"}},{"Bare":{"span":[10,12],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[17,21],"phonemes":"zo'o","kind":"cmavo"}},{"Bare":{"span":[21,25],"phonemes":"ru'e","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -58,16 +92,40 @@ Text {
         WithIndicator {
           WithIndicator {
             WithIndicator {
-              ".o'o",
-              indicator: "cu'i",
+              Word {
+                kind: "cmavo",
+                phonemes: "o'o",
+                span: [1,4],
+              },
+              indicator: Word {
+                kind: "cmavo",
+                phonemes: "cu'i",
+                span: [4,8],
+              },
             },
-            indicator: ".oĭ",
+            indicator: Word {
+              kind: "cmavo",
+              phonemes: "oĭ",
+              span: [10,12],
+            },
           },
-          indicator: "ru'e",
+          indicator: Word {
+            kind: "cmavo",
+            phonemes: "ru'e",
+            span: [12,16],
+          },
         },
-        indicator: "zo'o",
+        indicator: Word {
+          kind: "cmavo",
+          phonemes: "zo'o",
+          span: [17,21],
+        },
       },
-      indicator: "ru'e",
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "ru'e",
+        span: [21,25],
+      },
     },
   ],
 }"""

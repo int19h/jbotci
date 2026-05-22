@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ju'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "araĭzen", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 12, char_start: 5, char_end: 12, start: None, end: None }) }))))], free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [WithIndicator { base: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "re'i", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None }) })))), indicator: Word(WordData { kind: Cmavo, phonemes: "peĭ", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 21, char_start: 18, char_end: 21, start: None, end: None }) }), nai: None }], free_modifiers: [] }, argument: None, dohu: None }] })), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(ju'i .araĭzen. re'i peĭ)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ju'i",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "araĭzen",
+    span: [5,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "re'i",
+    span: [14,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "peĭ",
+    span: [18,21],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"ju'i","kind":"cmavo"}},{"Bare":{"span":[5,12],"phonemes":"araĭzen","kind":"cmevla"}},{"Bare":{"span":[14,18],"phonemes":"re'i","kind":"cmavo"}},{"Bare":{"span":[18,21],"phonemes":"peĭ","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -44,14 +68,30 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "ju'i",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "ju'i",
+        span: [0,4],
+      },
       argument: WithFreeModifiers {
-        ".araĭzen.",
+        Word {
+          kind: "cmevla",
+          phonemes: "araĭzen",
+          span: [5,12],
+        },
         free_modifiers: [
           Vocative {
             vocative_markers: WithIndicator {
-              "re'i",
-              indicator: "peĭ",
+              Word {
+                kind: "cmavo",
+                phonemes: "re'i",
+                span: [14,18],
+              },
+              indicator: Word {
+                kind: "cmavo",
+                phonemes: "peĭ",
+                span: [18,21],
+              },
             },
           },
         ],

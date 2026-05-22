@@ -32,13 +32,44 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "ci", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "fi'u", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 6, char_start: 2, char_end: 6, start: None, end: None }) })))), Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "vo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None }) }))))], free_modifiers: [] }, boi: None })))) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(ci fi'u vo)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi'u",
+    span: [2,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vo",
+    span: [6,8],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"ci","kind":"cmavo"}},{"Bare":{"span":[2,6],"phonemes":"fi'u","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"vo","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
 tree = """
 WithFreeModifiers {
-  "ci",
-  "fi'u",
-  "vo",
+  Word {
+    kind: "cmavo",
+    phonemes: "ci",
+    span: [0,2],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "fi'u",
+    span: [2,6],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vo",
+    span: [6,8],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"span":[0,2],"phonemes":"ci","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[2,6],"phonemes":"fi'u","kind":"cmavo"}}},{"Bare":{"Bare":{"span":[6,8],"phonemes":"vo","kind":"cmavo"}}}]}}}}}}]}]}"""

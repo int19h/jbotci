@@ -96,4 +96,87 @@ status = "failure"
 error = { position = 13, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(mi fénki .i mi távla baŭ la fásybaŭ vi la [.a bu] [.i bu] my)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "fenki",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "i",
+    span: [10,11],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [12,14],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tavla",
+    span: [15,20],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "baŭ",
+    span: [21,24],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [25,27],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "fasybaŭ",
+    span: [28,35],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "vi",
+    span: [36,38],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [39,41],
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "a",
+      span: [42,43],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [43,45],
+    },
+  },
+  Letter {
+    Word {
+      kind: "cmavo",
+      phonemes: "i",
+      span: [46,47],
+    },
+    bu: Word {
+      kind: "cmavo",
+      phonemes: "bu",
+      span: [47,49],
+    },
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "my",
+    span: [50,52],
+  },
+]"""
 json = '[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"fenki","kind":"gismu"}},{"Bare":{"span":[10,11],"phonemes":"i","kind":"cmavo"}},{"Bare":{"span":[12,14],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[15,20],"phonemes":"tavla","kind":"gismu"}},{"Bare":{"span":[21,24],"phonemes":"baŭ","kind":"cmavo"}},{"Bare":{"span":[25,27],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[28,35],"phonemes":"fasybaŭ","kind":"lujvo"}},{"Bare":{"span":[36,38],"phonemes":"vi","kind":"cmavo"}},{"Bare":{"span":[39,41],"phonemes":"la","kind":"cmavo"}},{"Letter":{"base":{"Bare":{"span":[42,43],"phonemes":"a","kind":"cmavo"}},"bu":{"span":[43,45],"phonemes":"bu","kind":"cmavo"}}},{"Letter":{"base":{"Bare":{"span":[46,47],"phonemes":"i","kind":"cmavo"}},"bu":{"span":[47,49],"phonemes":"bu","kind":"cmavo"}}},{"Bare":{"span":[50,52],"phonemes":"my","kind":"cmavo"}}]'

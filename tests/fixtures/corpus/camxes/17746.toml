@@ -37,6 +37,30 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(NaheBo { nahe: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "no'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) })))), bo: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "bo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None }) })))), free_modifiers: [] }, inner_argument: Name { la: WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "la", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None }) })))), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "tinkit", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 17, char_start: 11, char_end: 17, start: None, end: None }) }))))], free_modifiers: [] } }, luhu: None })], vau: None })) }] }] }"""
 
 [expectations.output.vlasei]
+brackets = "(no'e bo la .tinkit.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "no'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "bo",
+    span: [5,7],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "la",
+    span: [8,10],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "tinkit",
+    span: [11,17],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"no'e","kind":"cmavo"}},{"Bare":{"span":[5,7],"phonemes":"bo","kind":"cmavo"}},{"Bare":{"span":[8,10],"phonemes":"la","kind":"cmavo"}},{"Bare":{"span":[11,17],"phonemes":"tinkit","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -44,11 +68,27 @@ tree = """
 Term {
   terms: [
     NaheBo {
-      nahe: "no'e",
-      bo: "bo",
+      nahe: Word {
+        kind: "cmavo",
+        phonemes: "no'e",
+        span: [0,4],
+      },
+      bo: Word {
+        kind: "cmavo",
+        phonemes: "bo",
+        span: [5,7],
+      },
       Name {
-        la: "la",
-        names: ".tinkit.",
+        la: Word {
+          kind: "cmavo",
+          phonemes: "la",
+          span: [8,10],
+        },
+        names: Word {
+          kind: "cmevla",
+          phonemes: "tinkit",
+          span: [11,17],
+        },
       },
     },
   ],

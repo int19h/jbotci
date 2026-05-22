@@ -38,6 +38,30 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(brífe .oĭ ru'e .u'i)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "brife",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "oĭ",
+    span: [10,12],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "ru'e",
+    span: [12,16],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "u'i",
+    span: [17,20],
+  },
+]"""
 json = """[{"Bare":{"span":[3,8],"phonemes":"brife","kind":"gismu"}},{"Bare":{"span":[10,12],"phonemes":"oĭ","kind":"cmavo"}},{"Bare":{"span":[12,16],"phonemes":"ru'e","kind":"cmavo"}},{"Bare":{"span":[17,20],"phonemes":"u'i","kind":"cmavo"}}]"""
 
 [expectations.output.gentufa]
@@ -45,11 +69,27 @@ tree = """
 WithIndicator {
   WithIndicator {
     WithIndicator {
-      "brífe",
-      indicator: ".oĭ",
+      Word {
+        kind: "gismu",
+        phonemes: "brife",
+        span: [3,8],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "oĭ",
+        span: [10,12],
+      },
     },
-    indicator: "ru'e",
+    indicator: Word {
+      kind: "cmavo",
+      phonemes: "ru'e",
+      span: [12,16],
+    },
   },
-  indicator: ".u'i",
+  indicator: Word {
+    kind: "cmavo",
+    phonemes: "u'i",
+    span: [17,20],
+  },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[3,8],"phonemes":"brife","kind":"gismu"}}},"indicator":{"span":[10,12],"phonemes":"oĭ","kind":"cmavo"}}},"indicator":{"span":[12,16],"phonemes":"ru'e","kind":"cmavo"}}},"indicator":{"span":[17,20],"phonemes":"u'i","kind":"cmavo"}}}}}}}}}}}]}]}"""

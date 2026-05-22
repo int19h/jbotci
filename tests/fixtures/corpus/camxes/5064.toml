@@ -58,6 +58,50 @@ raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
+brackets = "(le do pu sélvla cu lógji pe'a cúkla)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [3,5],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "do",
+    span: [6,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pu",
+    span: [9,11],
+  },
+  Word {
+    kind: "lujvo",
+    phonemes: "selvla",
+    span: [12,18],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [19,21],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "logji",
+    span: [22,27],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "pe'a",
+    span: [28,32],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cukla",
+    span: [33,38],
+  },
+]"""
 json = """[{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}},{"Bare":{"span":[9,11],"phonemes":"pu","kind":"cmavo"}},{"Bare":{"span":[12,18],"phonemes":"selvla","kind":"lujvo"}},{"Bare":{"span":[19,21],"phonemes":"cu","kind":"cmavo"}},{"Bare":{"span":[22,27],"phonemes":"logji","kind":"gismu"}},{"Bare":{"span":[28,32],"phonemes":"pe'a","kind":"cmavo"}},{"Bare":{"span":[33,38],"phonemes":"cukla","kind":"gismu"}}]"""
 
 [expectations.output.gentufa]
@@ -65,23 +109,55 @@ tree = """
 Predicate {
   leading_terms: [
     Descriptor {
-      descriptor: "le",
+      descriptor: Word {
+        kind: "cmavo",
+        phonemes: "le",
+        span: [3,5],
+      },
       tail_elements: [
-        "do",
+        Word {
+          kind: "cmavo",
+          phonemes: "do",
+          span: [6,8],
+        },
       ],
       relation: TenseModal {
-        tense_modal: "pu",
-        "sélvla",
+        tense_modal: Word {
+          kind: "cmavo",
+          phonemes: "pu",
+          span: [9,11],
+        },
+        Word {
+          kind: "lujvo",
+          phonemes: "selvla",
+          span: [12,18],
+        },
       },
     },
   ],
-  cu: "cu",
+  cu: Word {
+    kind: "cmavo",
+    phonemes: "cu",
+    span: [19,21],
+  },
   Compound {
     WithIndicator {
-      "lógji",
-      indicator: "pe'a",
+      Word {
+        kind: "gismu",
+        phonemes: "logji",
+        span: [22,27],
+      },
+      indicator: Word {
+        kind: "cmavo",
+        phonemes: "pe'a",
+        span: [28,32],
+      },
     },
-    "cúkla",
+    Word {
+      kind: "gismu",
+      phonemes: "cukla",
+      span: [33,38],
+    },
   },
 }"""
 json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"span":[3,5],"phonemes":"le","kind":"cmavo"}}},"tail_elements":[{"Argument":{"Koha":{"Bare":{"Bare":{"span":[6,8],"phonemes":"do","kind":"cmavo"}}}}}],"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"span":[9,11],"phonemes":"pu","kind":"cmavo"}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"span":[12,18],"phonemes":"selvla","kind":"lujvo"}}}}}}}}}],"cu":{"Bare":{"Bare":{"span":[19,21],"phonemes":"cu","kind":"cmavo"}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"WithIndicator":{"base":{"Bare":{"Bare":{"span":[22,27],"phonemes":"logji","kind":"gismu"}}},"indicator":{"span":[28,32],"phonemes":"pe'a","kind":"cmavo"}}}},{"Word":{"Bare":{"Bare":{"span":[33,38],"phonemes":"cukla","kind":"gismu"}}}}]}}}}}}}}]}]}"""

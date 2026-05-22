@@ -42,15 +42,64 @@ status = "success"
 raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Compound([Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "broda", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "brode", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "brodi", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "brodo", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 23, char_start: 18, char_end: 23, start: None, end: None }) })))), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(WordLike(Bare(Word(WordData { kind: Gismu, phonemes: "brodu", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 29, char_start: 24, char_end: 29, start: None, end: None }) })))), free_modifiers: [] })]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.output.vlasei]
+brackets = "(bróda bróde bródi bródo bródu)"
+tree = """
+[
+  Word {
+    kind: "gismu",
+    phonemes: "broda",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brode",
+    span: [6,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brodi",
+    span: [12,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brodo",
+    span: [18,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brodu",
+    span: [24,29],
+  },
+]"""
 json = '[{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}},{"Bare":{"span":[6,11],"phonemes":"brode","kind":"gismu"}},{"Bare":{"span":[12,17],"phonemes":"brodi","kind":"gismu"}},{"Bare":{"span":[18,23],"phonemes":"brodo","kind":"gismu"}},{"Bare":{"span":[24,29],"phonemes":"brodu","kind":"gismu"}}]'
 
 [expectations.output.gentufa]
 tree = """
 Compound {
-  "bróda",
-  "bróde",
-  "bródi",
-  "bródo",
-  "bródu",
+  Word {
+    kind: "gismu",
+    phonemes: "broda",
+    span: [0,5],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brode",
+    span: [6,11],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brodi",
+    span: [12,17],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brodo",
+    span: [18,23],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "brodu",
+    span: [24,29],
+  },
 }"""
 json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Compound":[{"Word":{"Bare":{"Bare":{"span":[0,5],"phonemes":"broda","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[6,11],"phonemes":"brode","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[12,17],"phonemes":"brodi","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[18,23],"phonemes":"brodo","kind":"gismu"}}}},{"Word":{"Bare":{"Bare":{"span":[24,29],"phonemes":"brodu","kind":"gismu"}}}}]}}}}}}}}]}]}'

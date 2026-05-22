@@ -52,4 +52,43 @@ status = "failure"
 error = { position = 3, allowed-next = [] }
 
 [expectations.output.vlasei]
+brackets = "(mi jbéna va'o cníta le lítru tárci)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi",
+    span: [0,2],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "jbena",
+    span: [3,8],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "va'o",
+    span: [9,13],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "cnita",
+    span: [14,19],
+  },
+  Word {
+    kind: "cmavo",
+    phonemes: "le",
+    span: [20,22],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "litru",
+    span: [23,28],
+  },
+  Word {
+    kind: "gismu",
+    phonemes: "tarci",
+    span: [29,34],
+  },
+]"""
 json = """[{"Bare":{"span":[0,2],"phonemes":"mi","kind":"cmavo"}},{"Bare":{"span":[3,8],"phonemes":"jbena","kind":"gismu"}},{"Bare":{"span":[9,13],"phonemes":"va'o","kind":"cmavo"}},{"Bare":{"span":[14,19],"phonemes":"cnita","kind":"gismu"}},{"Bare":{"span":[20,22],"phonemes":"le","kind":"cmavo"}},{"Bare":{"span":[23,28],"phonemes":"litru","kind":"gismu"}},{"Bare":{"span":[29,34],"phonemes":"tarci","kind":"gismu"}}]"""

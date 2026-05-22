@@ -27,6 +27,20 @@ status = "success"
 raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmavo, phonemes: "mi'e", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None }) }))))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(WordLike(Bare(Word(WordData { kind: Cmevla, phonemes: "djorden", span: SourceSpan(SourceSpanData { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 13, char_start: 6, char_end: 13, start: None, end: None }) }))))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.output.vlasei]
+brackets = "(mi'e .djorden.)"
+tree = """
+[
+  Word {
+    kind: "cmavo",
+    phonemes: "mi'e",
+    span: [0,4],
+  },
+  Word {
+    kind: "cmevla",
+    phonemes: "djorden",
+    span: [6,13],
+  },
+]"""
 json = """[{"Bare":{"span":[0,4],"phonemes":"mi'e","kind":"cmavo"}},{"Bare":{"span":[6,13],"phonemes":"djorden","kind":"cmevla"}}]"""
 
 [expectations.output.gentufa]
@@ -34,8 +48,16 @@ tree = """
 Text {
   leading_free_modifiers: [
     Vocative {
-      vocative_markers: "mi'e",
-      argument: ".djorden.",
+      vocative_markers: Word {
+        kind: "cmavo",
+        phonemes: "mi'e",
+        span: [0,4],
+      },
+      argument: Word {
+        kind: "cmevla",
+        phonemes: "djorden",
+        span: [6,13],
+      },
     },
   ],
 }"""
