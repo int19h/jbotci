@@ -119,6 +119,9 @@ pub(super) fn cmavo_of<'tokens>(
 ) -> BoxedParser<'tokens, WithIndicators<WordLike>> {
     token_matching(label, move |word| {
         texts.iter().any(|text| cmavo_text_matches(word, text))
+            || zantufa_cmavo_words_for(label)
+                .iter()
+                .any(|text| cmavo_text_matches(word, text))
     })
 }
 
@@ -290,7 +293,93 @@ fn feature_required_for_cmavo(
         ("LOhOI", "mau'a" | "xau'a") | ("ROI", "ba'oi" | "de'ei" | "xu'au") => {
             Some(DialectFeature::ZantufaCmavo)
         }
+        _ if zantufa_cmavo_words_for(label).contains(&canonical.as_str()) => {
+            Some(DialectFeature::ZantufaCmavo)
+        }
         _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn zantufa_cmavo_words_for(label: &str) -> &'static [&'static str] {
+    match label {
+        "BAI" => &[
+            "be'au", "bu'u'e", "bai'au", "cu'ei", "de'a'u", "dau'a", "dau'o", "dau'u", "ei'ei",
+            "e'u'i", "fau'u", "ga'ei", "ja'au", "ja'oi", "ja'ui", "ji'e'e", "ji'i'a", "ki'ai",
+            "ki'o'e", "ki'u'e", "ki'u'i", "la'ei", "la'ai", "la'o'o", "li'e'e", "li'ei", "mau'i",
+            "mau'u", "mu'ei", "ma'ei", "mu'oi", "mu'ai", "ne'a'i", "ni'i'i", "pa'a'i", "pe'a'i",
+            "pu'i'a", "pu'i'i", "pu'e'i", "pu'o'i", "rai'e", "ri'i'a", "ri'i'e", "ri'i'i",
+            "ri'i'o", "ri'i'u", "ta'i'a", "ta'i'e", "ta'i'i", "ta'i'o", "ta'i'u", "ta'u'i",
+            "te'ai", "ti'i'a", "ti'u'a", "ti'u'i", "ti'u'u", "tu'i'a", "tu'i'e", "tu'i'i",
+            "tu'i'o", "tu'i'u", "va'o'i", "xu'ai", "zau'a", "zau'e", "zau'i", "zau'o", "zau'u",
+            "zu'ai",
+        ],
+        "BY" => &[
+            "a", "e", "i", "o", "u", "cau'e", "cau'i", "dau'e", "dau'i", "dai'a", "dai'e", "dai'i",
+            "dai'o", "dai'u", "dai'y", "fau'a", "fau'e", "fau'i", "fau'o", "fau'u", "gai'a",
+            "gai'e", "gai'i", "gai'o", "gai'u", "jau'a", "jau'e", "jau'i", "jau'o", "jau'u",
+            "kau'a", "kau'e", "kau'i", "kau'o", "kau'u", "joi'o", "joi'u",
+        ],
+        "COI" => &[
+            "mi'ei", "pe'ei", "pei'e", "fei'e", "jei'e", "gau'i", "re'ei", "xu'ei",
+        ],
+        "CUhE" => &["ba'au", "pu'au"],
+        "DAhO" => &["dai'o", "do'ai"],
+        "DOI" => &["da'ei"],
+        "FAhA" => &["du'oi", "zu'au"],
+        "GOI" => &["voi'e"],
+        "GOhA" => &["bo'ei", "cei'i", "gai'o", "ta'ai", "xe'u", "ze'oi"],
+        "JAI" => &["ja'ei", "jo'ai"],
+        "JOI" => &[
+            "je'au", "jei'i", "jei'o", "jo'au", "joi'e", "jo'u'u", "jau'u", "jo'i'a",
+        ],
+        "KOhA" => &[
+            "da'ei", "dei'a", "di'ei", "fo'e", "fo'i", "fo'o", "fo'u", "fo'a", "fo'ai", "ki'o'a",
+            "ki'e'a", "ki'i'a", "ki'u'a", "ki'a'a", "ma'oi", "ma'au", "ma'ei", "mo'i", "mo'o",
+            "mo'u", "mi'au", "rau'i", "ra'ai", "ro'ei", "se'e", "so'ai", "ti'au", "to'o'e",
+            "tu'au", "zo'ei",
+        ],
+        "LAhE" => &[
+            "loi'e", "loi'i", "me'o'e", "pi'ei", "poi'ei", "po'oi", "te'oi", "voi'e",
+        ],
+        "LE" => &["la'ei", "le'ei", "lo'ei", "me'ei", "ri'oi", "zo'au"],
+        "LI" => &["bo'ai", "li'ai", "li'ei", "mai'o"],
+        "LU" => &["la'au", "tu'ai"],
+        "ME" => &["xo'i"],
+        "MOhE" => &["boi'au"],
+        "MOI" => &["moi'o"],
+        "NAhE" => &["de'ai", "no'ei"],
+        "NOI" => &["no'oi", "po'oi", "voi'i"],
+        "NU" => &[
+            "ja'oi", "ka'ai", "kai'ai", "ki'i", "pai'e", "su'ai", "za'ai",
+        ],
+        "PA" => &[
+            "xo'ai", "du'ei", "fai'u", "me'ei", "so'ai", "so'ei", "so'oi", "xai'e", "xau'e",
+            "xo'ai", "xoi'i", "xo'u", "za'ai",
+        ],
+        "ROI" => &["ba'oi", "de'ei", "xu'au"],
+        "SE" => &["de'ai", "na'oi"],
+        "SEI" => &["sai'e", "sei'e", "soi'e", "su'oi"],
+        "SEhU" => &["xe'au"],
+        "TO" => &["mau'e", "noi'i"],
+        "TOI" => &["ge'u'i", "mau'o"],
+        "UI" | "UI3a" => &[
+            "a'ai", "au'au", "ba'ei", "bu'ei", "cu'ei", "e'ei", "ei'ai", "fa'ai", "ga'i'i",
+            "ga'u'i", "ge'ai", "ia'au", "i'au", "i'ei", "i'i'i", "ja'o'e", "ja'o'o", "ji'ai",
+            "ji'ei", "ji'o'e", "ji'o'o", "ki'ai", "ke'i'ai", "la'ei", "la'oi", "le'o'e", "ma'ai",
+            "mu'ei", "ni'ei", "no'oi", "oi'oi", "po'ai", "sai'i", "sei'a", "sei'i", "so'a'u",
+            "so'ei", "su'ei", "u'oi", "u'o'e", "u'oi", "u'o'i", "u'o'o", "u'o'u", "ui'ai", "vai'e",
+            "xau'a", "xau'e", "xau'i", "xau'o", "xau'u", "xe'i'a", "xe'i'e", "xe'i'i", "xe'i'o",
+            "xe'i'u", "za'ei", "za'o'a", "zo'oi",
+        ],
+        "VUhU" => &[
+            "de'o'a", "fe'a'a", "fe'a'e", "fe'a'i", "fe'a'o", "gei'a", "pi'ai", "sa'i'a",
+        ],
+        "XI" => &["fau'e", "xi'e", "xi'i"],
+        "Y" => &["ie'o"],
+        "ZOhU" => &["ge'ai", "ke'au"],
+        _ => &[],
     }
 }
 
@@ -351,6 +440,9 @@ fn experimental_construct_for_cmavo(
         ("LOhOI", "lo'oi") => Some(ExperimentalConstruct::ExperimentalLohOiBridiDescription),
         ("LOhOI", "mau'a" | "xau'a") => Some(ExperimentalConstruct::ExperimentalZantufaCmavo),
         ("ROI", "ba'oi" | "de'ei" | "xu'au") => {
+            Some(ExperimentalConstruct::ExperimentalZantufaCmavo)
+        }
+        _ if zantufa_cmavo_words_for(label).contains(&canonical.as_str()) => {
             Some(ExperimentalConstruct::ExperimentalZantufaCmavo)
         }
         ("cmavo", "fi'oi") => Some(ExperimentalConstruct::ExperimentalFihoiAdverbial),
