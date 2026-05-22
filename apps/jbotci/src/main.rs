@@ -1217,6 +1217,7 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
             assert!(output.contains("\x1b[94mPredicate\x1b[39m"));
             assert!(output.contains("\x1b[33m\"mi\"\x1b[39m"));
+            assert!(output.contains(&colorize_json("[0,2]", true)));
         });
     }
 
