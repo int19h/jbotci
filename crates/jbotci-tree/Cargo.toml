@@ -1,0 +1,26 @@
+[package]
+name = "jbotci-tree"
+description = "Generic ordered tree traversal utilities for jbotci model crates."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+expensive_contracts = []
+
+[dependencies]
+bityzba.workspace = true
+jbotci-tree-macros.workspace = true
+
+[dev-dependencies]
+smallvec.workspace = true
+vec1.workspace = true
+
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
+
+[lints]
+workspace = true
