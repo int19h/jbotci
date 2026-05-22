@@ -508,6 +508,30 @@ mod tests {
         });
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gates_zantufa_initial_gi_gek() {
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("gi je mi klama gi do klama")
+                .expect("valid morphology");
+
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
+                .expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let parsed = parse_syntax_tree(&words, &options).expect("valid Zantufa GI GEK");
+
+            assert!(
+                parsed
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaGek)
+            );
+        });
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn run_on_large_stack(test: impl FnOnce() + Send + 'static) {

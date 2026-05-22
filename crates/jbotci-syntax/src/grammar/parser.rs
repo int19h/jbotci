@@ -4387,7 +4387,35 @@ fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyn
             let extra = [Some(gi), bo].into_iter().flatten().collect::<Vec<_>>();
             append_connective_words(connective, extra)
         });
-    choice((ga, joik_gi, modal_gi)).boxed()
+    let zantufa_initial_gi = feature_cmavo("GI", "gi", DialectFeature::ZantufaConnectives)
+        .map_with(
+            |gi, extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+                extra
+                    .state()
+                    .warn(ExperimentalConstruct::ExperimentalZantufaGek, &gi);
+                gi
+            },
+        )
+        .then(
+            choice((
+                joik_connective().map(connective_tense_modal_leaves),
+                jek_connective().map(connective_tense_modal_leaves),
+                tense_modal().map(|tense_modal| {
+                    let mut words = Vec::new();
+                    tense_modal.extend_words_into(&mut words);
+                    words
+                }),
+            ))
+            .boxed(),
+        )
+        .then(cmavo("bo").or_not())
+        .map(|((gi, mut tail_words), bo)| {
+            let mut cmavo = vec![gi];
+            cmavo.append(&mut tail_words);
+            cmavo.extend(bo);
+            connective_syntax(ConnectiveKind::Forethought, None, None, None, cmavo, None)
+        });
+    choice((ga, zantufa_initial_gi, joik_gi, modal_gi)).boxed()
 }
 
 #[requires(true)]
