@@ -5,8 +5,9 @@ use bityzba::{ensures, invariant, requires};
 use jbotci_morphology::{TreeNode as MorphologyTreeNode, Word, WordKind, WordLike};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::WithIndicators;
-use jbotci_syntax::ast::TextSyntax;
-use jbotci_syntax::tree::{SyntaxTree, SyntaxTreeValue};
+use jbotci_syntax::ast::{
+    AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax, TreeNode as SyntaxAstTreeNode,
+};
 use jbotci_tree::{FieldRef, TreeVisitor};
 
 use crate::{OutputError, TreeRenderOptions};
@@ -45,13 +46,10 @@ enum TreeValue {
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
 pub(crate) fn pretty_tree_with_options(
     tree: &TextSyntax,
-    source: &str,
+    _source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
-    let value = tree.syntax_tree_value().ok_or_else(|| {
-        OutputError::InvalidSyntaxTree("syntax tree did not produce a root value".to_owned())
-    })?;
-    let value = collapse_value(syntax_tree_value(value, source));
+    let value = collapse_value(syntax_tree_value(tree));
     let mut renderer = TreeRenderer {
         color: options.color,
         indent_step: options.indent,
@@ -78,32 +76,6 @@ pub(crate) fn pretty_morphology_tree_with_options(
     };
     renderer.render_value(&value, 0);
     Ok(renderer.output)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_tree_value(value: SyntaxTreeValue, source: &str) -> TreeValue {
-    match value {
-        SyntaxTreeValue::Node(node) => TreeValue::Node(TreeNode {
-            constructor: node.constructor,
-            entries: node
-                .entries
-                .into_iter()
-                .map(|entry| TreeEntry {
-                    label: entry.label,
-                    value: syntax_tree_value(entry.value, source),
-                })
-                .collect(),
-        }),
-        SyntaxTreeValue::Collection(items) => TreeValue::Collection(
-            items
-                .into_iter()
-                .map(|item| syntax_tree_value(item, source))
-                .collect(),
-        ),
-        SyntaxTreeValue::Word(word) => with_indicators_tree_value(&word),
-        SyntaxTreeValue::Text(text) => TreeValue::Text(text),
-    }
 }
 
 #[requires(true)]
@@ -165,6 +137,182 @@ fn morphology_tree_value(word_like: &WordLike) -> TreeValue {
     let mut visitor = MorphologyTreeBuilder::default();
     word_like.visit_in_order(&mut visitor);
     visitor.finish()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_tree_value(tree: &TextSyntax) -> TreeValue {
+    let mut visitor = SyntaxTreeBuilder::default();
+    tree.visit_in_order(&mut visitor);
+    visitor.finish()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+enum SyntaxFrame {
+    Node {
+        constructor: &'static str,
+        entries: Vec<TreeEntry>,
+    },
+    Field {
+        name: Option<&'static str>,
+        primary: bool,
+        values: Vec<TreeValue>,
+    },
+    Collection {
+        items: Vec<TreeValue>,
+    },
+}
+
+#[derive(Debug, Default)]
+#[invariant(true)]
+struct SyntaxTreeBuilder {
+    stack: Vec<SyntaxFrame>,
+    root: Option<TreeValue>,
+}
+
+impl SyntaxTreeBuilder {
+    #[requires(true)]
+    #[ensures(true)]
+    fn finish(self) -> TreeValue {
+        self.root.expect("syntax tree walk produced a root")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_value(&mut self, value: TreeValue) {
+        match self.stack.last_mut() {
+            Some(SyntaxFrame::Field { values, .. }) => values.push(value),
+            Some(SyntaxFrame::Collection { items }) => items.push(value),
+            Some(SyntaxFrame::Node { entries, .. }) => {
+                entries.push(TreeEntry { label: None, value })
+            }
+            None => self.root = Some(value),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_labelled_entry_to_nearest_node(&mut self, label: &'static str, value: TreeValue) {
+        for frame in self.stack.iter_mut().rev() {
+            if let SyntaxFrame::Node { entries, .. } = frame {
+                entries.push(TreeEntry {
+                    label: Some(label),
+                    value,
+                });
+                return;
+            }
+        }
+        panic!("syntax tree labelled field has no containing node");
+    }
+}
+
+impl<'tree> TreeVisitor<'tree> for SyntaxTreeBuilder {
+    type Node = SyntaxNodeRef<'tree>;
+    type Atom = SyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        self.stack.push(SyntaxFrame::Node {
+            constructor: syntax_constructor_name(node.constructor_name()),
+            entries: Vec::new(),
+        });
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_node(&mut self, _node: Self::Node) {
+        let Some(SyntaxFrame::Node {
+            constructor,
+            entries,
+        }) = self.stack.pop()
+        else {
+            panic!("syntax tree walker exited a node without entering it");
+        };
+        self.push_value(TreeValue::Node(TreeNode {
+            constructor,
+            entries,
+        }));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_field(&mut self, field: FieldRef) {
+        self.stack.push(SyntaxFrame::Field {
+            name: field.name,
+            primary: field.primary,
+            values: Vec::new(),
+        });
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_field(&mut self, _field: FieldRef) {
+        let Some(SyntaxFrame::Field {
+            name,
+            primary,
+            values,
+        }) = self.stack.pop()
+        else {
+            panic!("syntax tree walker exited a field without entering it");
+        };
+        if values.is_empty() {
+            return;
+        }
+        if primary || name.is_none() {
+            for value in values {
+                match value {
+                    TreeValue::Collection(items) => {
+                        for value in items {
+                            self.push_value(value);
+                        }
+                    }
+                    value => self.push_value(value),
+                }
+            }
+        } else {
+            let value = if values.len() == 1 {
+                values.into_iter().next().expect("length checked")
+            } else {
+                TreeValue::Collection(values)
+            };
+            self.push_labelled_entry_to_nearest_node(name.expect("checked above"), value);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_sequence(&mut self) {
+        self.stack
+            .push(SyntaxFrame::Collection { items: Vec::new() });
+    }
+
+    #[requires(matches!(self.stack.last(), Some(SyntaxFrame::Collection { .. })))]
+    #[ensures(true)]
+    fn exit_sequence(&mut self) {
+        let Some(SyntaxFrame::Collection { items }) = self.stack.pop() else {
+            panic!("syntax tree walker exited a collection without entering it");
+        };
+        if !items.is_empty() {
+            self.push_value(TreeValue::Collection(items));
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        self.push_value(match atom {
+            SyntaxAtomRef::WithIndicatorsWordLike(word) => with_indicators_tree_value(word),
+            SyntaxAtomRef::Word(word) => word_tree_value(word),
+        });
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.ends_with("Syntax"))]
+fn syntax_constructor_name(constructor: &'static str) -> &'static str {
+    constructor.strip_suffix("Syntax").unwrap_or(constructor)
 }
 
 #[requires(true)]
