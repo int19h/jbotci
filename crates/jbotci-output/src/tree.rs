@@ -158,6 +158,7 @@ enum SyntaxFrame {
         name: Option<&'static str>,
         primary: bool,
         values: Vec<TreeValue>,
+        nested_entries: Vec<TreeEntry>,
     },
     Collection {
         items: Vec<TreeValue>,
@@ -195,15 +196,65 @@ impl SyntaxTreeBuilder {
     #[ensures(true)]
     fn push_labelled_entry_to_nearest_node(&mut self, label: &'static str, value: TreeValue) {
         for frame in self.stack.iter_mut().rev() {
-            if let SyntaxFrame::Node { entries, .. } = frame {
-                entries.push(TreeEntry {
-                    label: Some(label),
-                    value,
-                });
-                return;
+            match frame {
+                SyntaxFrame::Field { nested_entries, .. } => {
+                    nested_entries.push(TreeEntry {
+                        label: Some(label),
+                        value,
+                    });
+                    return;
+                }
+                SyntaxFrame::Node { entries, .. } => {
+                    entries.push(TreeEntry {
+                        label: Some(label),
+                        value,
+                    });
+                    return;
+                }
+                SyntaxFrame::Collection { .. } => {}
             }
         }
         panic!("syntax tree labelled field has no containing node");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_values_in_order(&mut self, values: Vec<TreeValue>) {
+        for value in values {
+            match value {
+                TreeValue::Collection(items) => {
+                    for value in items {
+                        self.push_value(value);
+                    }
+                }
+                value => self.push_value(value),
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_entries_in_order(&mut self, entries: Vec<TreeEntry>) {
+        for entry in entries {
+            match entry.label {
+                Some(label) => self.push_labelled_entry_to_nearest_node(label, entry.value),
+                None => self.push_value(entry.value),
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_labelled_field_value(&mut self, label: &'static str, values: Vec<TreeValue>) {
+        if values.is_empty() {
+            return;
+        }
+        let value = if values.len() == 1 {
+            values.into_iter().next().expect("length checked")
+        } else {
+            TreeValue::Collection(values)
+        };
+        self.push_labelled_entry_to_nearest_node(label, value);
     }
 }
 
@@ -243,6 +294,7 @@ impl<'tree> TreeVisitor<'tree> for SyntaxTreeBuilder {
             name: field.name,
             primary: field.primary,
             values: Vec::new(),
+            nested_entries: Vec::new(),
         });
     }
 
@@ -253,32 +305,20 @@ impl<'tree> TreeVisitor<'tree> for SyntaxTreeBuilder {
             name,
             primary,
             values,
+            nested_entries,
         }) = self.stack.pop()
         else {
             panic!("syntax tree walker exited a field without entering it");
         };
-        if values.is_empty() {
+        if values.is_empty() && nested_entries.is_empty() {
             return;
         }
         if primary || name.is_none() {
-            for value in values {
-                match value {
-                    TreeValue::Collection(items) => {
-                        for value in items {
-                            self.push_value(value);
-                        }
-                    }
-                    value => self.push_value(value),
-                }
-            }
+            self.push_values_in_order(values);
         } else {
-            let value = if values.len() == 1 {
-                values.into_iter().next().expect("length checked")
-            } else {
-                TreeValue::Collection(values)
-            };
-            self.push_labelled_entry_to_nearest_node(name.expect("checked above"), value);
+            self.push_labelled_field_value(name.expect("checked above"), values);
         }
+        self.push_entries_in_order(nested_entries);
     }
 
     #[requires(true)]
