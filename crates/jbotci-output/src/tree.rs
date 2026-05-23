@@ -1096,18 +1096,20 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn colorizes_visible_span_markers_with_white_offsets() {
-        let words = segment_words_with_modifiers("mi klama").expect("morphology");
-        let parsed = parse_syntax_tree(&words).expect("syntax");
-        let output = pretty_tree_with_options(
-            &parsed.parse_tree,
-            "mi klama",
-            TreeRenderOptions {
-                color: true,
-                show_spans: true,
-                ..TreeRenderOptions::default()
-            },
-        )
-        .expect("tree render");
+        let output = run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("mi klama").expect("morphology");
+            let parsed = parse_syntax_tree(&words).expect("syntax");
+            pretty_tree_with_options(
+                &parsed.parse_tree,
+                "mi klama",
+                TreeRenderOptions {
+                    color: true,
+                    show_spans: true,
+                    ..TreeRenderOptions::default()
+                },
+            )
+            .expect("tree render")
+        });
 
         assert!(output.contains(
             "\x1b[90m@\x1b[39m\x1b[90m[\x1b[39m\x1b[37m0\x1b[39m\x1b[90m‥\x1b[39m\x1b[37m8\x1b[39m\x1b[90m)\x1b[39m"
@@ -1153,38 +1155,54 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn renders_single_line_when_indent_is_zero() {
-        let words = segment_words_with_modifiers("mi klama").expect("morphology");
-        let parsed = parse_syntax_tree(&words).expect("syntax");
-        let output = pretty_tree_with_options(
-            &parsed.parse_tree,
-            "mi klama",
-            TreeRenderOptions {
-                color: false,
-                indent: 0,
-                ..TreeRenderOptions::default()
-            },
-        )
-        .expect("tree render");
-        assert_eq!(
-            output,
-            r#"Predicate{leading_terms:[Cmavo "mi"],Gismu "kláma"}"#
-        );
+        run_on_large_stack(|| {
+            let words = segment_words_with_modifiers("mi klama").expect("morphology");
+            let parsed = parse_syntax_tree(&words).expect("syntax");
+            let output = pretty_tree_with_options(
+                &parsed.parse_tree,
+                "mi klama",
+                TreeRenderOptions {
+                    color: false,
+                    indent: 0,
+                    ..TreeRenderOptions::default()
+                },
+            )
+            .expect("tree render");
+            assert_eq!(
+                output,
+                r#"Predicate{leading_terms:[Cmavo "mi"],Gismu "kláma"}"#
+            );
+        });
     }
 
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     fn render(text: &str, color: bool) -> String {
-        let words = segment_words_with_modifiers(text).expect("morphology");
-        let parsed = parse_syntax_tree(&words).expect("syntax");
-        pretty_tree_with_options(
-            &parsed.parse_tree,
-            text,
-            TreeRenderOptions {
-                color,
-                indent: 2,
-                ..TreeRenderOptions::default()
-            },
-        )
-        .expect("tree render")
+        let text = text.to_owned();
+        run_on_large_stack(move || {
+            let words = segment_words_with_modifiers(&text).expect("morphology");
+            let parsed = parse_syntax_tree(&words).expect("syntax");
+            pretty_tree_with_options(
+                &parsed.parse_tree,
+                &text,
+                TreeRenderOptions {
+                    color,
+                    indent: 2,
+                    ..TreeRenderOptions::default()
+                },
+            )
+            .expect("tree render")
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn run_on_large_stack<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
+        std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(f)
+            .expect("spawn large-stack output test")
+            .join()
+            .expect("large-stack output test thread")
     }
 }

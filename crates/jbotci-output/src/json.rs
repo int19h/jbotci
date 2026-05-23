@@ -584,18 +584,31 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn syntax_tree_json_matches_existing_compact_shape() {
-        for text in [
-            "mi klama",
-            ".ui mi klama",
-            "mi klama to coi toi",
-            "ba'e mi ui nai klama",
-        ] {
-            let words = segment_words_with_modifiers(text).expect("morphology");
-            let parsed = parse_syntax_tree(&words).expect("syntax");
-            assert_eq!(
-                syntax_json_value(&parsed.parse_tree, PhonemeRenderOptions::default()),
-                compact_json_value(&parsed.parse_tree).expect("serde compact JSON")
-            );
-        }
+        run_on_large_stack(|| {
+            for text in [
+                "mi klama",
+                ".ui mi klama",
+                "mi klama to coi toi",
+                "ba'e mi ui nai klama",
+            ] {
+                let words = segment_words_with_modifiers(text).expect("morphology");
+                let parsed = parse_syntax_tree(&words).expect("syntax");
+                assert_eq!(
+                    syntax_json_value(&parsed.parse_tree, PhonemeRenderOptions::default()),
+                    compact_json_value(&parsed.parse_tree).expect("serde compact JSON")
+                );
+            }
+        });
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn run_on_large_stack(f: impl FnOnce() + Send + 'static) {
+        std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(f)
+            .expect("spawn large-stack JSON output test")
+            .join()
+            .expect("large-stack JSON output test thread");
     }
 }
